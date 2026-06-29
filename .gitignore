@@ -1,0 +1,33 @@
+# Python
+backend/.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+backend/.env
+
+# Node / Vite
+frontend/node_modules/
+frontend/dist/
+frontend/dev-dist/
+*.local
+
+# Ephemeris data (large binary files, fetched separately)
+backend/ephe/
+*.se1
+
+# Telemetry database (local instance data, not committed)
+backend/data/*.db
+backend/data/*.db-shm
+backend/data/*.db-wal
+
+# OS / editor
+.DS_Store
+*.swp
+.idea/
+.vscode/
+
+# Local reports and journals (not source code)
+oracle_report_*.txt
+GROK_FEEDBACK_REPORT.md
+journal/
+TASKS.md

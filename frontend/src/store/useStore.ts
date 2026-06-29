@@ -1,0 +1,277 @@
+// store/useStore.ts — central Zustand state for the observatory.
+import { create } from "zustand";
+import {
+  aiAsk,
+  aiAskStream,
+  aiSuggestions,
+  checkEntitlement,
+  fetchTransits,
+  generateChart,
+  getTreasury,
+  verifyDonation,
+  type AIResult,
+  type Treasury,
+} from "../api/client";
+
+const ENT_KEY = "aae.entitlement";
+import type {
+  BirthInput,
+  ChartResponse,
+  Lens,
+  LayerState,
+  Selection,
+  TransitResponse,
+} from "../types";
+import { trackEvent } from "../api/client";
+
+// Default chart — preloaded so the observatory is never empty on first visit.
+export const DEFAULT_BIRTH: BirthInput = {
+  year: 1879,
+  month: 3,
+  day: 14,
+  hour: 11,
+  minute: 30,
+  second: 0,
+  lat: 48.4011,
+  lng: 9.9876,
+  tz_offset: 0.67,
+  house_system: "P",
+  zodiac: "tropical",
+  ayanamsha: 1,
+  label: "",
+};
+
+interface AstroState {
+  // Inputs
+  birth: BirthInput;
+  lens: Lens;
+  layers: LayerState;
+
+  // Data
+  chart: ChartResponse | null;
+  transit: TransitResponse | null;
+  transitIso: string; // ISO datetime for the slider
+
+  // UI
+  selection: Selection | null;
+  hovered: Selection | null;
+  loading: boolean;
+  error: string | null;
+  autoSpeak: boolean; // read each new interpretation aloud automatically
+
+  // AI
+  aiResult: AIResult | null;
+  aiLoading: boolean;
+  aiStreaming: boolean;
+
+  // Monetization / open paywall
+  entitlement: string | null; // supporter token (persisted)
+  isSupporter: boolean;
+  treasury: Treasury | null;
+  supportOpen: boolean; // is the Support modal visible
+
+  // Actions
+  setBirth: (b: Partial<BirthInput>) => void;
+  setLens: (l: Lens) => void;
+  toggleLayer: (k: keyof LayerState) => void;
+  select: (s: Selection | null) => void;
+  hover: (s: Selection | null) => void;
+  setTransitIso: (iso: string) => void;
+  toggleAutoSpeak: () => void;
+
+  generate: () => Promise<void>;
+  loadTransit: (iso: string) => Promise<void>;
+  ask: (query: string, depth?: "quick" | "deep") => Promise<void>;
+  suggest: () => Promise<void>;
+
+  openSupport: (open: boolean) => void;
+  loadTreasury: () => Promise<void>;
+  redeemDonation: (txHash: string, chain?: string) => Promise<boolean>;
+  clearEntitlement: () => void;
+  validateEntitlement: () => Promise<void>;
+}
+
+const EMPTY_RESULT: AIResult = {
+  interpretation: "",
+  source: "llm",
+  model: "",
+  provider: undefined,
+};
+
+export const useStore = create<AstroState>((set, get) => ({
+  birth: DEFAULT_BIRTH,
+  lens: "psychological",
+  layers: {
+    zodiac: true,
+    houses: true,
+    planets: true,
+    aspects: true,
+    transits: false,
+    minorAspects: false,
+  },
+
+  chart: null,
+  transit: null,
+  transitIso: new Date().toISOString().slice(0, 16),
+
+  selection: null,
+  hovered: null,
+  loading: false,
+  error: null,
+  autoSpeak: false,
+
+  aiResult: null,
+  aiLoading: false,
+  aiStreaming: false,
+
+  entitlement: localStorage.getItem(ENT_KEY),
+  isSupporter: !!localStorage.getItem(ENT_KEY),
+  treasury: null,
+  supportOpen: false,
+
+  setBirth: (b) => set((s) => ({ birth: { ...s.birth, ...b } })),
+  setLens: (lens) => { set({ lens }); trackEvent("lens_changed", { lens }); },
+  toggleLayer: (k) =>
+    set((s) => ({ layers: { ...s.layers, [k]: !s.layers[k] } })),
+  select: (selection) => {
+    set({ selection, aiResult: null });
+    if (selection) trackEvent("element_selected", { type: selection.type, id: selection.id });
+  },
+  hover: (hovered) => set({ hovered }),
+  setTransitIso: (transitIso) => set({ transitIso }),
+  toggleAutoSpeak: () => set((s) => ({ autoSpeak: !s.autoSpeak })),
+
+  generate: async () => {
+    set({ loading: true, error: null });
+    try {
+      const chart = await generateChart(get().birth);
+      set({ chart, loading: false, selection: null, transit: null });
+    } catch (e) {
+      set({ loading: false, error: (e as Error).message });
+    }
+  },
+
+  loadTransit: async (iso) => {
+    set({ transitIso: iso });
+    try {
+      const transit = await fetchTransits(get().birth, new Date(iso).toISOString());
+      set({ transit });
+    } catch (e) {
+      set({ error: (e as Error).message });
+    }
+  },
+
+  ask: async (query, depth = "quick") => {
+    const { chart, lens, selection, isSupporter, entitlement } = get();
+    if (!chart) return;
+    // Open-paywall gate: deep readings ask for support, but never hard-block.
+    if (depth === "deep" && !isSupporter) {
+      set({ supportOpen: true });
+      return;
+    }
+    set({ aiLoading: true, aiStreaming: true, aiResult: null });
+    let acc = "";
+    let meta: Partial<AIResult> = {};
+    try {
+      await aiAskStream(query, chart, lens, selection, depth, {
+        onMeta: (m) => {
+          meta = { provider: m.provider as AIResult["provider"], model: m.model };
+          set({ aiResult: { ...EMPTY_RESULT, ...meta } });
+        },
+        onChunk: (t) => {
+          acc += t;
+          // First token arrived — drop the spinner, show streaming text.
+          set((s) => ({
+            aiLoading: false,
+            aiResult: { ...EMPTY_RESULT, ...meta, ...s.aiResult, interpretation: acc },
+          }));
+        },
+        onDone: (d) => {
+          set({
+            aiResult: {
+              ...EMPTY_RESULT,
+              ...meta,
+              ...d,
+              interpretation: acc || (d.interpretation ?? ""),
+            } as AIResult,
+            aiStreaming: false,
+            aiLoading: false,
+          });
+        },
+        onError: (msg) => set({ error: msg, aiStreaming: false, aiLoading: false }),
+      }, entitlement);
+    } catch (e) {
+      // 402 means supporter gate — open the modal rather than surfacing a raw error.
+      if ((e as Error).message.includes("402")) {
+        set({ aiLoading: false, aiStreaming: false, supportOpen: true });
+        return;
+      }
+      // Network/abort — fall back to the non-streaming endpoint once.
+      try {
+        const aiResult = await aiAsk(query, chart, lens, selection, depth, entitlement);
+        set({ aiResult, aiLoading: false, aiStreaming: false });
+      } catch (e2) {
+        const msg = (e2 as Error).message;
+        if (msg.includes("402")) {
+          set({ aiLoading: false, aiStreaming: false, supportOpen: true });
+        } else {
+          set({ aiLoading: false, aiStreaming: false, error: msg });
+        }
+      }
+    }
+  },
+
+  suggest: async () => {
+    const { chart, lens } = get();
+    if (!chart) return;
+    set({ aiLoading: true, aiResult: null });
+    try {
+      const aiResult = await aiSuggestions(chart, lens);
+      set({ aiResult, aiLoading: false });
+    } catch (e) {
+      set({ aiLoading: false, error: (e as Error).message });
+    }
+  },
+
+  openSupport: (open) => { set({ supportOpen: open }); if (open) trackEvent("support_opened"); },
+
+  loadTreasury: async () => {
+    try {
+      set({ treasury: await getTreasury() });
+    } catch (e) {
+      set({ error: (e as Error).message });
+    }
+  },
+
+  redeemDonation: async (txHash, chain = "evm") => {
+    try {
+      const { entitlement } = await verifyDonation(txHash, chain);
+      localStorage.setItem(ENT_KEY, entitlement.token);
+      set({ entitlement: entitlement.token, isSupporter: true, supportOpen: false });
+      return true;
+    } catch (e) {
+      set({ error: (e as Error).message });
+      return false;
+    }
+  },
+
+  clearEntitlement: () => {
+    localStorage.removeItem(ENT_KEY);
+    set({ entitlement: null, isSupporter: false });
+  },
+
+  validateEntitlement: async () => {
+    const { entitlement } = get();
+    if (!entitlement) return;
+    try {
+      const status = await checkEntitlement(entitlement);
+      if (!status.supporter) {
+        // Token expired or revoked — clear it so the UI reflects reality.
+        localStorage.removeItem(ENT_KEY);
+        set({ entitlement: null, isSupporter: false });
+      }
+    } catch {
+      // Network failure — leave the stored token alone; it's verified next time.
+    }
+  },
+}));

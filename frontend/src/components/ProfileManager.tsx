@@ -1,0 +1,161 @@
+// ProfileManager.tsx — localStorage-based saved chart profiles.
+import React, { useState } from "react";
+import { useStore } from "../store/useStore";
+import type { BirthInput } from "../types";
+
+export interface SavedProfile {
+  id: string;
+  name: string;
+  birth: BirthInput;
+  createdAt: string;
+}
+
+const KEY = "aae.profiles";
+
+export const loadProfiles = (): SavedProfile[] => {
+  try {
+    return JSON.parse(localStorage.getItem(KEY) || "[]");
+  } catch {
+    return [];
+  }
+};
+
+const saveAll = (profiles: SavedProfile[]) =>
+  localStorage.setItem(KEY, JSON.stringify(profiles));
+
+const dateStr = (b: BirthInput) =>
+  `${b.month}/${b.day}/${b.year}`;
+
+export const ProfileManager: React.FC<{ onLoad?: () => void }> = ({ onLoad }) => {
+  const birth = useStore((s) => s.birth);
+  const setBirth = useStore((s) => s.setBirth);
+  const generate = useStore((s) => s.generate);
+
+  const [profiles, setProfiles] = useState<SavedProfile[]>(loadProfiles);
+  const [saveName, setSaveName] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState("");
+
+  const save = () => {
+    const name = saveName.trim() || birth.label || `Chart ${profiles.length + 1}`;
+    const entry: SavedProfile = {
+      id: Date.now().toString(36),
+      name,
+      birth: { ...birth, label: name },
+      createdAt: new Date().toISOString(),
+    };
+    const next = [entry, ...profiles].slice(0, 12); // max 12 saved charts
+    saveAll(next);
+    setProfiles(next);
+    setSaveName("");
+    setSaving(false);
+  };
+
+  const load = (p: SavedProfile) => {
+    setBirth(p.birth);
+    generate();
+    onLoad?.();
+  };
+
+  const remove = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const next = profiles.filter((p) => p.id !== id);
+    saveAll(next);
+    setProfiles(next);
+  };
+
+  const startEdit = (p: SavedProfile, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingId(p.id);
+    setEditingName(p.name);
+  };
+
+  const commitEdit = (id: string) => {
+    const name = editingName.trim();
+    if (!name) { setEditingId(null); return; }
+    const next = profiles.map((p) =>
+      p.id === id ? { ...p, name, birth: { ...p.birth, label: name } } : p
+    );
+    saveAll(next);
+    setProfiles(next);
+    setEditingId(null);
+  };
+
+  return (
+    <div className="profile-manager">
+      <h2 className="section">My Charts</h2>
+
+      {saving ? (
+        <div className="profile-save-row">
+          <input
+            className="profile-name-input"
+            placeholder="Name this chart…"
+            value={saveName}
+            onChange={(e) => setSaveName(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && save()}
+            autoFocus
+          />
+          <button className="primary" style={{ width: "auto", padding: "6px 10px", fontSize: 12 }} onClick={save}>
+            Save
+          </button>
+          <button className="ghost" style={{ width: "auto", padding: "6px 8px", fontSize: 12 }} onClick={() => setSaving(false)}>
+            ✕
+          </button>
+        </div>
+      ) : (
+        <button
+          className="ghost"
+          style={{ fontSize: 12, padding: "4px 10px", width: "auto" }}
+          onClick={() => { setSaveName(birth.label || ""); setSaving(true); }}
+        >
+          ↑ Save current chart
+        </button>
+      )}
+
+      {profiles.length > 0 && (
+        <div className="profile-list">
+          {profiles.map((p) => (
+            <div key={p.id} className="profile-item"
+                 onClick={() => editingId !== p.id && load(p)}
+                 title={editingId === p.id ? undefined : `Born ${dateStr(p.birth)}`}>
+              {editingId === p.id ? (
+                <input
+                  className="profile-name-input"
+                  value={editingName}
+                  autoFocus
+                  onChange={(e) => setEditingName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") commitEdit(p.id);
+                    if (e.key === "Escape") setEditingId(null);
+                  }}
+                  onBlur={() => commitEdit(p.id)}
+                  onClick={(e) => e.stopPropagation()}
+                  style={{ flex: 1, fontSize: 12 }}
+                />
+              ) : (
+                <div className="profile-item-name"
+                     onDoubleClick={(e) => startEdit(p, e)}
+                     title="Double-click to rename">
+                  {p.name}
+                </div>
+              )}
+              <div className="profile-item-date">{dateStr(p.birth)}</div>
+              <button
+                className="profile-item-del"
+                onClick={(e) => remove(p.id, e)}
+                title="Remove"
+              >×</button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {profiles.length === 0 && !saving && (
+        <p className="muted" style={{ fontSize: 12, marginTop: 6 }}>
+          No saved charts yet. Cast a chart and save it here.
+        </p>
+      )}
+    </div>
+  );
+};
