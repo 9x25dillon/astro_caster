@@ -1,11 +1,13 @@
 /* theme.css — Dark alchemical / obsidian palette with antique gold + copper. */
 
 :root {
+  --void: #060609;
   --obsidian: #0b0b0f;
   --obsidian-2: #14141b;
   --obsidian-3: #1d1d27;
   --gold: #c9a84c;
   --gold-soft: #e0c578;
+  --gold-bright: #f2dca0;
   --copper: #b87333;
   --sepia: #c9b48a;
   --parchment: #e8dcc0;
@@ -13,12 +15,43 @@
   --rule: #3a3320;
   --danger: #b03a2e;
   --harmonious: #2e86c1;
+  /* Mystic accent — amethyst, woven sparingly alongside gold + copper */
+  --amethyst: #8e7cc3;
+  --amethyst-soft: #b5a8e0;
+
+  /* Reusable luminous shadows */
+  --glow-gold: 0 0 24px rgba(201, 168, 76, 0.22);
+  --glow-gold-strong: 0 0 40px rgba(201, 168, 76, 0.3);
+
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 
   --serif: "EB Garamond", "Cormorant Garamond", Garamond, "Times New Roman", serif;
   --display: "Cormorant Garamond", "EB Garamond", Garamond, serif;
 }
 
 * { box-sizing: border-box; }
+
+/* Selection echoes the gold accent rather than the OS default blue. */
+::selection { background: rgba(201, 168, 76, 0.28); color: var(--gold-bright); }
+
+/* Custom scrollbars — slim, gilt, in keeping with the observatory. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(201, 168, 76, 0.3) transparent;
+}
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(201, 168, 76, 0.35), rgba(184, 115, 51, 0.3));
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(224, 197, 120, 0.55), rgba(201, 168, 76, 0.45));
+  background-clip: padding-box;
+}
 /* Leaflet uses content-box internally */
 .leaflet-container * { box-sizing: content-box; }
 .leaflet-container { font-family: var(--serif); }
@@ -31,19 +64,27 @@ html, body, #root {
   color: var(--parchment);
   font-family: var(--serif);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
-/* Subtle nebula smears — depth behind the starfield canvas */
+/* Subtle nebula smears — depth behind the starfield canvas. The whole field
+   breathes and drifts almost imperceptibly so the sky feels alive. */
 body::before {
   content: "";
   position: fixed;
-  inset: 0;
+  inset: -8%;
   pointer-events: none;
   background-image:
     radial-gradient(ellipse 700px 420px at 18% 22%, rgba(38, 28, 72, 0.18), transparent),
     radial-gradient(ellipse 500px 700px at 82% 72%, rgba(18, 36, 60, 0.14), transparent),
     radial-gradient(ellipse 350px 220px at 62% 8%,  rgba(72, 44, 18, 0.09), transparent);
   z-index: 0;
+  animation: nebulaDrift 48s ease-in-out infinite alternate;
+}
+@keyframes nebulaDrift {
+  0%   { transform: translate3d(0, 0, 0) scale(1); }
+  100% { transform: translate3d(2.5%, -2%, 0) scale(1.06); }
 }
 
 .app {
@@ -81,8 +122,22 @@ body::before {
   letter-spacing: 0.06em;
   font-size: 28px;
   margin: 0;
-  color: var(--gold-soft);
-  text-shadow: 0 0 18px rgba(201, 168, 76, 0.25);
+  /* Gilt gradient text with a slow shimmer sweep across the lettering. */
+  background: linear-gradient(
+    100deg,
+    var(--gold) 0%, var(--gold-soft) 30%,
+    var(--gold-bright) 48%, var(--gold-soft) 66%, var(--gold) 100%
+  );
+  background-size: 220% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 18px rgba(201, 168, 76, 0.28));
+  animation: titleShimmer 9s linear infinite;
+}
+@keyframes titleShimmer {
+  0%   { background-position: 0% center; }
+  100% { background-position: 220% center; }
 }
 .masthead .sub {
   color: var(--ink);
@@ -98,6 +153,11 @@ body::before {
   box-shadow: 0 0 30px rgba(0, 0, 0, 0.5), inset 0 0 1px rgba(201, 168, 76, 0.2);
   padding: 16px;
   overflow: auto;
+  transition: border-color 0.4s var(--ease-out), box-shadow 0.4s var(--ease-out);
+}
+.panel:hover {
+  border-color: rgba(201, 168, 76, 0.28);
+  box-shadow: 0 0 34px rgba(0, 0, 0, 0.55), inset 0 0 1px rgba(201, 168, 76, 0.3);
 }
 
 .controls { grid-area: controls; }
@@ -133,34 +193,65 @@ input, select, button, textarea {
   padding: 7px 9px;
   font-size: 14px;
   width: 100%;
+  transition: border-color 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out);
 }
 input:focus, select:focus, textarea:focus {
   outline: none;
   border-color: var(--gold);
   box-shadow: 0 0 0 2px rgba(201, 168, 76, 0.15);
 }
+input:hover:not(:focus), select:hover:not(:focus), textarea:hover:not(:focus) {
+  border-color: rgba(201, 168, 76, 0.4);
+}
 
 .row { display: flex; gap: 8px; }
 .row > * { flex: 1; }
 
 button.primary {
-  background: linear-gradient(180deg, var(--gold), var(--copper));
+  position: relative;
+  background: linear-gradient(180deg, var(--gold-soft), var(--copper));
   color: #1a1206;
   font-weight: 600;
   letter-spacing: 0.05em;
   cursor: pointer;
   border: none;
-  transition: filter 0.15s ease, transform 0.1s ease;
+  overflow: hidden;
+  transition: filter 0.18s var(--ease-out), transform 0.12s var(--ease-out),
+              box-shadow 0.25s var(--ease-out);
 }
-button.primary:hover { filter: brightness(1.08); }
-button.primary:active { transform: translateY(1px); }
+button.primary:hover {
+  filter: brightness(1.1);
+  box-shadow: var(--glow-gold);
+  transform: translateY(-1px);
+}
+button.primary:active { transform: translateY(1px); filter: brightness(1.02); }
+/* A light sweeps across primary buttons on hover. */
+button.primary::after {
+  content: "";
+  position: absolute;
+  top: 0; left: -60%;
+  width: 45%; height: 100%;
+  background: linear-gradient(100deg, transparent, rgba(255, 248, 224, 0.45), transparent);
+  transform: skewX(-18deg);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+button.primary:hover::after { opacity: 1; animation: sheen 0.9s var(--ease-out); }
+@keyframes sheen { 0% { left: -60%; } 100% { left: 130%; } }
+
 button.ghost {
   background: transparent;
   border: 1px solid var(--rule);
   color: var(--sepia);
   cursor: pointer;
+  transition: border-color 0.2s var(--ease-out), color 0.2s var(--ease-out),
+              background 0.2s var(--ease-out);
 }
-button.ghost:hover { border-color: var(--gold); color: var(--gold-soft); }
+button.ghost:hover {
+  border-color: var(--gold);
+  color: var(--gold-soft);
+  background: rgba(201, 168, 76, 0.05);
+}
 
 .chip {
   display: inline-flex;
@@ -174,8 +265,16 @@ button.ghost:hover { border-color: var(--gold); color: var(--gold-soft); }
   margin: 0 5px 6px 0;
   cursor: pointer;
   background: var(--obsidian-3);
+  transition: border-color 0.2s var(--ease-out), color 0.2s var(--ease-out),
+              background 0.2s var(--ease-out), transform 0.15s var(--ease-spring);
 }
-.chip.active { border-color: var(--gold); color: var(--gold-soft); }
+.chip:hover { border-color: rgba(201, 168, 76, 0.5); color: var(--gold-soft); transform: translateY(-1px); }
+.chip.active {
+  border-color: var(--gold);
+  color: var(--gold-soft);
+  background: rgba(201, 168, 76, 0.1);
+  box-shadow: inset 0 0 12px rgba(201, 168, 76, 0.12);
+}
 
 .layer-toggles { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 
@@ -317,7 +416,9 @@ button.ghost:hover { border-color: var(--gold); color: var(--gold-soft); }
   backdrop-filter: blur(3px);
   display: flex; align-items: center; justify-content: center;
   padding: 20px;
+  animation: overlayIn 0.28s var(--ease-out);
 }
+@keyframes overlayIn { from { opacity: 0; backdrop-filter: blur(0); } to { opacity: 1; } }
 .modal {
   position: relative;
   width: min(560px, 96vw);
@@ -327,6 +428,11 @@ button.ghost:hover { border-color: var(--gold); color: var(--gold-soft); }
   border-radius: 12px;
   box-shadow: 0 0 60px rgba(201, 168, 76, 0.18), inset 0 0 1px rgba(201,168,76,0.3);
   padding: 22px;
+  animation: modalRise 0.36s var(--ease-spring);
+}
+@keyframes modalRise {
+  from { opacity: 0; transform: translateY(16px) scale(0.97); }
+  to   { opacity: 1; transform: none; }
 }
 .modal-close {
   position: absolute; top: 10px; right: 12px;
@@ -356,9 +462,24 @@ button.ghost:hover { border-color: var(--gold); color: var(--gold-soft); }
   padding: 6px 14px; border-radius: 999px;
   border: 1px solid var(--gold); color: var(--gold-soft);
   background: rgba(201,168,76,0.08);
+  transition: background 0.25s var(--ease-out), box-shadow 0.25s var(--ease-out),
+              transform 0.15s var(--ease-spring);
+  animation: pillBreath 4.5s ease-in-out infinite;
 }
-.support-pill:hover { background: rgba(201,168,76,0.16); }
-.support-pill.is-supporter { border-color: var(--copper); color: var(--copper); }
+.support-pill:hover {
+  background: rgba(201,168,76,0.18);
+  box-shadow: var(--glow-gold);
+  transform: translateY(-1px);
+}
+@keyframes pillBreath {
+  0%, 100% { box-shadow: 0 0 0 rgba(201,168,76,0); }
+  50%      { box-shadow: 0 0 16px rgba(201,168,76,0.18); }
+}
+.support-pill.is-supporter {
+  border-color: var(--copper);
+  color: var(--gold-bright);
+  background: linear-gradient(180deg, rgba(184,115,51,0.18), rgba(201,168,76,0.08));
+}
 
 .locked { opacity: 0.85; }
 .lock-badge { font-size: 10px; color: var(--copper); margin-left: 4px; }
@@ -402,20 +523,123 @@ button.ghost:hover { border-color: var(--gold); color: var(--gold-soft); }
 }
 
 /* SVG wheel element styling */
-.sign-ring { transition: fill 0.3s ease; }
+.sign-ring { transition: fill 0.3s ease, fill-opacity 0.3s ease; }
+.sign-ring:hover { fill-opacity: 0.2; }
 .planet-node { cursor: pointer; }
-.planet-glyph { font-family: var(--serif); fill: var(--parchment); user-select: none; }
+.planet-glyph {
+  font-family: var(--serif);
+  fill: var(--parchment);
+  user-select: none;
+  transition: fill 0.2s var(--ease-out);
+}
+/* The glyph group lifts subtly toward the viewer on hover (calm, no overshoot). */
+.planet-node { transition: transform 0.16s var(--ease-out); transform-origin: center; }
+.planet-node:hover { transform: scale(1.12); }
 .planet-node:hover .planet-glyph { fill: var(--gold-soft); }
-.house-label { fill: var(--ink); font-size: 11px; font-family: var(--serif); }
-.sign-glyph { fill: var(--gold); font-size: 18px; }
-.aspect-line { transition: opacity 0.3s ease, stroke-width 0.2s ease; }
+.house-label { fill: var(--ink); font-size: 11px; font-family: var(--serif); transition: fill 0.2s ease; }
+.sign-glyph { fill: var(--gold); font-size: 18px; transition: fill 0.25s ease; }
+.aspect-line {
+  transition: stroke-width 0.22s var(--ease-out), stroke-opacity 0.3s ease;
+  pointer-events: none; /* the wide hit-line carries the hover instead */
+}
+/* Wide, invisible companion line — gives the thin chord a forgiving hit area. */
+.aspect-hit { stroke: transparent; stroke-width: 11; }
+/* Hovering the chord brightens and thickens it with a soft gold bloom. */
+.aspect-chord:hover .aspect-line {
+  stroke-width: 2.8px;
+  stroke-opacity: 1;
+  filter: url(#glow);
+}
 .retro-ring { animation: pulse 1.8s ease-in-out infinite; transform-origin: center; }
 @keyframes pulse { 0%,100% { opacity: 0.25; } 50% { opacity: 0.9; } }
 
+/* ── Planetary influence popover (wheel hover) ────────────────────────────── */
+.wheel-popover {
+  font-family: var(--serif);
+  background: linear-gradient(160deg, rgba(20,20,27,0.98), rgba(11,11,15,0.98));
+  border: 1px solid var(--gold);
+  border-radius: 10px;
+  padding: 9px 12px 10px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.6), 0 0 0 1px rgba(142,124,195,0.12),
+              inset 0 0 18px rgba(201,168,76,0.05);
+  /* Calm fade — keyed remount in JSX replays this cleanly on each new hover
+     instead of the card teleporting between targets. */
+  animation: popoverIn 0.16s var(--ease-out) both;
+}
+@keyframes popoverIn {
+  from { opacity: 0; transform: translateY(3px); }
+  to   { opacity: 1; transform: none; }
+}
+.wheel-popover-head {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  margin-bottom: 3px;
+}
+.wheel-popover-glyph { font-size: 17px; color: var(--gold); line-height: 1; }
+.wheel-popover-name {
+  font-family: var(--display);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--gold-soft);
+  letter-spacing: 0.03em;
+}
+.wheel-popover-rx { font-size: 12px; color: var(--copper); margin-left: 2px; }
+.wheel-popover-pos {
+  font-size: 11px;
+  color: var(--amethyst-soft);
+  letter-spacing: 0.03em;
+  margin-bottom: 6px;
+}
+.wheel-popover-blurb {
+  font-size: 12.5px;
+  color: var(--parchment);
+  line-height: 1.5;
+}
+/* Supporter-tier personal insert drawn from the user's own chart. */
+.wheel-popover-personal {
+  margin-top: 7px;
+  padding-top: 7px;
+  border-top: 1px dotted rgba(201,168,76,0.22);
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--gold-soft);
+}
+.wheel-popover-personal.locked {
+  color: var(--ink);
+  font-style: italic;
+  letter-spacing: 0.02em;
+}
+
+/* ── Accessibility: honour reduced-motion preferences ─────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+  .masthead h1 { animation: none; }
+  body::before { animation: none; }
+}
+
 /* ── Oracle Modal ─────────────────────────────────────────────────────────── */
+/* The Oracle is the app's most esoteric surface — here the amethyst accent is
+   woven through the border, header, and tab indicators alongside the gold. */
 .oracle-modal {
   width: min(680px, 96vw);
   max-height: 90vh;
+  border-color: var(--amethyst);
+  box-shadow: 0 0 60px rgba(142,124,195,0.2),
+              0 0 90px rgba(201,168,76,0.1),
+              inset 0 0 1px rgba(181,168,224,0.4);
+}
+/* A faint amethyst→gold aura glows above the modal's title. */
+.oracle-modal .section {
+  background: linear-gradient(100deg, var(--amethyst-soft), var(--gold-soft) 70%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  border-bottom-color: rgba(142,124,195,0.35);
 }
 
 .oracle-tabs {
@@ -437,10 +661,17 @@ button.ghost:hover { border-color: var(--gold); color: var(--gold-soft); }
   border-radius: 0;
   width: auto;
   margin-bottom: -1px;
-  transition: color 0.15s, border-color 0.15s;
+  transition: color 0.2s var(--ease-out), border-color 0.2s var(--ease-out),
+              text-shadow 0.2s var(--ease-out);
 }
-.oracle-tab:hover { color: var(--sepia); }
-.oracle-tab.active { color: var(--gold-soft); border-bottom-color: var(--gold); }
+.oracle-tab:hover { color: var(--amethyst-soft); }
+.oracle-tab.active {
+  color: var(--gold-soft);
+  border-image: linear-gradient(90deg, var(--amethyst), var(--gold)) 1;
+  border-bottom-width: 2px;
+  border-bottom-style: solid;
+  text-shadow: 0 0 16px rgba(142,124,195,0.35);
+}
 
 /* Life path */
 .lp-header {
@@ -494,7 +725,8 @@ button.ghost:hover { border-color: var(--gold); color: var(--gold-soft); }
 .lp-resonance {
   padding: 12px 14px;
   border-left: 2px solid;
-  background: rgba(201,168,76,0.04);
+  /* Numerology × astrology — a faint amethyst→gold field beneath the text. */
+  background: linear-gradient(100deg, rgba(142,124,195,0.08), rgba(201,168,76,0.04));
   font-size: 13px;
   color: var(--sepia);
   line-height: 1.65;
@@ -517,6 +749,31 @@ button.ghost:hover { border-color: var(--gold); color: var(--gold-soft); }
   border-radius: 10px;
   overflow: hidden;
   background: #0b0b0f;
+}
+
+/* ── Sigil creation animation ─────────────────────────────────────────────── */
+/* The path traces itself on. pathLength={1} normalises every sigil's length so
+   the dash math is identical regardless of how long the actual stroke is. */
+.sigil-path-draw {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: sigilDraw 1.7s var(--ease-out) forwards;
+}
+@keyframes sigilDraw { to { stroke-dashoffset: 0; } }
+
+/* The letter ring assembles first, faintly fading in. */
+.sigil-letter-in { animation: sigilFadeIn 0.5s var(--ease-out) both; }
+@keyframes sigilFadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* Start/end markers pop in (scale + fade), timed to the trace. */
+.sigil-mark-in {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: sigilMarkIn 0.5s var(--ease-spring) both;
+}
+@keyframes sigilMarkIn {
+  from { opacity: 0; transform: scale(0); }
+  to   { opacity: 1; transform: scale(1); }
 }
 
 /* ── Glossary tooltip ─────────────────────────────────────────────────────── */
@@ -555,74 +812,107 @@ button.ghost:hover { border-color: var(--gold); color: var(--gold-soft); }
 
 /* ── Glossary modal panel ─────────────────────────────────────────────────── */
 .gloss-modal {
-  width: min(680px, 96vw);
-  max-height: 88vh;
+  width: min(740px, 96vw);
+  max-height: 90vh;
 }
 
 .gloss-list {
   overflow-y: auto;
-  max-height: calc(88vh - 200px);
+  max-height: calc(90vh - 210px);
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 10px;
+  padding-right: 4px; /* keep text off the scrollbar */
 }
 
 .gloss-entry {
   border: 1px solid var(--rule);
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--obsidian-3);
   overflow: hidden;
-  transition: border-color 0.15s;
+  transition: border-color 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out);
 }
-.gloss-entry.open { border-color: var(--gold); }
+.gloss-entry:hover { border-color: rgba(201,168,76,0.35); }
+.gloss-entry.open {
+  border-color: var(--gold);
+  box-shadow: inset 0 0 22px rgba(201,168,76,0.05);
+}
 
 .gloss-entry-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 9px 12px;
+  gap: 10px;
+  padding: 13px 16px;
   cursor: pointer;
   user-select: none;
 }
 .gloss-entry-head:hover { background: rgba(201,168,76,0.04); }
 
-.gloss-entry-term { font-size: 14px; color: var(--parchment); font-family: var(--display); }
-.gloss-entry-chevron { font-size: 11px; color: var(--ink); }
+.gloss-entry-term { font-size: 15.5px; color: var(--parchment); font-family: var(--display); line-height: 1.4; }
+.gloss-entry-chevron { font-size: 11px; color: var(--ink); flex-shrink: 0; }
 
 .gloss-entry-short {
-  font-size: 12px;
-  color: var(--ink);
-  padding: 0 12px 9px;
-  line-height: 1.5;
+  font-size: 13px;
+  color: var(--sepia);
+  padding: 0 16px 13px;
+  line-height: 1.65;
+  max-width: 62ch; /* comfortable measure for reading */
 }
 
 .gloss-entry-body {
   border-top: 1px solid var(--rule);
-  padding: 12px;
+  padding: 16px 18px 18px;
 }
 
 .gloss-detail {
-  font-size: 13px;
-  color: var(--sepia);
-  line-height: 1.6;
-  margin: 0 0 10px;
+  font-size: 14px;
+  color: var(--parchment);
+  line-height: 1.75;
+  margin: 0 0 14px;
+  max-width: 64ch;
 }
 
 .gloss-chart-ctx, .gloss-apply-box {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--sepia);
-  padding: 8px 10px;
-  border-radius: 6px;
-  margin-bottom: 7px;
-  line-height: 1.5;
+  padding: 12px 14px;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  line-height: 1.7;
 }
 .gloss-chart-ctx { background: rgba(201,168,76,0.06); border: 1px solid rgba(201,168,76,0.15); }
 .gloss-apply-box { background: rgba(184,115,51,0.06); border: 1px solid rgba(184,115,51,0.15); }
 
 /* ── Soul Profile Modal ───────────────────────────────────────────────────── */
+/* Shares the Oracle's amethyst chrome so the esoteric surfaces feel of a piece.
+   The per-chart element colour (c1) remains the personalised accent within. */
 .soul-modal {
   width: min(780px, 96vw);
   max-height: 90vh;
+  border-color: var(--amethyst);
+  box-shadow: 0 0 60px rgba(142,124,195,0.2),
+              0 0 90px rgba(201,168,76,0.1),
+              inset 0 0 1px rgba(181,168,224,0.4);
+}
+.soul-modal .section {
+  background: linear-gradient(100deg, var(--amethyst-soft), var(--gold-soft) 70%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  border-bottom-color: rgba(142,124,195,0.35);
+}
+
+/* Amethyst diamond marker leading each section label across the esoteric modals. */
+.soul-modal .soul-section-label::before,
+.oracle-modal .soul-section-label::before {
+  content: "◈ ";
+  color: var(--amethyst-soft);
+  font-size: 0.85em;
+}
+.soul-modal .soul-section,
+.oracle-modal .soul-section {
+  border-top-color: rgba(142,124,195,0.22);
 }
 
 .soul-header {
@@ -763,7 +1053,7 @@ button.ghost:hover { border-color: var(--gold); color: var(--gold-soft); }
   font-size: 14px;
   color: var(--sepia);
   line-height: 1.6;
-  background: rgba(201,168,76,0.04);
+  background: linear-gradient(100deg, rgba(142,124,195,0.08), rgba(201,168,76,0.04));
   border-radius: 0 6px 6px 0;
 }
 
@@ -840,6 +1130,7 @@ button.ghost:hover { border-color: var(--gold); color: var(--gold-soft); }
   border-radius: 16px;
   box-shadow: 0 0 80px rgba(201,168,76,0.18), inset 0 0 1px rgba(201,168,76,0.25);
   padding: 32px 28px 28px;
+  animation: modalRise 0.42s var(--ease-spring);
 }
 
 .ceremony-dots {
@@ -1073,6 +1364,7 @@ button.ghost:hover { border-color: var(--gold); color: var(--gold-soft); }
   display: flex;
   flex-direction: column;
   box-shadow: 0 0 80px rgba(201,168,76,0.12);
+  animation: modalRise 0.36s var(--ease-spring);
 }
 
 .forecast-header {
@@ -1414,6 +1706,7 @@ button.ghost:hover { border-color: var(--gold); color: var(--gold-soft); }
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  animation: modalRise 0.36s var(--ease-spring);
 }
 
 .adm-header {

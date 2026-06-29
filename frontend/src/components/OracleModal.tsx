@@ -317,24 +317,38 @@ const ChaosLayer: React.FC<{ data: ChaosData; color: string; showLetters: boolea
 
   return (
     <>
-      {/* Letter positions (faint) */}
+      {/* Letter positions (faint) — fade in with a gentle stagger */}
       {showLetters && letters.map((l, i) => {
         const [x, y] = ptXY(i);
         return (
-          <g key={l}>
+          <g key={l} className="sigil-letter-in" style={{ animationDelay: `${i * 0.04}s` }}>
             <circle cx={x} cy={y} r={11} fill="rgba(11,11,15,0.8)" stroke={color} strokeWidth="0.4" opacity="0.3" />
             <text x={x} y={y + 5} textAnchor="middle" fontSize="11"
               fill={color} opacity="0.45" fontFamily="EB Garamond, serif">{l}</text>
           </g>
         );
       })}
-      {/* Sigil path */}
-      <path d={path} fill="none" stroke={color} strokeWidth="1.5" opacity="0.7" strokeLinejoin="round" filter="url(#sigil-glow)" />
+      {/* Sigil path — traces itself on. Keyed on the path so it redraws on change. */}
+      <path
+        key={path}
+        className="sigil-path-draw"
+        d={path}
+        pathLength={1}
+        fill="none"
+        stroke={color}
+        strokeWidth="1.5"
+        opacity="0.7"
+        strokeLinejoin="round"
+        filter="url(#sigil-glow)"
+      />
       {/* Start dot (filled) */}
-      <circle cx={startPt[0]} cy={startPt[1]} r={5} fill={color} opacity="0.85" filter="url(#sigil-glow)" />
-      {/* End mark (open ring) */}
-      <circle cx={endPt[0]} cy={endPt[1]} r={6} fill="none" stroke={color} strokeWidth="1.5" opacity="0.7" />
-      <circle cx={endPt[0]} cy={endPt[1]} r={2} fill={color} opacity="0.5" />
+      <circle key={`s-${path}`} className="sigil-mark-in" style={{ animationDelay: "0.1s" }}
+        cx={startPt[0]} cy={startPt[1]} r={5} fill={color} opacity="0.85" filter="url(#sigil-glow)" />
+      {/* End mark (open ring) — appears as the trace completes */}
+      <circle key={`e-${path}`} className="sigil-mark-in" style={{ animationDelay: "1.5s" }}
+        cx={endPt[0]} cy={endPt[1]} r={6} fill="none" stroke={color} strokeWidth="1.5" opacity="0.7" />
+      <circle key={`e2-${path}`} className="sigil-mark-in" style={{ animationDelay: "1.62s" }}
+        cx={endPt[0]} cy={endPt[1]} r={2} fill={color} opacity="0.5" />
     </>
   );
 };
@@ -363,30 +377,48 @@ const KameaLayer: React.FC<{
 
   return (
     <>
-      {/* Grid */}
-      {showGrid && gridLines.map((l, i) => (
-        <line key={i} x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2}
-          stroke={color} strokeWidth="0.4" opacity="0.15" />
-      ))}
-      {/* Cell numbers */}
-      {showGrid && square.grid.map((row, r) =>
-        row.map((val, c) => (
-          <text key={`${r}-${c}`}
-            x={left + (c + 0.5) * cellSize}
-            y={top + (r + 0.5) * cellSize + 4}
-            textAnchor="middle" fontSize={Math.max(8, 14 - n)}
-            fill={color} opacity="0.25" fontFamily="EB Garamond, serif"
-          >{val}</text>
-        ))
+      {/* Grid + numbers — fade in together as the stage for the trace.
+          Wrapped in one group so each element keeps its own faint opacity. */}
+      {showGrid && (
+        <g className="sigil-letter-in">
+          {gridLines.map((l, i) => (
+            <line key={i} x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2}
+              stroke={color} strokeWidth="0.4" opacity="0.15" />
+          ))}
+          {square.grid.map((row, r) =>
+            row.map((val, c) => (
+              <text key={`${r}-${c}`}
+                x={left + (c + 0.5) * cellSize}
+                y={top + (r + 0.5) * cellSize + 4}
+                textAnchor="middle" fontSize={Math.max(8, 14 - n)}
+                fill={color} opacity="0.25" fontFamily="EB Garamond, serif"
+              >{val}</text>
+            ))
+          )}
+        </g>
       )}
-      {/* Sigil path */}
-      <path d={path} fill="none" stroke={color} strokeWidth="2" opacity="0.75"
-        strokeLinejoin="round" strokeLinecap="round" filter="url(#sigil-glow)" />
+      {/* Sigil path — traces itself through the magic square. */}
+      <path
+        key={path}
+        className="sigil-path-draw"
+        d={path}
+        pathLength={1}
+        fill="none"
+        stroke={color}
+        strokeWidth="2"
+        opacity="0.75"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+        filter="url(#sigil-glow)"
+      />
       {/* Start */}
-      <circle cx={startXY[0]} cy={startXY[1]} r={5} fill={color} opacity="0.9" filter="url(#sigil-glow)" />
-      {/* End */}
-      <circle cx={endXY[0]} cy={endXY[1]} r={7} fill="none" stroke={color} strokeWidth="1.5" opacity="0.75" />
-      <circle cx={endXY[0]} cy={endXY[1]} r={2.5} fill={color} opacity="0.6" />
+      <circle key={`s-${path}`} className="sigil-mark-in" style={{ animationDelay: "0.1s" }}
+        cx={startXY[0]} cy={startXY[1]} r={5} fill={color} opacity="0.9" filter="url(#sigil-glow)" />
+      {/* End — appears as the trace completes */}
+      <circle key={`e-${path}`} className="sigil-mark-in" style={{ animationDelay: "1.5s" }}
+        cx={endXY[0]} cy={endXY[1]} r={7} fill="none" stroke={color} strokeWidth="1.5" opacity="0.75" />
+      <circle key={`e2-${path}`} className="sigil-mark-in" style={{ animationDelay: "1.62s" }}
+        cx={endXY[0]} cy={endXY[1]} r={2.5} fill={color} opacity="0.6" />
     </>
   );
 };

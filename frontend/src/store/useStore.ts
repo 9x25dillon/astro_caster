@@ -26,19 +26,28 @@ import { trackEvent } from "../api/client";
 
 // Default chart — preloaded so the observatory is never empty on first visit.
 export const DEFAULT_BIRTH: BirthInput = {
-  year: 1879,
-  month: 3,
-  day: 14,
-  hour: 11,
-  minute: 30,
+  year: 1987,
+  month: 11,
+  day: 11,
+  hour: 10,
+  minute: 23,
   second: 0,
-  lat: 48.4011,
-  lng: 9.9876,
-  tz_offset: 0.67,
+  lat: 34.9333,   // 34°56' N
+  lng: -117.1833, // 117°11' W
+  tz_offset: -8,  // PST
   house_system: "P",
   zodiac: "tropical",
   ayanamsha: 1,
-  label: "",
+  label: "Nov 11 1987",
+};
+
+// The original demo chart (Einstein). Kept only so the forecast can detect the
+// "no personal chart cast yet" state — the loaded default above is a real chart,
+// so personal forecast features stay active for it.
+export const PLACEHOLDER_BIRTH: BirthInput = {
+  year: 1879, month: 3, day: 14, hour: 11, minute: 30, second: 0,
+  lat: 48.4011, lng: 9.9876, tz_offset: 0.67,
+  house_system: "P", zodiac: "tropical", ayanamsha: 1, label: "",
 };
 
 interface AstroState {

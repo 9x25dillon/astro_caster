@@ -193,7 +193,6 @@ def _sig_t2n(transiting: str, natal_target: str) -> str:
 # --------------------------------------------------------------------------- #
 
 def _event_station(planet: str, jd: float, going_rx: bool) -> dict:
-    lon, _ = swe.calc_ut(jd, _SWE_IDS[planet], _FLAGS)[0][:4:3]  # (lon, speed)
     lon = float(swe.calc_ut(jd, _SWE_IDS[planet], _FLAGS)[0][0])
     sign = A.sign_for(lon)
     deg, minute, _ = A.degree_in_sign(lon)

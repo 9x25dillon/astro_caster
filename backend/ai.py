@@ -258,15 +258,18 @@ def _build_prompts(query, context, lens, selected_type, selected_id, depth, prov
                 f"{focus}Question: {query or 'Offer a reflection.'}")
         system = f"{LOCAL_SYSTEM}\n(Active lens: {lens}.)"
         return system, user, model, budget
-    # cloud / kgirl — select model and depth by tier
+    # cloud / kgirl — select model and depth by tier.
+    # Output budget is strictly tiered: oracle > supporter > free, so the top
+    # tier always has the most room for a long, fully-developed reading.
     if tier == "oracle":
         model = _MODEL_ORACLE
         system = f"{SYSTEM_PROMPT}{ORACLE_EXTENSION}\n\nActive interpretive lens: {lens}. {lens_line}"
-        budget = 3500   # 6-section oracle reading uses ~2400–2600; headroom for longer charts
+        budget = 6000   # 6-section oracle reading uses ~2400–2600; generous headroom so the
+                        # top tier is never truncated even on dense charts / long lenses
     elif tier == "supporter":
         model = _MODEL_SUPPORTER
         system = f"{SYSTEM_PROMPT}{ORACLE_EXTENSION}\n\nActive interpretive lens: {lens}. {lens_line}"
-        budget = 2800   # ORACLE_EXTENSION demands comparable depth to oracle tier
+        budget = 3000   # ORACLE_EXTENSION demands depth, but kept clearly below oracle's ceiling
     else:
         model = _MODEL_DEEP if depth == "deep" else _MODEL
         system = f"{SYSTEM_PROMPT}\n\nActive interpretive lens: {lens}. {lens_line}"

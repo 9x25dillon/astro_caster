@@ -1,6 +1,6 @@
 // ForecastPanel.tsx — Upcoming astrological events for the next 90 days.
 import React, { useEffect, useRef, useState } from "react";
-import { useStore, DEFAULT_BIRTH } from "../store/useStore";
+import { useStore, PLACEHOLDER_BIRTH } from "../store/useStore";
 import { fetchForecast, type ForecastEvent } from "../api/client";
 
 const SIG_BADGE: Record<string, string> = {
@@ -167,9 +167,9 @@ export const ForecastPanel: React.FC<{ onClose: () => void }> = ({ onClose }) =>
   const ask = useStore((s) => s.ask);
 
   const isDefaultChart =
-    birth.year  === DEFAULT_BIRTH.year  &&
-    birth.month === DEFAULT_BIRTH.month &&
-    birth.day   === DEFAULT_BIRTH.day;
+    birth.year  === PLACEHOLDER_BIRTH.year  &&
+    birth.month === PLACEHOLDER_BIRTH.month &&
+    birth.day   === PLACEHOLDER_BIRTH.day;
 
   const [events, setEvents] = useState<ForecastEvent[] | null>(null);
   const [error, setError]   = useState<string | null>(null);

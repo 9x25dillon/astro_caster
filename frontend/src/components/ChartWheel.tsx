@@ -11,7 +11,11 @@
 // Orientation: Ascendant fixed at 9 o'clock (left), longitude increasing CCW.
 import React, { useMemo } from "react";
 import { useStore } from "../store/useStore";
-import { lonToAngle, polar, SIGN_GLYPHS, ELEMENT_OF_SIGN_INDEX, ELEMENT_COLORS, POINT_IDS, glyphText } from "../lib/astro";
+import {
+  lonToAngle, polar, SIGN_GLYPHS, SIGN_NAMES, ELEMENT_OF_SIGN_INDEX, ELEMENT_COLORS,
+  POINT_IDS, glyphText, PLANET_INFLUENCE, SIGN_INFLUENCE, SIGN_MODALITIES,
+  HOUSE_INFLUENCE, ASPECT_INFLUENCE, ASPECT_SYMBOL, formatPos, ORDINAL,
+} from "../lib/astro";
 import type { Aspect, PlanetData } from "../types";
 
 interface Props {
@@ -55,6 +59,12 @@ export const ChartWheel: React.FC<Props> = ({ size = 720 }) => {
   const hovered = useStore((s) => s.hovered);
   const select = useStore((s) => s.select);
   const hover = useStore((s) => s.hover);
+  const isSupporter = useStore((s) => s.isSupporter);
+
+  // Only planet/aspect focus should dim the aspect web; sign/house hover must not.
+  const focusSel = selection ?? hovered;
+  const aspectFocus = focusSel?.type === "planet" || focusSel?.type === "aspect";
+  const planetFocus = focusSel?.type === "planet";
 
   const R = size / 2;
   const rZodiacOuter  = R * 0.97;
@@ -223,7 +233,12 @@ export const ChartWheel: React.FC<Props> = ({ size = 720 }) => {
           const midA = lonToAngle(i * 30 + 15, asc);
           const [gx, gy] = polar((rZodiacOuter + rZodiacInner) / 2, midA);
           return (
-            <g key={`sign-${i}`}>
+            <g
+              key={`sign-${i}`}
+              onMouseEnter={() => hover({ type: "sign", id: String(i) })}
+              onMouseLeave={() => hover(null)}
+              style={{ cursor: "help" }}
+            >
               <path
                 className="sign-ring"
                 d={`M ${x0} ${y0} A ${rZodiacOuter} ${rZodiacOuter} 0 0 0 ${x1} ${y1} L ${xi1} ${yi1} A ${rZodiacInner} ${rZodiacInner} 0 0 1 ${xi0} ${yi0} Z`}
@@ -258,8 +273,25 @@ export const ChartWheel: React.FC<Props> = ({ size = 720 }) => {
             const span = (next - h.longitude + 360) % 360;
             const midLon = (h.longitude + span / 2) % 360;
             const [lx, ly] = polar((rHouseInner + rHouseOuter) / 2, lonToAngle(midLon, asc));
+            // Transparent wedge over the house band → an easy hover/click target.
+            const sA = lonToAngle(h.longitude, asc);
+            const eA = lonToAngle(next, asc);
+            const [wx0, wy0] = polar(rHouseOuter, sA);
+            const [wx1, wy1] = polar(rHouseOuter, eA);
+            const [wxi1, wyi1] = polar(rHouseInner, eA);
+            const [wxi0, wyi0] = polar(rHouseInner, sA);
+            const laf = span > 180 ? 1 : 0;
             return (
               <g key={`house-${i}`}>
+                <path
+                  className="house-wedge"
+                  d={`M ${wx0} ${wy0} A ${rHouseOuter} ${rHouseOuter} 0 ${laf} 0 ${wx1} ${wy1} L ${wxi1} ${wyi1} A ${rHouseInner} ${rHouseInner} 0 ${laf} 1 ${wxi0} ${wyi0} Z`}
+                  fill="transparent"
+                  onMouseEnter={() => hover({ type: "house", id: String(h.index) })}
+                  onMouseLeave={() => hover(null)}
+                  onClick={(e) => { e.stopPropagation(); select({ type: "house", id: String(h.index) }); }}
+                  style={{ cursor: "pointer" }}
+                />
                 <line
                   x1={x0}
                   y1={y0}
@@ -286,14 +318,13 @@ export const ChartWheel: React.FC<Props> = ({ size = 720 }) => {
       {/* ── Transit ring band (between house ring and zodiac) ── */}
       {layers.transits && transit && (
         <>
-          {/* Even-odd annular fill: outer circle punches out inner → clean ring, no bleed */}
-          <path
-            d={[
-              `M 0 ${-rTransitOuter} A ${rTransitOuter} ${rTransitOuter} 0 1 1 0.001 ${-rTransitOuter} Z`,
-              `M 0 ${-rTransitInner} A ${rTransitInner} ${rTransitInner} 0 1 1 0.001 ${-rTransitInner} Z`,
-            ].join(" ")}
-            fill="rgba(46,134,193,0.06)"
-            fillRule="evenodd"
+          {/* Annular band drawn as a thick stroked circle — perfectly seamless
+              (the previous arc-hack left a hairline at 12 o'clock). */}
+          <circle
+            r={(rTransitOuter + rTransitInner) / 2}
+            fill="none"
+            stroke="rgba(46,134,193,0.06)"
+            strokeWidth={rTransitOuter - rTransitInner}
           />
           {/* Separator ring — divides natal from transiting sky */}
           <circle r={rTransitInner} fill="none" stroke="rgba(46,134,193,0.28)" strokeWidth={1} />
@@ -334,26 +365,35 @@ export const ChartWheel: React.FC<Props> = ({ size = 720 }) => {
           const [x1, y1] = polar(rAspect, lonToAngle(p1.longitude, asc));
           const [x2, y2] = polar(rAspect, lonToAngle(p2.longitude, asc));
           const active = aspectActive(a);
-          const dim = (selection || hovered) && !active;
+          const dim = aspectFocus && !active;
+          const key = aspectKey(a);
           return (
-            <line
-              key={aspectKey(a)}
-              className="aspect-line"
-              x1={x1}
-              y1={y1}
-              x2={x2}
-              y2={y2}
-              stroke={a.color}
-              strokeWidth={active ? 2.4 : 1 + (8 - a.orb) / 8}
-              strokeOpacity={dim ? 0.08 : active ? 0.95 : 0.5 - a.orb / 24}
-              strokeDasharray={a.harmony === "challenging" ? undefined : a.type === "Sextile" ? "4 3" : undefined}
-              filter={active ? "url(#glow)" : undefined}
+            <g
+              key={key}
+              className={`aspect-chord ${active ? "is-active" : ""} ${dim ? "is-dim" : ""}`}
               onClick={(e) => {
                 e.stopPropagation();
-                select({ type: "aspect", id: aspectKey(a) });
+                select({ type: "aspect", id: key });
               }}
+              onMouseEnter={() => hover({ type: "aspect", id: key })}
+              onMouseLeave={() => hover(null)}
               style={{ cursor: "pointer" }}
-            />
+            >
+              {/* Invisible wide hit-line so the thin chord is easy to hover. */}
+              <line className="aspect-hit" x1={x1} y1={y1} x2={x2} y2={y2} />
+              <line
+                className="aspect-line"
+                x1={x1}
+                y1={y1}
+                x2={x2}
+                y2={y2}
+                stroke={a.color}
+                strokeWidth={active ? 2.4 : 1 + (8 - a.orb) / 8}
+                strokeOpacity={dim ? 0.08 : active ? 0.95 : 0.5 - a.orb / 24}
+                strokeDasharray={a.harmony === "challenging" ? undefined : a.type === "Sextile" ? "4 3" : undefined}
+                filter={active ? "url(#glow)" : undefined}
+              />
+            </g>
           );
         })}
 
@@ -368,7 +408,7 @@ export const ChartWheel: React.FC<Props> = ({ size = 720 }) => {
           const sel = selection ?? hovered;
           // Highlight when the hovered/selected planet matches either end of the chord.
           const active = sel?.type === "planet" && (sel.id === a.p2 || sel.id === transId);
-          const dim    = !!sel && !active;
+          const dim    = planetFocus && !active;
           const [x1, y1] = polar(rAspect,  lonToAngle(natal_p.longitude, asc));
           const [x2, y2] = polar(rTransit, transitAngles[trans_p.id] ?? lonToAngle(trans_p.longitude, asc));
           return (
@@ -460,6 +500,109 @@ export const ChartWheel: React.FC<Props> = ({ size = 720 }) => {
             </g>
           );
         })}
+
+      {/* ---- Unified influence popover (planet · sign · house · aspect) ---- */}
+      {hovered && (() => {
+        // Build a descriptor for whatever is hovered. Returns null if not popable.
+        type Pop = {
+          ax: number; ay: number; accent: string; glyph: string; title: string;
+          rx?: boolean; subtitle?: string; blurb: string;
+          personal?: string; hasPersonal?: boolean;
+        };
+        const skip = (id: string) => POINT_IDS.has(id);
+        let pop: Pop | null = null;
+
+        if (hovered.type === "planet" && planetById[hovered.id]) {
+          const p = planetById[hovered.id];
+          const blurb = PLANET_INFLUENCE[p.id];
+          if (blurb) {
+            const ring = planetAngles[p.id] ?? lonToAngle(p.longitude, asc);
+            const isPoint = POINT_IDS.has(p.id) || p.id === "Ascendant" || p.id === "Midheaven";
+            const [ax, ay] = polar(isPoint ? rPlanet * 1.08 : rPlanet, ring);
+            pop = {
+              ax, ay, accent: "var(--gold)",
+              glyph: p.glyph.length > 1 ? p.glyph : glyphText(p.glyph),
+              title: p.id, rx: p.retrograde,
+              subtitle: `${formatPos(p)} · ${ORDINAL(p.house)} house${!isPoint && p.dignity !== "Neutral" ? ` · ${p.dignity}` : ""}`,
+              blurb,
+            };
+          }
+        } else if (hovered.type === "sign") {
+          const i = Number(hovered.id);
+          const name = SIGN_NAMES[i];
+          const elem = ELEMENT_OF_SIGN_INDEX(i);
+          const [ax, ay] = polar((rZodiacOuter + rZodiacInner) / 2, lonToAngle(i * 30 + 15, asc));
+          const here = chart.planets.filter(
+            (p) => p.sign === name && p.id !== "Descendant" && p.id !== "Imum Coeli" && !skip(p.id)
+          );
+          pop = {
+            ax, ay, accent: ELEMENT_COLORS[elem], glyph: glyphText(SIGN_GLYPHS[i]),
+            title: name, subtitle: `${elem} · ${SIGN_MODALITIES[i % 3]}`,
+            blurb: SIGN_INFLUENCE[name], hasPersonal: true,
+            personal: here.length ? `Your ${here.map((p) => p.id).join(", ")} here.` : "No planets in this sign.",
+          };
+        } else if (hovered.type === "house") {
+          const idx = Number(hovered.id);
+          const h = chart.houses[idx - 1];
+          if (h) {
+            const next = chart.houses[idx % 12].longitude;
+            const span = (next - h.longitude + 360) % 360;
+            const [ax, ay] = polar((rHouseInner + rHouseOuter) / 2, lonToAngle((h.longitude + span / 2) % 360, asc));
+            const tenants = chart.planets.filter((p) => p.house === idx && !skip(p.id));
+            pop = {
+              ax, ay, accent: "var(--gold)", glyph: "⌂", title: `${ORDINAL(idx)} House`,
+              subtitle: `cusp ${h.degree}°${String(h.minute).padStart(2, "0")}' ${h.sign}`,
+              blurb: HOUSE_INFLUENCE[idx], hasPersonal: true,
+              personal: tenants.length
+                ? `Tenants: ${tenants.map((p) => p.id).join(", ")}.`
+                : "An empty house — its themes play out through its ruler.",
+            };
+          }
+        } else if (hovered.type === "aspect") {
+          const a = chart.aspects.find((x) => aspectKey(x) === hovered.id);
+          const p1 = a && planetById[a.p1];
+          const p2 = a && planetById[a.p2];
+          if (a && p1 && p2) {
+            const [x1, y1] = polar(rAspect, lonToAngle(p1.longitude, asc));
+            const [x2, y2] = polar(rAspect, lonToAngle(p2.longitude, asc));
+            pop = {
+              ax: (x1 + x2) / 2, ay: (y1 + y2) / 2, accent: a.color,
+              glyph: ASPECT_SYMBOL[a.type] ?? "∠", title: a.type,
+              subtitle: `${a.p1} – ${a.p2}`,
+              blurb: ASPECT_INFLUENCE[a.type] ?? "", hasPersonal: true,
+              personal: `Orb ${a.orb}° · ${a.applying ? "applying" : "separating"}.`,
+            };
+          }
+        }
+
+        if (!pop) return null;
+        const W = 216, H = 184;
+        // Flip to whichever side keeps the card on-canvas, then clamp vertically.
+        const px = pop.ax < 0 ? pop.ax + 24 : pop.ax - W - 24;
+        const py = Math.max(-R + 8, Math.min(R - H - 8, pop.ay - H / 2));
+        return (
+          <foreignObject
+            key={`${hovered.type}-${hovered.id}`}
+            x={px} y={py} width={W} height={H}
+            style={{ pointerEvents: "none", overflow: "visible" }}
+          >
+            <div className="wheel-popover" style={{ borderColor: pop.accent }}>
+              <div className="wheel-popover-head">
+                <span className="wheel-popover-glyph" style={{ color: pop.accent }}>{pop.glyph}</span>
+                <span className="wheel-popover-name">{pop.title}</span>
+                {pop.rx && <span className="wheel-popover-rx">℞</span>}
+              </div>
+              {pop.subtitle && <div className="wheel-popover-pos">{pop.subtitle}</div>}
+              <div className="wheel-popover-blurb">{pop.blurb}</div>
+              {pop.hasPersonal && (
+                isSupporter
+                  ? <div className="wheel-popover-personal">{pop.personal}</div>
+                  : <div className="wheel-popover-personal locked">✦ supporter · your chart insight</div>
+              )}
+            </div>
+          </foreignObject>
+        );
+      })()}
 
       {/* Cosmic heartbeat — ring of light emanating from center periodically */}
       <circle className="heartbeat" cx={0} cy={0} fill="none" stroke="rgba(201,168,76,0.45)" strokeWidth={1.5} />
