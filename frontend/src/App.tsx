@@ -12,6 +12,7 @@ import { OracleModal } from "./components/OracleModal";
 import { Starfield } from "./components/Starfield";
 import { CeremonyModal } from "./components/CeremonyModal";
 import { ForecastPanel } from "./components/ForecastPanel";
+import { ArcanaModal } from "./components/ArcanaModal";
 import { AdminPanel } from "./components/AdminPanel";
 import { deriveSoulProfile } from "./lib/archetypes";
 import { trackEvent } from "./api/client";
@@ -26,6 +27,7 @@ export const App: React.FC = () => {
   const [soulOpen, setSoulOpen] = useState(false);
   const [oracleOpen, setOracleOpen] = useState(false);
   const [forecastOpen, setForecastOpen] = useState(false);
+  const [arcanaOpen, setArcanaOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
   const [privacyDismissed, setPrivacyDismissed] = useState(
     () => !!localStorage.getItem("aae.privacy_ack")
@@ -63,6 +65,14 @@ export const App: React.FC = () => {
           Natal observatory · celestial cartography · oracle
         </div>
         <button
+          className="support-pill"
+          style={{ marginRight: 8 }}
+          title="Astra Arcana — natal tarot"
+          onClick={() => { setArcanaOpen(true); trackEvent("arcana_opened"); }}
+        >
+          ✶ Arcana
+        </button>
+        <button
           className={`support-pill ${isSupporter ? "is-supporter" : ""}`}
           onClick={() => openSupport(true)}
         >
@@ -85,6 +95,7 @@ export const App: React.FC = () => {
       {soulOpen && <SoulProfileModal onClose={() => setSoulOpen(false)} />}
       {oracleOpen && <OracleModal onClose={() => setOracleOpen(false)} profile={soulProfile} />}
       {forecastOpen && <ForecastPanel onClose={() => setForecastOpen(false)} />}
+      {arcanaOpen && <ArcanaModal onClose={() => setArcanaOpen(false)} />}
       {adminOpen && <AdminPanel onClose={() => setAdminOpen(false)} />}
 
       {!privacyDismissed && (

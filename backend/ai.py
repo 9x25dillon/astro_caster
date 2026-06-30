@@ -151,6 +151,7 @@ _LENS_GUIDANCE = {
     "transit": "Emphasise the present moment — how current sky activates the natal blueprint.",
     "relationship": "Read placements as relational patterns and the mirror of the Other.",
     "traditional": "Use classical dignities, sect, and Hellenistic logic, but stay reflective.",
+    "arcana": "Read the chart through tarot archetypes — trumps as mirrors, never as fate.",
 }
 
 SYSTEM_PROMPT = """You are Astra, a wise philosophical astrological guide inside the \
@@ -328,6 +329,42 @@ async def interpret(
             "provider": "offline",
             "note": f"{provider} unavailable ({type(exc).__name__}); served offline reflection.",
         }
+
+
+_ARCANA_BUDGET = {"oracle": 2600, "supporter": 1600, "free": 900}
+
+
+async def interpret_arcana(
+    system: str,
+    user: str,
+    tier: str = "free",
+) -> Dict[str, object]:
+    """
+    Card-aware Astra Arcana reading. The caller (tarot endpoint) builds the
+    system + user prompts (see tarot_prompts.py); this routes them through the
+    same provider/tier machinery as interpret(). Returns
+    {"text": str, "source": "llm"|"offline", "provider": str, "model": str}.
+    On any failure source == "offline" and the caller keeps its deterministic prose.
+    """
+    provider = _resolve_provider_for_tier(tier)
+    if provider == "offline":
+        return {"text": "", "source": "offline", "provider": "offline", "model": ""}
+    budget = _ARCANA_BUDGET.get(tier, _ARCANA_BUDGET["free"])
+    try:
+        if provider == "kgirl":
+            text, _meta = await _chat_kgirl(system, user)
+            return {"text": text, "source": "llm", "provider": "kgirl", "model": "kgirl-consensus"}
+        if provider == "ollama":
+            model = _OLLAMA_MODEL_DEEP if tier in ("supporter", "oracle") else _OLLAMA_MODEL
+            text = await _chat_openai_compat(_OLLAMA_URL, None, system, user, model, max_tokens=budget)
+            return {"text": _strip_reasoning(text), "source": "llm", "provider": "ollama", "model": model}
+        model = _MODEL_ORACLE if tier == "oracle" else _MODEL_SUPPORTER if tier == "supporter" else _MODEL
+        text = await _chat_openai_compat(_BASE_URL, _API_KEY, system, user, model, max_tokens=budget)
+        return {"text": text, "source": "llm", "provider": "openai", "model": model}
+    except Exception as exc:
+        _probe_cache.pop(provider, None)
+        return {"text": "", "source": "offline", "provider": "offline",
+                "model": "", "note": f"{provider} unavailable ({type(exc).__name__})."}
 
 
 def _strip_reasoning(text: str) -> str:
