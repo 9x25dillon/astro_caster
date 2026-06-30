@@ -14,6 +14,10 @@ Endpoints:
   POST /api/natal-arcana        – deterministic natal tarot signature (no AI)
   POST /api/tarot-reading       – chart-weighted spread + optional AI enrichment
   POST /api/arcana-forecast     – daily transit card overlay (Phase 7)
+  POST /api/synastry            – two-chart inter-aspects + house grid
+  POST /api/composite           – midpoint composite chart
+  POST /api/davison             – Davison time/space midpoint chart
+  POST /api/synastry-tarot      – relationship tarot bond
   GET  /api/tts/voices          – available ElevenLabs voices
   POST /api/tts                 – synthesize speech (MP3); supporter feature
   GET  /api/treasury            – funding allocation + EVM treasury address
@@ -72,6 +76,14 @@ from tarot_models import (
     TarotReadingResponse,
 )
 from tarot_prompts import ARCANA_SYSTEM, build_arcana_user_prompt
+import synastry as SYN
+from synastry import (
+    CompositeChart,
+    DavisonChart,
+    SynastryRequest,
+    SynastryResponse,
+    SynastryTarotResponse,
+)
 
 app = FastAPI(title="Astrological Analysis Environment", version="1.0.0")
 
@@ -412,6 +424,51 @@ async def arcana_forecast(req: ArcanaForecastRequest):
         return {"start": start.isoformat(), "days": days, "cards": cards}
     except Exception as exc:
         raise HTTPException(status_code=400, detail=f"arcana forecast failed: {exc}")
+
+
+# --------------------------------------------------------------------------- #
+# Relationship astrology — synastry / composite / Davison (symbolic, not fate)
+# --------------------------------------------------------------------------- #
+
+
+@app.post("/api/synastry", response_model=SynastryResponse)
+async def synastry(req: SynastryRequest):
+    """Two natal charts: inter-aspects + house-overlay grid."""
+    try:
+        return await asyncio.to_thread(SYN.compute_synastry, req)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"synastry failed: {exc}")
+
+
+@app.post("/api/composite", response_model=CompositeChart)
+async def composite(req: SynastryRequest):
+    """Midpoint composite chart (planets, houses, internal aspects, patterns)."""
+    try:
+        a = E.calculate_chart(req.person_a)
+        b = E.calculate_chart(req.person_b)
+        return SYN.composite_midpoints(a, b)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"composite failed: {exc}")
+
+
+@app.post("/api/davison", response_model=DavisonChart)
+async def davison(req: SynastryRequest):
+    """Davison chart — great-circle geographic + temporal midpoint, real ephemeris."""
+    try:
+        return await asyncio.to_thread(SYN.davison_chart, req.person_a, req.person_b)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"davison failed: {exc}")
+
+
+@app.post("/api/synastry-tarot", response_model=SynastryTarotResponse)
+async def synastry_tarot(req: SynastryRequest):
+    """Relationship tarot: both natal arcana signatures + a weighted bond card."""
+    try:
+        a = E.calculate_chart(req.person_a)
+        b = E.calculate_chart(req.person_b)
+        return SYN.synastry_tarot(a, b)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"synastry tarot failed: {exc}")
 
 
 @app.post("/api/suggestions")

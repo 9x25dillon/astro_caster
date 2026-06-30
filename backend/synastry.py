@@ -1,15 +1,15 @@
-# ============================================================================
-# DRAFT — engineered by the grok CLI (grok-composer-2.5-fast), reviewed by Claude.
-# NOT wired into main.py. Roadmap item: Synastry / Composite / Davison (+ tarot).
-# Imports cleanly; non-trivial paths marked # TODO. See PR description.
-# ============================================================================
 """
-synastry.py — DRAFT skeleton
-============================
-Relationship astrology module (Synastry, Composite, Davison, synastry-tarot sketch).
-Non-production: non-trivial paths are marked with ``# TODO:``. Circular planet
-midpoints use the short-arc rule:
-(a + ((b - a + 540) % 360) - 180) % 360 (e.g. midpoint of 350° and 10° is 0°).
+synastry.py
+===========
+Relationship astrology: Synastry (inter-aspects + house grid), Composite (midpoint
+method, with houses + internal aspects/patterns), Davison (great-circle geographic
++ temporal midpoint, real ephemeris), and a chart-weighted synastry-tarot bond.
+
+Originally drafted with the grok CLI, then completed + reviewed. Circular planet
+midpoints use the short-arc rule: (a + (((b - a + 540) % 360) - 180) / 2) % 360
+(e.g. midpoint of 350° and 10° is 0°). Symbolic, not deterministic prediction.
+
+Remaining optional enhancements are marked ``# TODO (optional)``.
 """
 
 from __future__ import annotations
@@ -131,11 +131,15 @@ def circular_midpoint(lon_a: float, lon_b: float) -> float:
 
 
 def chart_request_to_utc_datetime(req: ChartRequest) -> dt.datetime:
-    """Local birth fields minus tz_offset → naive UTC datetime."""
+    """Local birth fields minus tz_offset → timezone-aware UTC datetime.
+
+    Aware (not naive) so .timestamp() is a true UTC epoch regardless of the
+    server's local timezone — important so the Davison time-midpoint is stable.
+    """
     local = dt.datetime(
         req.year, req.month, req.day, req.hour, req.minute, req.second
     )
-    return local - dt.timedelta(hours=req.tz_offset)
+    return (local - dt.timedelta(hours=req.tz_offset)).replace(tzinfo=dt.timezone.utc)
 
 
 def chart_request_to_timestamp(req: ChartRequest) -> float:
@@ -153,7 +157,7 @@ def timestamp_to_chart_request_utc(
     ayanamsha: int = 1,
 ) -> ChartRequest:
     """Build a ``ChartRequest`` whose fields are UTC civil time (tz_offset=0)."""
-    utc = dt.datetime.utcfromtimestamp(ts)
+    utc = dt.datetime.fromtimestamp(ts, dt.timezone.utc)
     return ChartRequest(
         year=utc.year,
         month=utc.month,
@@ -182,7 +186,7 @@ def julian_day_to_timestamp(jd: float) -> float:
     rem = (ut_hours - h) * 60.0
     m = int(rem)
     s = int((rem - m) * 60.0)
-    utc = dt.datetime(year, month, day, h, m, s)
+    utc = dt.datetime(year, month, day, h, m, s, tzinfo=dt.timezone.utc)
     return utc.timestamp()
 
 
@@ -511,40 +515,5 @@ def synastry_tarot(a: ChartResponse, b: ChartResponse) -> SynastryTarotResponse:
     return SynastryTarotResponse(signature_a=sig_a, signature_b=sig_b, spread=spread)
 
 
-# --------------------------------------------------------------------------- #
-# FastAPI endpoint stubs (wire in main.py when ready)
-# --------------------------------------------------------------------------- #
-#
-# from fastapi import HTTPException
-#
-# @app.post("/api/synastry", response_model=SynastryResponse)
-# async def synastry_endpoint(req: SynastryRequest):
-#     try:
-#         return compute_synastry(req)
-#     except Exception as exc:
-#         raise HTTPException(status_code=400, detail=f"synastry failed: {exc}")
-#
-# @app.post("/api/composite", response_model=CompositeChart)
-# async def composite_endpoint(req: SynastryRequest):
-#     try:
-#         a = E.calculate_chart(req.person_a)
-#         b = E.calculate_chart(req.person_b)
-#         return composite_midpoints(a, b)
-#     except Exception as exc:
-#         raise HTTPException(status_code=400, detail=f"composite failed: {exc}")
-#
-# @app.post("/api/davison", response_model=DavisonChart)
-# async def davison_endpoint(req: SynastryRequest):
-#     try:
-#         return davison_chart(req.person_a, req.person_b)
-#     except Exception as exc:
-#         raise HTTPException(status_code=400, detail=f"davison failed: {exc}")
-#
-# @app.post("/api/synastry-tarot", response_model=SynastryTarotResponse)
-# async def synastry_tarot_endpoint(req: SynastryRequest):
-#     try:
-#         a = E.calculate_chart(req.person_a)
-#         b = E.calculate_chart(req.person_b)
-#         return synastry_tarot(a, b)
-#     except Exception as exc:
-#         raise HTTPException(status_code=400, detail=f"synastry tarot failed: {exc}")
+# Endpoints live in main.py: /api/synastry, /api/composite, /api/davison,
+# /api/synastry-tarot — all POST a SynastryRequest{person_a, person_b}.
