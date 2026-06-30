@@ -60,6 +60,21 @@ def test_composite_endpoint_has_houses_and_aspects():
     assert all(p["house"] for p in d["planets"])  # every planet placed (no house 0)
 
 
+def test_composite_derived_mc_houses():
+    r = client.post("/api/composite",
+                    json={"person_a": _A, "person_b": _B, "house_method": "derived"})
+    assert r.status_code == 200, r.text
+    d = r.json()
+    assert d["meta"]["houses"] == "derived_mc"
+    assert len(d["houses"]) == 12
+    # Derived houses are strictly monotonic around the wheel (unlike midpoint).
+    lons = [h["longitude"] for h in sorted(d["houses"], key=lambda h: h["index"])]
+    spans = [((lons[(i + 1) % 12] - lons[i]) % 360.0) for i in range(12)]
+    assert all(s > 0 for s in spans) and abs(sum(spans) - 360.0) < 1e-6
+    # 10th cusp still equals the composite MC (MC is shared by both methods).
+    assert abs(d["houses"][9]["longitude"] - d["angles"]["midheaven"]) < 0.01
+
+
 def test_davison_endpoint():
     r = client.post("/api/davison", json={"person_a": _A, "person_b": _B})
     assert r.status_code == 200, r.text

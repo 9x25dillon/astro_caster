@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import datetime as dt
 import math
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Literal, Optional, Tuple
 
 import swisseph as swe
 from pydantic import BaseModel, Field
@@ -45,6 +45,9 @@ from tarot_models import DISCLAIMER, NatalArcanaSignature
 class SynastryRequest(BaseModel):
     person_a: ChartRequest
     person_b: ChartRequest
+    # Composite house convention: "midpoint" (default) or "derived" (derived-MC
+    # at the geographic-midpoint latitude). Only affects /api/composite.
+    house_method: Literal["midpoint", "derived"] = "midpoint"
 
 
 class HousePlanetOverlay(BaseModel):
@@ -268,9 +271,8 @@ def composite_house_cusps(a: ChartResponse, b: ChartResponse) -> List[HouseCusp]
     Known property: independently midpointing each cusp can occasionally yield
     slightly non-monotonic or unevenly-sized houses (the houses may not increase
     strictly around the wheel). That is inherent to the midpoint-composite method,
-    not a bug — the alternative is the derived-MC method, which needs a single
-    reference latitude the composite does not actually have. # TODO (optional):
-    offer a derived-MC variant keyed off the geographic-midpoint latitude.
+    not a bug — the alternative is the derived-MC method (see
+    ``derived_composite_houses``), which keys off the geographic-midpoint latitude.
     """
     if not a.houses or not b.houses:
         return []
@@ -287,8 +289,48 @@ def composite_house_cusps(a: ChartResponse, b: ChartResponse) -> List[HouseCusp]
     return cusps
 
 
-def composite_midpoints(a: ChartResponse, b: ChartResponse) -> CompositeChart:
-    """Circular midpoints of paired planets, with midpoint-composite houses."""
+# Mean obliquity of the ecliptic at J2000 (degrees); changes < 0.01°/century, so
+# a fixed value is plenty for deriving composite houses.
+_OBLIQUITY_J2000 = 23.4392911
+
+
+def derived_composite_houses(
+    mc_lon: float, geo_lat: float, house_system: str = "P"
+) -> Tuple[List[HouseCusp], float]:
+    """
+    Derived-MC composite houses: take the composite MC, convert it to a Right
+    Ascension of the Midheaven (RAMC), then build a real house framework at the
+    geographic-midpoint latitude. Unlike the midpoint method this guarantees
+    monotonic, properly-shaped houses and a geometrically-derived Ascendant.
+
+    Returns (12 cusps, derived_ascendant_longitude).
+    """
+    eps = math.radians(_OBLIQUITY_J2000)
+    lam = math.radians(mc_lon % 360.0)
+    # RA of an ecliptic point at zero latitude (the MC).
+    armc = math.degrees(math.atan2(math.sin(lam) * math.cos(eps), math.cos(lam))) % 360.0
+    cusps_raw, ascmc = swe.houses_armc(
+        armc, geo_lat, _OBLIQUITY_J2000, house_system.encode("ascii")
+    )
+    cusps: List[HouseCusp] = []
+    for i in range(12):
+        lon = A.norm360(cusps_raw[i])
+        d, m, _s = A.degree_in_sign(lon)
+        cusps.append(HouseCusp(index=i + 1, longitude=round(lon, 6),
+                               sign=A.sign_for(lon), degree=d, minute=m))
+    return cusps, A.norm360(ascmc[0])
+
+
+def composite_midpoints(
+    a: ChartResponse, b: ChartResponse,
+    house_method: str = "midpoint", geo_lat: Optional[float] = None,
+) -> CompositeChart:
+    """
+    Circular midpoints of paired planets. Houses by one of two conventions:
+      * "midpoint" (default) — circular midpoint of each paired natal cusp.
+      * "derived"  — derived-MC method at `geo_lat` (falls back to midpoint when
+        geo_lat or the composite MC is unavailable).
+    """
     idx_a = _planet_index(a)
     idx_b = _planet_index(b)
     shared_ids = sorted(set(idx_a) & set(idx_b) - _ANGLE_IDS)
@@ -311,8 +353,21 @@ def composite_midpoints(a: ChartResponse, b: ChartResponse) -> CompositeChart:
             vertex=None,
         )
 
-    # Midpoint-composite house cusps, then place each composite planet in them.
-    houses = composite_house_cusps(a, b)
+    # House cusps by the chosen method, then place each composite planet in them.
+    houses_kind = "midpoint_composite"
+    if (house_method == "derived" and comp_angles is not None and geo_lat is not None):
+        houses, derived_asc = derived_composite_houses(comp_angles.midheaven, geo_lat)
+        houses_kind = "derived_mc"
+        # The derived Ascendant supersedes the midpoint Ascendant in this method.
+        comp_angles = Angles(
+            ascendant=round(derived_asc, 6),
+            midheaven=comp_angles.midheaven,
+            descendant=round(A.norm360(derived_asc + 180.0), 6),
+            imum_coeli=comp_angles.imum_coeli,
+            vertex=None,
+        )
+    else:
+        houses = composite_house_cusps(a, b)
     if houses:
         cusp_lons = [h.longitude for h in sorted(houses, key=lambda h: h.index)]
         for p in composite_planets:
@@ -332,8 +387,7 @@ def composite_midpoints(a: ChartResponse, b: ChartResponse) -> CompositeChart:
         patterns=comp_patterns,
         elements=elements,
         modalities=modalities,
-        meta={"method": "composite_midpoints", "houses": "midpoint_composite",
-              "status": "draft"},
+        meta={"method": "composite_midpoints", "houses": houses_kind},
     )
 
 

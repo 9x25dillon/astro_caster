@@ -466,11 +466,20 @@ async def synastry(req: SynastryRequest):
 
 @app.post("/api/composite", response_model=CompositeChart)
 async def composite(req: SynastryRequest):
-    """Midpoint composite chart (planets, houses, internal aspects, patterns)."""
+    """Midpoint composite chart (planets, houses, internal aspects, patterns).
+
+    house_method="derived" uses the derived-MC method at the geographic-midpoint
+    latitude instead of midpointing each cusp.
+    """
     try:
         a = E.calculate_chart(req.person_a)
         b = E.calculate_chart(req.person_b)
-        return SYN.composite_midpoints(a, b)
+        geo_lat, _lng = SYN._geographic_midpoint(
+            req.person_a.lat, req.person_a.lng, req.person_b.lat, req.person_b.lng
+        )
+        return SYN.composite_midpoints(
+            a, b, house_method=req.house_method, geo_lat=geo_lat
+        )
     except Exception as exc:
         raise HTTPException(status_code=400, detail=f"composite failed: {exc}")
 
