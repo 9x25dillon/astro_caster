@@ -1,0 +1,148 @@
+// PredictiveModal.tsx — secondary progressions, solar returns, eclipse timeline.
+import React, { useEffect, useRef, useState } from "react";
+import { useStore } from "../store/useStore";
+import {
+  fetchProgressed, fetchSolarReturn, fetchEclipses, trackEvent,
+  type ProgressedChart, type SolarReturnChart, type EclipseTimeline,
+} from "../api/client";
+
+type Tab = "progressions" | "solar" | "eclipses";
+const today = () => new Date().toISOString().slice(0, 10);
+
+export const PredictiveModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+  const birth = useStore((s) => s.birth);
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const [tab, setTab] = useState<Tab>("progressions");
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const [target, setTarget] = useState(today());
+  const [year, setYear] = useState(new Date().getFullYear());
+  const [prog, setProg] = useState<ProgressedChart | null>(null);
+  const [sr, setSr] = useState<SolarReturnChart | null>(null);
+  const [ecl, setEcl] = useState<EclipseTimeline | null>(null);
+
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [onClose]);
+
+  async function run<T>(fn: () => Promise<T>, set: (v: T) => void, ev: string) {
+    setLoading(true); setErr(null);
+    try { set(await fn()); trackEvent(ev); }
+    catch (e) { setErr(String(e)); }
+    finally { setLoading(false); }
+  }
+
+  return (
+    <div className="modal-overlay" ref={overlayRef}
+         onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}>
+      <div className="arcana-modal">
+        <div className="arcana-header">
+          <div>
+            <h2 className="arcana-title">◷ Predictive Timing</h2>
+            <p className="arcana-sub">Symbolic timing mirrors — progressions, returns, eclipses.
+              Not fixed prediction.</p>
+          </div>
+          <button className="modal-close" onClick={onClose}>✕</button>
+        </div>
+
+        <div className="arcana-tabs">
+          {([["progressions", "Progressions"], ["solar", "Solar Return"], ["eclipses", "Eclipses"]] as [Tab, string][])
+            .map(([id, label]) => (
+              <button key={id} className={`arcana-tab ${tab === id ? "is-active" : ""}`}
+                      onClick={() => setTab(id)}>{label}</button>
+            ))}
+        </div>
+
+        <div className="arcana-body">
+          {err && <p className="arc-error">{err}</p>}
+
+          {tab === "progressions" && (
+            <div>
+              <div className="arc-draw-controls">
+                <label>Progress to date
+                  <input type="date" value={target} onChange={(e) => setTarget(e.target.value)} />
+                </label>
+                <button className="arc-draw-btn" disabled={loading}
+                        onClick={() => run(() => fetchProgressed(birth, target), setProg, "progressed_run")}>
+                  {loading ? "…" : "Progress"}
+                </button>
+              </div>
+              {prog && (
+                <div>
+                  <p className="arc-themes"><b>Age {prog.age_years}</b> · progressed moment {prog.progressed_iso.slice(0, 10)}</p>
+                  <div className="arc-link-grid">
+                    {prog.planets.map((p) => (
+                      <div key={p.id} className="arc-link-card">
+                        <div className="arc-link-body">{p.id}</div>
+                        <span className="arc-chip">{p.degree}° {p.sign}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="arc-themes" style={{ marginTop: 12 }}>
+                    <b>Progressed → natal aspects:</b> {prog.aspects_to_natal.length}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {tab === "solar" && (
+            <div>
+              <div className="arc-draw-controls">
+                <label>Return year
+                  <input type="number" value={year} onChange={(e) => setYear(Number(e.target.value))} />
+                </label>
+                <button className="arc-draw-btn" disabled={loading}
+                        onClick={() => run(() => fetchSolarReturn(birth, year), setSr, "solar_return_run")}>
+                  {loading ? "…" : "Cast return"}
+                </button>
+              </div>
+              {sr && (
+                <div>
+                  <p className="arc-themes"><b>{sr.year} solar return</b> · exact {sr.return_iso.replace("T", " ").slice(0, 16)} UTC</p>
+                  <div className="arc-link-grid">
+                    {sr.planets.filter((p) => !["Descendant", "Imum Coeli"].includes(p.id)).map((p) => (
+                      <div key={p.id} className="arc-link-card">
+                        <div className="arc-link-body">{p.id}</div>
+                        <span className="arc-chip">{p.degree}° {p.sign} · H{p.house}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {tab === "eclipses" && (
+            <div>
+              <div className="arc-draw-controls">
+                <button className="arc-draw-btn" disabled={loading}
+                        onClick={() => run(() => fetchEclipses(birth, today(), 8), setEcl, "eclipses_run")}>
+                  {loading ? "…" : "Next 8 eclipses"}
+                </button>
+              </div>
+              {ecl?.eclipses.map((e) => (
+                <div key={e.date + e.kind} className="arc-day">
+                  <div className="arc-day-head">
+                    <span className="arc-day-date">{e.date}</span>
+                    <span className="arc-day-transit">
+                      {e.kind === "solar" ? "☉ Solar" : "☽ Lunar"} · {e.nature} · {e.degree}° {e.sign}
+                    </span>
+                  </div>
+                  {e.activations.length > 0 && (
+                    <p className="arc-day-action">
+                      activates: {e.activations.map((c) => `${c.natal_body} (${c.aspect}, ${c.orb}°)`).join(", ")}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};

@@ -415,3 +415,96 @@ export function fetchArcanaForecast(
     entitlement: entitlement ?? null,
   });
 }
+
+// ── Relationship astrology (synastry / composite / Davison / tarot) ─────────────
+
+export interface SynPlanet { id: string; longitude: number; sign: string; degree: number; house: number; }
+export interface HouseOverlay { planet_id: string; longitude: number; host_house: number; host_owner: string; }
+export interface HouseEmphasis { host_owner: string; house: number; count: number; planets: string[]; }
+export interface RulerLink { host_owner: string; house: number; cusp_sign: string; ruler: string; lands_in_other_house: number; }
+export interface SynAspect { p1: string; p2: string; type: string; orb: number; harmony: string; }
+
+export interface SynastryResponse {
+  inter_aspects: SynAspect[];
+  grid: { b_in_a: HouseOverlay[]; a_in_b: HouseOverlay[]; emphasis: HouseEmphasis[]; rulers: RulerLink[]; };
+  disclaimer: string;
+}
+export interface CompositeChart {
+  planets: SynPlanet[]; houses: { index: number; longitude: number; sign: string; degree: number }[];
+  angles: { ascendant: number; midheaven: number } | null;
+  aspects: SynAspect[]; patterns: { type: string; planets: string[] }[];
+  elements: Record<string, number>; modalities: Record<string, number>;
+  disclaimer: string; meta: Record<string, string>;
+}
+export interface DavisonChart {
+  planets: SynPlanet[]; houses: unknown[]; aspects: SynAspect[];
+  elements: Record<string, number>; modalities: Record<string, number>;
+  disclaimer: string; meta: Record<string, string>;
+}
+export interface SynastryTarotResponse {
+  spread: { shared_themes: string[]; complementary_shadows: string[]; bond_card: string };
+  disclaimer: string;
+}
+
+type HouseMethod = "midpoint" | "derived";
+
+export function fetchSynastry(a: BirthInput, b: BirthInput): Promise<SynastryResponse> {
+  return post<SynastryResponse>("/synastry", { person_a: a, person_b: b });
+}
+export function fetchComposite(a: BirthInput, b: BirthInput, houseMethod: HouseMethod = "midpoint"): Promise<CompositeChart> {
+  return post<CompositeChart>("/composite", { person_a: a, person_b: b, house_method: houseMethod });
+}
+export function fetchDavison(a: BirthInput, b: BirthInput): Promise<DavisonChart> {
+  return post<DavisonChart>("/davison", { person_a: a, person_b: b });
+}
+export function fetchSynastryTarot(a: BirthInput, b: BirthInput): Promise<SynastryTarotResponse> {
+  return post<SynastryTarotResponse>("/synastry-tarot", { person_a: a, person_b: b });
+}
+
+// ── Predictive (progressions / solar return / eclipses) ─────────────────────────
+
+export interface ProgressedChart {
+  age_years: number; progressed_iso: string; planets: SynPlanet[];
+  aspects_to_natal: SynAspect[]; disclaimer: string; meta: Record<string, string>;
+}
+export interface SolarReturnChart {
+  year: number; return_iso: string; planets: SynPlanet[];
+  houses: { index: number; sign: string; degree: number }[];
+  elements: Record<string, number>; modalities: Record<string, number>; disclaimer: string;
+}
+export interface EclipseContact { natal_body: string; aspect: string; orb: number; }
+export interface EclipseEvent {
+  date: string; kind: string; nature: string; longitude: number; sign: string; degree: number;
+  activations: EclipseContact[];
+}
+export interface EclipseTimeline { start: string; eclipses: EclipseEvent[]; disclaimer: string; }
+
+export function fetchProgressed(natal: BirthInput, targetIso: string): Promise<ProgressedChart> {
+  return post<ProgressedChart>("/progressed-chart", { natal, target_iso: targetIso });
+}
+export function fetchSolarReturn(natal: BirthInput, year: number): Promise<SolarReturnChart> {
+  return post<SolarReturnChart>("/solar-return", { natal, year });
+}
+export function fetchEclipses(natal: BirthInput, startIso: string, count = 8): Promise<EclipseTimeline> {
+  return post<EclipseTimeline>("/eclipse-timeline", { natal, start_iso: startIso, count });
+}
+
+// ── Advanced (harmonics / midpoint trees / fixed stars) ─────────────────────────
+
+export interface HarmonicPosition { id: string; glyph: string; longitude: number; sign: string; sign_glyph: string; degree: number; minute: number; }
+export interface HarmonicChart { harmonic: number; positions: HarmonicPosition[]; aspects: { p1: string; p2: string; type: string; orb: number }[]; disclaimer: string; }
+export interface MidpointContact { body: string; angle: number; aspect: string; orb: number; }
+export interface MidpointEntry { pair: string; midpoint: number; sign: string; degree: number; contacts: MidpointContact[]; }
+export interface MidpointTree { orb: number; entries: MidpointEntry[]; disclaimer: string; }
+export interface FixedStarHit { star: string; star_longitude: number; sign: string; degree: number; nature: string; natal_body: string; orb: number; }
+export interface FixedStarResponse { orb: number; hits: FixedStarHit[]; disclaimer: string; }
+
+export function fetchHarmonic(natal: BirthInput, harmonic: number): Promise<HarmonicChart> {
+  return post<HarmonicChart>("/harmonic-chart", { natal, harmonic });
+}
+export function fetchMidpointTree(natal: BirthInput, orb = 1.0): Promise<MidpointTree> {
+  return post<MidpointTree>("/midpoint-tree", { natal, orb });
+}
+export function fetchFixedStars(natal: BirthInput, orb = 1.5): Promise<FixedStarResponse> {
+  return post<FixedStarResponse>("/fixed-stars", { natal, orb });
+}

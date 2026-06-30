@@ -101,6 +101,41 @@ def test_reading_core_offline_complete():
     assert reading.disclaimer  # framing travels with the data
 
 
+def test_minor_arcana_complete():
+    assert len(TD.MINOR_ARCANA) == 56            # 40 pips + 16 courts
+    assert len(TD.FULL_DECK) == 78               # + 22 majors
+    assert len(TD.CARD_BY_ID) == 78              # all ids unique (no major/minor collision)
+    for suit in ("wands", "cups", "swords", "pentacles"):
+        in_suit = [c for c in TD.MINOR_ARCANA if c["suit"] == suit]
+        assert len(in_suit) == 14, suit          # Ace–10 + 4 courts
+        assert all(c["element"] == TD.SUIT_ELEMENTS[suit] for c in in_suit)
+    # every minor has the faces drawing needs
+    for c in TD.MINOR_ARCANA:
+        assert c["upright"] and c["reversed"] and c["keywords"]
+
+
+def test_full_deck_draw_can_include_minors_and_stays_deterministic():
+    chart = _chart()
+    sig = TAROT.build_natal_arcana_signature(chart)
+    a = TAROT.weighted_draw(sig, "twelve_house", seed="full-deck")
+    b = TAROT.weighted_draw(sig, "twelve_house", seed="full-deck")
+    assert a == b                                # reproducible
+    ids = [cid for cid, _r, _p in a]
+    assert len(ids) == len(set(ids)) == 12       # no dups across 78-card deck
+    # majors_only path still works and draws only trumps
+    m = TAROT.weighted_draw(sig, "three_card", seed="x", majors_only=True)
+    assert all(cid in TD.MAJOR_BY_ID for cid, _r, _p in m)
+
+
+def test_minor_card_renders_in_reading():
+    chart = _chart()
+    # Force a minor into the draw by checking card_model + meaning for one
+    card = TAROT.card_model("knight_of_cups", reversed=True)
+    assert card.arcana == "minor" and card.suit == "cups"
+    lesson = TAROT.lesson_for_card("ten_of_swords")
+    assert lesson["journal"] and lesson["astrology"] == "Sun in Gemini"
+
+
 def test_arcana_for_event_maps_target():
     ev = {"type": "transit_natal", "planet": "Saturn", "target": "natal Sun",
           "significance": "high", "summary": "Saturn squares natal Sun"}

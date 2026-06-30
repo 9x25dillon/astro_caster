@@ -14,6 +14,16 @@ Endpoints:
   POST /api/natal-arcana        – deterministic natal tarot signature (no AI)
   POST /api/tarot-reading       – chart-weighted spread + optional AI enrichment
   POST /api/arcana-forecast     – daily transit card overlay (Phase 7)
+  POST /api/synastry            – two-chart inter-aspects + house grid
+  POST /api/composite           – midpoint composite chart
+  POST /api/davison             – Davison time/space midpoint chart
+  POST /api/synastry-tarot      – relationship tarot bond
+  POST /api/progressed-chart    – secondary progressions (day for a year)
+  POST /api/solar-return        – solar return chart for a given year
+  POST /api/eclipse-timeline    – upcoming eclipses + natal activations
+  POST /api/harmonic-chart      – Nth-harmonic chart
+  POST /api/midpoint-tree       – Ebertin midpoint tree (90° dial)
+  POST /api/fixed-stars         – natal conjunctions to fixed stars
   GET  /api/tts/voices          – available ElevenLabs voices
   POST /api/tts                 – synthesize speech (MP3); supporter feature
   GET  /api/treasury            – funding allocation + EVM treasury address
@@ -72,6 +82,32 @@ from tarot_models import (
     TarotReadingResponse,
 )
 from tarot_prompts import ARCANA_SYSTEM, build_arcana_user_prompt
+import synastry as SYN
+from synastry import (
+    CompositeChart,
+    DavisonChart,
+    SynastryRequest,
+    SynastryResponse,
+    SynastryTarotResponse,
+)
+import predictive as PRED
+from predictive import (
+    EclipseRequest,
+    EclipseTimelineResponse,
+    ProgressedChart,
+    ProgressedRequest,
+    SolarReturnChart,
+    SolarReturnRequest,
+)
+import advanced as ADV
+from advanced import (
+    FixedStarRequest,
+    FixedStarResponse,
+    HarmonicChart,
+    HarmonicRequest,
+    MidpointRequest,
+    MidpointTreeResponse,
+)
 
 app = FastAPI(title="Astrological Analysis Environment", version="1.0.0")
 
@@ -412,6 +448,128 @@ async def arcana_forecast(req: ArcanaForecastRequest):
         return {"start": start.isoformat(), "days": days, "cards": cards}
     except Exception as exc:
         raise HTTPException(status_code=400, detail=f"arcana forecast failed: {exc}")
+
+
+# --------------------------------------------------------------------------- #
+# Relationship astrology — synastry / composite / Davison (symbolic, not fate)
+# --------------------------------------------------------------------------- #
+
+
+@app.post("/api/synastry", response_model=SynastryResponse)
+async def synastry(req: SynastryRequest):
+    """Two natal charts: inter-aspects + house-overlay grid."""
+    try:
+        return await asyncio.to_thread(SYN.compute_synastry, req)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"synastry failed: {exc}")
+
+
+@app.post("/api/composite", response_model=CompositeChart)
+async def composite(req: SynastryRequest):
+    """Midpoint composite chart (planets, houses, internal aspects, patterns).
+
+    house_method="derived" uses the derived-MC method at the geographic-midpoint
+    latitude instead of midpointing each cusp.
+    """
+    try:
+        a = E.calculate_chart(req.person_a)
+        b = E.calculate_chart(req.person_b)
+        geo_lat, _lng = SYN._geographic_midpoint(
+            req.person_a.lat, req.person_a.lng, req.person_b.lat, req.person_b.lng
+        )
+        return SYN.composite_midpoints(
+            a, b, house_method=req.house_method, geo_lat=geo_lat
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"composite failed: {exc}")
+
+
+@app.post("/api/davison", response_model=DavisonChart)
+async def davison(req: SynastryRequest):
+    """Davison chart — great-circle geographic + temporal midpoint, real ephemeris."""
+    try:
+        return await asyncio.to_thread(SYN.davison_chart, req.person_a, req.person_b)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"davison failed: {exc}")
+
+
+@app.post("/api/synastry-tarot", response_model=SynastryTarotResponse)
+async def synastry_tarot(req: SynastryRequest):
+    """Relationship tarot: both natal arcana signatures + a weighted bond card."""
+    try:
+        a = E.calculate_chart(req.person_a)
+        b = E.calculate_chart(req.person_b)
+        return SYN.synastry_tarot(a, b)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"synastry tarot failed: {exc}")
+
+
+# --------------------------------------------------------------------------- #
+# Predictive timing — progressions / solar returns / eclipses (symbolic)
+# --------------------------------------------------------------------------- #
+
+
+@app.post("/api/progressed-chart", response_model=ProgressedChart)
+async def progressed_chart(req: ProgressedRequest):
+    """Secondary ('day for a year') progressed chart + aspects to natal."""
+    try:
+        return await asyncio.to_thread(PRED.progressed_chart, req.natal, req.target_iso)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"progression failed: {exc}")
+
+
+@app.post("/api/solar-return", response_model=SolarReturnChart)
+async def solar_return(req: SolarReturnRequest):
+    """Solar return chart for the given year (optionally relocated)."""
+    try:
+        return await asyncio.to_thread(
+            PRED.solar_return, req.natal, req.year, req.lat, req.lng
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"solar return failed: {exc}")
+
+
+@app.post("/api/eclipse-timeline", response_model=EclipseTimelineResponse)
+async def eclipse_timeline(req: EclipseRequest):
+    """Upcoming solar/lunar eclipses and the natal points they activate."""
+    try:
+        return await asyncio.to_thread(
+            PRED.eclipse_timeline, req.natal, req.start_iso, req.count
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"eclipse timeline failed: {exc}")
+
+
+# --------------------------------------------------------------------------- #
+# Advanced techniques — harmonics / midpoint trees / fixed stars (symbolic)
+# --------------------------------------------------------------------------- #
+
+
+@app.post("/api/harmonic-chart", response_model=HarmonicChart)
+async def harmonic_chart(req: HarmonicRequest):
+    """Nth-harmonic chart (positions × N mod 360) + harmonic conjunctions."""
+    try:
+        return await asyncio.to_thread(ADV.harmonic_chart, req.natal, req.harmonic)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"harmonic chart failed: {exc}")
+
+
+@app.post("/api/midpoint-tree", response_model=MidpointTreeResponse)
+async def midpoint_tree(req: MidpointRequest):
+    """Ebertin 90° dial midpoint tree: bodies sitting on planetary midpoints."""
+    try:
+        return await asyncio.to_thread(ADV.midpoint_tree, req.natal, req.orb)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"midpoint tree failed: {exc}")
+
+
+@app.post("/api/fixed-stars", response_model=FixedStarResponse)
+async def fixed_stars(req: FixedStarRequest):
+    """Conjunctions of natal bodies to major fixed stars (precession-adjusted)."""
+    try:
+        return await asyncio.to_thread(ADV.fixed_star_hits, req.natal, req.orb)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"fixed stars failed: {exc}")
 
 
 @app.post("/api/suggestions")
