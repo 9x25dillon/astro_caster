@@ -442,3 +442,187 @@ PLANET_ACTIVITY: Dict[str, str] = {
     "Ascendant": "Draw your 'mask' as a simple sigil — the face you meet the world with — and thank it.",
     "Midheaven": "Name aloud the work you would do if no one were watching the result.",
 }
+
+
+# --------------------------------------------------------------------------- #
+# Minor Arcana — full 56 cards (40 pips + 16 courts)
+# --------------------------------------------------------------------------- #
+# Pips 2–10 carry their Golden Dawn decan attributions (planet-in-sign) and the
+# classic GD card titles; Aces are the "root" of their element; courts use the
+# element-of-element dignity (Page=Earth, Knight=Fire, Queen=Water, King=Air).
+
+_RANKS: Dict[int, str] = {
+    1: "Ace", 2: "Two", 3: "Three", 4: "Four", 5: "Five",
+    6: "Six", 7: "Seven", 8: "Eight", 9: "Nine", 10: "Ten",
+}
+_SUIT_TITLE: Dict[str, str] = {
+    "wands": "Wands", "cups": "Cups", "swords": "Swords", "pentacles": "Pentacles",
+}
+
+# suit -> [(number, title, astrology, keywords, upright, reversed)]
+_PIPS: Dict[str, list] = {
+    "wands": [
+        (1, "Root of Fire", "Fire", ["spark", "inspiration", "drive", "potential"],
+         "a pure surge of creative fire and new will", "a false start, or scattered, ungrounded energy"),
+        (2, "Dominion", "Mars in Aries", ["vision", "planning", "boldness", "choice"],
+         "bold vision and the courage to plan a larger life", "hesitation, fear of the unknown, plans stalling"),
+        (3, "Established Strength", "Sun in Aries", ["foresight", "expansion", "progress", "enterprise"],
+         "foresight rewarded; horizons widening", "delays, over-reach, or looking back instead of forward"),
+        (4, "Perfected Work", "Venus in Aries", ["celebration", "harmony", "home", "milestone"],
+         "a joyful milestone, harmony, and homecoming", "a muted celebration or unstable foundations"),
+        (5, "Strife", "Saturn in Leo", ["competition", "friction", "tension", "conflict"],
+         "lively competition and creative friction", "avoidable conflict, exhaustion, ego clashes"),
+        (6, "Victory", "Jupiter in Leo", ["triumph", "recognition", "confidence", "success"],
+         "earned recognition and public success", "hollow praise, fear of falling, delayed reward"),
+        (7, "Valour", "Mars in Leo", ["courage", "defense", "perseverance", "conviction"],
+         "holding your ground against the odds", "overwhelm, defensiveness, giving up the high ground"),
+        (8, "Swiftness", "Mercury in Sagittarius", ["speed", "movement", "news", "momentum"],
+         "rapid movement, news, and aligned momentum", "delays, haste, or scattered energy"),
+        (9, "Great Strength", "Moon in Sagittarius", ["resilience", "boundaries", "stamina", "last stand"],
+         "resilience and one more reserve of strength", "depletion, paranoia, rigid defensiveness"),
+        (10, "Oppression", "Saturn in Sagittarius", ["burden", "responsibility", "overload", "duty"],
+         "carrying much; near the finish but heavy-laden", "burnout, or finally setting the burden down"),
+    ],
+    "cups": [
+        (1, "Root of Water", "Water", ["love", "feeling", "intuition", "openness"],
+         "the heart opening; a wellspring of feeling", "emotional blockage, or love withheld from yourself"),
+        (2, "Love", "Venus in Cancer", ["union", "connection", "attraction", "mutuality"],
+         "mutual love and a meeting of hearts", "imbalance, tension, or a connection cooling"),
+        (3, "Abundance", "Mercury in Cancer", ["celebration", "friendship", "community", "joy"],
+         "joyful community and shared abundance", "overindulgence, gossip, or isolation"),
+        (4, "Blended Pleasure", "Moon in Cancer", ["apathy", "contemplation", "reappraisal", "boredom"],
+         "contemplative withdrawal; an offer not yet seen", "emerging from apathy; renewed interest"),
+        (5, "Disappointment", "Mars in Scorpio", ["grief", "loss", "regret", "mourning"],
+         "grief over what spilled; learning to see what remains", "acceptance, recovery, moving forward"),
+        (6, "Pleasure", "Sun in Scorpio", ["nostalgia", "memory", "innocence", "reunion"],
+         "sweet memory, nostalgia, and reunion", "stuck in the past, or idealizing it"),
+        (7, "Illusion", "Venus in Scorpio", ["fantasy", "choices", "temptation", "wishful thinking"],
+         "many tempting visions; discernment needed", "clarity returns; a real choice is made"),
+        (8, "Abandoned Success", "Saturn in Pisces", ["departure", "seeking", "withdrawal", "quest"],
+         "walking away from what no longer fulfills", "fear of leaving, or aimless drifting"),
+        (9, "Happiness", "Jupiter in Pisces", ["contentment", "wish", "satisfaction", "gratitude"],
+         "emotional contentment; a wish fulfilled", "smugness, or a wish that rings hollow"),
+        (10, "Satiety", "Mars in Pisces", ["harmony", "family", "fulfillment", "belonging"],
+         "lasting emotional fulfillment and belonging", "discord beneath the surface; idealized harmony"),
+    ],
+    "swords": [
+        (1, "Root of Air", "Air", ["clarity", "truth", "breakthrough", "insight"],
+         "a piercing clarity that cuts to truth", "confusion, misused intellect, muddled thinking"),
+        (2, "Peace Restored", "Moon in Libra", ["stalemate", "truce", "indecision", "balance"],
+         "an uneasy truce; a decision held in balance", "the stalemate breaks; truth surfaces"),
+        (3, "Sorrow", "Saturn in Libra", ["heartbreak", "grief", "betrayal", "release"],
+         "heartbreak that clears the air", "healing, or sorrow nursed too long"),
+        (4, "Rest from Strife", "Jupiter in Libra", ["rest", "recovery", "retreat", "stillness"],
+         "necessary rest and quiet recovery", "restlessness, or avoidance of a needed pause"),
+        (5, "Defeat", "Venus in Aquarius", ["conflict", "loss", "ego", "hollow victory"],
+         "a win that costs more than it gives", "reconciliation, or releasing a grudge"),
+        (6, "Earned Success", "Mercury in Aquarius", ["transition", "passage", "moving on", "recovery"],
+         "a passage toward calmer water", "resistance to change; baggage carried along"),
+        (7, "Unstable Effort", "Moon in Aquarius", ["strategy", "stealth", "cunning", "evasion"],
+         "strategy, cunning, acting alone", "self-deception exposed; coming clean"),
+        (8, "Shortened Force", "Jupiter in Gemini", ["restriction", "self-limit", "stuckness", "fear"],
+         "a self-made cage; the door is unlocked", "stepping free; reclaiming your power"),
+        (9, "Cruelty", "Mars in Gemini", ["anxiety", "worry", "nightmares", "mental anguish"],
+         "the 3am mind; worry magnified in the dark", "dawn comes; fears named and shrinking"),
+        (10, "Ruin", "Sun in Gemini", ["ending", "rock bottom", "collapse", "release"],
+         "a painful ending that is also completion", "recovery; the only way left is up"),
+    ],
+    "pentacles": [
+        (1, "Root of Earth", "Earth", ["opportunity", "prosperity", "seed", "manifestation"],
+         "a tangible seed of prosperity and new ground", "a missed opportunity or a shaky foundation"),
+        (2, "Change", "Jupiter in Capricorn", ["balance", "juggling", "adaptability", "flux"],
+         "juggling demands with nimble grace", "overwhelm; dropping one ball too many"),
+        (3, "Work", "Mars in Capricorn", ["craft", "collaboration", "skill", "building"],
+         "skilled collaboration and good craft", "discord, sloppy work, misaligned effort"),
+        (4, "Earthly Power", "Sun in Capricorn", ["security", "control", "saving", "holding"],
+         "stability and security held close", "clinging, scarcity-thinking, or learning to let go"),
+        (5, "Material Trouble", "Mercury in Taurus", ["hardship", "lack", "insecurity", "exclusion"],
+         "hard times; help is nearer than it looks", "recovery, support found, hardship easing"),
+        (6, "Material Success", "Moon in Taurus", ["generosity", "giving", "receiving", "balance"],
+         "a fair flow of giving and receiving", "strings attached, imbalance, or debt"),
+        (7, "Valuelessness", "Saturn in Taurus", ["patience", "assessment", "waiting", "investment"],
+         "pausing to assess a long investment", "impatience, sunk-cost clinging, poor yield"),
+        (8, "Prudence", "Sun in Virgo", ["diligence", "mastery", "craft", "focus"],
+         "devoted practice toward mastery", "perfectionism, or careless shortcuts"),
+        (9, "Gain", "Venus in Virgo", ["abundance", "self-sufficiency", "refinement", "reward"],
+         "earned abundance and graceful independence", "over-reliance on status; hollow luxury"),
+        (10, "Wealth", "Mercury in Virgo", ["legacy", "family", "stability", "completion"],
+         "lasting wealth, legacy, and rootedness", "financial strain or family friction over resources"),
+    ],
+}
+
+# suit -> [(rank, dignity, keywords, upright, reversed)]
+_COURTS: Dict[str, list] = {
+    "wands": [
+        ("Page", "Earth of Fire", ["curiosity", "enthusiasm", "exploration", "free spirit"],
+         "an eager spark; a free-spirited explorer", "restlessness, unfinished starts"),
+        ("Knight", "Fire of Fire", ["adventure", "passion", "impulse", "momentum"],
+         "bold, passionate pursuit of a vision", "recklessness, burnout, scattered haste"),
+        ("Queen", "Water of Fire", ["warmth", "confidence", "charisma", "vitality"],
+         "radiant confidence and warm magnetism", "self-doubt, or domineering heat"),
+        ("King", "Air of Fire", ["leadership", "vision", "boldness", "mastery"],
+         "visionary leadership that inspires action", "impulsive or tyrannical command"),
+    ],
+    "cups": [
+        ("Page", "Earth of Water", ["intuition", "tenderness", "creativity", "openness"],
+         "a tender, intuitive, creative beginning", "emotional immaturity or escapism"),
+        ("Knight", "Fire of Water", ["romance", "idealism", "pursuit", "charm"],
+         "the romantic on a heartfelt quest", "moodiness, unrealistic ideals"),
+        ("Queen", "Water of Water", ["empathy", "compassion", "intuition", "nurture"],
+         "deep empathy and emotional wisdom", "over-giving, boundaries dissolved"),
+        ("King", "Air of Water", ["composure", "balance", "wisdom", "diplomacy"],
+         "emotional mastery held with calm", "suppressed feeling, or moodiness ruling"),
+    ],
+    "swords": [
+        ("Page", "Earth of Air", ["curiosity", "vigilance", "ideas", "truth-seeking"],
+         "a sharp, curious mind hungry for truth", "scattered thoughts, gossip, haste"),
+        ("Knight", "Fire of Air", ["drive", "ambition", "directness", "force"],
+         "fast, focused, fearless action on an idea", "recklessness, harsh words, no follow-through"),
+        ("Queen", "Water of Air", ["clarity", "honesty", "independence", "perception"],
+         "clear-eyed honesty and independent judgment", "coldness, bitterness, harsh judgment"),
+        ("King", "Air of Air", ["authority", "truth", "ethics", "intellect"],
+         "principled authority guided by truth", "cold logic, misused power, manipulation"),
+    ],
+    "pentacles": [
+        ("Page", "Earth of Earth", ["study", "ambition", "opportunity", "diligence"],
+         "a grounded student turning a dream practical", "procrastination, unrealistic plans"),
+        ("Knight", "Fire of Earth", ["reliability", "routine", "diligence", "patience"],
+         "steady, dependable, methodical effort", "stagnation, dullness, over-caution"),
+        ("Queen", "Water of Earth", ["nurture", "abundance", "practicality", "care"],
+         "nurturing, resourceful, grounded care", "self-neglect, or smothering"),
+        ("King", "Air of Earth", ["abundance", "security", "leadership", "stewardship"],
+         "abundant, secure, generous stewardship", "greed, control, status obsession"),
+    ],
+}
+
+
+def _build_minor_arcana() -> List[Dict]:
+    cards: List[Dict] = []
+    for suit, pips in _PIPS.items():
+        elem = SUIT_ELEMENTS[suit]
+        for num, title, astro, kw, up, rev in pips:
+            rank = _RANKS[num]
+            cards.append({
+                "id": f"{rank.lower()}_of_{suit}",
+                "name": f"{rank} of {_SUIT_TITLE[suit]}",
+                "arcana": "minor", "suit": suit, "number": num, "title": title,
+                "keywords": list(kw), "element": elem,
+                "astrology": [astro] if astro else [], "upright": up, "reversed": rev,
+            })
+        for rank, dignity, kw, up, rev in _COURTS[suit]:
+            cards.append({
+                "id": f"{rank.lower()}_of_{suit}",
+                "name": f"{rank} of {_SUIT_TITLE[suit]}",
+                "arcana": "minor", "suit": suit, "number": None, "title": dignity,
+                "keywords": list(kw), "element": elem,
+                "astrology": [dignity], "upright": up, "reversed": rev,
+            })
+    return cards
+
+
+MINOR_ARCANA: List[Dict] = _build_minor_arcana()
+MINOR_BY_ID: Dict[str, Dict] = {c["id"]: c for c in MINOR_ARCANA}
+
+# Unified lookups over the full 78-card deck.
+FULL_DECK: List[Dict] = MAJOR_ARCANA + MINOR_ARCANA
+CARD_BY_ID: Dict[str, Dict] = {**MAJOR_BY_ID, **MINOR_BY_ID}

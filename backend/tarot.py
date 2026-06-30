@@ -24,10 +24,14 @@ from typing import Dict, List, Optional, Tuple
 import astrology as A
 from models import ChartResponse
 from tarot_data import (
+    CARD_BY_ID,
     ELEMENT_SUIT,
+    FULL_DECK,
     HOUSE_THEMES,
     MAJOR_ARCANA,
     MAJOR_BY_ID,
+    MINOR_ARCANA,
+    MINOR_BY_ID,
     PLANET_ACTIVITY,
     PLANET_MAJOR,
     SIGN_MAJOR,
@@ -78,10 +82,11 @@ SPREAD_POSITIONS: Dict[str, List[str]] = {
 
 
 def card_model(card_id: str, reversed: bool = False) -> TarotCard:
-    """Build a TarotCard model from a Major Arcana id."""
-    d = MAJOR_BY_ID[card_id]
+    """Build a TarotCard model from any card id (Major or Minor Arcana)."""
+    d = CARD_BY_ID[card_id]
     return TarotCard(
-        id=d["id"], name=d["name"], arcana="major", number=d.get("number"),
+        id=d["id"], name=d["name"], arcana=d.get("arcana", "major"),
+        number=d.get("number"), suit=d.get("suit"),
         keywords=list(d.get("keywords", [])), element=d.get("element"),
         astrology=list(d.get("astrology", [])),
         upright=d.get("upright"), reversed_meaning=d.get("reversed"),
@@ -204,20 +209,39 @@ def _weighted_sample_without_replacement(
     return chosen
 
 
+def _draw_weights(signature: NatalArcanaSignature) -> Dict[str, float]:
+    """
+    Per-card emphasis for the full 78-card deck: Major trumps weighted by the
+    natal signature's major_weights, Minor cards weighted by the chart's suit
+    bias (so a Water-dominant chart draws more Cups, etc.).
+    """
+    w: Dict[str, float] = dict(signature.major_weights)
+    for c in MINOR_ARCANA:
+        w[c["id"]] = signature.suit_bias.get(c["suit"], 0.0) * 3.0
+    return w
+
+
 def weighted_draw(
     signature: NatalArcanaSignature,
     spread: str,
     seed: str,
+    majors_only: bool = False,
 ) -> List[Tuple[str, bool, str]]:
     """
     Return [(card_id, reversed, position)] for the spread. Deterministic for a
-    given seed; no duplicate cards within a spread.
+    given seed; no duplicate cards within a spread. Draws from the full 78-card
+    deck (Major + Minor) unless majors_only is set.
     """
     positions = SPREAD_POSITIONS.get(spread, SPREAD_POSITIONS["three_card"])
     rng = _seed_rng(seed, spread)
-    deck = [c["id"] for c in MAJOR_ARCANA]
+    if majors_only:
+        deck = [c["id"] for c in MAJOR_ARCANA]
+        weights = signature.major_weights
+    else:
+        deck = [c["id"] for c in FULL_DECK]
+        weights = _draw_weights(signature)
     drawn = _weighted_sample_without_replacement(
-        rng, deck, signature.major_weights, len(positions)
+        rng, deck, weights, len(positions)
     )
     out: List[Tuple[str, bool, str]] = []
     for card_id, pos in zip(drawn, positions):
@@ -231,32 +255,45 @@ def weighted_draw(
 # --------------------------------------------------------------------------- #
 
 
+def _minor_journal(d: Dict) -> str:
+    kw = d.get("keywords", ["this energy"])[0]
+    return f"Where is the energy of {d['name']} — {kw} — moving in me right now?"
+
+
+def _minor_practice(d: Dict) -> str:
+    kw = d.get("keywords", ["this"])[0]
+    return f"Notice one place today where {kw} is asking for your attention, and meet it consciously."
+
+
 def lesson_for_card(card_id: str) -> Dict[str, str]:
-    d = MAJOR_BY_ID[card_id]
+    """Educational block for any card. Majors carry a full lesson corpus; minors
+    degrade gracefully to their keywords, decan, and upright/reversed faces."""
+    d = CARD_BY_ID[card_id]
     lesson = d.get("lesson", {})
+    is_minor = d.get("arcana") == "minor"
     return {
         "card": d["name"],
         "summary": f"{d['name']} — {', '.join(d.get('keywords', [])[:3])}.",
-        "mythic": lesson.get("mythic", ""),
-        "psychological": lesson.get("psychological", ""),
+        "mythic": lesson.get("mythic", "") or (f"Titled \"{d['title']}\" in the Golden Dawn tradition." if d.get("title") else ""),
+        "psychological": lesson.get("psychological", "") or (d.get("upright", "") if is_minor else ""),
         "astrology": ", ".join(d.get("astrology", [])),
         "element": d.get("element", ""),
-        "shadow": lesson.get("shadow", ""),
-        "practice": lesson.get("practice", ""),
-        "journal": lesson.get("journal", ""),
+        "shadow": lesson.get("shadow", "") or (d.get("reversed", "") if is_minor else ""),
+        "practice": lesson.get("practice", "") or (_minor_practice(d) if is_minor else ""),
+        "journal": lesson.get("journal", "") or (_minor_journal(d) if is_minor else ""),
     }
 
 
 def activity_for_card(card_id: str, signature: NatalArcanaSignature, position: str) -> Dict[str, str]:
     """A gentle, optional alignment activity grounded in the card + chart."""
+    d = CARD_BY_ID[card_id]
     # Prefer a body-specific activity if this card is one of the natal links.
     body = next((l.body for l in signature.links if l.card.id == card_id), None)
     if body and body in PLANET_ACTIVITY:
         text = PLANET_ACTIVITY[body]
     else:
-        d = MAJOR_BY_ID[card_id]
-        text = d.get("lesson", {}).get("practice", "")
-    return {"position": position, "card": MAJOR_BY_ID[card_id]["name"], "activity": text}
+        text = d.get("lesson", {}).get("practice", "") or _minor_practice(d)
+    return {"position": position, "card": d["name"], "activity": text}
 
 
 # --------------------------------------------------------------------------- #
@@ -278,13 +315,14 @@ def _default_seed(chart: ChartResponse, spread: str, question: str) -> str:
 
 
 def _offline_meaning(card_id: str, reversed: bool, position: str, link_note: Optional[str]) -> str:
-    d = MAJOR_BY_ID[card_id]
+    d = CARD_BY_ID[card_id]
     face = d.get("reversed") if reversed else d.get("upright")
     orient = "reversed" if reversed else "upright"
+    kind = "card" if d.get("arcana") == "minor" else "archetype"
     base = (
         f"**{d['name']}** ({orient}) in the *{position}* position speaks of "
         f"{face}. Its keywords — {', '.join(d.get('keywords', [])[:4])} — color how "
-        f"this archetype is moving for you now."
+        f"this {kind} is moving for you now."
     )
     if link_note:
         base += f" In your chart, this trump already lives here: {link_note}"
@@ -308,9 +346,10 @@ def build_reading_core(req: TarotReadingRequest) -> TarotReadingResponse:
 
     for card_id, reversed_flag, position in draw:
         link = link_by_card.get(card_id)
-        d = MAJOR_BY_ID[card_id]
+        d = CARD_BY_ID[card_id]
         meaning = _offline_meaning(card_id, reversed_flag, position, link.note if link else None)
         activity = activity_for_card(card_id, signature, position) if req.include_activities else None
+        journal = d.get("lesson", {}).get("journal") or (_minor_journal(d) if d.get("arcana") == "minor" else None)
         cards.append(DrawnCard(
             position=position,
             card=card_model(card_id, reversed_flag),
@@ -318,7 +357,7 @@ def build_reading_core(req: TarotReadingRequest) -> TarotReadingResponse:
             natal_link=link.body if link else None,
             meaning=meaning,
             activity=activity["activity"] if activity else None,
-            journal_prompt=d.get("lesson", {}).get("journal"),
+            journal_prompt=journal,
         ))
         if req.include_lessons:
             lessons.append(lesson_for_card(card_id))
@@ -346,7 +385,7 @@ def _offline_reading_prose(req, signature, cards) -> str:
         "",
     ]
     for c in cards:
-        d = MAJOR_BY_ID[c.card.id]
+        d = CARD_BY_ID[c.card.id]
         face = d["reversed"] if c.reversed else d["upright"]
         lines.append(f"- **{c.position} — {c.card.name}**: {face}.")
     lines += [
