@@ -251,8 +251,37 @@ def _tally_elements_modalities(planets: List[PlanetData]) -> Tuple[Dict[str, int
 # --------------------------------------------------------------------------- #
 
 
+def composite_house_cusps(a: ChartResponse, b: ChartResponse) -> List[HouseCusp]:
+    """
+    Midpoint-composite house cusps: the circular midpoint of each paired cusp
+    from the two natal charts (cusp i of A with cusp i of B). This is consistent
+    with the midpoint planets and with the composite Asc/MC, since a natal 1st
+    cusp == Ascendant and 10th cusp == MC.
+
+    Known property: independently midpointing each cusp can occasionally yield
+    slightly non-monotonic or unevenly-sized houses (the houses may not increase
+    strictly around the wheel). That is inherent to the midpoint-composite method,
+    not a bug — the alternative is the derived-MC method, which needs a single
+    reference latitude the composite does not actually have. # TODO (optional):
+    offer a derived-MC variant keyed off the geographic-midpoint latitude.
+    """
+    if not a.houses or not b.houses:
+        return []
+    by_index_b = {h.index: h for h in b.houses}
+    cusps: List[HouseCusp] = []
+    for ha in sorted(a.houses, key=lambda h: h.index):
+        hb = by_index_b.get(ha.index)
+        if hb is None:
+            continue
+        lon = circular_midpoint(ha.longitude, hb.longitude)
+        d, m, _s = A.degree_in_sign(lon)
+        cusps.append(HouseCusp(index=ha.index, longitude=round(lon, 6),
+                               sign=A.sign_for(lon), degree=d, minute=m))
+    return cusps
+
+
 def composite_midpoints(a: ChartResponse, b: ChartResponse) -> CompositeChart:
-    """Circular midpoints of paired planets; houses/angles assignment is partial."""
+    """Circular midpoints of paired planets, with midpoint-composite houses."""
     idx_a = _planet_index(a)
     idx_b = _planet_index(b)
     shared_ids = sorted(set(idx_a) & set(idx_b) - _ANGLE_IDS)
@@ -275,8 +304,12 @@ def composite_midpoints(a: ChartResponse, b: ChartResponse) -> CompositeChart:
             vertex=None,
         )
 
-    # TODO: derive composite house cusps (midpoint MC method or derived Asc).
-    houses: List[HouseCusp] = []
+    # Midpoint-composite house cusps, then place each composite planet in them.
+    houses = composite_house_cusps(a, b)
+    if houses:
+        cusp_lons = [h.longitude for h in sorted(houses, key=lambda h: h.index)]
+        for p in composite_planets:
+            p.house = _house_of_longitude(p.longitude, cusp_lons)
 
     # TODO: internal composite aspects and pattern detection.
     elements, modalities = _tally_elements_modalities(composite_planets)
@@ -287,7 +320,8 @@ def composite_midpoints(a: ChartResponse, b: ChartResponse) -> CompositeChart:
         aspects=[],
         elements=elements,
         modalities=modalities,
-        meta={"method": "composite_midpoints", "status": "draft"},
+        meta={"method": "composite_midpoints", "houses": "midpoint_composite",
+              "status": "draft"},
     )
 
 
