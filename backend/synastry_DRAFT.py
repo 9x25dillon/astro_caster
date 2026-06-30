@@ -15,7 +15,6 @@ midpoints use the short-arc rule:
 from __future__ import annotations
 
 import datetime as dt
-import hashlib
 import math
 from typing import Dict, List, Optional, Tuple
 
@@ -35,6 +34,7 @@ from models import (
 )
 from patterns import detect_patterns
 from tarot import build_natal_arcana_signature
+from tarot_data import MAJOR_BY_ID, PLANET_MAJOR
 from tarot_models import DISCLAIMER, NatalArcanaSignature
 
 # --------------------------------------------------------------------------- #
@@ -450,11 +450,34 @@ def compute_synastry(req: SynastryRequest) -> SynastryResponse:
 # --------------------------------------------------------------------------- #
 
 
-def _deterministic_index(seed: str, n: int) -> int:
-    if n <= 0:
-        return 0
-    digest = hashlib.sha256(seed.encode("utf-8")).hexdigest()
-    return int(digest, 16) % n
+def _bond_weights(
+    sig_a: NatalArcanaSignature,
+    sig_b: NatalArcanaSignature,
+    inter_aspects: List[Aspect],
+) -> Dict[str, float]:
+    """
+    Per-trump weight for the relationship's 'bond' card. Two ingredients:
+      1. Combined natal emphasis — a card both charts already weight scores high
+         (sig_a.major_weights + sig_b.major_weights).
+      2. Synastry-aspect density — each inter-aspect touching a planet adds weight
+         to that planet's trump, so the bond reflects where the two charts actually
+         make contact, not just static emphasis.
+    """
+    weights: Dict[str, float] = {}
+    for cid, w in sig_a.major_weights.items():
+        weights[cid] = weights.get(cid, 0.0) + w
+    for cid, w in sig_b.major_weights.items():
+        weights[cid] = weights.get(cid, 0.0) + w
+
+    touches: Dict[str, int] = {}
+    for asp in inter_aspects:
+        for pid in (asp.p1, asp.p2):
+            name = pid[2:] if pid.startswith("t:") else pid  # strip synastry tag
+            touches[name] = touches.get(name, 0) + 1
+    for planet, cid in PLANET_MAJOR.items():
+        if planet in touches:
+            weights[cid] = weights.get(cid, 0.0) + 0.5 * touches[planet]
+    return weights
 
 
 def synastry_tarot(a: ChartResponse, b: ChartResponse) -> SynastryTarotResponse:
@@ -470,14 +493,15 @@ def synastry_tarot(a: ChartResponse, b: ChartResponse) -> SynastryTarotResponse:
                 comp_shadows.append(f"{sa} ↔ {sb}")
     comp_shadows = sorted(set(comp_shadows))
 
-    # TODO: weight bond card by synastry aspects + overlapping major_weights.
-    bond_pool = shared or sorted(set(sig_a.themes) | set(sig_b.themes))
-    seed = "|".join(
-        sorted(p.id for p in a.planets[:3])
-        + sorted(p.id for p in b.planets[:3])
-        + [sig_a.dominant_element, sig_b.dominant_element]
-    )
-    bond_card = bond_pool[_deterministic_index(f"bond:{seed}", len(bond_pool))] if bond_pool else ""
+    # Bond card: the highest-weighted trump (combined emphasis + synastry contact),
+    # preferring a shared theme when the two charts have one. Deterministic — ties
+    # break by card id, no RNG.
+    weights = _bond_weights(sig_a, sig_b, synastry_aspects(a, b))
+    shared_ids = {cid for cid, c in MAJOR_BY_ID.items() if c["name"] in shared}
+    pool = shared_ids or set(weights)
+    bond_id = max(pool, key=lambda cid: (weights.get(cid, 0.0), cid),
+                  default="") if pool else ""
+    bond_card = MAJOR_BY_ID[bond_id]["name"] if bond_id in MAJOR_BY_ID else ""
 
     spread = SynastryTarotSpread(
         shared_themes=shared,
