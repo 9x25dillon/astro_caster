@@ -64,30 +64,31 @@ export const App: React.FC = () => {
         <div className="sub">
           Natal observatory · celestial cartography · oracle
         </div>
-        <button
-          className="support-pill"
-          style={{ marginRight: 8 }}
-          title="Astra Arcana — natal tarot"
-          onClick={() => { setArcanaOpen(true); trackEvent("arcana_opened"); }}
-        >
-          ✶ Arcana
-        </button>
-        <button
-          className={`support-pill ${isSupporter ? "is-supporter" : ""}`}
-          onClick={() => openSupport(true)}
-        >
-          {isSupporter ? "✦ Supporter" : "☤ Support / Unlock"}
-        </button>
-        {isSupporter && (
+        <div className="masthead-actions">
           <button
-            className="ghost"
-            style={{ fontSize: 10, padding: "2px 8px", width: "auto", opacity: 0.45 }}
-            title="Observatory stats (oracle)"
-            onClick={() => setAdminOpen(true)}
+            className="arcana-pill"
+            title="Astra Arcana — natal tarot"
+            onClick={() => { setArcanaOpen(true); trackEvent("arcana_opened"); }}
           >
-            ⊙ stats
+            ✶ Arcana
           </button>
-        )}
+          <button
+            className={`support-pill ${isSupporter ? "is-supporter" : ""}`}
+            onClick={() => openSupport(true)}
+          >
+            {isSupporter ? "✦ Supporter" : "☤ Support / Unlock"}
+          </button>
+          {isSupporter && (
+            <button
+              className="ghost"
+              style={{ fontSize: 10, padding: "2px 8px", width: "auto", opacity: 0.45 }}
+              title="Observatory stats (oracle)"
+              onClick={() => setAdminOpen(true)}
+            >
+              ⊙ stats
+            </button>
+          )}
+        </div>
       </header>
 
       <SupportModal />

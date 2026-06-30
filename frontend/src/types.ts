@@ -87,7 +87,7 @@ export interface BirthInput {
   label?: string;
 }
 
-export type SelectionType = "planet" | "house" | "aspect" | "pattern" | "sign";
+export type SelectionType = "planet" | "house" | "aspect" | "pattern" | "sign" | "transit_aspect";
 
 export interface Selection {
   type: SelectionType;

@@ -411,16 +411,26 @@ export const ChartWheel: React.FC<Props> = ({ size = 720 }) => {
           const dim    = planetFocus && !active;
           const [x1, y1] = polar(rAspect,  lonToAngle(natal_p.longitude, asc));
           const [x2, y2] = polar(rTransit, transitAngles[trans_p.id] ?? lonToAngle(trans_p.longitude, asc));
+          const taKey = `${a.p1}|${a.p2}|${a.type}`;
+          const taHov = hovered?.type === "transit_aspect" && hovered.id === taKey;
           return (
-            <line
+            <g
               key={`ta-${a.p1}-${a.p2}-${a.type}`}
-              x1={x1} y1={y1} x2={x2} y2={y2}
-              stroke={a.color}
-              strokeWidth={active ? 2.0 : 1.2}
-              strokeOpacity={dim ? 0.06 : active ? 0.85 : 0.45}
-              strokeDasharray="3 4"
-              filter={active ? "url(#glow)" : undefined}
-            />
+              onMouseEnter={() => hover({ type: "transit_aspect", id: taKey })}
+              onMouseLeave={() => hover(null)}
+              style={{ cursor: "pointer" }}
+            >
+              {/* Invisible wide hit-line so the thin dashed chord is easy to hover. */}
+              <line className="aspect-hit" x1={x1} y1={y1} x2={x2} y2={y2} />
+              <line
+                x1={x1} y1={y1} x2={x2} y2={y2}
+                stroke={a.color}
+                strokeWidth={active || taHov ? 2.0 : 1.2}
+                strokeOpacity={dim ? 0.06 : active || taHov ? 0.85 : 0.45}
+                strokeDasharray="3 4"
+                filter={active || taHov ? "url(#glow)" : undefined}
+              />
+            </g>
           );
         })}
 
@@ -569,6 +579,24 @@ export const ChartWheel: React.FC<Props> = ({ size = 720 }) => {
               ax: (x1 + x2) / 2, ay: (y1 + y2) / 2, accent: a.color,
               glyph: ASPECT_SYMBOL[a.type] ?? "∠", title: a.type,
               subtitle: `${a.p1} – ${a.p2}`,
+              blurb: ASPECT_INFLUENCE[a.type] ?? "", hasPersonal: true,
+              personal: `Orb ${a.orb}° · ${a.applying ? "applying" : "separating"}.`,
+            };
+          }
+        } else if (hovered.type === "transit_aspect" && transit) {
+          // Transit-to-natal chord: p1 = "t:<Transiting>", p2 = "<Natal>".
+          const a = transit.aspects_to_natal.find((x) => `${x.p1}|${x.p2}|${x.type}` === hovered.id);
+          const transId = a?.p1.startsWith("t:") ? a.p1.slice(2) : a?.p1;
+          const natal_p = a && planetById[a.p2];
+          const trans_p = a && transit.transiting.find((t) => t.id === transId);
+          if (a && natal_p && trans_p && transId) {
+            const [x1, y1] = polar(rAspect, lonToAngle(natal_p.longitude, asc));
+            const [x2, y2] = polar(rTransit, transitAngles[trans_p.id] ?? lonToAngle(trans_p.longitude, asc));
+            pop = {
+              ax: (x1 + x2) / 2, ay: (y1 + y2) / 2, accent: a.color,
+              glyph: ASPECT_SYMBOL[a.type] ?? "∠",
+              title: `${transId} ${ASPECT_SYMBOL[a.type] ?? ""} ${a.p2}`.trim(),
+              subtitle: `transiting ${transId} – natal ${a.p2}`,
               blurb: ASPECT_INFLUENCE[a.type] ?? "", hasPersonal: true,
               personal: `Orb ${a.orb}° · ${a.applying ? "applying" : "separating"}.`,
             };
