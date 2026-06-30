@@ -11,6 +11,9 @@ Endpoints:
   POST /api/ai-ask-stream       – same, streamed as SSE
   POST /api/suggestions         – navigational questions for the most-tenanted house
   POST /api/forecast            – upcoming stations, sky aspects, personal transits
+  POST /api/natal-arcana        – deterministic natal tarot signature (no AI)
+  POST /api/tarot-reading       – chart-weighted spread + optional AI enrichment
+  POST /api/arcana-forecast     – daily transit card overlay (Phase 7)
   GET  /api/tts/voices          – available ElevenLabs voices
   POST /api/tts                 – synthesize speech (MP3); supporter feature
   GET  /api/treasury            – funding allocation + EVM treasury address
@@ -51,7 +54,7 @@ import entitlements as ENT
 import telemetry as TEL
 import treasury as TR
 import tts as T
-from ai import ai_status, interpret, interpret_stream
+from ai import ai_status, interpret, interpret_arcana, interpret_stream
 from forecast import generate_forecast
 from models import (
     AIRequest,
@@ -60,6 +63,15 @@ from models import (
     TransitRequest,
     TransitResponse,
 )
+import tarot as TAROT
+from tarot_models import (
+    ArcanaForecastRequest,
+    ArcanaForecastResponse,
+    NatalArcanaSignature,
+    TarotReadingRequest,
+    TarotReadingResponse,
+)
+from tarot_prompts import ARCANA_SYSTEM, build_arcana_user_prompt
 
 app = FastAPI(title="Astrological Analysis Environment", version="1.0.0")
 
@@ -326,6 +338,80 @@ async def get_forecast(req: ForecastRequest):
         }
     except Exception as exc:
         raise HTTPException(status_code=400, detail=f"forecast failed: {exc}")
+
+
+# --------------------------------------------------------------------------- #
+# Astra Arcana — natal tarot (symbolic mirror, never deterministic prediction)
+# --------------------------------------------------------------------------- #
+
+
+@app.post("/api/natal-arcana", response_model=NatalArcanaSignature)
+async def natal_arcana(req: ChartResponse):
+    """Deterministic natal arcana signature. No AI, works fully offline."""
+    try:
+        return TAROT.build_natal_arcana_signature(req)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"natal arcana failed: {exc}")
+
+
+@app.post("/api/tarot-reading", response_model=TarotReadingResponse)
+async def tarot_reading(req: TarotReadingRequest):
+    """
+    Chart-weighted, deterministic tarot reading. The core (signature, draw,
+    static meanings/lessons/activities) is AI-free and offline. When
+    `include_ai` is set, an enriched interpretation is layered on for paid tiers,
+    falling back silently to the deterministic prose on any failure.
+    """
+    try:
+        reading = TAROT.build_reading_core(req)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"tarot reading failed: {exc}")
+
+    tier = ENT.entitlement_status(req.entitlement).get("tier", "free")
+    if req.include_ai and tier in ("supporter", "oracle"):
+        sig = reading.signature
+        drawn = [{
+            "position": c.position, "name": c.card.name,
+            "orientation": "reversed" if c.reversed else "upright",
+            "natal_link": c.natal_link or "",
+        } for c in reading.cards]
+        user = build_arcana_user_prompt(
+            question=req.question, spread=req.spread,
+            dominant_element=sig.dominant_element, dominant_modality=sig.dominant_modality,
+            themes=sig.themes, shadows=sig.shadows,
+            signature_lines=[l.note for l in sig.links], drawn=drawn,
+        )
+        ai = await interpret_arcana(ARCANA_SYSTEM, user, tier=tier)
+        if ai.get("source") == "llm" and ai.get("text"):
+            reading.interpretation = ai["text"]
+            reading.ai_source = "llm"
+        else:
+            reading.ai_source = "offline"
+        asyncio.create_task(TEL.log_ai(
+            tier=tier, lens="arcana", depth="deep", query=req.question,
+            provider=str(ai.get("provider", "")), model=str(ai.get("model", "")),
+            response_len=len(reading.interpretation), source=reading.ai_source or "offline",
+            sel_type="spread", sel_id=req.spread,
+        ))
+    return reading
+
+
+@app.post("/api/arcana-forecast", response_model=ArcanaForecastResponse)
+async def arcana_forecast(req: ArcanaForecastRequest):
+    """Daily transit card overlay — a thin tarot layer over the forecast engine."""
+    try:
+        days = min(max(req.days, 1), 30)
+        natal_positions = {
+            p.id: p.longitude for p in req.chart.planets if p.id not in _NATAL_EXCLUDE
+        }
+        start = dt.date.today()
+        events = await asyncio.to_thread(
+            generate_forecast, natal_positions, start, days, req.min_sig
+        )
+        cards = TAROT.daily_arcana_from_events(events, start.isoformat(), days)
+        return {"start": start.isoformat(), "days": days, "cards": cards}
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"arcana forecast failed: {exc}")
 
 
 @app.post("/api/suggestions")

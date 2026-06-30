@@ -1843,3 +1843,97 @@ button.ghost:hover {
   font-size: 11px;
   flex-shrink: 0;
 }
+
+/* ── Astra Arcana — amethyst esoteric chrome ──────────────────────────────── */
+.arcana-modal {
+  position: relative;
+  width: min(880px, 97vw);
+  max-height: 92vh; overflow: auto;
+  background: linear-gradient(180deg, var(--obsidian-2), var(--obsidian));
+  border: 1px solid var(--amethyst);
+  border-radius: 14px;
+  box-shadow: 0 0 64px rgba(142, 124, 195, 0.22), inset 0 0 1px rgba(181, 168, 224, 0.4);
+  padding: 22px;
+  animation: modalRise 0.36s var(--ease-spring);
+}
+.arcana-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+.arcana-title { margin: 0; color: var(--amethyst-soft); font-size: 22px; letter-spacing: 0.04em; }
+.arcana-sub { margin: 4px 0 0; color: var(--ink); font-size: 12.5px; max-width: 62ch; line-height: 1.5; }
+
+.arcana-tabs { display: flex; gap: 6px; margin: 16px 0 14px; flex-wrap: wrap; }
+.arcana-tab {
+  width: auto; padding: 5px 13px; font-size: 12.5px; cursor: pointer;
+  background: var(--obsidian-3); color: var(--ink);
+  border: 1px solid var(--rule); border-radius: 999px;
+  transition: color 0.2s var(--ease-out), border-color 0.2s var(--ease-out), background 0.2s var(--ease-out);
+}
+.arcana-tab:hover { color: var(--amethyst-soft); border-color: rgba(142,124,195,0.5); }
+.arcana-tab.is-active { color: var(--void); background: linear-gradient(180deg, var(--amethyst-soft), var(--amethyst)); border-color: var(--amethyst); }
+
+.arcana-body { min-height: 220px; }
+.arc-empty, .arc-error { color: var(--ink); font-size: 13px; padding: 24px 4px; text-align: center; }
+.arc-error { color: #d98a8a; }
+
+.arc-chip {
+  display: inline-block; font-size: 12px; color: var(--amethyst-soft);
+  border: 1px solid rgba(142,124,195,0.45); border-radius: 6px;
+  padding: 2px 8px; background: rgba(142,124,195,0.08);
+}
+.arc-chip--rev { color: var(--gold-soft); border-color: rgba(201,168,76,0.4); background: rgba(201,168,76,0.07); }
+
+.arc-meta { display: flex; gap: 18px; color: var(--ink); font-size: 13px; margin-bottom: 14px; }
+.arc-meta b { color: var(--amethyst-soft); }
+.arc-link-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.arc-link-card { border: 1px solid var(--rule); border-radius: 9px; padding: 10px 12px; background: var(--obsidian-3); }
+.arc-link-body { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold-soft); margin-bottom: 6px; }
+.arc-link-note { font-size: 12px; color: var(--ink); margin-top: 7px; line-height: 1.45; }
+.arc-themes { margin-top: 16px; font-size: 13px; color: var(--sepia); }
+.arc-themes b { color: var(--amethyst-soft); }
+
+.arc-draw-controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; margin-bottom: 16px; }
+.arc-draw-controls label { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--ink); text-transform: uppercase; letter-spacing: 0.06em; }
+.arc-draw-controls select, .arc-draw-controls input[type=text], .arc-q input {
+  background: var(--obsidian-3); border: 1px solid var(--rule); border-radius: 6px;
+  color: var(--sepia); padding: 6px 9px; font-size: 13px; min-width: 180px;
+}
+.arc-q { flex: 1; }
+.arc-q input { width: 100%; }
+.arc-ai-toggle { flex-direction: row !important; align-items: center; gap: 6px; text-transform: none !important; letter-spacing: 0 !important; cursor: pointer; }
+.arc-draw-btn {
+  width: auto; padding: 7px 20px; cursor: pointer; color: var(--void);
+  background: linear-gradient(180deg, var(--amethyst-soft), var(--amethyst));
+  border: 1px solid var(--amethyst); border-radius: 8px; font-size: 13px;
+}
+.arc-draw-btn:disabled { opacity: 0.5; cursor: default; }
+
+.arc-cards-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.arc-drawn { border: 1px solid var(--rule); border-radius: 10px; padding: 12px; background: var(--obsidian-3); }
+.arc-drawn-pos { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold-soft); margin-bottom: 7px; }
+.arc-drawn-meaning { font-size: 12.5px; color: var(--sepia); line-height: 1.5; margin: 8px 0 0; }
+.arc-drawn-act { font-size: 12px; color: var(--amethyst-soft); margin: 8px 0 0; line-height: 1.45; }
+.arc-drawn-journal { font-size: 12px; color: var(--ink); font-style: italic; margin: 6px 0 0; }
+
+.arc-interp { border-top: 1px solid var(--rule); padding-top: 12px; }
+.arc-interp-head { display: flex; align-items: center; gap: 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold-soft); margin-bottom: 8px; }
+.arc-badge { font-size: 10px; padding: 1px 7px; border-radius: 999px; background: var(--amethyst); color: var(--void); letter-spacing: 0.04em; }
+.arc-badge--off { background: var(--obsidian-3); color: var(--ink); border: 1px solid var(--rule); }
+.arc-interp-text { white-space: pre-wrap; font-family: inherit; font-size: 13px; color: var(--sepia); line-height: 1.6; margin: 0; }
+.arc-copy { width: auto !important; font-size: 10px; padding: 2px 9px; margin-left: auto; }
+.arc-disclaimer { margin-top: 14px; font-size: 11px; color: var(--ink); font-style: italic; border-top: 1px solid var(--rule); padding-top: 10px; line-height: 1.5; }
+
+.arc-day { border: 1px solid var(--rule); border-radius: 9px; padding: 11px 13px; background: var(--obsidian-3); margin-bottom: 9px; }
+.arc-day-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.arc-day-date { font-size: 12px; color: var(--gold-soft); font-variant-numeric: tabular-nums; }
+.arc-day-transit { font-size: 12.5px; color: var(--sepia); flex: 1; }
+.arc-day-lesson { font-size: 12.5px; color: var(--ink); margin: 8px 0 0; line-height: 1.5; }
+.arc-day-action { font-size: 12px; color: var(--amethyst-soft); margin: 6px 0 0; }
+
+.arc-lesson { border: 1px solid var(--rule); border-radius: 9px; padding: 10px 13px; background: var(--obsidian-3); margin-bottom: 8px; }
+.arc-lesson summary { cursor: pointer; color: var(--amethyst-soft); font-size: 13.5px; }
+.arc-lesson summary i { color: var(--ink); font-size: 12.5px; }
+.arc-lesson p { font-size: 12.5px; color: var(--sepia); margin: 7px 0 0; line-height: 1.5; }
+.arc-lesson p b { color: var(--gold-soft); }
+
+.arc-studio-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.arc-studio-btns .ghost { width: auto; }
+.arc-artifact { border: 1px solid var(--rule); border-radius: 10px; padding: 14px; background: var(--obsidian-3); }

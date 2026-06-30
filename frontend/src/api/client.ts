@@ -299,3 +299,119 @@ export function fetchForecast(
     min_sig: minSig,
   });
 }
+
+// ── Astra Arcana — natal tarot (symbolic mirror, never prediction) ──────────────
+
+export type SpreadType =
+  | "daily" | "three_card" | "elemental_balance" | "planetary_seven"
+  | "twelve_house" | "relationship" | "transit_pressure"
+  | "shadow_integration" | "creative_expression";
+
+export interface TarotCard {
+  id: string;
+  name: string;
+  arcana: "major" | "minor";
+  number: number | null;
+  suit: "wands" | "cups" | "swords" | "pentacles" | null;
+  keywords: string[];
+  element: string | null;
+  astrology: string[];
+  upright: string | null;
+  reversed_meaning: string | null;
+}
+
+export interface ArcanaCardLink {
+  body: string;
+  sign: string | null;
+  house: number | null;
+  card: TarotCard;
+  note: string;
+}
+
+export interface NatalArcanaSignature {
+  links: ArcanaCardLink[];
+  dominant_element: string;
+  dominant_modality: string;
+  suit_bias: Record<string, number>;
+  major_weights: Record<string, number>;
+  themes: string[];
+  shadows: string[];
+  disclaimer: string;
+}
+
+export interface DrawnCard {
+  position: string;
+  card: TarotCard;
+  reversed: boolean;
+  natal_link: string | null;
+  meaning: string;
+  activity: string | null;
+  journal_prompt: string | null;
+}
+
+export interface TarotReadingResponse {
+  spread: SpreadType;
+  question: string;
+  seed: string;
+  signature: NatalArcanaSignature;
+  cards: DrawnCard[];
+  interpretation: string;
+  ai_source: "llm" | "offline" | null;
+  lessons: Record<string, string>[];
+  activities: Record<string, string>[];
+  disclaimer: string;
+}
+
+export interface ArcanaDay {
+  date: string;
+  transit_summary: string;
+  natal_link: string | null;
+  card: TarotCard;
+  reversed: boolean;
+  lesson: string;
+  shadow: string;
+  best_expression: string;
+  alignment_action: string;
+  journal_prompt: string;
+}
+
+export interface ArcanaForecastResponse {
+  start: string;
+  days: number;
+  cards: ArcanaDay[];
+  disclaimer: string;
+}
+
+export function fetchNatalArcana(chart: ChartResponse): Promise<NatalArcanaSignature> {
+  return post<NatalArcanaSignature>("/natal-arcana", chart);
+}
+
+export function fetchTarotReading(
+  chart: ChartResponse,
+  spread: SpreadType,
+  question: string,
+  opts: { includeAi?: boolean; entitlement?: string | null } = {},
+): Promise<TarotReadingResponse> {
+  return post<TarotReadingResponse>("/tarot-reading", {
+    chart,
+    spread,
+    question,
+    include_activities: true,
+    include_lessons: true,
+    include_ai: opts.includeAi ?? false,
+    entitlement: opts.entitlement ?? null,
+  });
+}
+
+export function fetchArcanaForecast(
+  chart: ChartResponse,
+  days = 7,
+  entitlement?: string | null,
+): Promise<ArcanaForecastResponse> {
+  return post<ArcanaForecastResponse>("/arcana-forecast", {
+    chart,
+    days,
+    min_sig: "medium",
+    entitlement: entitlement ?? null,
+  });
+}
