@@ -21,6 +21,9 @@ Endpoints:
   POST /api/progressed-chart    – secondary progressions (day for a year)
   POST /api/solar-return        – solar return chart for a given year
   POST /api/eclipse-timeline    – upcoming eclipses + natal activations
+  POST /api/harmonic-chart      – Nth-harmonic chart
+  POST /api/midpoint-tree       – Ebertin midpoint tree (90° dial)
+  POST /api/fixed-stars         – natal conjunctions to fixed stars
   GET  /api/tts/voices          – available ElevenLabs voices
   POST /api/tts                 – synthesize speech (MP3); supporter feature
   GET  /api/treasury            – funding allocation + EVM treasury address
@@ -95,6 +98,15 @@ from predictive import (
     ProgressedRequest,
     SolarReturnChart,
     SolarReturnRequest,
+)
+import advanced as ADV
+from advanced import (
+    FixedStarRequest,
+    FixedStarResponse,
+    HarmonicChart,
+    HarmonicRequest,
+    MidpointRequest,
+    MidpointTreeResponse,
 )
 
 app = FastAPI(title="Astrological Analysis Environment", version="1.0.0")
@@ -517,6 +529,38 @@ async def eclipse_timeline(req: EclipseRequest):
         )
     except Exception as exc:
         raise HTTPException(status_code=400, detail=f"eclipse timeline failed: {exc}")
+
+
+# --------------------------------------------------------------------------- #
+# Advanced techniques — harmonics / midpoint trees / fixed stars (symbolic)
+# --------------------------------------------------------------------------- #
+
+
+@app.post("/api/harmonic-chart", response_model=HarmonicChart)
+async def harmonic_chart(req: HarmonicRequest):
+    """Nth-harmonic chart (positions × N mod 360) + harmonic conjunctions."""
+    try:
+        return await asyncio.to_thread(ADV.harmonic_chart, req.natal, req.harmonic)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"harmonic chart failed: {exc}")
+
+
+@app.post("/api/midpoint-tree", response_model=MidpointTreeResponse)
+async def midpoint_tree(req: MidpointRequest):
+    """Ebertin 90° dial midpoint tree: bodies sitting on planetary midpoints."""
+    try:
+        return await asyncio.to_thread(ADV.midpoint_tree, req.natal, req.orb)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"midpoint tree failed: {exc}")
+
+
+@app.post("/api/fixed-stars", response_model=FixedStarResponse)
+async def fixed_stars(req: FixedStarRequest):
+    """Conjunctions of natal bodies to major fixed stars (precession-adjusted)."""
+    try:
+        return await asyncio.to_thread(ADV.fixed_star_hits, req.natal, req.orb)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"fixed stars failed: {exc}")
 
 
 @app.post("/api/suggestions")
