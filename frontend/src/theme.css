@@ -456,8 +456,27 @@ button.ghost:hover {
 }
 
 /* "Supporter / Support" pill in the masthead */
-.support-pill {
+/* Top-right action cluster: keeps the Arcana + Support pills side by side
+   instead of stacking (both pills were absolutely pinned to the same corner). */
+.masthead-actions {
   position: absolute; top: 18px; right: 18px;
+  display: flex; align-items: center; gap: 8px;
+}
+.arcana-pill {
+  width: auto; cursor: pointer; font-size: 13px;
+  padding: 6px 14px; border-radius: 999px;
+  border: 1px solid var(--amethyst); color: var(--amethyst-soft);
+  background: rgba(142, 124, 195, 0.10);
+  transition: background 0.25s var(--ease-out), box-shadow 0.25s var(--ease-out),
+              transform 0.15s var(--ease-spring);
+}
+.arcana-pill:hover {
+  background: rgba(142, 124, 195, 0.22);
+  box-shadow: 0 0 16px rgba(142, 124, 195, 0.28);
+  transform: translateY(-1px);
+}
+
+.support-pill {
   width: auto; cursor: pointer; font-size: 13px;
   padding: 6px 14px; border-radius: 999px;
   border: 1px solid var(--gold); color: var(--gold-soft);
