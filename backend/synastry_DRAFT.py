@@ -30,8 +30,10 @@ from models import (
     ChartRequest,
     ChartResponse,
     HouseCusp,
+    Pattern,
     PlanetData,
 )
+from patterns import detect_patterns
 from tarot import build_natal_arcana_signature
 from tarot_models import DISCLAIMER, NatalArcanaSignature
 
@@ -64,6 +66,7 @@ class CompositeChart(BaseModel):
     houses: List[HouseCusp] = Field(default_factory=list)
     angles: Optional[Angles] = None
     aspects: List[Aspect] = Field(default_factory=list)
+    patterns: List[Pattern] = Field(default_factory=list)
     elements: Dict[str, int] = Field(default_factory=dict)
     modalities: Dict[str, int] = Field(default_factory=dict)
     disclaimer: str = DISCLAIMER
@@ -311,13 +314,18 @@ def composite_midpoints(a: ChartResponse, b: ChartResponse) -> CompositeChart:
         for p in composite_planets:
             p.house = _house_of_longitude(p.longitude, cusp_lons)
 
-    # TODO: internal composite aspects and pattern detection.
+    # Internal composite aspects + classical patterns, reusing the chart engine
+    # (composite planets carry speed=0, so 'applying' is reported as separating).
+    comp_aspects = E.calculate_aspects(composite_planets)
+    comp_patterns = detect_patterns(composite_planets, comp_aspects)
+
     elements, modalities = _tally_elements_modalities(composite_planets)
     return CompositeChart(
         planets=composite_planets,
         houses=houses,
         angles=comp_angles,
-        aspects=[],
+        aspects=comp_aspects,
+        patterns=comp_patterns,
         elements=elements,
         modalities=modalities,
         meta={"method": "composite_midpoints", "houses": "midpoint_composite",
@@ -330,13 +338,29 @@ def composite_midpoints(a: ChartResponse, b: ChartResponse) -> CompositeChart:
 # --------------------------------------------------------------------------- #
 
 
-def _midpoint_latitude(lat_a: float, lat_b: float) -> float:
-    return (lat_a + lat_b) / 2.0
+def _geographic_midpoint(
+    lat_a: float, lng_a: float, lat_b: float, lng_b: float
+) -> Tuple[float, float]:
+    """
+    Great-circle (spherical) midpoint of two birth coordinates, returned as
+    (lat, lng) in degrees with lng normalised to [-180, 180].
 
-
-def _midpoint_longitude(lat_a: float, lng_a: float, lat_b: float, lng_b: float) -> float:
-    # TODO: great-circle longitude midpoint (handle antimeridian / pole cases).
-    return (lng_a + lng_b) / 2.0
+    This is the correct Davison geographic midpoint: the naive arithmetic mean of
+    latitudes/longitudes is wrong on a sphere and breaks across the antimeridian
+    (e.g. +179° and -179° should average to 180°, not 0°). Uses the standard
+    unit-vector method.
+    """
+    la1, lo1, la2, lo2 = map(math.radians, (lat_a, lng_a, lat_b, lng_b))
+    d_lon = lo2 - lo1
+    bx = math.cos(la2) * math.cos(d_lon)
+    by = math.cos(la2) * math.sin(d_lon)
+    lat_mid = math.atan2(
+        math.sin(la1) + math.sin(la2),
+        math.sqrt((math.cos(la1) + bx) ** 2 + by ** 2),
+    )
+    lon_mid = lo1 + math.atan2(by, math.cos(la1) + bx)
+    lon_deg = (math.degrees(lon_mid) + 540.0) % 360.0 - 180.0
+    return round(math.degrees(lat_mid), 6), round(lon_deg, 6)
 
 
 def davison_chart(a: ChartRequest, b: ChartRequest) -> DavisonChart:
@@ -345,8 +369,7 @@ def davison_chart(a: ChartRequest, b: ChartRequest) -> DavisonChart:
     ts_b = chart_request_to_timestamp(b)
     ts_mid = (ts_a + ts_b) / 2.0
 
-    lat_mid = _midpoint_latitude(a.lat, b.lat)
-    lng_mid = _midpoint_longitude(a.lat, a.lng, b.lat, b.lng)
+    lat_mid, lng_mid = _geographic_midpoint(a.lat, a.lng, b.lat, b.lng)
 
     mid_req = timestamp_to_chart_request_utc(
         ts_mid,
