@@ -59,9 +59,29 @@ class HousePlanetOverlay(BaseModel):
     host_owner: str  # "a" or "b"
 
 
+class HouseEmphasis(BaseModel):
+    """How many of the guest's planets land in a given host house."""
+    host_owner: str          # "a" or "b" — whose houses
+    house: int
+    count: int
+    planets: List[str] = Field(default_factory=list)
+
+
+class RulerLink(BaseModel):
+    """A host house's traditional ruler, and which of the OTHER chart's houses
+    that ruling planet falls into — a house-rulership synastry contact."""
+    host_owner: str          # whose house
+    house: int
+    cusp_sign: str
+    ruler: str               # ruling planet of the cusp sign
+    lands_in_other_house: int
+
+
 class SynastryGrid(BaseModel):
     b_in_a: List[HousePlanetOverlay] = Field(default_factory=list)
     a_in_b: List[HousePlanetOverlay] = Field(default_factory=list)
+    emphasis: List[HouseEmphasis] = Field(default_factory=list)
+    rulers: List[RulerLink] = Field(default_factory=list)
 
 
 class CompositeChart(BaseModel):
@@ -488,8 +508,47 @@ def synastry_grid(a: ChartResponse, b: ChartResponse) -> SynastryGrid:
             )
         )
 
-    # TODO: reciprocity matrix, house rulers, and weighted emphasis scores.
-    return SynastryGrid(b_in_a=b_in_a, a_in_b=a_in_b)
+    emphasis = _house_emphasis(b_in_a, "a") + _house_emphasis(a_in_b, "b")
+    rulers = _ruler_links(a, b, cusps_b, "a") + _ruler_links(b, a, cusps_a, "b")
+    return SynastryGrid(b_in_a=b_in_a, a_in_b=a_in_b, emphasis=emphasis, rulers=rulers)
+
+
+# Traditional (seven-planet) rulers of each sign.
+_SIGN_RULER: Dict[str, str] = {
+    "Aries": "Mars", "Taurus": "Venus", "Gemini": "Mercury", "Cancer": "Moon",
+    "Leo": "Sun", "Virgo": "Mercury", "Libra": "Venus", "Scorpio": "Mars",
+    "Sagittarius": "Jupiter", "Capricorn": "Saturn", "Aquarius": "Saturn",
+    "Pisces": "Jupiter",
+}
+
+
+def _house_emphasis(overlays: List[HousePlanetOverlay], host_owner: str) -> List[HouseEmphasis]:
+    """Reciprocity summary: how many guest planets land in each host house."""
+    buckets: Dict[int, List[str]] = {}
+    for o in overlays:
+        buckets.setdefault(o.host_house, []).append(o.planet_id)
+    out = [HouseEmphasis(host_owner=host_owner, house=h, count=len(ps), planets=ps)
+           for h, ps in buckets.items()]
+    out.sort(key=lambda e: (-e.count, e.house))
+    return out
+
+
+def _ruler_links(host: ChartResponse, other: ChartResponse,
+                 other_cusps: List[float], host_owner: str) -> List[RulerLink]:
+    """For each host house, its cusp-sign ruler and which OTHER-chart house that
+    ruling planet falls into (a house-rulership synastry contact)."""
+    host_planets = _planet_index(host)
+    links: List[RulerLink] = []
+    for h in sorted(host.houses, key=lambda x: x.index):
+        ruler = _SIGN_RULER.get(h.sign)
+        rp = host_planets.get(ruler) if ruler else None
+        if rp is None:
+            continue
+        links.append(RulerLink(
+            host_owner=host_owner, house=h.index, cusp_sign=h.sign, ruler=ruler,
+            lands_in_other_house=_house_of_longitude(rp.longitude, other_cusps),
+        ))
+    return links
 
 
 def compute_synastry(req: SynastryRequest) -> SynastryResponse:

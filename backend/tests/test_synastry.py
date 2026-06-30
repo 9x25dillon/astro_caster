@@ -47,6 +47,14 @@ def test_synastry_endpoint():
     d = r.json()
     assert d["inter_aspects"] and d["grid"]["b_in_a"] and d["grid"]["a_in_b"]
     assert "disclaimer" in d
+    # reciprocity + house rulers
+    grid = d["grid"]
+    assert grid["emphasis"] and grid["rulers"]
+    # emphasis counts equal the number of overlaid planets per side
+    a_emph = sum(e["count"] for e in grid["emphasis"] if e["host_owner"] == "a")
+    assert a_emph == len(grid["b_in_a"])
+    for r in grid["rulers"]:
+        assert r["ruler"] and 1 <= r["lands_in_other_house"] <= 12
 
 
 def test_composite_endpoint_has_houses_and_aspects():
