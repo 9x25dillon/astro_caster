@@ -18,6 +18,9 @@ Endpoints:
   POST /api/composite           – midpoint composite chart
   POST /api/davison             – Davison time/space midpoint chart
   POST /api/synastry-tarot      – relationship tarot bond
+  POST /api/progressed-chart    – secondary progressions (day for a year)
+  POST /api/solar-return        – solar return chart for a given year
+  POST /api/eclipse-timeline    – upcoming eclipses + natal activations
   GET  /api/tts/voices          – available ElevenLabs voices
   POST /api/tts                 – synthesize speech (MP3); supporter feature
   GET  /api/treasury            – funding allocation + EVM treasury address
@@ -83,6 +86,15 @@ from synastry import (
     SynastryRequest,
     SynastryResponse,
     SynastryTarotResponse,
+)
+import predictive as PRED
+from predictive import (
+    EclipseRequest,
+    EclipseTimelineResponse,
+    ProgressedChart,
+    ProgressedRequest,
+    SolarReturnChart,
+    SolarReturnRequest,
 )
 
 app = FastAPI(title="Astrological Analysis Environment", version="1.0.0")
@@ -469,6 +481,42 @@ async def synastry_tarot(req: SynastryRequest):
         return SYN.synastry_tarot(a, b)
     except Exception as exc:
         raise HTTPException(status_code=400, detail=f"synastry tarot failed: {exc}")
+
+
+# --------------------------------------------------------------------------- #
+# Predictive timing — progressions / solar returns / eclipses (symbolic)
+# --------------------------------------------------------------------------- #
+
+
+@app.post("/api/progressed-chart", response_model=ProgressedChart)
+async def progressed_chart(req: ProgressedRequest):
+    """Secondary ('day for a year') progressed chart + aspects to natal."""
+    try:
+        return await asyncio.to_thread(PRED.progressed_chart, req.natal, req.target_iso)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"progression failed: {exc}")
+
+
+@app.post("/api/solar-return", response_model=SolarReturnChart)
+async def solar_return(req: SolarReturnRequest):
+    """Solar return chart for the given year (optionally relocated)."""
+    try:
+        return await asyncio.to_thread(
+            PRED.solar_return, req.natal, req.year, req.lat, req.lng
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"solar return failed: {exc}")
+
+
+@app.post("/api/eclipse-timeline", response_model=EclipseTimelineResponse)
+async def eclipse_timeline(req: EclipseRequest):
+    """Upcoming solar/lunar eclipses and the natal points they activate."""
+    try:
+        return await asyncio.to_thread(
+            PRED.eclipse_timeline, req.natal, req.start_iso, req.count
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"eclipse timeline failed: {exc}")
 
 
 @app.post("/api/suggestions")
