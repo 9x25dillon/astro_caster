@@ -2,8 +2,12 @@
 
 **Purpose:** A living, queryable record of the project's evolution so progress can always be tracked, audited, and resumed cleanly. Update on every major phase, PR, or significant change.
 
-**Last Updated:** 2026-07-01 (session close — branch committed as ONE commit)
-**Current Branch:** `fable5-oracle-report` (F5 block + Personal Report complete; single commit)
+**Last Updated:** 2026-07-01 (R1 + PDF-1 landed on `reliability-pdf`; uncommitted pending review)
+**Current Branch:** `reliability-pdf` (off `fable5-oracle-report` @ `14cd833`)
+**This branch:** R1 rate limiting (`ratelimit.py`, 6 endpoints wired, 10 tests — 134 total) +
+PDF-1 print renderer (`lib/printReport.ts`, zero-dep print-CSS from the design mock,
+local `{{BIRTH_INFO}}`/`{{SIGIL}}` fill, injection-safe, ground-truth verified 11/11).
+Operator decision recorded: **git-history PII = LEAVE (final)** — see `AUDIT_REGRESSION.md` §5.
 **Remote:** github.com/9x25dillon/astro_caster (inferred from history/docs)
 **Verification Snapshot (at branch close):**
 - Backend tests: **124 passed** (`cd backend && .venv/bin/python -m pytest -q`)

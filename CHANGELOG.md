@@ -3,6 +3,45 @@
 Per-phase log for the Production Hardening & Symbolic Intelligence Expansion pass.
 Baseline: `d9afc4b` (36 backend tests, clean frontend build).
 
+## R1 + PDF-1 — Cost protection & print renderer (2026-07-01, reliability-pdf)
+
+### R1 — Rate limiting on the AI paths
+- New `backend/ratelimit.py`: dependency-free in-process **sliding-window** limiter,
+  keyed by client IP + entitlement digest (a hot token can't hide behind rotating IPs;
+  a shared office IP isn't starved by one token). 429 + `Retry-After`; bounded key map.
+- Enablement mirrors the trust-mode philosophy: **ON by default in production, OFF in
+  dev/test**, `AAE_RATE_LIMIT_ENABLED=1/0` overrides explicitly. Budgets:
+  `AAE_RATE_LIMIT_AI` (default 20/window) for `/api/ai-ask`, `/api/ai-ask-stream`,
+  `/api/suggestions`, and `/api/tarot-reading` **only when `include_ai`** (the
+  deterministic draw is never throttled — offline-first invariant);
+  `AAE_RATE_LIMIT_ORACLE` (default 5/window) for the two paid Fable endpoints,
+  checked **before** tier/verification work. `AAE_RATE_LIMIT_WINDOW_S` (default 60).
+- Tests: `test_ratelimit.py` (10) — enablement semantics, budget exhaustion +
+  Retry-After, sliding window (mocked clock), per-entitlement keying, endpoint 429s,
+  deterministic-path immunity, suite-default untouched. Test-authoring lesson: the
+  first version of the ai-ask test hit a **real** LLM (local `.env` key) — the AI layer
+  is now faked in tests; noted as a suite-wide pattern to enforce.
+- Docs: README "Rate limiting (cost protection)" section; `.env.example` block.
+- R2 (Redis) remains the horizontal-scale upgrade; call sites won't change.
+
+### PDF-1 — Print renderer for the deluxe edition (client-side)
+- New `frontend/src/lib/printReport.ts`: `report_markdown` → styled, paginated print
+  document (browser dialog → "Save as PDF"). **Zero dependencies** — print CSS lifted
+  from the visual contract (`docs/Astro_Arcana_Report_Design_Mock.html`): Georgia
+  serif, cream/ink/amethyst/gold palette, Cinzel-style part headers, dark-gradient
+  cover page, gold pull-quotes, disclaimer styling, `@page` 8.5×11.
+- **Privacy invariant completed:** `{{BIRTH_INFO}}` is filled **in the browser** from
+  local store state (formatted birth line) — birth details never reached the server or
+  the AI, and now render only at print time. `{{SIGIL}}` slots are filled with a real,
+  deterministic **chaos-sigil SVG** (`lib/sigil.ts` construction, seeded by the Oracle
+  question) inside the mock's gold ring styling.
+- **Injection-safe:** every text fragment is HTML-escaped before styling tags are
+  applied (the markdown embeds model output + user questions). Verified by compiled
+  ground-truth assertions: 11/11 (cover/page split, placeholder fill, sigil embed +
+  determinism, list/bold/italic/blockquote, `<script>` escaped, disclaimer classed).
+- UI: "⎙ print / save as PDF" button in the deluxe block (popup-blocked hint;
+  `personal_report_print` telemetry).
+
 ## PR-2 — Deluxe-edition frontend + branch close (2026-07-01, fable5-oracle-report)
 
 - **"✦ Compile Personal Report"** affordance beneath a successful Oracle Report

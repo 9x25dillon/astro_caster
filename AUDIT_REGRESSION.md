@@ -78,13 +78,14 @@ No control was weakened, bypassed, or made conditional in any diff reviewed.
 
 ## 5. Open items / operator log
 
-1. **Git-history purge — DEFERRED (operator decision, 2026-07-01).** Real birth
-   data (`34.935,-117.199` · 1987-11-11) remains in git history from `b1bdd5f`
-   onward on the GitHub remote. Removal procedure when approved:
-   `git filter-repo --replace-text` (or BFG) targeting the coordinate/date
-   strings → force-push → all collaborators re-clone → invalidate GitHub's
-   cached views (contact support or make the repo private/public cycle).
-   Interim mitigation available: make the repository private.
+1. **Git-history purge — RESOLVED: LEAVE (explicit operator decision,
+   2026-07-01).** The operator has confirmed the history stays as-is. Real
+   birth data (`34.935,-117.199` · 1987-11-11) remains in git history from
+   `b1bdd5f` onward; the working tree has been clean since Phase 1.2. Revisit
+   this decision if the repository is ever made public. Removal procedure
+   retained for reference: `git filter-repo --replace-text` (or BFG) targeting
+   the coordinate/date strings → force-push → collaborators re-clone →
+   invalidate GitHub's cached views (support ticket or private/public cycle).
 2. **CI first run:** the workflow exists on the branch but has not yet executed;
    verify all three jobs pass on the PR before merge.
 3. **Informational:** endpoint error details interpolate exception text

@@ -29,6 +29,7 @@ import {
 import { CLASSROOM, EXPRESSION_KINDS, generateArtifact, type Artifact } from "../lib/tarotCopy";
 import { Interpretation } from "./DetailPanel";
 import { useSpeech, speakableText } from "../lib/speech";
+import { printReport } from "../lib/printReport";
 
 // Friendly labels for the models that can serve an Oracle Report (requested
 // model + its server-side fallback). Unknown IDs fall through as-is — honest
@@ -59,6 +60,7 @@ function CardChip({ name, reversed }: { name: string; reversed?: boolean }) {
 
 export const ArcanaModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const chart = useStore((s) => s.chart);
+  const birth = useStore((s) => s.birth);
   const entitlement = useStore((s) => s.entitlement);
   const isSupporter = useStore((s) => s.isSupporter);
   const openSupport = useStore((s) => s.openSupport);
@@ -242,6 +244,24 @@ export const ArcanaModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     } finally {
       setPersonalLoading(false);
     }
+  }
+
+  function printPersonalReport() {
+    if (!personal) return;
+    // {{BIRTH_INFO}} is filled HERE, locally — birth details never leave the
+    // browser (the server/AI only ever saw the placeholder).
+    const pad = (n: number) => `${n}`.padStart(2, "0");
+    const birthInfo = birth
+      ? `${birth.label ? birth.label + " · " : ""}${birth.year}-${pad(birth.month)}-${pad(birth.day)}` +
+        ` ${pad(birth.hour)}:${pad(birth.minute)} · ${birth.lat.toFixed(2)}°, ${birth.lng.toFixed(2)}°`
+      : "";
+    const ok = printReport(personal.report_markdown, {
+      birthInfo,
+      sigilPhrase: oracle?.question || "astra arcana",
+      title: `Astra Arcana — Personal Report · ${personal.oracle_date}`,
+    });
+    if (!ok) setErr("Popup blocked — allow popups for this site to print the report.");
+    else trackEvent("personal_report_print", { spread: personal.spread });
   }
 
   function downloadMarkdown(md: string, name: string) {
@@ -519,6 +539,10 @@ export const ArcanaModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                           </div>
 
                           <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+                            <button className="ghost arc-copy" onClick={printPersonalReport}
+                                    title="Styled print document — use the dialog's 'Save as PDF'">
+                              ⎙ print / save as PDF
+                            </button>
                             <button className="ghost arc-copy"
                                     onClick={() => downloadMarkdown(personal.report_markdown,
                                       `astra-personal-report-${personal.oracle_date}.md`)}>

@@ -169,6 +169,17 @@ In the UI, a **"✦ Compile Personal Report"** affordance appears beneath a succ
 Oracle Report (Draw tab): it echoes the exact session context (seed/date) for the
 server's verification, previews the 11 parts, and downloads the PDF-ready `.md`.
 
+### Rate limiting (cost protection)
+
+The AI paths are protected by a sliding-window limiter keyed by client IP + entitlement
+digest: `/api/ai-ask*`, `/api/suggestions`, and AI-enriched `/api/tarot-reading` share
+the `AAE_RATE_LIMIT_AI` budget (default 20/min); the two paid Fable endpoints
+(`/api/oracle-report`, `/api/personal-report`) share the stricter
+`AAE_RATE_LIMIT_ORACLE` budget (default 5/min). Over-budget requests get **429** with a
+`Retry-After` header. **Default: on in production, off in dev/test** (mirror of the
+trust-mode philosophy); `AAE_RATE_LIMIT_ENABLED=1/0` overrides explicitly. Deterministic
+offline draws are never throttled.
+
 ```
 AAE_PERSONAL_REPORT_MODEL=claude-fable-5   # shares AAE_ANTHROPIC_API_KEY + fallback
 AAE_PERSONAL_REPORT_MAX_TOKENS=32000       # 24–36-page PDF target — expensive; budget it

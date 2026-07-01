@@ -56,7 +56,7 @@ except ImportError:  # dotenv is optional
 
 import json as _json
 
-from fastapi import FastAPI, HTTPException, Response
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -67,6 +67,7 @@ import logging
 
 import ephemeris as E
 import entitlements as ENT
+import ratelimit as RL
 import telemetry as TEL
 import treasury as TR
 import tts as T
@@ -211,7 +212,8 @@ async def transits(req: TransitRequest):
 
 
 @app.post("/api/ai-ask")
-async def ai_ask(req: AIRequest):
+async def ai_ask(req: AIRequest, request: Request):
+    RL.check(request, "ai", req.entitlement)
     if req.depth == "deep":
         _require_supporter(req.entitlement)
     tier = ENT.entitlement_status(req.entitlement).get("tier", "free")
@@ -318,9 +320,10 @@ async def tts(req: TTSRequest):
 
 
 @app.post("/api/ai-ask-stream")
-async def ai_ask_stream(req: AIRequest):
+async def ai_ask_stream(req: AIRequest, request: Request):
     """Server-Sent Events stream of Astra's reflection as it is generated."""
 
+    RL.check(request, "ai", req.entitlement)
     if req.depth == "deep":
         _require_supporter(req.entitlement)  # in-depth reading is a supporter feature
 
@@ -446,13 +449,17 @@ async def natal_arcana(req: ChartResponse):
 
 
 @app.post("/api/tarot-reading", response_model=TarotReadingResponse)
-async def tarot_reading(req: TarotReadingRequest):
+async def tarot_reading(req: TarotReadingRequest, request: Request):
     """
     Chart-weighted, deterministic tarot reading. The core (signature, draw,
     static meanings/lessons/activities) is AI-free and offline. When
     `include_ai` is set, an enriched interpretation is layered on for paid tiers,
     falling back silently to the deterministic prose on any failure.
     """
+    if req.include_ai:
+        # Only the AI-enriched path costs money — the deterministic draw stays
+        # unthrottled (offline-first invariant: free reflection is never gated).
+        RL.check(request, "ai", req.entitlement)
     try:
         reading = TAROT.build_reading_core(req)
     except Exception as exc:
@@ -521,13 +528,14 @@ async def learning_path(req: LearningPathRequest):
 
 
 @app.post("/api/oracle-report", response_model=OracleReportResponse)
-async def oracle_report(req: OracleReportRequest):
+async def oracle_report(req: OracleReportRequest, request: Request):
     """The paid Oracle Report — Fable 5 enriched synthesis over the deterministic
     substrate. ORACLE TIER ONLY (the reading fee): fails closed with 402 before
     any work — no substrate is built and the AI layer is never attempted for
     lower tiers. Falls back to a deterministic offline report (honest ai_source)
     if the AI layer is unavailable or the model chain refuses.
     """
+    RL.check(request, "oracle", req.entitlement)   # cost cap before any work
     tier = ENT.entitlement_status(req.entitlement).get("tier", "free")
     if tier != "oracle":
         raise HTTPException(
@@ -548,7 +556,7 @@ async def oracle_report(req: OracleReportRequest):
 
 
 @app.post("/api/personal-report", response_model=PersonalReportResponse)
-async def personal_report(req: PersonalReportRequest):
+async def personal_report(req: PersonalReportRequest, request: Request):
     """The Astra Arcana Personal Report — deluxe compiled edition, an OPTIONAL
     post-Oracle product. Gated twice, fail closed: (1) oracle tier only (402);
     (2) the referenced Oracle session must be genuine — its seed is re-derived
@@ -556,6 +564,7 @@ async def personal_report(req: PersonalReportRequest):
     (409). Falls back to a deterministic compiled edition with honest
     provenance when the AI layer is unavailable.
     """
+    RL.check(request, "oracle", req.entitlement)   # cost cap before any work
     tier = ENT.entitlement_status(req.entitlement).get("tier", "free")
     if tier != "oracle":
         raise HTTPException(
@@ -746,11 +755,12 @@ async def fixed_stars(req: FixedStarRequest):
 
 
 @app.post("/api/suggestions")
-async def suggestions(req: AIRequest):
+async def suggestions(req: AIRequest, request: Request):
     """
     Navigational suggestions: find the most-tenanted house, then ask Astra for
     introspective questions + one exercise grounded in that house's themes.
     """
+    RL.check(request, "ai", req.entitlement)
     chart = req.chart
     counts: dict[int, int] = {}
     for p in chart.planets:
