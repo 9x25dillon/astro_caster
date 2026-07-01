@@ -2,6 +2,8 @@
 
 <p align="center"><i>Mathematics first, visualization second, reflection always.</i></p>
 
+<p align="center"><a href="https://github.com/9x25dillon/astro_caster/actions/workflows/ci.yml"><img src="https://github.com/9x25dillon/astro_caster/actions/workflows/ci.yml/badge.svg" alt="CI"></a></p>
+
 A production-grade natal chart + transit observatory with a multi-provider AI guide,
 Swiss Ephemeris precision, a chart-grounded **natal tarot module (Astra Arcana)**,
 ElevenLabs neural voice, tier-based entitlements, and a personal forecast engine.
@@ -82,7 +84,9 @@ Create `backend/.env` (gitignored). All variables are optional — the app runs 
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `AAE_SECRET` | `aae-dev-secret-change-me` | HMAC secret for entitlement tokens. **Set this to a strong random value.** Left unset it falls back to the public default above, and anyone can forge supporter/oracle tokens. Rotating it invalidates previously-minted supporter tokens (the `AAE_DEV_TOKEN` bypass is unaffected). |
+| `AAE_ENV` | *(unset → production)* | Deployment environment. Recognized non-prod values: `development`/`dev`/`local`/`test`/`testing`. **Fail-closed: unset or unrecognized is treated as production**, where the app *refuses to boot* with a default `AAE_SECRET` or trust mode enabled (`entitlements.assert_safe_boot`). `run.sh` sets `development` for you. |
+| `AAE_SECRET` | `aae-dev-secret-change-me` | HMAC secret for entitlement tokens. **Set this to a strong random value.** In production the app refuses to boot on the default; in dev the default works but tokens are forgeable. Rotating it invalidates previously-minted supporter tokens (the `AAE_DEV_TOKEN` bypass is unaffected). |
+| `AAE_TRUST_MODE` | *(unset → off)* | Dev-only: accept a support tx hash *without* on-chain verification. Takes effect **only** when explicitly truthy **and** `AAE_ENV` is non-production; denied (fail-closed) everywhere else, and production boot is refused if it is set. |
 | `SE_EPHE_PATH` | *(unset)* | Path to Swiss `.se1` files. Unset → Moshier model (no files needed). See [Ephemeris files](#ephemeris-files-optional--for-arc-second-precision). |
 | `AAE_AI_API_KEY` | *(unset)* | Unset → offline/local AI. Set → cloud LLM via OpenRouter or any OpenAI-compatible gateway. |
 | `AAE_AI_BASE_URL` | `https://openrouter.ai/api` | Base URL **without** `/v1` — the code appends `/v1/chat/completions` itself. |
@@ -93,7 +97,7 @@ Create `backend/.env` (gitignored). All variables are optional — the app runs 
 | `AAE_DEV_TOKEN` | *(unset)* | Raw string that grants oracle tier with no expiry — for local development. Store in `localStorage` as `aae.entitlement`. |
 | `AAE_ENT_DAYS` | `365` | Supporter token lifetime in days. |
 | `AAE_TREASURY_ETH` | *(unset)* | Your ETH address. Displayed in the support dashboard; the app never custodies funds. |
-| `AAE_ETH_RPC` | *(unset)* | EVM RPC URL for on-chain tx verification. Unset → honour-system trust mode (any non-empty tx hash mints an *unverified* token). Set it (+ `AAE_MIN_WEI`) before any public deploy. |
+| `AAE_ETH_RPC` | *(unset)* | EVM RPC URL for on-chain tx verification. Unset → verification is unavailable and donations are **denied** unless dev trust mode applies (see `AAE_TRUST_MODE`). Set it (+ `AAE_MIN_WEI`) before any public deploy. |
 | `ELEVENLABS_API_KEY` | *(unset)* | Unset → browser TTS. Set → ElevenLabs neural voice with prosodic chunk stitching. |
 | `ELEVENLABS_VOICE_ID` | `21m00Tcm4TlvDq8ikWAM` | Default voice. Browse via `/api/tts/voices`. |
 
@@ -175,15 +179,33 @@ AI-free**; AI enrichment is opt-in and tier-gated. Opened via the **✶ Arcana**
   weighted "soul deck," dominant element/modality, strongest themes, and growth-ward shadows.
 - **Spread draws** — daily, three-card (Self/Mirror/Shadow), elemental balance, twelve-house,
   shadow integration, creative expression. Draws are **chart-weighted and reproducible**: seeded
-  from a SHA-256 of the chart + question + spread (never Python's salted `hash()`), with no duplicate
-  cards in a spread. The daily spread folds in the date so the card changes each day.
+  from a SHA-256 of the chart + question + spread + source system (never Python's salted `hash()`),
+  with no duplicate cards in a spread. The daily draw folds in the **querent's local date**
+  (`date` on the request; the client sends the browser's local day) so a daily card is
+  reproducible for a given date regardless of the server clock.
+- **Source systems (lineages)** — every reading is cast through a selectable interpretive
+  tradition: `golden_dawn` (default) · `rws` · `thoth` · `jungian`. The lineage folds into the
+  determinism seed (a different tradition yields a different draw) and frames both the offline
+  prose and the AI prompt. The default contributes nothing to the seed, so legacy seeds reproduce.
+- **Explainability** — every drawn card carries `weight_sources`: *why it was likely*, derived
+  from the exact natal contributions that fed the draw (a major's sources sum to its draw
+  weight — the panel and the seed can never disagree).
 - **AI reading** (supporter/oracle) — weaves the drawn cards with the natal placements through the
   same provider/tier routing as the main guide, falling back silently to deterministic prose offline.
 - **Transit cards** — a thin overlay on the forecast engine: each day's top activation mapped to a
-  trump with lesson, shadow, alignment action, and journal prompt.
-- **Arcane Classroom** — offline lessons on the elements, modalities, houses, and archetype-vs-prediction.
+  trump with lesson, shadow, alignment action, and journal prompt. Requests accept `start_date`
+  (ISO) and `timezone` (IANA) so the window starts on the *querent's* local day; an N-day request
+  returns **exactly N** cards (quiet days get a deterministic natal-weighted integration-day trump).
+- **Calendar export** — the forecast window as an RFC 5545 `.ics` file (one ritual or journal
+  prompt per day, stable UIDs so re-imports update instead of duplicating).
+- **Arcane Classroom** — leads with a **generated learning path**: a deterministic archetypal
+  sequence from your strongest trump (anchor) toward an underdeveloped shadow (growth edge),
+  followed by the static offline lessons.
 - **Expression Studio** — offline generators (archetype poem, affirmation, sigil prompt, shadow
-  letter, mythic birth story) composed from your signature, all copyable.
+  letter, mythic birth story) composed from your signature, all copyable — plus **deck-art
+  prompts**: deterministic art-direction briefs for any card (or your whole soul deck), composed
+  from the card's correspondences, your natal placements, and the selected lineage's visual
+  tradition. Prompt generation only — bring your own image tool.
 
 ### AI interpretation
 - 6 lenses: psychological · natal · evolutionary · transit · relationship · traditional
@@ -232,8 +254,15 @@ AI-free**; AI enrichment is opt-in and tier-gated. Opened via the **✶ Arcana**
 | POST | `/api/ai-ask-stream` | optional entitlement | SSE token stream of the reflection |
 | POST | `/api/suggestions` | — | navigational questions for the focal house |
 | POST | `/api/natal-arcana` | — | deterministic natal tarot signature (AI-free) |
-| POST | `/api/tarot-reading` | optional entitlement | chart-weighted spread + optional AI enrichment |
-| POST | `/api/arcana-forecast` | — | daily transit-card overlay |
+| POST | `/api/tarot-reading` | optional entitlement | chart-weighted spread + optional AI enrichment (`source`, `date`) |
+| POST | `/api/arcana-forecast` | — | daily transit-card overlay (`start_date`, `timezone`, `source`; exactly N cards) |
+| POST | `/api/learning-path` | — | deterministic archetypal learning path (anchor → growth edge) |
+| POST | `/api/deck-art` | — | deterministic deck-art prompts (one card or the soul deck) |
+| POST | `/api/arcana-calendar` | — | forecast as `.ics` (`text/calendar`; ritual or journal per day) |
+| POST | `/api/synastry` `/api/composite` `/api/davison` | — | comparative charts for two people |
+| POST | `/api/synastry-tarot` | — | relationship spread over a synastry pair |
+| POST | `/api/progressed-chart` `/api/solar-return` `/api/eclipse-timeline` | — | predictive timing charts |
+| POST | `/api/harmonic-chart` `/api/midpoint-tree` `/api/fixed-stars` | — | advanced analysis overlays |
 | GET | `/api/tts/voices` | — | available ElevenLabs voices |
 | POST | `/api/tts` | supporter | `audio/mpeg` neural voice MP3 |
 | GET | `/api/treasury` | — | treasury address + funding allocation |
@@ -252,10 +281,20 @@ cd backend && .venv/bin/python -m pytest tests/ -q
 
 - `test_chart.py` asserts against **independently-known astronomy** — J2000 Sun position, Lahiri
   sidereal offset, 0°-cusp house wrapping, retrograde/speed agreement, classical dignities.
-- `test_tarot.py` asserts the arcana engine is **deterministic** — stable planet/sign/element
-  mappings, reproducible seeded draws, and no duplicate cards in a spread.
+- `test_tarot.py` / `test_timezone_seed.py` / `test_explainability.py` assert the arcana engine is
+  **deterministic and explainable** — reproducible seeded draws, legacy-seed stability, and
+  weight-source panels that sum to the exact draw weights.
+- `test_entitlements.py` / `test_security.py` / `test_api_endpoints.py` assert the security posture
+  **fails closed** — trust-mode gating, the production boot guard, response headers, constant-time
+  token checks, and a tier gate that never even attempts the AI call for the free tier.
+- `test_daily_forecast.py` / `test_arcana_calendar.py` / `test_learning_path.py` / `test_deck_art.py`
+  cover the exactly-N forecast contract, RFC 5545 `.ics` correctness, and the deterministic
+  learning-path and deck-art generators.
 
 Tests assert against known facts and invariants, not our own output, so they catch real regressions.
+CI (GitHub Actions) runs the backend suite, an app-boot smoke check, a production boot-guard
+re-proof, the frontend `tsc -b && vite build`, and a full-history Gitleaks secret scan on every
+push and PR.
 
 Frontend type/build check:
 
@@ -281,10 +320,14 @@ cd frontend && ./node_modules/.bin/tsc -b && npm run build
 - [x] Tier-based model routing (haiku / sonnet / opus)
 - [x] HMAC entitlement tokens — crypto-verified, stateless, startup validation
 - [x] Admin telemetry dashboard · PWA (installable, offline-capable)
-- [ ] Synastry / composite / Davison comparative charts (+ synastry tarot)
-- [ ] Progressions, solar returns, eclipse timeline
-- [ ] Harmonic charts, midpoint trees, fixed-star overlay
-- [ ] Minor Arcana card-level meanings; custom-deck art prompts
+- [x] Synastry / composite / Davison comparative charts (+ synastry tarot)
+- [x] Progressions, solar returns, eclipse timeline
+- [x] Harmonic charts, midpoint trees, fixed-star overlay
+- [x] Minor Arcana card-level meanings (full 78-card deck)
+- [x] Source-system lineages (Golden Dawn / RWS / Thoth / Jungian) folded into seed + interpretation
+- [x] Explainable draws (`weight_sources`), local-date determinism, exactly-N daily cards
+- [x] Learning paths, `.ics` calendar export, deck-art prompt studio
+- [x] CI: pytest + boot guard + frontend build + secret scan; Dependabot
 
 ---
 

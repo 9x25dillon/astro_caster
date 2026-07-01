@@ -111,6 +111,25 @@ Baseline: `d9afc4b` (36 backend tests, clean frontend build).
 - Tests: `test_explainability.py` (5) — panel-sums-to-weights, per-card derivation,
   minor suit-bias, source-in-seed (default reproduces / others differ), lineage in prose.
 
+## Phase 6 — Regression audit & consolidated docs (closing gate)
+
+- **`AUDIT_REGRESSION.md`** closes the audit bracket opened by `AUDIT_BASELINE.md`:
+  control-by-control verdicts on every security-sensitive diff since `d9afc4b`
+  (no control weakened; trust gate, boot guard, token verification, dev token,
+  headers, `_spawn`, input validation, seeding all strengthened or intact);
+  token validation confirmed complete (signature + expiry, constant-time, no
+  alg-confusion surface); the W3 synastry seam re-inspected against the changed
+  types (byte-identical, backward-compatible boundary); IDOR re-confirmed N/A
+  (no per-user owned resources added); the **deferred git-history purge** logged
+  with its procedure and interim mitigation.
+- **README consolidated pass:** CI badge; `AAE_ENV`/`AAE_TRUST_MODE` documented
+  and the **stale pre-fix trust-mode description corrected** (`AAE_ETH_RPC` row
+  claimed any non-empty hash mints a token — no longer true); arcana feature
+  section rewritten for source systems, explainability, local-date determinism,
+  exactly-N forecasts, learning paths, `.ics` export, and the deck-art studio;
+  API table completed (arcana + synastry + predictive + advanced routes); tests
+  section reflects the 105-test suite and the CI gate; roadmap brought current.
+
 ## Phase 5 — Test & CI hardening
 
 ### 5.1/5.2 — Endpoint behavioral coverage
