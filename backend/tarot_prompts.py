@@ -46,6 +46,7 @@ def build_arcana_user_prompt(
     shadows: List[str],
     signature_lines: List[str],
     drawn: List[Dict[str, str]],
+    source_lens: str = "",
 ) -> str:
     """Compose the user message: chart signature + drawn cards + question."""
     sig = "\n".join(f"- {line}" for line in signature_lines)
@@ -54,8 +55,10 @@ def build_arcana_user_prompt(
         f"{' — natal echo: ' + d['natal_link'] if d.get('natal_link') else ''}"
         for d in drawn
     )
+    lens_line = f"INTERPRETIVE LINEAGE (read the cards through this tradition): {source_lens}\n" if source_lens else ""
     return (
         f"NATAL ARCANA SIGNATURE (do not contradict):\n"
+        f"{lens_line}"
         f"Dominant element: {dominant_element}. Dominant modality: {dominant_modality}.\n"
         f"Strongest archetypes: {', '.join(themes)}.\n"
         f"Growth-ward / quieter archetypes: {', '.join(shadows) or 'in balance'}.\n"
