@@ -41,6 +41,10 @@ else
   .venv/bin/pip install -q -r requirements.txt
 fi
 echo "▶  starting backend on :8787"
+# Declare the local dev environment. Production must set AAE_ENV explicitly and
+# provide a real AAE_SECRET, or the app fails closed and refuses to boot.
+# (load_dotenv does not override an already-exported var, so a .env can't weaken this.)
+export AAE_ENV="${AAE_ENV:-development}"
 setsid .venv/bin/uvicorn main:app --host 127.0.0.1 --port 8787 --reload &
 BACK=$!
 

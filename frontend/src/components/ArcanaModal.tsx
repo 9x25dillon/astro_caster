@@ -7,11 +7,18 @@ import {
   fetchNatalArcana,
   fetchTarotReading,
   fetchArcanaForecast,
+  fetchLearningPath,
+  fetchDeckArt,
+  downloadArcanaCalendar,
   trackEvent,
   type NatalArcanaSignature,
   type TarotReadingResponse,
   type ArcanaForecastResponse,
+  type LearningPathResponse,
+  type DeckArtResponse,
   type SpreadType,
+  type SourceSystem,
+  SOURCE_LABELS,
 } from "../api/client";
 import { CLASSROOM, EXPRESSION_KINDS, generateArtifact, type Artifact } from "../lib/tarotCopy";
 
@@ -46,9 +53,13 @@ export const ArcanaModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [sig, setSig] = useState<NatalArcanaSignature | null>(null);
   const [reading, setReading] = useState<TarotReadingResponse | null>(null);
   const [forecast, setForecast] = useState<ArcanaForecastResponse | null>(null);
+  const [path, setPath] = useState<LearningPathResponse | null>(null);
   const [artifact, setArtifact] = useState<Artifact | null>(null);
+  const [deckArt, setDeckArt] = useState<DeckArtResponse | null>(null);
+  const [deckCard, setDeckCard] = useState<string>("");   // "" = whole soul deck
 
   const [spread, setSpread] = useState<SpreadType>("three_card");
+  const [source, setSource] = useState<SourceSystem>("golden_dawn");
   const [question, setQuestion] = useState("What do I need to understand right now?");
   const [useAi, setUseAi] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -67,6 +78,8 @@ export const ArcanaModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     setSig(null);
     setReading(null);
     setForecast(null);
+    setPath(null);
+    setDeckArt(null);
   }, [chart]);
 
   // Load the natal signature once a chart exists.
@@ -82,10 +95,10 @@ export const ArcanaModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     try {
       const wantAi = useAi && isSupporter;
       const r = await fetchTarotReading(chart, spread, question, {
-        includeAi: wantAi, entitlement,
+        includeAi: wantAi, entitlement, source,
       });
       setReading(r);
-      trackEvent("arcana_draw", { spread, ai: wantAi });
+      trackEvent("arcana_draw", { spread, ai: wantAi, source });
     } catch (e) {
       setErr(String(e));
     } finally {
@@ -97,13 +110,54 @@ export const ArcanaModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     if (!chart) return;
     setLoading(true); setErr(null);
     try {
-      const f = await fetchArcanaForecast(chart, 7, entitlement);
+      const f = await fetchArcanaForecast(chart, 7, entitlement, { source });
       setForecast(f);
       trackEvent("arcana_forecast_opened");
     } catch (e) {
       setErr(String(e));
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadPath() {
+    if (!chart) return;
+    setLoading(true); setErr(null);
+    try {
+      const p = await fetchLearningPath(chart, { source });
+      setPath(p);
+      trackEvent("arcana_learning_path", { source });
+    } catch (e) {
+      setErr(String(e));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadDeckArt() {
+    if (!chart) return;
+    setLoading(true); setErr(null);
+    try {
+      const d = await fetchDeckArt(chart, {
+        cardId: deckCard || undefined, source, entitlement,
+      });
+      setDeckArt(d);
+      trackEvent("arcana_deck_art", { card: deckCard || "soul_deck", source });
+    } catch (e) {
+      setErr(String(e));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function exportCalendar(kind: "ritual" | "journal") {
+    if (!chart) return;
+    setErr(null);
+    try {
+      await downloadArcanaCalendar(chart, { days: 7, source, kind, entitlement });
+      trackEvent("arcana_calendar_export", { kind, source });
+    } catch (e) {
+      setErr(String(e));
     }
   }
 
@@ -140,6 +194,7 @@ export const ArcanaModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
               onClick={() => {
                 setTab(id);
                 if (id === "transit" && !forecast) loadForecast();
+                if (id === "classroom" && !path) loadPath();
               }}
             >
               {label}
@@ -183,6 +238,12 @@ export const ArcanaModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                     {SPREADS.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
                   </select>
                 </label>
+                <label>Lineage
+                  <select value={source} onChange={(e) => setSource(e.target.value as SourceSystem)}>
+                    {(Object.keys(SOURCE_LABELS) as SourceSystem[]).map((s) =>
+                      <option key={s} value={s}>{SOURCE_LABELS[s]}</option>)}
+                  </select>
+                </label>
                 <label className="arc-q">Question
                   <input value={question} onChange={(e) => setQuestion(e.target.value)} />
                 </label>
@@ -208,6 +269,17 @@ export const ArcanaModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                         <div className="arc-drawn-pos">{c.position}</div>
                         <CardChip name={c.card.name} reversed={c.reversed} />
                         <p className="arc-drawn-meaning">{c.meaning}</p>
+                        {c.weight_sources.length > 0 && (
+                          <div className="arc-why" style={{ marginTop: 6, fontSize: "0.72rem", opacity: 0.78 }}
+                               title="Why this card was likely — from the actual draw weights">
+                            <div style={{ textTransform: "uppercase", letterSpacing: "0.08em", fontSize: "0.6rem", opacity: 0.7 }}>why this card</div>
+                            <ul style={{ margin: "2px 0 0", paddingLeft: 14 }}>
+                              {c.weight_sources.map((w, i) => (
+                                <li key={i}>{w.label}{w.weight ? ` (+${w.weight.toFixed(2)})` : ""}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
                         {c.activity && <p className="arc-drawn-act">✦ {c.activity}</p>}
                         {c.journal_prompt && <p className="arc-drawn-journal">✎ {c.journal_prompt}</p>}
                       </div>
@@ -215,7 +287,7 @@ export const ArcanaModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                   </div>
                   <div className="arc-interp">
                     <div className="arc-interp-head">
-                      Reading
+                      Reading · <span className="arc-lineage" style={{ opacity: 0.8, fontWeight: 400 }}>{SOURCE_LABELS[reading.source]}</span>
                       {reading.ai_source === "llm" && <span className="arc-badge">AI</span>}
                       {reading.ai_source === "offline" && <span className="arc-badge arc-badge--off">offline</span>}
                     </div>
@@ -231,6 +303,13 @@ export const ArcanaModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           {/* ── Transit Cards (Phase 7) ──────────────────────────────── */}
           {tab === "transit" && (
             <div className="arc-transit">
+              {forecast && forecast.cards.length > 0 && (
+                <div className="arc-cal-export" style={{ display: "flex", gap: 8, marginBottom: 10, alignItems: "center" }}>
+                  <span style={{ opacity: 0.75, fontSize: "0.8rem" }}>Export to calendar (.ics):</span>
+                  <button className="ghost" onClick={() => exportCalendar("ritual")}>✦ Rituals</button>
+                  <button className="ghost" onClick={() => exportCalendar("journal")}>✎ Journal prompts</button>
+                </div>
+              )}
               {loading && <p className="arc-empty">Reading the sky…</p>}
               {forecast && forecast.cards.length === 0 && (
                 <p className="arc-empty">No notable activations in the next {forecast.days} days.</p>
@@ -253,6 +332,34 @@ export const ArcanaModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           {/* ── Classroom (Phase 5) ──────────────────────────────────── */}
           {tab === "classroom" && (
             <div className="arc-classroom">
+              {/* Generated learning path — a chart-anchored archetypal sequence. */}
+              {loading && !path && <p className="arc-empty">Charting your path…</p>}
+              {path && (
+                <div className="arc-path" style={{ marginBottom: 18 }}>
+                  <div className="arc-path-head" style={{ marginBottom: 8 }}>
+                    <b>Your learning path</b>{" "}
+                    <span style={{ opacity: 0.75 }}>
+                      — {path.anchor} → {path.growth_edge} · {path.lineage}
+                    </span>
+                  </div>
+                  <ol className="arc-path-steps" style={{ paddingLeft: 18, margin: 0 }}>
+                    {path.steps.map((s) => (
+                      <li key={s.order} style={{ marginBottom: 10 }}>
+                        <div>
+                          <span className="arc-badge arc-badge--off">{s.stage}</span>{" "}
+                          <b>{s.card.name}</b>
+                        </div>
+                        <p style={{ margin: "3px 0" }}>{s.focus}</p>
+                        <p className="arc-drawn-act" style={{ margin: "2px 0" }}>✦ {s.practice}</p>
+                        <p className="arc-drawn-journal" style={{ margin: "2px 0" }}>✎ {s.journal}</p>
+                      </li>
+                    ))}
+                  </ol>
+                  <p className="arc-disclaimer" style={{ marginTop: 6 }}>{path.disclaimer}</p>
+                  <hr style={{ opacity: 0.2, margin: "14px 0" }} />
+                  <div style={{ opacity: 0.7, fontSize: "0.8rem", marginBottom: 6 }}>Archetype reference</div>
+                </div>
+              )}
               {CLASSROOM.map((l) => (
                 <details key={l.title} className="arc-lesson">
                   <summary>{l.title} — <i>{l.summary}</i></summary>
@@ -285,6 +392,53 @@ export const ArcanaModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                     <button className="ghost arc-copy" onClick={() => copy(artifact.body)}>copy</button>
                   </div>
                   <pre className="arc-interp-text">{artifact.body}</pre>
+                </div>
+              )}
+
+              {/* ── Deck-art prompts (Phase 4) — deterministic, prompt-only ── */}
+              <hr style={{ opacity: 0.2, margin: "16px 0" }} />
+              <div style={{ opacity: 0.7, fontSize: "0.8rem", marginBottom: 6 }}>
+                Deck-art prompts — art-direction briefs from your chart, for the image tool of your choice
+              </div>
+              <div className="arc-draw-controls">
+                <label>Card
+                  <select value={deckCard} onChange={(e) => setDeckCard(e.target.value)}>
+                    <option value="">Whole soul deck</option>
+                    {sig.links.map((l) => (
+                      <option key={l.body} value={l.card.id}>{l.card.name} ({l.body})</option>
+                    ))}
+                  </select>
+                </label>
+                <label>Lineage
+                  <select value={source} onChange={(e) => setSource(e.target.value as SourceSystem)}>
+                    {(Object.keys(SOURCE_LABELS) as SourceSystem[]).map((s) =>
+                      <option key={s} value={s}>{SOURCE_LABELS[s]}</option>)}
+                  </select>
+                </label>
+                <button className="arc-draw-btn" onClick={loadDeckArt} disabled={loading}>
+                  {loading ? "Composing…" : "Compose prompts"}
+                </button>
+              </div>
+              {deckArt && (
+                <div className="arc-deck-art">
+                  <div style={{ opacity: 0.75, fontSize: "0.8rem", margin: "8px 0" }}>
+                    {deckArt.lineage} · {deckArt.prompts.length} prompt{deckArt.prompts.length === 1 ? "" : "s"}
+                  </div>
+                  {deckArt.prompts.map((p) => (
+                    <div key={p.card.id} className="arc-artifact" style={{ marginBottom: 10 }}>
+                      <div className="arc-interp-head">{p.title}
+                        <button className="ghost arc-copy" onClick={() => copy(p.prompt)}>copy</button>
+                      </div>
+                      <pre className="arc-interp-text">{p.prompt}</pre>
+                      {p.natal_context && (
+                        <p className="arc-drawn-act" style={{ margin: "4px 0 0" }}>✦ {p.natal_context}</p>
+                      )}
+                      <p style={{ opacity: 0.6, fontSize: "0.72rem", margin: "4px 0 0" }}>
+                        avoid: {p.negative_prompt}
+                      </p>
+                    </div>
+                  ))}
+                  <p className="arc-disclaimer">{deckArt.disclaimer}</p>
                 </div>
               )}
             </div>

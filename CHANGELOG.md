@@ -1,0 +1,213 @@
+# Changelog — Astra Arcana Production Hardening
+
+Per-phase log for the Production Hardening & Symbolic Intelligence Expansion pass.
+Baseline: `d9afc4b` (36 backend tests, clean frontend build).
+
+## Phase 1 — Critical security & correctness (the hard gate)
+
+### 1.1 — Closed the donation trust-mode bypass (Critical)
+- Trust mode (accepting an unverified tx hash without an on-chain check) is now
+  gated behind **explicit enablement** (`AAE_TRUST_MODE`) **and** a recognized
+  **non-production** environment (`AAE_ENV`). Fails closed: unset/malformed flags
+  deny the entitlement.
+- `entitlements.verify_eth_payment` no longer grants on any non-empty hash when
+  `AAE_ETH_RPC` is unset; new `accept_offchain_payment` gates the non-EVM path.
+- `entitlements.assert_safe_boot()` refuses to boot in production with trust mode
+  enabled, or with an unset/blank/default `AAE_SECRET` (forgeable tokens). Called
+  at `main.py` import.
+- `run.sh` declares `AAE_ENV=development` for the local path; `.env.example`
+  documents `AAE_ENV` / `AAE_TRUST_MODE`.
+- Tests: `backend/tests/test_entitlements.py` (10 cases) + `conftest.py` pinning
+  the suite to a non-prod env. Fail-before/pass-after.
+
+### 1.2 — Purged real personal birth data
+- Real coords/time (`34.935,-117.199` · 1987-11-11, labeled "the user's chart")
+  replaced with public **Einstein** data across `test_tarot.py`, `test_advanced.py`,
+  `test_predictive.py`, `test_synastry.py`.
+- Frontend `DEFAULT_BIRTH` (`useStore.ts`) — was the same real location — replaced
+  with an obviously-synthetic sample (Y2K noon, Greenwich), kept distinct from
+  `PLACEHOLDER_BIRTH` so `ForecastPanel`'s "no personal chart" detection still works.
+- Two predictive tests were re-grounded off the removed data: the progressed-Sun
+  test now asserts the ~1°/yr invariant against the fixture's *actual* age (not a
+  hardcoded 38-yr range); the solar-return month is Einstein's (March), not the
+  real Nov birthday.
+- ⚠️ **Residual:** the real data remains in **git history** (commits `b1bdd5f`→).
+  A full purge needs a history rewrite (`git filter-repo`/BFG) + force-push —
+  destructive, deferred to an explicit operator decision. Tracked in
+  `AUDIT_REGRESSION.md`.
+
+### 1.3 — Resolved the arcana-lens type contract
+- Decision: **Arcana is a separate endpoint** (`/api/tarot-reading` via
+  `interpret_arcana`), not a selectable `/api/ai-ask` lens. README already leaned
+  this way; the codebase now tells one story.
+- Removed the phantom `_LENS_GUIDANCE["arcana"]` entry (dead — `interpret_arcana`
+  builds its own prompt from `tarot_prompts.ARCANA_SYSTEM` and never read it). Added
+  a guard comment so it isn't re-added. `main.py`'s `lens="arcana"` telemetry label
+  is descriptive metadata and kept.
+- README wording tightened: the 6 lenses are the only `/api/ai-ask` values.
+- Test `test_lens_contract.py` locks `_LENS_GUIDANCE` keys == `AIRequest.lens`
+  union (fails if they drift or a phantom lens returns).
+
+### 1.4 — Timezone & start-date control (determinism = local day)
+- `TarotReadingRequest.date` (ISO local date) for daily draws; `ArcanaForecastRequest.start_date`
+  + `timezone` (IANA) for forecasts. All optional; defaults reproduce prior behavior.
+- New `tarot.resolve_local_date(start_date, timezone)` — explicit date wins, else
+  "today" in the querent's zone, else server today. Bad date/tz → 400.
+- `_default_seed` is now a pure function of (signature, resolved local date, spread,
+  question, **source system**). The daily branch folds in the local date so a draw is
+  reproducible for a given local date regardless of the server clock. `_DEFAULT_SOURCE`
+  contributes nothing to the seed, so existing seeds stay reproducible (Phase 2.2-ready).
+- `main.arcana_forecast` resolves the start via `resolve_local_date`, not `date.today()`.
+- Added `tzdata==2026.2` (verified on PyPI) for minimal-container tz safety.
+- Tests: `test_timezone_seed.py` (7) — seed purity, legacy reproduction, source-wiring,
+  endpoint-level daily reproducibility.
+
+### 1.5 — Daily cards are actually daily
+- `daily_arcana_from_events` now takes the natal `signature` and fills gap days:
+  a date with no transit event gets a deterministic, natal-weighted trump labelled
+  "Quiet sky — an integration day." An N-day request returns **exactly N** cards.
+- Refactored the per-day dict build into `_arcana_day_dict`; added `_quiet_day_card`
+  (natal-weighted single-trump draw, stable per seed+date+signature).
+- `main.arcana_forecast` builds and threads the signature.
+- Tests: `test_daily_forecast.py` (3) — exact-N with gaps, all-quiet, determinism.
+
+### 1.6 — Security sweep of touched files (and neighbors)
+- **Response security headers** (new middleware): `X-Content-Type-Options: nosniff`,
+  `X-Frame-Options: DENY`, `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'`,
+  `Referrer-Policy: no-referrer`, `Strict-Transport-Security`.
+- **Async errors:** background telemetry no longer swallows exceptions — new `_spawn`
+  wrapper logs any unretrieved task exception (all 6 `create_task(TEL.*)` sites migrated).
+- **Constant-time auth:** dev/admin token compared via `ENT.check_dev_token`
+  (`hmac.compare_digest`) in both `entitlement_status` and `/api/admin/stats`; removed
+  the now-dead `main._DEV_TOKEN`.
+- **Verified clean:** no shell/eval/path-traversal on user input; `telemetry.py` SQL is
+  parameterized (the internal `ts>{threshold}` interpolations are server-computed ints,
+  not user input — noted informational); frontend `Math.random`/`Date.now` are decorative
+  or local IDs, not security tokens; SHA-256 is seed-only; all deps real/known (automated
+  CVE scan wired in Phase 5.3).
+- Tests: `test_security.py` (3) — headers present, admin auth, token semantics.
+
+## Phase 2 — Explainability & sourcing
+
+### 2.1 — Arcana explainability panel
+- New `WeightSource` model; `NatalArcanaSignature.weight_sources` (per major card) and
+  `DrawnCard.weight_sources` (per drawn card). Each explains *why* a card was likely
+  ("The Sun emphasised by natal Sun in Pisces", "Cups weighted by Water balance (34%)").
+- Built in lockstep with `major_weights` from the SAME accumulation that feeds the draw —
+  a major card's sources **sum to its draw weight**, so the panel and the seed can never
+  disagree (asserted by test). Minors are explained by suit bias.
+- Frontend: a "why this card" list renders beside every drawn card in `ArcanaModal`.
+
+### 2.2 — Source-system selector
+- `SourceSystem` = Golden Dawn / Rider-Waite-Smith / Thoth / psychological-Jungian.
+  `source` on `TarotReadingRequest` + `ArcanaForecastRequest`, echoed on the response.
+- Threaded into (a) the determinism **seed** — a different lineage yields a different
+  draw; the default (`golden_dawn`) contributes nothing, so existing seeds reproduce —
+  and (b) **interpretation**: offline prose names the lineage; the AI prompt carries the
+  lineage lens (`SOURCE_SYSTEMS[...]['lens']`).
+- Frontend: a "Lineage" selector in the draw controls; the reading header names the
+  lineage. Client also now sends the browser timezone / local date (completes the
+  Phase 1.4 hookup so daily draws & forecasts use the querent's local day).
+- Tests: `test_explainability.py` (5) — panel-sums-to-weights, per-card derivation,
+  minor suit-bias, source-in-seed (default reproduces / others differ), lineage in prose.
+
+## Phase 6 — Regression audit & consolidated docs (closing gate)
+
+- **`AUDIT_REGRESSION.md`** closes the audit bracket opened by `AUDIT_BASELINE.md`:
+  control-by-control verdicts on every security-sensitive diff since `d9afc4b`
+  (no control weakened; trust gate, boot guard, token verification, dev token,
+  headers, `_spawn`, input validation, seeding all strengthened or intact);
+  token validation confirmed complete (signature + expiry, constant-time, no
+  alg-confusion surface); the W3 synastry seam re-inspected against the changed
+  types (byte-identical, backward-compatible boundary); IDOR re-confirmed N/A
+  (no per-user owned resources added); the **deferred git-history purge** logged
+  with its procedure and interim mitigation.
+- **README consolidated pass:** CI badge; `AAE_ENV`/`AAE_TRUST_MODE` documented
+  and the **stale pre-fix trust-mode description corrected** (`AAE_ETH_RPC` row
+  claimed any non-empty hash mints a token — no longer true); arcana feature
+  section rewritten for source systems, explainability, local-date determinism,
+  exactly-N forecasts, learning paths, `.ics` export, and the deck-art studio;
+  API table completed (arcana + synastry + predictive + advanced routes); tests
+  section reflects the 105-test suite and the CI gate; roadmap brought current.
+
+## Phase 5 — Test & CI hardening
+
+### 5.1/5.2 — Endpoint behavioral coverage
+- New `test_api_endpoints.py` (15) — TestClient contracts, extending (not
+  duplicating) `test_entitlements` / `test_security` / `test_arcana_calendar`:
+  natal-arcana determinism; tarot-reading offline contract + endpoint-level
+  determinism + input validation; **tier gate fails closed** (free tier never
+  even *attempts* the AI call — asserted with a recording fake), supporter and
+  oracle unlock, tampered token → free, AI failure → honest `offline` flag with
+  deterministic prose retained; `/api/entitlement` valid/tampered/expired token
+  lifecycle; forecast exactly-N with the no-event fallback (deterministic),
+  days clamp, bad timezone/date → 400; learning-path contract.
+- **Fix found by the new coverage:** `/api/tarot-reading` accepted an
+  unparseable `date` (e.g. `"not-a-date"`) and silently folded it into the
+  determinism seed, returning 200. `build_reading_core` now validates the ISO
+  date, so the endpoint returns 400 — consistent with the forecast path.
+  Fail-before/pass-after. Valid dates are passed through unchanged (seed
+  strings for all previously-valid inputs are untouched).
+
+### 5.3 — CI
+- `.github/workflows/ci.yml`: backend (pip install, `pytest -q`, an app-boot
+  smoke check asserting the route table, **and a prod-boot-guard check** that
+  re-proves `assert_safe_boot` refuses an insecure production config on every
+  run), frontend (`npm ci`, `tsc -b && vite build`), and a full-history
+  Gitleaks secret scan. `AAE_ENV=test` is set at the job level so boot steps
+  never depend on pytest's conftest. (`backend/.env` is gitignored/untracked,
+  so CI genuinely runs the fail-closed path; swisseph falls back to its
+  built-in ephemeris without `SE_EPHE_PATH`.)
+- `.github/dependabot.yml`: weekly pip / npm / github-actions update + CVE sweep.
+
+## Phase 4 — Deck-Art Prompt Studio
+
+- New `deck_art.py` + `POST /api/deck-art` → `DeckArtResponse`. **Image PROMPTS
+  only — no image generation in-engine.** Each prompt is an art-direction brief
+  composed from the engine's own substrate: the card's keywords/astrology/element
+  and Golden Dawn title (`tarot_data`), the querent's natal signature (natal
+  context names the body, sign, and `HOUSE_THEMES` house theme when a trump lives
+  in the chart), and an element-derived palette accented by the dominant element.
+- **Deterministic:** a prompt is a pure function of (natal signature, card,
+  source system). Composition/atmosphere "character" comes from `tarot._seed_rng`
+  (the one sha256 seeding implementation — reused, not duplicated) so identical
+  inputs yield the identical prompt, offline, zero LLM tokens.
+- **Lineage shapes the imagery:** per-source style lenses (Golden Dawn ceremonial
+  plate / Waite-Smith pictorial scene / Thoth energetic abstraction / Jungian
+  depth-psychological dreamscape) — asserted distinct by test.
+- `card_id` set → one prompt (major or minor); omitted → the "soul deck" (every
+  natal-signature trump, canonical Sun-first order, deduped). Unknown card → 400;
+  unknown source → 422 (closed Literal). `DISCLAIMER` on the response.
+- Frontend: Studio tab gains a "Deck-art prompts" section (card selector incl.
+  whole soul deck, lineage selector, per-prompt copy + negative-prompt line).
+- Tests: `test_deck_art.py` (12) — determinism (unit + endpoint), four-lineage
+  distinctness, substrate-derived motifs/palette, natal-context presence/absence,
+  soul-deck exactness, minor-card support, 400/422 rejection, disclaimer.
+
+## Phase 3 — Learning paths & temporal systems
+
+### 3.1 — Classroom as a generated learning path
+- New `POST /api/learning-path` → `LearningPathResponse`. A deterministic archetypal
+  sequence anchored to the querent's strongest archetype (**anchor**) ascending through
+  emphasis-weighted intermediate trumps toward an underdeveloped shadow (**growth edge**),
+  e.g. High Priestess → Justice → Death → Temperance.
+- `tarot.build_learning_path` — reproducible from (natal signature, source system);
+  stages labelled Anchor / Bridge / Growth edge; each step carries focus + practice + journal.
+- Frontend: the Classroom tab now leads with the generated path (auto-loaded), above the
+  static archetype reference.
+- Tests: `test_learning_path.py` (6) — determinism, ascending trump order, stages,
+  major-only content, source influence, step-count clamping.
+
+### 3.2 — Arcana calendar (.ics export)
+- New `arcana_calendar.py` — a dependency-free, **RFC 5545-correct** iCalendar writer:
+  line folding (≤75 octets, UTF-8 boundary-safe), TEXT escaping, all-day VEVENTs
+  (`DTSTART;VALUE=DATE` + exclusive `DTEND`), CRLF endings, **stable SHA-256 UIDs** so
+  re-imports update rather than duplicate.
+- New `POST /api/arcana-calendar` → `text/calendar` attachment. One ritual (or journal)
+  per day over the forecast window; event dates are the querent's **local** dates
+  (`start_date`/`timezone`, Phase 1.4). Exactly-N events (Phase 1.5 guarantee).
+- Frontend: "Export to calendar (.ics)" — Rituals / Journal buttons in the Transit tab;
+  client sends the browser timezone and triggers a file download.
+- Tests: `test_arcana_calendar.py` (7) — well-formed structure, all-day dates, stable
+  UIDs, escaping+folding invariant, kind selection, endpoint returns N events. ICS also
+  hand-traced (unfolded → every VEVENT carries UID/DTSTAMP/DTSTART/DTEND/SUMMARY).

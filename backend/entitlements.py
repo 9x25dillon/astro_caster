@@ -11,11 +11,18 @@ is required; the client stores it in localStorage and sends it with requests.
 On-chain verification is pluggable:
   • If AAE_ETH_RPC is set, a tx hash is checked against the treasury address and
     a minimum value — real verification.
-  • Otherwise the app runs in "trust" mode: any non-empty tx hash grants an
-    entitlement flagged unverified (fine for local/dev or honour-system support).
+  • Otherwise "trust" mode may accept a non-empty tx hash unverified — but ONLY
+    when explicitly enabled (AAE_TRUST_MODE) in a non-production environment
+    (AAE_ENV). It fails closed everywhere else, and the process refuses to boot
+    in production with trust mode enabled or a default secret (assert_safe_boot).
 
 Env:
-    AAE_SECRET        HMAC secret (set a stable random value in production!)
+    AAE_SECRET        HMAC secret (REQUIRED in production; boot refused otherwise)
+    AAE_ENV           deployment environment; recognized non-prod values:
+                      development/dev/local/test/testing. Anything unset or
+                      unrecognized is treated as production (fail closed).
+    AAE_TRUST_MODE    "1"/"true"/"yes"/"on" to allow unverified acceptance — takes
+                      effect only in a non-production environment.
     AAE_ENT_DAYS      entitlement lifetime in days (default 365)
     AAE_ETH_RPC       optional EVM JSON-RPC URL for real verification
     AAE_MIN_WEI       minimum accepted value in wei (default 0 = any)
@@ -35,11 +42,71 @@ import httpx
 
 import treasury as TR
 
-_SECRET = os.environ.get("AAE_SECRET", "aae-dev-secret-change-me").encode()
+_DEFAULT_SECRET = "aae-dev-secret-change-me"
+_SECRET_RAW = os.environ.get("AAE_SECRET", _DEFAULT_SECRET)
+_SECRET = _SECRET_RAW.encode()
+# Captured at import: the signing secret must be stable for the process lifetime.
+# "Insecure" = the built-in default, or empty/blank (an empty HMAC key is weak
+# and must not be used to sign entitlement tokens in production).
+_SECRET_INSECURE = (_SECRET_RAW == _DEFAULT_SECRET) or (not _SECRET_RAW.strip())
 _ENT_DAYS = int(os.environ.get("AAE_ENT_DAYS", "365"))
 _ETH_RPC = os.environ.get("AAE_ETH_RPC", "").strip()
 _MIN_WEI = int(os.environ.get("AAE_MIN_WEI", "0"))
 _DEV_TOKEN = os.environ.get("AAE_DEV_TOKEN", "").strip()
+
+
+# --------------------------------------------------------------------------- #
+# Environment & trust-mode gating (fail closed)
+# --------------------------------------------------------------------------- #
+# Trust mode accepts a contribution's tx hash WITHOUT on-chain verification. It
+# is a local/dev convenience and must never grant entitlements in production.
+# Rule: trust mode is allowed only when (a) explicitly enabled AND (b) the
+# environment is a recognized non-production value. Anything unset or malformed
+# fails closed — treated as production, trust mode denied.
+_NONPROD_ENVS = {"development", "dev", "local", "test", "testing"}
+_TRUTHY = {"1", "true", "yes", "on"}
+
+
+def is_production() -> bool:
+    """Fail-closed: only an explicit, recognized non-production AAE_ENV is non-prod.
+
+    An unset or unrecognized AAE_ENV is treated as production.
+    """
+    return os.environ.get("AAE_ENV", "").strip().lower() not in _NONPROD_ENVS
+
+
+def trust_mode_enabled() -> bool:
+    """Whether the operator explicitly turned trust mode on (AAE_TRUST_MODE)."""
+    return os.environ.get("AAE_TRUST_MODE", "").strip().lower() in _TRUTHY
+
+
+def trust_mode_allowed() -> bool:
+    """Trust mode is allowed only when explicitly enabled AND non-production."""
+    return trust_mode_enabled() and not is_production()
+
+
+def assert_safe_boot() -> None:
+    """Refuse to boot on an insecure production configuration. Fail closed.
+
+    Called at process startup (main.py import time). Raises RuntimeError — which
+    prevents the ASGI app from loading — if the process is in production with
+    either trust mode enabled or the built-in default HMAC secret still in use.
+    """
+    if not is_production():
+        return
+    if trust_mode_enabled():
+        raise RuntimeError(
+            "Refusing to boot: AAE_TRUST_MODE is enabled in a production "
+            "environment. Trust mode grants entitlements without on-chain "
+            "verification and must never run in production. Unset AAE_TRUST_MODE, "
+            "or set AAE_ENV to a non-production value (development/test/local)."
+        )
+    if _SECRET_INSECURE:
+        raise RuntimeError(
+            "Refusing to boot: AAE_SECRET is unset, blank, or the built-in dev "
+            "default in production. Entitlement tokens would be forgeable. Set a "
+            "strong random AAE_SECRET."
+        )
 
 
 # --------------------------------------------------------------------------- #
@@ -98,9 +165,14 @@ PREMIUM_FEATURES = [
 _PAID_TIERS = {"supporter", "oracle"}
 
 
+def check_dev_token(token: Optional[str]) -> bool:
+    """Constant-time comparison against the configured dev/admin token."""
+    return bool(_DEV_TOKEN) and token is not None and hmac.compare_digest(token, _DEV_TOKEN)
+
+
 def entitlement_status(token: Optional[str]) -> dict:
     # Dev bypass — oracle tier, never expires.
-    if _DEV_TOKEN and token == _DEV_TOKEN:
+    if check_dev_token(token):
         return {
             "supporter": True,
             "tier": "oracle",
@@ -134,7 +206,15 @@ async def verify_eth_payment(tx_hash: str) -> Tuple[bool, bool, str]:
     if not tx_hash:
         return False, False, "missing tx hash"
     if not _ETH_RPC:
-        return True, False, "accepted in trust mode (no RPC configured)"
+        # No on-chain verification configured. Accept ONLY in explicit dev trust
+        # mode; otherwise fail closed and deny the entitlement.
+        if trust_mode_allowed():
+            return True, False, "accepted in trust mode (dev only; unverified)"
+        return False, False, (
+            "on-chain verification unavailable and trust mode is disabled — set "
+            "AAE_ETH_RPC to verify, or enable AAE_TRUST_MODE in a non-production "
+            "environment"
+        )
 
     info = TR.treasury_info()
     treasury_addr = next(
@@ -161,3 +241,14 @@ async def verify_eth_payment(tx_hash: str) -> Tuple[bool, bool, str]:
     if value_wei < _MIN_WEI:
         return False, False, "amount below minimum"
     return True, True, "verified on-chain"
+
+
+def accept_offchain_payment(tx_hash: str) -> Tuple[bool, bool, str]:
+    """Honour-system acceptance for chains with no on-chain check wired up here
+    (e.g. non-EVM). Gated behind dev trust mode — fails closed in production."""
+    tx_hash = (tx_hash or "").strip()
+    if not tx_hash:
+        return False, False, "missing tx hash"
+    if trust_mode_allowed():
+        return True, False, "accepted in trust mode (dev only; unverified)"
+    return False, False, "off-chain verification unavailable and trust mode is disabled"

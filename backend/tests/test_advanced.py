@@ -16,8 +16,8 @@ from models import ChartRequest  # noqa: E402
 
 client = TestClient(app)
 
-_NATAL = dict(year=1987, month=11, day=11, hour=10, minute=23, second=0,
-              lat=34.935, lng=-117.199, tz_offset=-8.0)
+_NATAL = dict(year=1879, month=3, day=14, hour=11, minute=30, second=0,  # Einstein (public)
+              lat=48.4011, lng=9.9876, tz_offset=0.67)
 
 
 def _natal_req():

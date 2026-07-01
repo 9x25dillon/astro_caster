@@ -29,11 +29,21 @@ SpreadType = Literal[
     "creative_expression",
 ]
 
+SourceSystem = Literal["golden_dawn", "rws", "thoth", "jungian"]
+
 DISCLAIMER = (
     "Astra Arcana is a symbolic mirror for reflection and creative alignment, "
     "not a deterministic prediction engine. It does not foretell fixed events and "
     "does not replace professional medical, legal, financial, or mental-health support."
 )
+
+
+class WeightSource(BaseModel):
+    """One explainable contribution to a card's draw weight, derived from the
+    ACTUAL natal signature (never a plausible-sounding post-hoc reconstruction).
+    The sum of a card's weight_sources equals the weight that fed the draw."""
+    label: str
+    weight: float
 
 
 class TarotCard(BaseModel):
@@ -64,6 +74,10 @@ class NatalArcanaSignature(BaseModel):
     dominant_modality: str
     suit_bias: Dict[str, float]            # wands/cups/swords/pentacles -> weight
     major_weights: Dict[str, float]        # card id -> emphasis weight
+    # major card id -> the natal contributions that built its weight. Generated
+    # from the same accumulation that feeds the draw, so the panel and the seed
+    # can never disagree (verified by test).
+    weight_sources: Dict[str, List[WeightSource]] = Field(default_factory=dict)
     themes: List[str]                      # strongest archetypal themes
     shadows: List[str]                     # underdeveloped / shadow archetypes
     disclaimer: str = DISCLAIMER
@@ -72,7 +86,13 @@ class NatalArcanaSignature(BaseModel):
 class TarotReadingRequest(BaseModel):
     chart: ChartResponse
     spread: SpreadType = "three_card"
+    # Interpretive lineage (Phase 2.2). Part of the determinism seed and the
+    # interpretation framing. Default reproduces the current doctrine's seeds.
+    source: SourceSystem = "golden_dawn"
     question: str = "What do I need to understand right now?"
+    # ISO local date "YYYY-MM-DD" for the 'daily' spread. When set, the daily
+    # seed is a pure function of this local date (independent of the server clock).
+    date: Optional[str] = None
     include_activities: bool = True
     include_lessons: bool = True
     include_ai: bool = False               # opt-in AI enrichment (tier-gated)
@@ -88,10 +108,13 @@ class DrawnCard(BaseModel):
     meaning: str
     activity: Optional[str] = None
     journal_prompt: Optional[str] = None
+    # Why this card was likely — derived from the actual draw weights (Phase 2.1).
+    weight_sources: List[WeightSource] = Field(default_factory=list)
 
 
 class TarotReadingResponse(BaseModel):
     spread: SpreadType
+    source: SourceSystem = "golden_dawn"    # lineage the reading was cast in
     question: str
     seed: str
     signature: NatalArcanaSignature
@@ -107,6 +130,13 @@ class ArcanaForecastRequest(BaseModel):
     chart: ChartResponse
     days: int = 7
     min_sig: str = "medium"
+    source: SourceSystem = "golden_dawn"   # interpretive lineage (Phase 2.2)
+    # The querent's local day is the unit of meaning. start_date (ISO
+    # "YYYY-MM-DD") pins the first day explicitly; otherwise timezone (IANA, e.g.
+    # "America/New_York") resolves "today" in the querent's zone. Both omitted =>
+    # server-local today (legacy behavior).
+    start_date: Optional[str] = None
+    timezone: Optional[str] = None
     entitlement: Optional[str] = None
 
 
@@ -128,3 +158,82 @@ class ArcanaForecastResponse(BaseModel):
     days: int
     cards: List[ArcanaDay]
     disclaimer: str = DISCLAIMER
+
+
+# --------------------------------------------------------------------------- #
+# Phase 3.1 — Classroom as a generated learning path
+# --------------------------------------------------------------------------- #
+
+
+class LearningStep(BaseModel):
+    order: int
+    stage: str                 # e.g. "Anchor", "Bridge", "Growth edge"
+    card: TarotCard
+    focus: str                 # why this archetype sits here in *this* chart's path
+    practice: str
+    journal: str
+
+
+class LearningPathRequest(BaseModel):
+    chart: ChartResponse
+    source: SourceSystem = "golden_dawn"
+    steps: int = 5             # 3..8
+    entitlement: Optional[str] = None
+
+
+class LearningPathResponse(BaseModel):
+    source: SourceSystem
+    anchor: str                # strongest archetype (trump name) the path departs from
+    growth_edge: str           # weakest / shadow archetype the path moves toward
+    lineage: str               # human-readable source-system name
+    steps: List[LearningStep]
+    disclaimer: str = DISCLAIMER
+
+
+# --------------------------------------------------------------------------- #
+# Phase 4 — Deck-Art Prompt Studio (image PROMPTS only, no image generation)
+# --------------------------------------------------------------------------- #
+
+
+class DeckArtRequest(BaseModel):
+    chart: ChartResponse
+    # One card id (major or minor) for a single prompt; omit for the "soul deck" —
+    # a prompt for every trump in the querent's natal signature.
+    card_id: Optional[str] = None
+    source: SourceSystem = "golden_dawn"   # lineage shapes the imagery
+    entitlement: Optional[str] = None
+
+
+class DeckArtPrompt(BaseModel):
+    """A deterministic art-direction brief for one card. Pure function of
+    (natal signature, card, source system) — identical inputs, identical prompt."""
+    card: TarotCard
+    title: str
+    prompt: str                            # the image-generation brief
+    negative_prompt: str
+    motifs: List[str]                      # keywords + astrological correspondences
+    palette: str                           # element-derived color direction
+    natal_context: Optional[str] = None    # where this trump lives in the chart
+
+
+class DeckArtResponse(BaseModel):
+    source: SourceSystem
+    lineage: str                           # human-readable source-system name
+    prompts: List[DeckArtPrompt]
+    disclaimer: str = DISCLAIMER
+
+
+# --------------------------------------------------------------------------- #
+# Phase 3.2 — Arcana calendar (.ics) export
+# --------------------------------------------------------------------------- #
+
+
+class ArcanaCalendarRequest(BaseModel):
+    chart: ChartResponse
+    days: int = 7
+    min_sig: str = "medium"
+    source: SourceSystem = "golden_dawn"
+    start_date: Optional[str] = None
+    timezone: Optional[str] = None
+    kind: Literal["ritual", "journal"] = "ritual"   # which prompt anchors each day
+    entitlement: Optional[str] = None

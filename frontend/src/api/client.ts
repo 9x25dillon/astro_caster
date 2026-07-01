@@ -339,6 +339,20 @@ export interface NatalArcanaSignature {
   disclaimer: string;
 }
 
+export type SourceSystem = "golden_dawn" | "rws" | "thoth" | "jungian";
+
+export const SOURCE_LABELS: Record<SourceSystem, string> = {
+  golden_dawn: "Golden Dawn / Hermetic",
+  rws: "Rider-Waite-Smith",
+  thoth: "Thoth (Crowley-Harris)",
+  jungian: "Psychological / Jungian",
+};
+
+export interface WeightSource {
+  label: string;
+  weight: number;
+}
+
 export interface DrawnCard {
   position: string;
   card: TarotCard;
@@ -347,10 +361,12 @@ export interface DrawnCard {
   meaning: string;
   activity: string | null;
   journal_prompt: string | null;
+  weight_sources: WeightSource[];
 }
 
 export interface TarotReadingResponse {
   spread: SpreadType;
+  source: SourceSystem;
   question: string;
   seed: string;
   signature: NatalArcanaSignature;
@@ -386,15 +402,40 @@ export function fetchNatalArcana(chart: ChartResponse): Promise<NatalArcanaSigna
   return post<NatalArcanaSignature>("/natal-arcana", chart);
 }
 
+// Local calendar date "YYYY-MM-DD" in the browser's own timezone.
+function localToday(): string {
+  const d = new Date();
+  const m = `${d.getMonth() + 1}`.padStart(2, "0");
+  const day = `${d.getDate()}`.padStart(2, "0");
+  return `${d.getFullYear()}-${m}-${day}`;
+}
+
+function browserTz(): string | undefined {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export function fetchTarotReading(
   chart: ChartResponse,
   spread: SpreadType,
   question: string,
-  opts: { includeAi?: boolean; entitlement?: string | null } = {},
+  opts: {
+    includeAi?: boolean;
+    entitlement?: string | null;
+    source?: SourceSystem;
+    date?: string;
+  } = {},
 ): Promise<TarotReadingResponse> {
   return post<TarotReadingResponse>("/tarot-reading", {
     chart,
     spread,
+    // The querent's local day is the unit of meaning: default a daily draw to the
+    // browser's local date so it doesn't depend on the server clock (Phase 1.4).
+    date: opts.date ?? (spread === "daily" ? localToday() : null),
+    source: opts.source ?? "golden_dawn",
     question,
     include_activities: true,
     include_lessons: true,
@@ -403,15 +444,121 @@ export function fetchTarotReading(
   });
 }
 
+export interface LearningStep {
+  order: number;
+  stage: string;
+  card: TarotCard;
+  focus: string;
+  practice: string;
+  journal: string;
+}
+
+export interface LearningPathResponse {
+  source: SourceSystem;
+  anchor: string;
+  growth_edge: string;
+  lineage: string;
+  steps: LearningStep[];
+  disclaimer: string;
+}
+
+export function fetchLearningPath(
+  chart: ChartResponse,
+  opts: { source?: SourceSystem; steps?: number; entitlement?: string | null } = {},
+): Promise<LearningPathResponse> {
+  return post<LearningPathResponse>("/learning-path", {
+    chart,
+    source: opts.source ?? "golden_dawn",
+    steps: opts.steps ?? 5,
+    entitlement: opts.entitlement ?? null,
+  });
+}
+
+// ── Deck-Art Prompt Studio (Phase 4) — image PROMPTS only, generated offline ──
+
+export interface DeckArtPrompt {
+  card: TarotCard;
+  title: string;
+  prompt: string;
+  negative_prompt: string;
+  motifs: string[];
+  palette: string;
+  natal_context: string | null;
+}
+
+export interface DeckArtResponse {
+  source: SourceSystem;
+  lineage: string;
+  prompts: DeckArtPrompt[];
+  disclaimer: string;
+}
+
+/** Deterministic deck-art prompts: one card, or the whole soul deck when
+ *  cardId is omitted. Stable per (chart, card, source). */
+export function fetchDeckArt(
+  chart: ChartResponse,
+  opts: { cardId?: string; source?: SourceSystem; entitlement?: string | null } = {},
+): Promise<DeckArtResponse> {
+  return post<DeckArtResponse>("/deck-art", {
+    chart,
+    card_id: opts.cardId ?? null,
+    source: opts.source ?? "golden_dawn",
+    entitlement: opts.entitlement ?? null,
+  });
+}
+
+/** Download the arcana forecast as an .ics calendar file (Phase 3.2). */
+export async function downloadArcanaCalendar(
+  chart: ChartResponse,
+  opts: {
+    days?: number;
+    source?: SourceSystem;
+    kind?: "ritual" | "journal";
+    entitlement?: string | null;
+  } = {},
+): Promise<void> {
+  const res = await fetch(`${BASE}/arcana-calendar`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chart,
+      days: opts.days ?? 7,
+      min_sig: "medium",
+      source: opts.source ?? "golden_dawn",
+      kind: opts.kind ?? "ritual",
+      timezone: browserTz() ?? null,
+      entitlement: opts.entitlement ?? null,
+    }),
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => res.statusText);
+    throw new Error(`${res.status}: ${detail}`);
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `astra-arcana-${localToday()}.ics`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 export function fetchArcanaForecast(
   chart: ChartResponse,
   days = 7,
   entitlement?: string | null,
+  opts: { source?: SourceSystem; timezone?: string; startDate?: string } = {},
 ): Promise<ArcanaForecastResponse> {
   return post<ArcanaForecastResponse>("/arcana-forecast", {
     chart,
     days,
     min_sig: "medium",
+    // Resolve "today" in the querent's own timezone (Phase 1.4).
+    timezone: opts.timezone ?? browserTz() ?? null,
+    start_date: opts.startDate ?? null,
+    source: opts.source ?? "golden_dawn",
     entitlement: entitlement ?? null,
   });
 }

@@ -1,0 +1,16 @@
+# Dependency hygiene (Phase 5.3): weekly CVE/update sweep across all three
+# ecosystems. Security updates open PRs immediately regardless of schedule.
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /backend
+    schedule:
+      interval: weekly
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

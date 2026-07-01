@@ -1,0 +1,89 @@
+# CI — Astra Arcana (Phase 5.3)
+#
+# Gates every push/PR on: backend tests, an app-boot smoke check, and the
+# frontend typecheck+build. AAE_ENV must be set for any step that imports the
+# app: main.py calls entitlements.assert_safe_boot() at import time and an
+# unset AAE_ENV is treated as production (fail-closed), which refuses to boot
+# with the default secret. pytest gets AAE_ENV from tests/conftest.py, but we
+# set it explicitly here so the guard never depends on collection order.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend — pytest + boot smoke
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      AAE_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run tests
+        run: python -m pytest -q
+      - name: Boot smoke check (app imports, routes registered)
+        run: |
+          python -c "
+          import main
+          routes = [r.path for r in main.app.routes if r.path.startswith('/api')]
+          assert len(routes) >= 30, f'route table shrank: {len(routes)}'
+          print(f'ok: {len(routes)} /api routes')
+          "
+      - name: Prod boot guard still refuses insecure config
+        # The fail-closed invariant itself, exercised on every CI run: with
+        # AAE_ENV unset (= production) and the default secret, import must fail.
+        run: |
+          env -u AAE_ENV python -c "
+          try:
+              import main
+          except RuntimeError as exc:
+              assert 'AAE_SECRET' in str(exc)
+              print('ok: boot refused insecure production config')
+          else:
+              raise SystemExit('boot guard FAILED to refuse insecure production config')
+          "
+
+  frontend:
+    name: Frontend — tsc + vite build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Typecheck + build
+        run: npm run build
+
+  secrets-scan:
+    name: Gitleaks — secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # scan full history, not just the tip
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
