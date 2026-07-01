@@ -78,10 +78,13 @@ from models import (
 )
 import tarot as TAROT
 import arcana_calendar as CAL
+import deck_art as DA
 from tarot_models import (
     ArcanaCalendarRequest,
     ArcanaForecastRequest,
     ArcanaForecastResponse,
+    DeckArtRequest,
+    DeckArtResponse,
     LearningPathRequest,
     LearningPathResponse,
     NatalArcanaSignature,
@@ -502,6 +505,19 @@ async def learning_path(req: LearningPathRequest):
         return TAROT.build_learning_path(req)
     except Exception as exc:
         raise HTTPException(status_code=400, detail=f"learning path failed: {exc}")
+
+
+@app.post("/api/deck-art", response_model=DeckArtResponse)
+async def deck_art(req: DeckArtRequest):
+    """Deck-Art Prompt Studio — deterministic image PROMPTS (no image generation).
+
+    One card when `card_id` is set, else the soul deck (every natal-signature
+    trump). Stable per (chart, card, source system); lineage shapes the imagery.
+    """
+    try:
+        return DA.build_deck_art(req)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"deck art failed: {exc}")
 
 
 @app.post("/api/arcana-calendar")

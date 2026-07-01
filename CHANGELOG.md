@@ -111,6 +111,30 @@ Baseline: `d9afc4b` (36 backend tests, clean frontend build).
 - Tests: `test_explainability.py` (5) — panel-sums-to-weights, per-card derivation,
   minor suit-bias, source-in-seed (default reproduces / others differ), lineage in prose.
 
+## Phase 4 — Deck-Art Prompt Studio
+
+- New `deck_art.py` + `POST /api/deck-art` → `DeckArtResponse`. **Image PROMPTS
+  only — no image generation in-engine.** Each prompt is an art-direction brief
+  composed from the engine's own substrate: the card's keywords/astrology/element
+  and Golden Dawn title (`tarot_data`), the querent's natal signature (natal
+  context names the body, sign, and `HOUSE_THEMES` house theme when a trump lives
+  in the chart), and an element-derived palette accented by the dominant element.
+- **Deterministic:** a prompt is a pure function of (natal signature, card,
+  source system). Composition/atmosphere "character" comes from `tarot._seed_rng`
+  (the one sha256 seeding implementation — reused, not duplicated) so identical
+  inputs yield the identical prompt, offline, zero LLM tokens.
+- **Lineage shapes the imagery:** per-source style lenses (Golden Dawn ceremonial
+  plate / Waite-Smith pictorial scene / Thoth energetic abstraction / Jungian
+  depth-psychological dreamscape) — asserted distinct by test.
+- `card_id` set → one prompt (major or minor); omitted → the "soul deck" (every
+  natal-signature trump, canonical Sun-first order, deduped). Unknown card → 400;
+  unknown source → 422 (closed Literal). `DISCLAIMER` on the response.
+- Frontend: Studio tab gains a "Deck-art prompts" section (card selector incl.
+  whole soul deck, lineage selector, per-prompt copy + negative-prompt line).
+- Tests: `test_deck_art.py` (12) — determinism (unit + endpoint), four-lineage
+  distinctness, substrate-derived motifs/palette, natal-context presence/absence,
+  soul-deck exactness, minor-card support, 400/422 rejection, disclaimer.
+
 ## Phase 3 — Learning paths & temporal systems
 
 ### 3.1 — Classroom as a generated learning path

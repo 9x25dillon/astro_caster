@@ -8,12 +8,14 @@ import {
   fetchTarotReading,
   fetchArcanaForecast,
   fetchLearningPath,
+  fetchDeckArt,
   downloadArcanaCalendar,
   trackEvent,
   type NatalArcanaSignature,
   type TarotReadingResponse,
   type ArcanaForecastResponse,
   type LearningPathResponse,
+  type DeckArtResponse,
   type SpreadType,
   type SourceSystem,
   SOURCE_LABELS,
@@ -53,6 +55,8 @@ export const ArcanaModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [forecast, setForecast] = useState<ArcanaForecastResponse | null>(null);
   const [path, setPath] = useState<LearningPathResponse | null>(null);
   const [artifact, setArtifact] = useState<Artifact | null>(null);
+  const [deckArt, setDeckArt] = useState<DeckArtResponse | null>(null);
+  const [deckCard, setDeckCard] = useState<string>("");   // "" = whole soul deck
 
   const [spread, setSpread] = useState<SpreadType>("three_card");
   const [source, setSource] = useState<SourceSystem>("golden_dawn");
@@ -75,6 +79,7 @@ export const ArcanaModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     setReading(null);
     setForecast(null);
     setPath(null);
+    setDeckArt(null);
   }, [chart]);
 
   // Load the natal signature once a chart exists.
@@ -122,6 +127,22 @@ export const ArcanaModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       const p = await fetchLearningPath(chart, { source });
       setPath(p);
       trackEvent("arcana_learning_path", { source });
+    } catch (e) {
+      setErr(String(e));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadDeckArt() {
+    if (!chart) return;
+    setLoading(true); setErr(null);
+    try {
+      const d = await fetchDeckArt(chart, {
+        cardId: deckCard || undefined, source, entitlement,
+      });
+      setDeckArt(d);
+      trackEvent("arcana_deck_art", { card: deckCard || "soul_deck", source });
     } catch (e) {
       setErr(String(e));
     } finally {
@@ -371,6 +392,53 @@ export const ArcanaModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                     <button className="ghost arc-copy" onClick={() => copy(artifact.body)}>copy</button>
                   </div>
                   <pre className="arc-interp-text">{artifact.body}</pre>
+                </div>
+              )}
+
+              {/* ── Deck-art prompts (Phase 4) — deterministic, prompt-only ── */}
+              <hr style={{ opacity: 0.2, margin: "16px 0" }} />
+              <div style={{ opacity: 0.7, fontSize: "0.8rem", marginBottom: 6 }}>
+                Deck-art prompts — art-direction briefs from your chart, for the image tool of your choice
+              </div>
+              <div className="arc-draw-controls">
+                <label>Card
+                  <select value={deckCard} onChange={(e) => setDeckCard(e.target.value)}>
+                    <option value="">Whole soul deck</option>
+                    {sig.links.map((l) => (
+                      <option key={l.body} value={l.card.id}>{l.card.name} ({l.body})</option>
+                    ))}
+                  </select>
+                </label>
+                <label>Lineage
+                  <select value={source} onChange={(e) => setSource(e.target.value as SourceSystem)}>
+                    {(Object.keys(SOURCE_LABELS) as SourceSystem[]).map((s) =>
+                      <option key={s} value={s}>{SOURCE_LABELS[s]}</option>)}
+                  </select>
+                </label>
+                <button className="arc-draw-btn" onClick={loadDeckArt} disabled={loading}>
+                  {loading ? "Composing…" : "Compose prompts"}
+                </button>
+              </div>
+              {deckArt && (
+                <div className="arc-deck-art">
+                  <div style={{ opacity: 0.75, fontSize: "0.8rem", margin: "8px 0" }}>
+                    {deckArt.lineage} · {deckArt.prompts.length} prompt{deckArt.prompts.length === 1 ? "" : "s"}
+                  </div>
+                  {deckArt.prompts.map((p) => (
+                    <div key={p.card.id} className="arc-artifact" style={{ marginBottom: 10 }}>
+                      <div className="arc-interp-head">{p.title}
+                        <button className="ghost arc-copy" onClick={() => copy(p.prompt)}>copy</button>
+                      </div>
+                      <pre className="arc-interp-text">{p.prompt}</pre>
+                      {p.natal_context && (
+                        <p className="arc-drawn-act" style={{ margin: "4px 0 0" }}>✦ {p.natal_context}</p>
+                      )}
+                      <p style={{ opacity: 0.6, fontSize: "0.72rem", margin: "4px 0 0" }}>
+                        avoid: {p.negative_prompt}
+                      </p>
+                    </div>
+                  ))}
+                  <p className="arc-disclaimer">{deckArt.disclaimer}</p>
                 </div>
               )}
             </div>

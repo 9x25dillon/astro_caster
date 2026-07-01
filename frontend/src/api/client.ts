@@ -474,6 +474,39 @@ export function fetchLearningPath(
   });
 }
 
+// ── Deck-Art Prompt Studio (Phase 4) — image PROMPTS only, generated offline ──
+
+export interface DeckArtPrompt {
+  card: TarotCard;
+  title: string;
+  prompt: string;
+  negative_prompt: string;
+  motifs: string[];
+  palette: string;
+  natal_context: string | null;
+}
+
+export interface DeckArtResponse {
+  source: SourceSystem;
+  lineage: string;
+  prompts: DeckArtPrompt[];
+  disclaimer: string;
+}
+
+/** Deterministic deck-art prompts: one card, or the whole soul deck when
+ *  cardId is omitted. Stable per (chart, card, source). */
+export function fetchDeckArt(
+  chart: ChartResponse,
+  opts: { cardId?: string; source?: SourceSystem; entitlement?: string | null } = {},
+): Promise<DeckArtResponse> {
+  return post<DeckArtResponse>("/deck-art", {
+    chart,
+    card_id: opts.cardId ?? null,
+    source: opts.source ?? "golden_dawn",
+    entitlement: opts.entitlement ?? null,
+  });
+}
+
 /** Download the arcana forecast as an .ics calendar file (Phase 3.2). */
 export async function downloadArcanaCalendar(
   chart: ChartResponse,

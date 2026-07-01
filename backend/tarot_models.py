@@ -191,6 +191,39 @@ class LearningPathResponse(BaseModel):
 
 
 # --------------------------------------------------------------------------- #
+# Phase 4 — Deck-Art Prompt Studio (image PROMPTS only, no image generation)
+# --------------------------------------------------------------------------- #
+
+
+class DeckArtRequest(BaseModel):
+    chart: ChartResponse
+    # One card id (major or minor) for a single prompt; omit for the "soul deck" —
+    # a prompt for every trump in the querent's natal signature.
+    card_id: Optional[str] = None
+    source: SourceSystem = "golden_dawn"   # lineage shapes the imagery
+    entitlement: Optional[str] = None
+
+
+class DeckArtPrompt(BaseModel):
+    """A deterministic art-direction brief for one card. Pure function of
+    (natal signature, card, source system) — identical inputs, identical prompt."""
+    card: TarotCard
+    title: str
+    prompt: str                            # the image-generation brief
+    negative_prompt: str
+    motifs: List[str]                      # keywords + astrological correspondences
+    palette: str                           # element-derived color direction
+    natal_context: Optional[str] = None    # where this trump lives in the chart
+
+
+class DeckArtResponse(BaseModel):
+    source: SourceSystem
+    lineage: str                           # human-readable source-system name
+    prompts: List[DeckArtPrompt]
+    disclaimer: str = DISCLAIMER
+
+
+# --------------------------------------------------------------------------- #
 # Phase 3.2 — Arcana calendar (.ics) export
 # --------------------------------------------------------------------------- #
 
