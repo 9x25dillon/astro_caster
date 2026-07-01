@@ -111,6 +111,36 @@ Baseline: `d9afc4b` (36 backend tests, clean frontend build).
 - Tests: `test_explainability.py` (5) — panel-sums-to-weights, per-card derivation,
   minor suit-bias, source-in-seed (default reproduces / others differ), lineage in prose.
 
+## Phase 5 — Test & CI hardening
+
+### 5.1/5.2 — Endpoint behavioral coverage
+- New `test_api_endpoints.py` (15) — TestClient contracts, extending (not
+  duplicating) `test_entitlements` / `test_security` / `test_arcana_calendar`:
+  natal-arcana determinism; tarot-reading offline contract + endpoint-level
+  determinism + input validation; **tier gate fails closed** (free tier never
+  even *attempts* the AI call — asserted with a recording fake), supporter and
+  oracle unlock, tampered token → free, AI failure → honest `offline` flag with
+  deterministic prose retained; `/api/entitlement` valid/tampered/expired token
+  lifecycle; forecast exactly-N with the no-event fallback (deterministic),
+  days clamp, bad timezone/date → 400; learning-path contract.
+- **Fix found by the new coverage:** `/api/tarot-reading` accepted an
+  unparseable `date` (e.g. `"not-a-date"`) and silently folded it into the
+  determinism seed, returning 200. `build_reading_core` now validates the ISO
+  date, so the endpoint returns 400 — consistent with the forecast path.
+  Fail-before/pass-after. Valid dates are passed through unchanged (seed
+  strings for all previously-valid inputs are untouched).
+
+### 5.3 — CI
+- `.github/workflows/ci.yml`: backend (pip install, `pytest -q`, an app-boot
+  smoke check asserting the route table, **and a prod-boot-guard check** that
+  re-proves `assert_safe_boot` refuses an insecure production config on every
+  run), frontend (`npm ci`, `tsc -b && vite build`), and a full-history
+  Gitleaks secret scan. `AAE_ENV=test` is set at the job level so boot steps
+  never depend on pytest's conftest. (`backend/.env` is gitignored/untracked,
+  so CI genuinely runs the fail-closed path; swisseph falls back to its
+  built-in ephemeris without `SE_EPHE_PATH`.)
+- `.github/dependabot.yml`: weekly pip / npm / github-actions update + CVE sweep.
+
 ## Phase 4 — Deck-Art Prompt Studio
 
 - New `deck_art.py` + `POST /api/deck-art` → `DeckArtResponse`. **Image PROMPTS

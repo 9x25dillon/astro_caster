@@ -436,6 +436,10 @@ def _card_weight_sources(card_id: str, signature: NatalArcanaSignature) -> List[
 
 def build_reading_core(req: TarotReadingRequest) -> TarotReadingResponse:
     """Deterministic reading WITHOUT AI. main.py may overwrite `interpretation`."""
+    if req.date:
+        # The local date is the unit of meaning for a daily draw — an unparseable
+        # date must be rejected (-> HTTP 400), never silently folded into the seed.
+        _dt.date.fromisoformat(req.date)
     signature = build_natal_arcana_signature(req.chart)
     seed = req.seed or _default_seed(
         req.chart, req.spread, req.question, local_date=req.date, source=req.source
