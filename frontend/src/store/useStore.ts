@@ -24,26 +24,29 @@ import type {
 } from "../types";
 import { trackEvent } from "../api/client";
 
-// Default chart — preloaded so the observatory is never empty on first visit.
+// Default chart — an obviously-synthetic sample (Y2K noon, Greenwich) so the
+// observatory is never empty on first visit. Carries no personal data, and is
+// distinct from PLACEHOLDER_BIRTH so personal forecast features stay active for
+// the loaded demo chart.
 export const DEFAULT_BIRTH: BirthInput = {
-  year: 1987,
-  month: 11,
-  day: 11,
-  hour: 10,
-  minute: 23,
+  year: 2000,
+  month: 1,
+  day: 1,
+  hour: 12,
+  minute: 0,
   second: 0,
-  lat: 34.9333,   // 34°56' N
-  lng: -117.1833, // 117°11' W
-  tz_offset: -8,  // PST
+  lat: 51.4826, // Greenwich
+  lng: 0.0,
+  tz_offset: 0, // UTC
   house_system: "P",
   zodiac: "tropical",
   ayanamsha: 1,
-  label: "Nov 11 1987",
+  label: "Sample · 2000-01-01",
 };
 
-// The original demo chart (Einstein). Kept only so the forecast can detect the
-// "no personal chart cast yet" state — the loaded default above is a real chart,
-// so personal forecast features stay active for it.
+// A distinct reference chart (Einstein — public natal data) used only to detect
+// the "no personal chart cast yet" state. The synthetic default above differs
+// from this, so personal forecast features stay active for the demo chart.
 export const PLACEHOLDER_BIRTH: BirthInput = {
   year: 1879, month: 3, day: 14, hour: 11, minute: 30, second: 0,
   lat: 48.4011, lng: 9.9876, tz_offset: 0.67,

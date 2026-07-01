@@ -17,8 +17,8 @@ from models import ChartRequest, PlanetData  # noqa: E402
 
 client = TestClient(app)
 
-_NATAL = dict(year=1987, month=11, day=11, hour=10, minute=23, second=0,
-              lat=34.935, lng=-117.199, tz_offset=-8.0)
+_NATAL = dict(year=1879, month=3, day=14, hour=11, minute=30, second=0,  # Einstein (public)
+              lat=48.4011, lng=9.9876, tz_offset=0.67)
 
 
 def _natal_req():
@@ -34,9 +34,14 @@ def test_progressed_sun_advances_about_one_degree_per_year():
     pg = P.progressed_chart(natal, "2026-06-30")
     prog_sun = next(p for p in pg.planets if p.id == "Sun").longitude
     advanced = A.angular_separation(natal_sun, prog_sun)
-    # ~38.6 years -> Sun should have moved ~37-40 degrees (~1 deg/year)
-    assert 35.0 < advanced < 42.0, advanced
-    assert 38.0 < pg.age_years < 39.0
+    # Secondary progression ("day for a year"): the progressed Sun advances ~1°
+    # per year of life, for ANY natal chart. Assert that invariant against the
+    # fixture's actual age rather than a hardcoded, chart-specific range.
+    from datetime import date
+    natal_d = date(_NATAL["year"], _NATAL["month"], _NATAL["day"])
+    expected_age = (date(2026, 6, 30) - natal_d).days / 365.25
+    assert abs(pg.age_years - expected_age) < 0.2, pg.age_years
+    assert 0.85 < advanced / pg.age_years < 1.05, (advanced, pg.age_years)
 
 
 # --- solar return ------------------------------------------------------------
@@ -48,7 +53,7 @@ def test_solar_return_sun_equals_natal_sun():
     sr = P.solar_return(natal, 2026)
     sr_sun = next(p for p in sr.planets if p.id == "Sun").longitude
     assert A.angular_separation(natal_sun, sr_sun) < 0.05   # within 3 arcmin
-    assert sr.return_iso.startswith("2026-11")              # near the birthday
+    assert sr.return_iso.startswith("2026-03")              # near the birthday (Mar 14)
 
 
 # --- eclipse timeline --------------------------------------------------------

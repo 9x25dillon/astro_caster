@@ -20,6 +20,7 @@ import datetime as _dt
 import hashlib
 import random
 from typing import Dict, List, Optional, Tuple
+from zoneinfo import ZoneInfo
 
 import astrology as A
 from models import ChartResponse
@@ -41,11 +42,18 @@ from tarot_data import (
 from tarot_models import (
     ArcanaCardLink,
     DrawnCard,
+    LearningPathRequest,
+    LearningPathResponse,
+    LearningStep,
     NatalArcanaSignature,
     TarotCard,
     TarotReadingRequest,
     TarotReadingResponse,
+    WeightSource,
 )
+
+# Trump name -> id, for resolving shadow archetype names back to card ids.
+_MAJOR_NAME_TO_ID = {d["name"]: cid for cid, d in MAJOR_BY_ID.items()}
 
 # Canonical display order for the natal signature.
 _SIGNATURE_ORDER = [
@@ -117,6 +125,10 @@ def build_natal_arcana_signature(chart: ChartResponse) -> NatalArcanaSignature:
     planets = _planet_index(chart)
     links: List[ArcanaCardLink] = []
     major_weights: Dict[str, float] = {}
+    # card id -> the natal contributions that built its weight (Phase 2.1). Built
+    # in lockstep with major_weights so the explainability panel is derived from
+    # the exact numbers that feed the draw, never a reconstruction.
+    weight_sources: Dict[str, List[WeightSource]] = {}
 
     for body in _SIGNATURE_ORDER:
         p = planets.get(body)
@@ -126,11 +138,21 @@ def build_natal_arcana_signature(chart: ChartResponse) -> NatalArcanaSignature:
         if card_id is None:
             continue
         w = _BODY_WEIGHT.get(body, _DEFAULT_BODY_WEIGHT)
+        sign = getattr(p, "sign", None)
         major_weights[card_id] = major_weights.get(card_id, 0.0) + w
+        weight_sources.setdefault(card_id, []).append(WeightSource(
+            label=f"{MAJOR_BY_ID[card_id]['name']} emphasised by natal {body}"
+                  + (f" in {sign}" if sign else ""),
+            weight=round(w, 3),
+        ))
         # A planet also lights up the trump of its sign (secondary emphasis).
-        sign_card = SIGN_MAJOR.get(getattr(p, "sign", None))
+        sign_card = SIGN_MAJOR.get(sign)
         if sign_card and sign_card != card_id:
             major_weights[sign_card] = major_weights.get(sign_card, 0.0) + w * 0.4
+            weight_sources.setdefault(sign_card, []).append(WeightSource(
+                label=f"{MAJOR_BY_ID[sign_card]['name']} lit by {sign} placement ({body})",
+                weight=round(w * 0.4, 3),
+            ))
 
         house = getattr(p, "house", None)
         theme = HOUSE_THEMES.get(house, "an important domain of life")
@@ -169,6 +191,7 @@ def build_natal_arcana_signature(chart: ChartResponse) -> NatalArcanaSignature:
         dominant_modality=dominant_modality,
         suit_bias=suit_bias,
         major_weights={k: round(v, 3) for k, v in major_weights.items()},
+        weight_sources=weight_sources,
         themes=themes,
         shadows=shadows,
     )
@@ -301,17 +324,81 @@ def activity_for_card(card_id: str, signature: NatalArcanaSignature, position: s
 # --------------------------------------------------------------------------- #
 
 
-def _default_seed(chart: ChartResponse, spread: str, question: str) -> str:
+# Current interpretive doctrine. The seed folds in the source system so a
+# different lineage yields a different draw (Phase 2.2). The default contributes
+# nothing to the seed string, so existing seeds remain reproducible.
+_DEFAULT_SOURCE = "golden_dawn"
+
+# Interpretive lineages (Phase 2.2). `lens` shapes the offline prose and the AI
+# prompt; the selection also folds into the determinism seed.
+SOURCE_SYSTEMS: Dict[str, Dict[str, str]] = {
+    "golden_dawn": {
+        "name": "Golden Dawn / Hermetic",
+        "lens": "Hermetic Qabalah, decan rulerships, and elemental dignities — the "
+                "tradition this deck's correspondences are built on.",
+    },
+    "rws": {
+        "name": "Rider-Waite-Smith",
+        "lens": "the Waite-Smith pictorial tradition — narrative scene symbolism and "
+                "accessible, story-first imagery.",
+    },
+    "thoth": {
+        "name": "Thoth (Crowley-Harris)",
+        "lens": "the Thelemic Thoth tradition — titled minors, astrological decans, "
+                "and dynamic, energetic correspondences.",
+    },
+    "jungian": {
+        "name": "Psychological / Jungian",
+        "lens": "depth psychology — archetypes, individuation, shadow work, and "
+                "projection, reading the cards as inner figures.",
+    },
+}
+
+
+def source_meta(source: Optional[str]) -> Dict[str, str]:
+    """Resolve a source system to its display name + interpretive lens."""
+    return SOURCE_SYSTEMS.get(source or _DEFAULT_SOURCE, SOURCE_SYSTEMS[_DEFAULT_SOURCE])
+
+
+def resolve_local_date(
+    start_date: Optional[str] = None, timezone: Optional[str] = None
+) -> _dt.date:
+    """Resolve the querent's local date, the unit of meaning for tarot/astrology.
+
+    Precedence: explicit ``start_date`` (ISO "YYYY-MM-DD") wins; else "today" in
+    the given IANA ``timezone``; else server-local today. Raises ValueError (bad
+    date string) or ZoneInfoNotFoundError (unknown timezone) — the endpoint
+    surfaces either as HTTP 400.
     """
-    Stable per-chart-per-question seed. The 'daily' spread also folds in today's
-    date so a daily card actually changes each day; other spreads stay
-    reproducible for the same chart + question (no date).
+    if start_date:
+        return _dt.date.fromisoformat(start_date)
+    if timezone:
+        return _dt.datetime.now(ZoneInfo(timezone)).date()
+    return _dt.date.today()
+
+
+def _default_seed(
+    chart: ChartResponse,
+    spread: str,
+    question: str,
+    local_date: Optional[str] = None,
+    source: str = _DEFAULT_SOURCE,
+) -> str:
+    """
+    Stable seed — a pure function of (natal signature, resolved local date for the
+    'daily' spread, spread, question, source system). The 'daily' branch folds in
+    the local date so a daily card changes each day *and* is reproducible for a
+    given local date regardless of the server clock; other spreads omit the date.
+
+    Defaults reproduce the prior seed string exactly: an unset local_date falls
+    back to server today (legacy), and the default source contributes nothing.
     """
     bodies = "|".join(
         f"{p.id}:{round(p.longitude, 2)}" for p in sorted(chart.planets, key=lambda x: x.id)
     )
-    day = f"#{_dt.date.today().isoformat()}" if spread == "daily" else ""
-    return f"{bodies}#{spread}#{question.strip().lower()}{day}"
+    day = f"#{local_date or _dt.date.today().isoformat()}" if spread == "daily" else ""
+    src = "" if (not source or source == _DEFAULT_SOURCE) else f"#src:{source}"
+    return f"{bodies}#{spread}#{question.strip().lower()}{day}{src}"
 
 
 def _offline_meaning(card_id: str, reversed: bool, position: str, link_note: Optional[str]) -> str:
@@ -329,10 +416,30 @@ def _offline_meaning(card_id: str, reversed: bool, position: str, link_note: Opt
     return base
 
 
+def _card_weight_sources(card_id: str, signature: NatalArcanaSignature) -> List[WeightSource]:
+    """Why a card was likely — from the ACTUAL draw weights, not a reconstruction.
+    Majors carry their natal contributions; minors are explained by suit bias."""
+    d = CARD_BY_ID[card_id]
+    if d.get("arcana") == "minor":
+        suit = d.get("suit") or ""
+        element = SUIT_ELEMENTS.get(suit, "")
+        bias = signature.suit_bias.get(suit, 0.0)
+        return [WeightSource(
+            label=f"{suit.title()} weighted by {element} balance ({round(bias * 100)}% of the chart)",
+            weight=round(bias, 3),
+        )]
+    srcs = signature.weight_sources.get(card_id)
+    if srcs:
+        return list(srcs)
+    return [WeightSource(label="Neutral draw — no natal emphasis on this trump", weight=0.0)]
+
+
 def build_reading_core(req: TarotReadingRequest) -> TarotReadingResponse:
     """Deterministic reading WITHOUT AI. main.py may overwrite `interpretation`."""
     signature = build_natal_arcana_signature(req.chart)
-    seed = req.seed or _default_seed(req.chart, req.spread, req.question)
+    seed = req.seed or _default_seed(
+        req.chart, req.spread, req.question, local_date=req.date, source=req.source
+    )
     draw = weighted_draw(signature, req.spread, seed)
 
     # Keep the FIRST (canonical-order: Sun-first) body when several placements
@@ -358,6 +465,7 @@ def build_reading_core(req: TarotReadingRequest) -> TarotReadingResponse:
             meaning=meaning,
             activity=activity["activity"] if activity else None,
             journal_prompt=journal,
+            weight_sources=_card_weight_sources(card_id, signature),
         ))
         if req.include_lessons:
             lessons.append(lesson_for_card(card_id))
@@ -367,7 +475,7 @@ def build_reading_core(req: TarotReadingRequest) -> TarotReadingResponse:
     interpretation = _offline_reading_prose(req, signature, cards)
 
     return TarotReadingResponse(
-        spread=req.spread, question=req.question, seed=seed,
+        spread=req.spread, source=req.source, question=req.question, seed=seed,
         signature=signature, cards=cards, interpretation=interpretation,
         ai_source=None, lessons=lessons, activities=activities,
     )
@@ -377,8 +485,11 @@ def _offline_reading_prose(req, signature, cards) -> str:
     names = ", ".join(f"{c.card.name} ({c.position})" for c in cards)
     dom = signature.dominant_element
     suit = ELEMENT_SUIT.get(dom, "wands")
+    meta = source_meta(getattr(req, "source", _DEFAULT_SOURCE))
     lines = [
         f"You asked: *{req.question}*",
+        "",
+        f"Read through the **{meta['name']}** lineage — {meta['lens']}",
         "",
         f"Your chart leans **{dom}** ({SUIT_THEME[suit]}), in a **{signature.dominant_modality}** "
         f"rhythm. Against that ground, the cards drawn are: {names}.",
@@ -396,6 +507,87 @@ def _offline_reading_prose(req, signature, cards) -> str:
         "Read these as mirrors, not verdicts — a language for the moment, not a map of fate.",
     ]
     return "\n".join(lines)
+
+
+# --------------------------------------------------------------------------- #
+# Phase 3.1 — Classroom as a generated learning path
+# --------------------------------------------------------------------------- #
+
+
+def _shadow_trump_ids(signature: NatalArcanaSignature) -> List[str]:
+    """Resolve the signature's shadow archetype names back to trump ids."""
+    return [_MAJOR_NAME_TO_ID[n] for n in signature.shadows if n in _MAJOR_NAME_TO_ID]
+
+
+def build_learning_path(req: LearningPathRequest) -> LearningPathResponse:
+    """A deterministic archetypal curriculum for this chart + source system.
+
+    The path departs from the querent's strongest archetype (anchor) and ascends —
+    through emphasis-weighted intermediate trumps — toward an underdeveloped shadow
+    archetype (growth edge), e.g. High Priestess -> Justice -> Death -> Temperance.
+    Fully reproducible from (natal signature, source system).
+    """
+    signature = build_natal_arcana_signature(req.chart)
+    meta = source_meta(req.source)
+    n = max(3, min(req.steps, 8))
+    rng = _seed_rng("learning_path", signature.dominant_element,
+                    "|".join(f"{k}:{v}" for k, v in sorted(signature.major_weights.items())),
+                    req.source)
+
+    ranked = sorted(signature.major_weights.items(), key=lambda kv: kv[1], reverse=True)
+    anchor_id = ranked[0][0] if ranked else "fool"
+    shadows = _shadow_trump_ids(signature)
+    # Growth edge: a shadow trump distinct from the anchor; else the least-emphasised
+    # trump present; else The World (completion) as a stable fallback.
+    growth_id = next((c for c in shadows if c != anchor_id), None)
+    if growth_id is None:
+        growth_id = next((cid for cid, _ in reversed(ranked) if cid != anchor_id), "world")
+
+    a_num, g_num = MAJOR_BY_ID[anchor_id]["number"], MAJOR_BY_ID[growth_id]["number"]
+    lo_id, hi_id = (anchor_id, growth_id) if a_num <= g_num else (growth_id, anchor_id)
+    lo, hi = min(a_num, g_num), max(a_num, g_num)
+
+    # Intermediate trumps strictly between the endpoints, chosen by emphasis
+    # (major_weights) with a seeded tie-break, then the whole path sorted by number.
+    between = [c for c in MAJOR_ARCANA if lo < c["number"] < hi]
+    between.sort(key=lambda c: (-signature.major_weights.get(c["id"], 0.0), rng.random()))
+    chosen_mid = sorted(between[: max(0, n - 2)], key=lambda c: c["number"])
+    ordered_ids = [lo_id] + [c["id"] for c in chosen_mid] + [hi_id]
+    # Dedup while preserving order (endpoints can coincide with a midpoint edge case).
+    seen: set = set()
+    ordered_ids = [c for c in ordered_ids if not (c in seen or seen.add(c))]
+
+    dom = signature.dominant_element
+    steps: List[LearningStep] = []
+    last = len(ordered_ids) - 1
+    for i, cid in enumerate(ordered_ids):
+        d = MAJOR_BY_ID[cid]
+        lesson = d.get("lesson", {})
+        if i == 0:
+            stage = "Anchor"
+            focus = (f"You begin where you are already strong: {d['name']} is emphasised "
+                     f"in your chart. Ground the journey in this familiar archetype.")
+        elif i == last:
+            stage = "Growth edge"
+            focus = (f"{d['name']} is a quieter, growth-ward archetype for you — the "
+                     f"underdeveloped edge this path is walking toward.")
+        else:
+            stage = "Bridge"
+            focus = (f"{d['name']} bridges the work, carrying your {dom} emphasis one "
+                     f"step further along the sequence.")
+        steps.append(LearningStep(
+            order=i + 1, stage=stage, card=card_model(cid), focus=focus,
+            practice=(lesson.get("practice", "") or _minor_practice(d)),
+            journal=(lesson.get("journal", "") or _minor_journal(d)),
+        ))
+
+    return LearningPathResponse(
+        source=req.source,
+        anchor=MAJOR_BY_ID[anchor_id]["name"],
+        growth_edge=MAJOR_BY_ID[growth_id]["name"],
+        lineage=meta["name"],
+        steps=steps,
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -425,11 +617,54 @@ def arcana_for_event(event: Dict) -> Tuple[str, Optional[str]]:
 _SIG_RANK = {"high": 3, "medium": 2, "low": 1}
 
 
-def daily_arcana_from_events(events: List[Dict], start_iso: str, days: int) -> List[Dict]:
+_QUIET_SKY_SUMMARY = "Quiet sky — an integration day."
+
+
+def _arcana_day_dict(
+    date: str, card_id: str, reversed_flag: bool,
+    natal_link: Optional[str], transit_summary: str,
+) -> Dict:
+    """Assemble one ArcanaDay dict from a trump + its static lesson content."""
+    d = MAJOR_BY_ID[card_id]
+    lesson = d.get("lesson", {})
+    return {
+        "date": date,
+        "transit_summary": transit_summary,
+        "natal_link": natal_link,
+        "card": card_model(card_id, reversed_flag).model_dump(),
+        "reversed": reversed_flag,
+        "lesson": lesson.get("psychological", ""),
+        "shadow": lesson.get("shadow", ""),
+        "best_expression": d.get("upright", ""),
+        "alignment_action": (PLANET_ACTIVITY.get(natal_link) or lesson.get("practice", "")),
+        "journal_prompt": lesson.get("journal", ""),
+    }
+
+
+def _quiet_day_card(
+    signature: NatalArcanaSignature, seed_base: str, date_iso: str
+) -> Tuple[str, bool]:
+    """Deterministically draw a single trump for a day with no transit event,
+    weighted by the natal signature so the 'integration day' still reflects the
+    chart. Stable for (seed_base, date, signature)."""
+    rng = _seed_rng(seed_base, date_iso, "quiet")
+    majors = [c["id"] for c in MAJOR_ARCANA]
+    card_id = _weighted_sample_without_replacement(
+        rng, majors, signature.major_weights, 1
+    )[0]
+    reversed_flag = rng.random() < _REVERSED_PROB
+    return card_id, reversed_flag
+
+
+def daily_arcana_from_events(
+    events: List[Dict], start_iso: str, days: int, signature: NatalArcanaSignature
+) -> List[Dict]:
     """
-    Build one card per day from forecast events (Phase 7 overlay). For each date
-    present, pick the highest-significance event and map it to a trump, attaching
-    static lesson/shadow/action content. Returns plain dicts (-> ArcanaDay).
+    Build EXACTLY one card per day over the window (Phase 7 overlay). For a date
+    with transit events, pick the highest-significance event and map it to a
+    trump. For a date with no event, deterministically draw a natal-weighted
+    trump labelled a "quiet sky / integration day" — so an N-day request always
+    returns N cards. Returns plain dicts (-> ArcanaDay).
     """
     by_date: Dict[str, Dict] = {}
     for ev in events:
@@ -446,24 +681,16 @@ def daily_arcana_from_events(events: List[Dict], start_iso: str, days: int) -> L
     for i in range(days):
         date = (start + _dt.timedelta(days=i)).isoformat()
         ev = by_date.get(date)
-        if ev is None:
-            continue
-        card_id, natal_link = arcana_for_event(ev)
-        d = MAJOR_BY_ID[card_id]
-        lesson = d.get("lesson", {})
-        # A stable per-day reversal (no global RNG state).
-        reversed_flag = _seed_rng(seed_base, date, card_id).random() < _REVERSED_PROB
-        out.append({
-            "date": date,
-            "transit_summary": ev.get("summary", ""),
-            "natal_link": natal_link,
-            "card": card_model(card_id, reversed_flag).model_dump(),
-            "reversed": reversed_flag,
-            "lesson": lesson.get("psychological", ""),
-            "shadow": lesson.get("shadow", ""),
-            "best_expression": d.get("upright", ""),
-            "alignment_action": (PLANET_ACTIVITY.get(natal_link)
-                                 or lesson.get("practice", "")),
-            "journal_prompt": lesson.get("journal", ""),
-        })
+        if ev is not None:
+            card_id, natal_link = arcana_for_event(ev)
+            # Stable per-day reversal (no global RNG state).
+            reversed_flag = _seed_rng(seed_base, date, card_id).random() < _REVERSED_PROB
+            out.append(_arcana_day_dict(
+                date, card_id, reversed_flag, natal_link, ev.get("summary", "")
+            ))
+        else:
+            card_id, reversed_flag = _quiet_day_card(signature, seed_base, date)
+            out.append(_arcana_day_dict(
+                date, card_id, reversed_flag, None, _QUIET_SKY_SUMMARY
+            ))
     return out

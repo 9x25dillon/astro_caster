@@ -187,7 +187,8 @@ AI-free**; AI enrichment is opt-in and tier-gated. Opened via the **✶ Arcana**
 
 ### AI interpretation
 - 6 lenses: psychological · natal · evolutionary · transit · relationship · traditional
-  (plus an `arcana` lens used by the tarot reading)
+  (these are the only values `/api/ai-ask` accepts). Astra Arcana is **not** a lens —
+  tarot uses its own interpretation path via `POST /api/tarot-reading`.
 - Quick (free) and in-depth (supporter) depth modes
 - Oracle structured report: `## Section` headers parsed into collapsible accordion cards,
   each with per-section 🔊 Speak and ↓ Copy buttons

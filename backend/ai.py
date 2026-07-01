@@ -144,6 +144,12 @@ def _resolve_provider_for_tier(tier: str) -> str:
 # System prompt — "Astra"
 # --------------------------------------------------------------------------- #
 
+# Interpretive lenses for /api/ai-ask. Keep these keys in lockstep with
+# AIRequest.lens (models.py) and the Lens union (frontend/src/types.ts).
+# NOTE: Astra Arcana (tarot) is deliberately NOT a lens here — it is a separate
+# interpretation path (interpret_arcana + tarot_prompts.ARCANA_SYSTEM) reached
+# via /api/tarot-reading. Do not re-add an "arcana" key: /api/ai-ask cannot
+# select it, and doing so re-opens the request/guidance contract split.
 _LENS_GUIDANCE = {
     "natal": "Read the chart as a portrait of innate character and lifelong themes.",
     "psychological": "Use depth/Jungian language: archetypes, shadow, individuation, projection.",
@@ -151,7 +157,6 @@ _LENS_GUIDANCE = {
     "transit": "Emphasise the present moment — how current sky activates the natal blueprint.",
     "relationship": "Read placements as relational patterns and the mirror of the Other.",
     "traditional": "Use classical dignities, sect, and Hellenistic logic, but stay reflective.",
-    "arcana": "Read the chart through tarot archetypes — trumps as mirrors, never as fate.",
 }
 
 SYSTEM_PROMPT = """You are Astra, a wise philosophical astrological guide inside the \

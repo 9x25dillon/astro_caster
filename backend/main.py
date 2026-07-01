@@ -14,6 +14,8 @@ Endpoints:
   POST /api/natal-arcana        – deterministic natal tarot signature (no AI)
   POST /api/tarot-reading       – chart-weighted spread + optional AI enrichment
   POST /api/arcana-forecast     – daily transit card overlay (Phase 7)
+  POST /api/learning-path       – deterministic archetypal learning path (Classroom)
+  POST /api/arcana-calendar     – export forecast as an .ics calendar (ritual/journal)
   POST /api/synastry            – two-chart inter-aspects + house grid
   POST /api/composite           – midpoint composite chart
   POST /api/davison             – Davison time/space midpoint chart
@@ -58,6 +60,7 @@ from pydantic import BaseModel
 
 import asyncio
 import datetime as dt
+import logging
 
 import ephemeris as E
 import entitlements as ENT
@@ -74,9 +77,13 @@ from models import (
     TransitResponse,
 )
 import tarot as TAROT
+import arcana_calendar as CAL
 from tarot_models import (
+    ArcanaCalendarRequest,
     ArcanaForecastRequest,
     ArcanaForecastResponse,
+    LearningPathRequest,
+    LearningPathResponse,
     NatalArcanaSignature,
     TarotReadingRequest,
     TarotReadingResponse,
@@ -109,6 +116,10 @@ from advanced import (
     MidpointTreeResponse,
 )
 
+# Refuse to boot on an insecure production configuration (fail closed):
+# production + trust mode enabled, or production + default HMAC secret.
+ENT.assert_safe_boot()
+
 app = FastAPI(title="Astrological Analysis Environment", version="1.0.0")
 
 # Vite dev server + any local origin during development.
@@ -121,6 +132,35 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+_log = logging.getLogger("aae")
+
+
+@app.middleware("http")
+async def _security_headers(request, call_next):
+    """Set defensive response headers on every response. The API serves JSON/audio
+    (never HTML), so a locked-down CSP is safe; HSTS is a no-op over plain HTTP."""
+    resp = await call_next(request)
+    resp.headers.setdefault("X-Content-Type-Options", "nosniff")
+    resp.headers.setdefault("X-Frame-Options", "DENY")
+    resp.headers.setdefault("Content-Security-Policy",
+                            "default-src 'none'; frame-ancestors 'none'")
+    resp.headers.setdefault("Referrer-Policy", "no-referrer")
+    resp.headers.setdefault("Strict-Transport-Security",
+                            "max-age=63072000; includeSubDomains")
+    return resp
+
+
+def _spawn(coro) -> None:
+    """Fire-and-forget a background coroutine (telemetry) WITHOUT silently
+    swallowing its exception — an unretrieved task exception is logged, not lost."""
+    task = asyncio.create_task(coro)
+
+    def _done(t: "asyncio.Task") -> None:
+        if not t.cancelled() and t.exception() is not None:
+            _log.warning("background task failed: %r", t.exception())
+
+    task.add_done_callback(_done)
 
 
 @app.get("/api/health")
@@ -138,7 +178,7 @@ async def generate_chart(req: ChartRequest, entitlement: Optional[str] = None):
     try:
         result = E.calculate_chart(req)
         tier = ENT.entitlement_status(entitlement).get("tier", "free")
-        asyncio.create_task(TEL.log_chart(req.model_dump(), tier=tier))
+        _spawn(TEL.log_chart(req.model_dump(), tier=tier))
         return result
     except Exception as exc:  # surface a clean error to the client
         raise HTTPException(status_code=400, detail=f"chart calculation failed: {exc}")
@@ -172,7 +212,7 @@ async def ai_ask(req: AIRequest):
         depth=req.depth,
         tier=tier,
     )
-    asyncio.create_task(TEL.log_ai(
+    _spawn(TEL.log_ai(
         tier=tier, lens=req.lens, depth=req.depth, query=req.query,
         provider=result.get("provider", ""), model=result.get("model", ""),
         response_len=len(result.get("interpretation", "")),
@@ -208,12 +248,12 @@ async def donate_verify(req: DonateVerifyRequest):
     if req.chain == "evm":
         ok, verified, note = await ENT.verify_eth_payment(req.tx_hash)
     else:
-        # Non-EVM chains: honour-system trust mode (flagged unverified).
-        ok, verified, note = (bool(req.tx_hash.strip()), False, "accepted in trust mode")
+        # Non-EVM chains: no on-chain check here — gated behind dev trust mode.
+        ok, verified, note = ENT.accept_offchain_payment(req.tx_hash)
     if not ok:
         raise HTTPException(status_code=402, detail=note)
     ent = ENT.mint_entitlement("supporter", ref=req.tx_hash[:18], verified=verified)
-    asyncio.create_task(TEL.log_tier(
+    _spawn(TEL.log_tier(
         action="donate_verify", tier="supporter", verified=verified, ref=req.tx_hash[:18]
     ))
     return {"granted": True, "note": note, "entitlement": ent}
@@ -286,7 +326,7 @@ async def ai_ask_stream(req: AIRequest):
                 yield f"event: {event}\ndata: {_json.dumps(payload)}\n\n"
         except Exception as exc:  # last-resort guard
             yield f"event: error\ndata: {_json.dumps(str(exc))}\n\n"
-        asyncio.create_task(TEL.log_ai(
+        _spawn(TEL.log_ai(
             tier=tier, lens=req.lens, depth=req.depth, query=req.query,
             provider=final.get("provider", ""), model=final.get("model", ""),
             response_len=char_count, source=final.get("source", "llm"),
@@ -303,8 +343,7 @@ async def ai_ask_stream(req: AIRequest):
 # --------------------------------------------------------------------------- #
 # Telemetry — frontend events + admin dashboard
 # --------------------------------------------------------------------------- #
-
-_DEV_TOKEN = os.environ.get("AAE_DEV_TOKEN", "").strip()
+# The dev/admin token is validated via ENT.check_dev_token (constant-time).
 
 
 class FeatureEvent(BaseModel):
@@ -316,12 +355,12 @@ class FeatureEvent(BaseModel):
 @app.post("/api/telemetry/event", status_code=204)
 async def telemetry_event(ev: FeatureEvent):
     """Accept a UI event from the frontend — fire-and-forget, never blocks."""
-    asyncio.create_task(TEL.log_feature(ev.name, ev.props, ev.session_id))
+    _spawn(TEL.log_feature(ev.name, ev.props, ev.session_id))
 
 
 @app.get("/api/admin/stats")
 async def admin_stats(token: Optional[str] = None):
-    if not _DEV_TOKEN or token != _DEV_TOKEN:
+    if not ENT.check_dev_token(token):  # constant-time compare
         raise HTTPException(status_code=403, detail="forbidden")
     return await asyncio.to_thread(TEL.summary)
 
@@ -416,6 +455,7 @@ async def tarot_reading(req: TarotReadingRequest):
             dominant_element=sig.dominant_element, dominant_modality=sig.dominant_modality,
             themes=sig.themes, shadows=sig.shadows,
             signature_lines=[l.note for l in sig.links], drawn=drawn,
+            source_lens=TAROT.source_meta(req.source)["lens"],
         )
         ai = await interpret_arcana(ARCANA_SYSTEM, user, tier=tier)
         if ai.get("source") == "llm" and ai.get("text"):
@@ -423,7 +463,7 @@ async def tarot_reading(req: TarotReadingRequest):
             reading.ai_source = "llm"
         else:
             reading.ai_source = "offline"
-        asyncio.create_task(TEL.log_ai(
+        _spawn(TEL.log_ai(
             tier=tier, lens="arcana", depth="deep", query=req.question,
             provider=str(ai.get("provider", "")), model=str(ai.get("model", "")),
             response_len=len(reading.interpretation), source=reading.ai_source or "offline",
@@ -440,14 +480,59 @@ async def arcana_forecast(req: ArcanaForecastRequest):
         natal_positions = {
             p.id: p.longitude for p in req.chart.planets if p.id not in _NATAL_EXCLUDE
         }
-        start = dt.date.today()
+        # The querent's local day is the unit of meaning — resolve from an explicit
+        # start_date or an IANA timezone, not the server clock.
+        start = TAROT.resolve_local_date(req.start_date, req.timezone)
         events = await asyncio.to_thread(
             generate_forecast, natal_positions, start, days, req.min_sig
         )
-        cards = TAROT.daily_arcana_from_events(events, start.isoformat(), days)
+        signature = TAROT.build_natal_arcana_signature(req.chart)
+        cards = TAROT.daily_arcana_from_events(
+            events, start.isoformat(), days, signature
+        )
         return {"start": start.isoformat(), "days": days, "cards": cards}
     except Exception as exc:
         raise HTTPException(status_code=400, detail=f"arcana forecast failed: {exc}")
+
+
+@app.post("/api/learning-path", response_model=LearningPathResponse)
+async def learning_path(req: LearningPathRequest):
+    """A deterministic archetypal learning path (Classroom) from chart + source."""
+    try:
+        return TAROT.build_learning_path(req)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"learning path failed: {exc}")
+
+
+@app.post("/api/arcana-calendar")
+async def arcana_calendar(req: ArcanaCalendarRequest):
+    """Export the arcana forecast as an .ics calendar (one ritual/journal per day).
+
+    Event dates are the querent's local dates (start_date / timezone, Phase 1.4).
+    """
+    try:
+        days = min(max(req.days, 1), 30)
+        natal_positions = {
+            p.id: p.longitude for p in req.chart.planets if p.id not in _NATAL_EXCLUDE
+        }
+        start = TAROT.resolve_local_date(req.start_date, req.timezone)
+        events = await asyncio.to_thread(
+            generate_forecast, natal_positions, start, days, req.min_sig
+        )
+        signature = TAROT.build_natal_arcana_signature(req.chart)
+        cards = TAROT.daily_arcana_from_events(events, start.isoformat(), days, signature)
+        ics = CAL.build_ics(cards, kind=req.kind, calendar_name="Astra Arcana")
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"arcana calendar failed: {exc}")
+    filename = f"astra-arcana-{start.isoformat()}.ics"
+    return Response(
+        content=ics,
+        media_type="text/calendar; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Cache-Control": "no-store",
+        },
+    )
 
 
 # --------------------------------------------------------------------------- #
