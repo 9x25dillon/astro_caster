@@ -9,18 +9,34 @@ import {
   fetchArcanaForecast,
   fetchLearningPath,
   fetchDeckArt,
+  fetchOracleReport,
+  fetchPersonalReport,
   downloadArcanaCalendar,
+  localToday,
   trackEvent,
   type NatalArcanaSignature,
   type TarotReadingResponse,
   type ArcanaForecastResponse,
   type LearningPathResponse,
   type DeckArtResponse,
+  type OracleReportResponse,
+  type PersonalReportResponse,
   type SpreadType,
   type SourceSystem,
   SOURCE_LABELS,
+  ApiError,
 } from "../api/client";
 import { CLASSROOM, EXPRESSION_KINDS, generateArtifact, type Artifact } from "../lib/tarotCopy";
+import { Interpretation } from "./DetailPanel";
+import { useSpeech, speakableText } from "../lib/speech";
+
+// Friendly labels for the models that can serve an Oracle Report (requested
+// model + its server-side fallback). Unknown IDs fall through as-is — honest
+// provenance beats a pretty label.
+const ORACLE_MODEL_LABELS: Record<string, string> = {
+  "claude-fable-5": "Claude Fable 5",
+  "claude-opus-4-8": "Claude Opus 4.8",
+};
 
 type Tab = "natal" | "draw" | "transit" | "classroom" | "studio";
 
@@ -46,6 +62,7 @@ export const ArcanaModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const entitlement = useStore((s) => s.entitlement);
   const isSupporter = useStore((s) => s.isSupporter);
   const openSupport = useStore((s) => s.openSupport);
+  const speech = useSpeech();   // Speak buttons on the Oracle Report sections
 
   const overlayRef = useRef<HTMLDivElement>(null);
   const [tab, setTab] = useState<Tab>("natal");
@@ -57,6 +74,13 @@ export const ArcanaModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [artifact, setArtifact] = useState<Artifact | null>(null);
   const [deckArt, setDeckArt] = useState<DeckArtResponse | null>(null);
   const [deckCard, setDeckCard] = useState<string>("");   // "" = whole soul deck
+  const [oracle, setOracle] = useState<OracleReportResponse | null>(null);
+  const [oracleLoading, setOracleLoading] = useState(false);
+  // The exact (date, generated-at) context of the Oracle session — the Personal
+  // Report must echo the same local date or the server's seed check rejects it.
+  const [oracleCtx, setOracleCtx] = useState<{ date: string | null; generatedAt: string } | null>(null);
+  const [personal, setPersonal] = useState<PersonalReportResponse | null>(null);
+  const [personalLoading, setPersonalLoading] = useState(false);
 
   const [spread, setSpread] = useState<SpreadType>("three_card");
   const [source, setSource] = useState<SourceSystem>("golden_dawn");
@@ -80,6 +104,9 @@ export const ArcanaModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     setForecast(null);
     setPath(null);
     setDeckArt(null);
+    setOracle(null);   // a report belongs to one chart — never show it against another
+    setOracleCtx(null);
+    setPersonal(null);
   }, [chart]);
 
   // Load the natal signature once a chart exists.
@@ -148,6 +175,85 @@ export const ArcanaModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function loadOracleReport() {
+    if (!chart || oracleLoading) return;
+    setOracleLoading(true); setErr(null);
+    try {
+      // Reuses the Draw tab's spread/lineage/question controls; the backend
+      // rebuilds the full deterministic substrate itself, so this works with
+      // or without a prior draw. Fable 5 reports can take a while — the
+      // dedicated oracleLoading flag keeps the Draw button usable meanwhile.
+      // Pass the local date explicitly so we can capture the EXACT session
+      // context — the Personal Report must echo it for the server's seed check.
+      const date = spread === "daily" ? localToday() : null;
+      const r = await fetchOracleReport(chart, question, {
+        spread, source, entitlement, date: date ?? undefined,
+      });
+      setOracle(r);
+      setOracleCtx({ date, generatedAt: localToday() });
+      setPersonal(null);   // a deluxe edition compiles ONE session — clear stale
+      trackEvent("oracle_report", {
+        spread, source, ai: r.ai_source, model: r.model ?? "offline",
+      });
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 402) {
+        // Tier gate (server-side source of truth): route to the support flow.
+        setErr("Oracle tier required — the Oracle Report is the observatory's " +
+               "deepest paid reading (Claude Fable 5). Support at the oracle " +
+               "level to unlock it.");
+        openSupport(true);
+        trackEvent("oracle_report_gated", { spread, source });
+      } else {
+        setErr(String(e));
+      }
+    } finally {
+      setOracleLoading(false);
+    }
+  }
+
+  async function loadPersonalReport() {
+    if (!chart || !oracle || personalLoading) return;
+    setPersonalLoading(true); setErr(null);
+    try {
+      const p = await fetchPersonalReport(chart, oracle, {
+        date: oracleCtx?.date ?? null,
+        generatedAt: oracleCtx?.generatedAt,
+        entitlement,
+      });
+      setPersonal(p);
+      trackEvent("personal_report", {
+        spread: p.spread, source: p.source, ai: p.ai_source, model: p.model ?? "offline",
+      });
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 402) {
+        setErr("Oracle tier required — the Personal Report is an optional deluxe "
+               + "edition compiled from your Oracle session.");
+        openSupport(true);
+        trackEvent("personal_report_gated", { spread, source });
+      } else if (e instanceof ApiError && e.status === 409) {
+        // Post-Oracle gate: the session no longer matches this chart/controls.
+        setErr("This Oracle session no longer matches the current chart — "
+               + "generate a fresh Oracle Report, then compile the deluxe edition.");
+      } else {
+        setErr(String(e));
+      }
+    } finally {
+      setPersonalLoading(false);
+    }
+  }
+
+  function downloadMarkdown(md: string, name: string) {
+    const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
   }
 
   async function exportCalendar(kind: "ritual" | "journal") {
@@ -297,6 +403,139 @@ export const ArcanaModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                   <p className="arc-disclaimer">{reading.disclaimer}</p>
                 </div>
               )}
+
+              {/* ── Oracle Report — the deepest offering (oracle tier) ── */}
+              <div className="arc-oracle" style={{ marginTop: 18, paddingTop: 14, borderTop: "1px solid rgba(255,255,255,0.12)" }}>
+                {!oracle && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                    <button className="arc-draw-btn" onClick={loadOracleReport} disabled={oracleLoading}>
+                      {oracleLoading ? "Consulting the Oracle… (this can take a minute)" : "✧ Generate Oracle Report"}
+                    </button>
+                    <span style={{ opacity: 0.7, fontSize: "0.78rem" }}>
+                      The observatory's deepest reading — a long-form Claude Fable&nbsp;5 synthesis
+                      of your signature, spread, and learning path. <b>Oracle tier only.</b> Uses
+                      the spread, lineage, and question above.
+                    </span>
+                  </div>
+                )}
+
+                {oracle && (
+                  <div className="arc-oracle-report">
+                    <div className="arc-interp-head">
+                      Oracle Report ·{" "}
+                      <span className="arc-lineage" style={{ opacity: 0.8, fontWeight: 400 }}>{oracle.lineage}</span>
+                      {oracle.ai_source === "llm" && (
+                        <span className="arc-badge" title={`Served by ${oracle.model ?? "AI"}`}>
+                          {ORACLE_MODEL_LABELS[oracle.model ?? ""] ?? oracle.model ?? "AI"}
+                        </span>
+                      )}
+                      {oracle.ai_source === "offline" && (
+                        <span className="arc-badge arc-badge--off"
+                              title="The AI layer was unavailable — this report was assembled entirely by the deterministic engine.">
+                          Deterministic offline report
+                        </span>
+                      )}
+                    </div>
+
+                    <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", margin: "6px 0 10px", fontSize: "0.75rem", opacity: 0.8 }}>
+                      <span>
+                        seed&nbsp;
+                        <code style={{ userSelect: "all", wordBreak: "break-all" }}>{oracle.seed}</code>
+                      </span>
+                      <button className="ghost" title="Copy the deterministic seed — the draw is reproducible from it"
+                              onClick={() => copy(oracle.seed)}>copy seed</button>
+                    </div>
+
+                    <Interpretation
+                      text={oracle.report}
+                      onSpeak={(body) => speech.speak(speakableText(body))}
+                    />
+
+                    <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+                      <button className="ghost arc-copy" onClick={() => copy(oracle.report)}>copy report</button>
+                      {speech.supported && (
+                        speech.speaking
+                          ? <button className="ghost" onClick={() => speech.stop()}>■ stop</button>
+                          : <button className="ghost" onClick={() => speech.speak(speakableText(oracle.report))}>🔊 speak report</button>
+                      )}
+                      <button className="ghost" onClick={loadOracleReport} disabled={oracleLoading}>
+                        {oracleLoading ? "Consulting…" : "regenerate"}
+                      </button>
+                    </div>
+
+                    <p className="arc-disclaimer">{oracle.disclaimer}</p>
+
+                    {/* ── Deluxe Edition — optional post-Oracle product ── */}
+                    <div className="arc-personal" style={{ marginTop: 14, paddingTop: 12, borderTop: "1px dashed rgba(255,255,255,0.18)" }}>
+                      {!personal && (
+                        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                          <button className="arc-draw-btn" onClick={loadPersonalReport} disabled={personalLoading}>
+                            {personalLoading ? "Compiling the deluxe edition… (this can take minutes)" : "✦ Compile Personal Report"}
+                          </button>
+                          <span style={{ opacity: 0.7, fontSize: "0.78rem" }}>
+                            <b>Deluxe Compiled Edition</b> — an optional post-Oracle product: your
+                            Oracle session expanded into a research-paper-style personal report
+                            (natal deep-dive, tarot layout, career & relationship inserts,
+                            practices, appendix) as PDF-ready markdown.
+                          </span>
+                        </div>
+                      )}
+
+                      {personal && (
+                        <div className="arc-personal-report">
+                          <div className="arc-interp-head">
+                            Personal Report ·{" "}
+                            <span className="arc-lineage" style={{ opacity: 0.8, fontWeight: 400 }}>{personal.lineage}</span>
+                            {personal.ai_source === "llm" && (
+                              <span className="arc-badge" title={`Served by ${personal.model ?? "AI"}`}>
+                                {ORACLE_MODEL_LABELS[personal.model ?? ""] ?? personal.model ?? "AI"}
+                              </span>
+                            )}
+                            {personal.ai_source === "offline" && (
+                              <span className="arc-badge arc-badge--off"
+                                    title="The AI layer was unavailable — this edition was compiled entirely by the deterministic engine.">
+                                Deterministic offline edition
+                              </span>
+                            )}
+                          </div>
+                          <p style={{ fontSize: "0.75rem", opacity: 0.75, margin: "4px 0 8px" }}>
+                            Compiled from your Oracle session of {personal.oracle_date} · seed{" "}
+                            <code style={{ userSelect: "all" }}>{personal.seed.slice(-12)}</code>
+                          </p>
+
+                          {/* Top-level part preview — the full render is the PDF pipeline's job. */}
+                          <div style={{ maxHeight: 320, overflowY: "auto", fontSize: "0.82rem" }}>
+                            {personal.report_markdown.split(/\n(?=# )/g).map((part, i) => {
+                              const nl = part.indexOf("\n");
+                              const title = part.startsWith("# ") ? part.slice(2, nl === -1 ? undefined : nl) : "Preamble";
+                              const body = part.startsWith("# ") && nl !== -1 ? part.slice(nl + 1) : part;
+                              return (
+                                <details key={i} open={i === 0}>
+                                  <summary style={{ cursor: "pointer", color: "var(--gold-soft)" }}>{title}</summary>
+                                  <pre className="arc-interp-text" style={{ whiteSpace: "pre-wrap" }}>{body}</pre>
+                                </details>
+                              );
+                            })}
+                          </div>
+
+                          <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+                            <button className="ghost arc-copy"
+                                    onClick={() => downloadMarkdown(personal.report_markdown,
+                                      `astra-personal-report-${personal.oracle_date}.md`)}>
+                              ↓ download .md
+                            </button>
+                            <button className="ghost" onClick={() => copy(personal.report_markdown)}>copy markdown</button>
+                            <button className="ghost" onClick={loadPersonalReport} disabled={personalLoading}>
+                              {personalLoading ? "Compiling…" : "recompile"}
+                            </button>
+                          </div>
+                          <p className="arc-disclaimer">{personal.disclaimer}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

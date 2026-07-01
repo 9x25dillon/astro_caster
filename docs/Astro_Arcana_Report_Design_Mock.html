@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Astra Arcana — Personal Report Design Mock</title>
+<style>
+  @page { size: 8.5in 11in; margin: 0.6in 0.75in; }
+  body {
+    font-family: Georgia, "EB Garamond", serif;
+    line-height: 1.6;
+    color: #1A0F33;
+    background: #F8F4E9;
+    max-width: 8.5in;
+    margin: 0 auto;
+    padding: 0;
+  }
+  .page {
+    page-break-after: always;
+    padding: 0.4in;
+    min-height: 10in;
+    box-sizing: border-box;
+    border: 1px solid #ddd; /* visual page boundary for screen */
+    background: #FAF6EE;
+    margin-bottom: 1rem;
+  }
+  .cover {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    background: linear-gradient(180deg, #1A0F33 0%, #2C1654 100%);
+    color: #F8F4E9;
+    position: relative;
+  }
+  .cover::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 50% 30%, rgba(201,168,76,0.08) 0%, transparent 70%);
+  }
+  .sigil {
+    width: 380px;
+    height: 380px;
+    border: 1px solid #C9A84C;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    color: #C9A84C;
+    text-align: center;
+    margin: 1.5rem 0;
+    position: relative;
+  }
+  .sigil::after {
+    content: "✧ YOUR PERSONAL CHAOS SIGIL ✧";
+    position: absolute;
+    bottom: -1.8rem;
+    font-size: 0.7rem;
+    letter-spacing: 3px;
+  }
+  h1 {
+    font-family: "Cinzel", Georgia, serif;
+    font-size: 2.6rem;
+    margin: 0.3rem 0;
+    letter-spacing: 2px;
+  }
+  .subtitle {
+    font-size: 1.1rem;
+    font-style: italic;
+    color: #C9A84C;
+  }
+  .section-header {
+    font-family: "Cinzel", Georgia, serif;
+    font-size: 1.35rem;
+    color: #2C1654;
+    border-bottom: 1px solid #C9A84C;
+    padding-bottom: 0.2rem;
+    margin-top: 1.2rem;
+  }
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.2rem;
+  }
+  .sigil-large {
+    width: 100%;
+    max-width: 420px;
+    height: 420px;
+    margin: 0 auto;
+    border: 2px solid #C9A84C;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    color: #C9A84C;
+    text-align: center;
+  }
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.8rem;
+    margin: 1rem 0;
+  }
+  .tarot-card {
+    border: 1px solid #C9A84C;
+    padding: 0.4rem;
+    background: #F8F4E9;
+    text-align: center;
+    font-size: 0.75rem;
+    line-height: 1.3;
+  }
+  .tarot-card .label {
+    font-size: 0.65rem;
+    color: #4A5A4A;
+    font-style: italic;
+  }
+  .pullquote {
+    font-style: italic;
+    border-left: 3px solid #C9A84C;
+    padding-left: 0.8rem;
+    margin: 0.8rem 0;
+    color: #2C1654;
+  }
+  .callout {
+    background: #EDE5D5;
+    border: 1px solid #C9A84C;
+    padding: 0.5rem 0.7rem;
+    font-size: 0.82rem;
+    margin: 0.6rem 0;
+  }
+  .citation {
+    font-size: 0.7rem;
+    color: #5A4A4A;
+  }
+  .practice {
+    margin-bottom: 0.6rem;
+  }
+  .research-header {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: #C9A84C;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+  }
+  td, th {
+    border-bottom: 1px solid #C9A84C33;
+    padding: 0.25rem 0.4rem;
+    text-align: left;
+  }
+  .footer {
+    font-size: 0.65rem;
+    color: #5A4A4A;
+    text-align: center;
+    margin-top: 1.5rem;
+    border-top: 1px solid #C9A84C33;
+    padding-top: 0.4rem;
+  }
+  .page-label {
+    position: absolute;
+    top: 0.2in;
+    right: 0.3in;
+    font-size: 0.6rem;
+    color: #C9A84C;
+    opacity: 0.6;
+  }
+</style>
+</head>
+<body>
+
+<!-- PAGE 1: COVER -->
+<div class="page cover">
+  <div style="margin-top: 1.2rem; font-size: 0.75rem; letter-spacing: 4px; opacity: 0.7;">ASTRA ARCANA</div>
+  
+  <div class="sigil">
+    <div>
+      ✧<br>
+      [YOUR<br>
+      PERSONAL<br>
+      CHAOS SIGIL]<br>
+      ✧
+    </div>
+  </div>
+
+  <h1 style="color:#F8F4E9;">Astra Arcana</h1>
+  <div class="subtitle" style="font-size:1.35rem; margin-bottom:0.4rem;">Personal Soul Report</div>
+  <div style="margin: 0.3rem 0 0.2rem; font-size:0.95rem;">
+    For [Your Name]<br>
+    [Birth Date] • [Birth Location]
+  </div>
+  <div style="font-size:0.75rem; color:#C9A84C; margin-bottom:1.2rem;">
+    Compiled from your Oracle Report • [Session Date]<br>
+    <span style="opacity:0.7;">Optional Post-Oracle Product — Purchased Separately</span>
+  </div>
+  
+  <div style="font-size:0.7rem; opacity:0.65; max-width: 280px; margin: 0 auto;">
+    A Mathematics-First Symbolic Mirror<br>
+    Compiled from your exact natal chart
+  </div>
+</div>
+
+<!-- PAGE 2-3: SIGIL + INVOCATION SPREAD -->
+<div class="page">
+  <div style="text-align:center; margin-bottom:1.2rem;">
+    <div style="font-size:0.7rem; color:#C9A84C; letter-spacing:2px;">THE ARRIVAL</div>
+    <h2 class="section-header" style="border:none; font-size:1.6rem;">Your Personal Sigil</h2>
+  </div>
+
+  <div class="sigil-large">
+    [LARGE RENDERED CHAOS SIGIL HERE]<br>
+    <span style="font-size:9px; opacity:0.6;">Derived from your core identity phrase + dominant archetypes</span>
+  </div>
+
+  <div style="margin-top:1rem; max-width:520px; margin-left:auto; margin-right:auto;">
+    <p class="pullquote" style="font-size:0.95rem;">
+      You arrive carrying the geometry of the sky at the moment of your first breath. 
+      This sigil is the visual key to that geometry.
+    </p>
+    <p style="font-size:0.82rem;">
+      <strong>How it was formed:</strong> Vowels and duplicate letters removed. Remaining consonants arranged on a circle. 
+      Lines drawn in the order they appear in your identity phrase. The resulting figure is uniquely yours.
+    </p>
+  </div>
+
+  <div class="footer">
+    Page 2 — Sigil Invocation
+  </div>
+</div>
+
+<!-- PAGE: TWO COLUMN EXAMPLE -->
+<div class="page">
+  <div class="research-header">Section II • The Signature</div>
+  <h2 class="section-header">Who You Are at the Root</h2>
+
+  <div class="two-col">
+    <div>
+      <h3 style="margin-top:0.3rem; font-size:1.05rem;">Dominant Signature</h3>
+      <p><strong>Element:</strong> [Water] &nbsp;&nbsp; <strong>Modality:</strong> [Mutable]</p>
+      <p class="citation">Strongest archetypes: [The Moon, The High Priestess, The Star]</p>
+      
+      <div class="callout">
+        <strong>Curiosity Hook:</strong><br>
+        Your Water-Mutable nature makes you a natural mirror for others. 
+        See how this appears in Card II of your current spread.
+      </div>
+
+      <p style="font-size:0.82rem;">
+        Every placement below was calculated using Swiss Ephemeris (tropical zodiac, 
+        Placidus houses unless otherwise noted).
+      </p>
+    </div>
+
+    <div>
+      <div style="background:#EDE5D5; padding:0.6rem; font-size:0.78rem;">
+        <strong>Key Placements</strong><br>
+        Sun [23° Pisces 12th]<br>
+        Moon [14° Cancer 4th]<br>
+        Ascendant [11° Gemini]<br>
+        North Node [8° Aries 10th]
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:1.4rem;">
+    <div style="font-size:0.75rem; color:#C9A84C;">PULL QUOTE FROM ORACLE REPORT</div>
+    <div class="pullquote">
+      “Your arrival carries the signature of dissolution and rebirth. 
+      The 12th-house Sun asks you to remember who you were before the story began.”
+    </div>
+  </div>
+
+  <div class="footer">
+    Page 3 — Example two-column research layout
+  </div>
+</div>
+
+<!-- TAROT SPREAD LAYOUT PAGE -->
+<div class="page">
+  <div class="research-header">The Symbolic Mirror</div>
+  <h2 class="section-header">Your Chart-Referenced Tarot Spread</h2>
+  <p style="font-size:0.82rem; max-width:520px;">
+    This spread is not random. Each position is deliberately mapped to a planet, house, or angle in your chart. 
+    Cards are drawn using a deterministic SHA-256 seed that includes your natal signature.
+  </p>
+
+  <div class="card-grid">
+    <div class="tarot-card">
+      <div style="font-size:1.6rem; line-height:1;">🌙</div>
+      <div><strong>Position 1 — Your Moon</strong></div>
+      <div class="label">[The High Priestess • Upright]</div>
+      <div style="font-size:0.65rem; margin-top:0.3rem;">
+        Emotional body • 4th House Cancer<br>
+        Why drawn: Strong natal Moon emphasis
+      </div>
+    </div>
+
+    <div class="tarot-card">
+      <div style="font-size:1.6rem; line-height:1;">☉</div>
+      <div><strong>Position 2 — Your Sun</strong></div>
+      <div class="label">[The Moon • Reversed]</div>
+      <div style="font-size:0.65rem; margin-top:0.3rem;">
+        Conscious will • 12th House Pisces<br>
+        Why drawn: 12th-house emphasis + Neptune
+      </div>
+    </div>
+
+    <div class="tarot-card">
+      <div style="font-size:1.6rem; line-height:1;">↑</div>
+      <div><strong>Position 3 — Ascendant</strong></div>
+      <div class="label">[The Star]</div>
+      <div style="font-size:0.65rem; margin-top:0.3rem;">
+        Life approach • Gemini Rising<br>
+        Hope &amp; integration card
+      </div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>Design Note:</strong> In final PDF each card would be a refined illustration matching your chosen lineage 
+    (Golden Dawn / RWS / Thoth / Jungian). Lines connect cards back to their natal sources.
+  </div>
+
+  <div style="margin-top:1.2rem; font-size:0.78rem;">
+    <strong>II. The Spread — active now</strong><br>
+    Full card meanings, weight sources, and journal prompts continue on the following pages in the same refined two-column style.
+  </div>
+
+  <div class="footer">
+    Page 4 — Tarot Layout (Mandala / Grid Style)
+  </div>
+</div>
+
+<!-- ORACLE REPORT STRUCTURE PAGE -->
+<div class="page">
+  <div class="research-header">The Oracle Report • Fable Tier Synthesis</div>
+  <h2 class="section-header">Structured Reading</h2>
+
+  <div style="margin: 0.8rem 0;">
+    <div style="color:#C9A84C; font-size:0.75rem; letter-spacing:1px;">I. THE SIGNATURE — WHO ARRIVES</div>
+    <p style="margin:0.2rem 0 0.8rem;">[Full poetic and precise text here. Every sentence cites a card or placement. Ends with one journal question.]</p>
+  </div>
+
+  <div style="margin: 0.8rem 0;">
+    <div style="color:#C9A84C; font-size:0.75rem; letter-spacing:1px;">II. THE SPREAD — WHAT IS ACTIVE NOW</div>
+    <p style="margin:0.2rem 0 0.8rem;">One elegant subsection per card with chart reference, meaning, activity, and shadow note.</p>
+  </div>
+
+  <div style="margin: 0.8rem 0;">
+    <div style="color:#C9A84C; font-size:0.75rem; letter-spacing:1px;">III. THE PATH</div>
+    <p style="margin:0.2rem 0 0.8rem;">Anchor → Growth edge steps, beautifully numbered.</p>
+  </div>
+
+  <div style="margin: 0.8rem 0;">
+    <div style="color:#C9A84C; font-size:0.75rem; letter-spacing:1px;">IV. PRACTICES</div>
+    <div class="practice">• Small, concrete action 1</div>
+    <div class="practice">• Small, concrete action 2</div>
+  </div>
+
+  <div style="margin: 0.8rem 0;">
+    <div style="color:#C9A84C; font-size:0.75rem; letter-spacing:1px;">V. SYNTHESIS</div>
+    <p class="pullquote" style="font-size:0.9rem;">
+      The one-page integrative heart of the report. Set with slightly larger leading and a subtle gold accent line.
+    </p>
+  </div>
+
+  <div class="footer">
+    Page 5 — Oracle Report Typesetting (exact 5-section structure preserved)
+  </div>
+</div>
+
+<!-- CAREER + RELATIONSHIP INSERTS -->
+<div class="page">
+  <h2 class="section-header">Career Constellation</h2>
+  <div class="two-col">
+    <div>
+      <p style="font-size:0.8rem;"><strong>MC &amp; 10th House:</strong> [Libra MC • 7th House emphasis]</p>
+      <p style="font-size:0.78rem;">Key factors, current transits/progressions, and one tailored practice.</p>
+    </div>
+    <div>
+      <div class="callout" style="font-size:0.75rem;">
+        Designed as a clean insert that can stand alone or be bound into the physical book.
+      </div>
+    </div>
+  </div>
+
+  <h2 class="section-header" style="margin-top:1.4rem;">Relationship Mirror</h2>
+  <p style="font-size:0.8rem;">
+    7th house, Venus, Descendant analysis + how you project and attract, with chart-referenced insight.
+  </p>
+
+  <div class="footer">
+    Pages 6–7 — Applied Life Area Inserts (Career &amp; Relationship)
+  </div>
+</div>
+
+<!-- BACK MATTER / PRACTICES -->
+<div class="page">
+  <h2 class="section-header">Your Personal Practices</h2>
+  <div class="practice">1. [Practice text with chart tie-in]</div>
+  <div class="practice">2. [Practice text]</div>
+
+  <div class="callout" style="margin-top:1.5rem;">
+    <strong>Audio Companion</strong><br>
+    ElevenLabs narration of the Synthesis + these practices is available. 
+    QR code or link would appear here in the final PDF.
+  </div>
+
+  <div style="margin-top:2rem; font-size:0.7rem; text-align:center; opacity:0.6;">
+    DISCLAIMER: This is a symbolic mirror for reflection and creative alignment.<br>
+    Compiled from your Oracle Report session • Generated for [Name] on [Date]
+  </div>
+
+  <div class="footer">
+    Final Page — Practices + Audio + Disclaimer
+  </div>
+</div>
+
+<script>
+  // Simple helper: press 'p' to hint at print
+  document.addEventListener('keydown', function(e) {
+    if (e.key.toLowerCase() === 'p') {
+      alert('In a real browser: use File → Print → Save as PDF. The @page rules and styles are tuned for beautiful print output.');
+    }
+  });
+  console.log('%c[Astro Arcana Design Mock] Open in browser and use Print → Save as PDF to preview layouts.', 'color:#C9A84C');
+</script>
+
+</body>
+</html>

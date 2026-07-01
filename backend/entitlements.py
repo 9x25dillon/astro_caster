@@ -196,32 +196,34 @@ def entitlement_status(token: Optional[str]) -> dict:
 # --------------------------------------------------------------------------- #
 
 
-async def verify_eth_payment(tx_hash: str) -> Tuple[bool, bool, str]:
+async def verify_eth_payment_details(tx_hash: str) -> Tuple[bool, bool, str, int]:
     """
     Verify an EVM tx pays the treasury at least the minimum.
-    Returns (ok, verified_on_chain, note). In trust mode (no RPC) any non-empty
-    hash is accepted (ok=True) but flagged verified_on_chain=False.
+    Returns (ok, verified_on_chain, note, value_wei). In trust mode (no RPC) any
+    non-empty hash is accepted (ok=True) but flagged verified_on_chain=False and
+    carries value_wei=0 — trust mode can therefore never satisfy an on-chain
+    value threshold (see paid_tier).
     """
     tx_hash = tx_hash.strip()
     if not tx_hash:
-        return False, False, "missing tx hash"
+        return False, False, "missing tx hash", 0
     if not _ETH_RPC:
         # No on-chain verification configured. Accept ONLY in explicit dev trust
         # mode; otherwise fail closed and deny the entitlement.
         if trust_mode_allowed():
-            return True, False, "accepted in trust mode (dev only; unverified)"
+            return True, False, "accepted in trust mode (dev only; unverified)", 0
         return False, False, (
             "on-chain verification unavailable and trust mode is disabled — set "
             "AAE_ETH_RPC to verify, or enable AAE_TRUST_MODE in a non-production "
             "environment"
-        )
+        ), 0
 
     info = TR.treasury_info()
     treasury_addr = next(
         (c["address"].lower() for c in info["chains"] if c["id"] == "evm"), None
     )
     if not treasury_addr:
-        return False, False, "no EVM treasury configured"
+        return False, False, "no EVM treasury configured", 0
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
             r = await client.post(_ETH_RPC, json={
@@ -231,16 +233,37 @@ async def verify_eth_payment(tx_hash: str) -> Tuple[bool, bool, str]:
             r.raise_for_status()
             tx = r.json().get("result")
     except Exception as exc:
-        return False, False, f"rpc error: {type(exc).__name__}"
+        return False, False, f"rpc error: {type(exc).__name__}", 0
     if not tx:
-        return False, False, "transaction not found (still pending?)"
+        return False, False, "transaction not found (still pending?)", 0
     to_addr = (tx.get("to") or "").lower()
     value_wei = int(tx.get("value", "0x0"), 16)
     if to_addr != treasury_addr:
-        return False, False, "transaction recipient is not the treasury"
+        return False, False, "transaction recipient is not the treasury", 0
     if value_wei < _MIN_WEI:
-        return False, False, "amount below minimum"
-    return True, True, "verified on-chain"
+        return False, False, "amount below minimum", 0
+    return True, True, "verified on-chain", value_wei
+
+
+async def verify_eth_payment(tx_hash: str) -> Tuple[bool, bool, str]:
+    """Back-compat 3-tuple wrapper over verify_eth_payment_details."""
+    ok, verified, note, _ = await verify_eth_payment_details(tx_hash)
+    return ok, verified, note
+
+
+# Oracle tier is minted only for on-chain-VERIFIED contributions at/above an
+# explicitly configured threshold. Unset/zero threshold disables oracle minting
+# entirely (fail closed) — trust-mode grants carry value 0 and can never reach it.
+_ORACLE_MIN_WEI = int(os.environ.get("AAE_ORACLE_MIN_WEI", "0"))
+
+
+def paid_tier(verified: bool, value_wei: int) -> str:
+    """Tier for an accepted contribution: 'oracle' only when the payment was
+    verified on-chain AND AAE_ORACLE_MIN_WEI is configured (>0) AND the value
+    meets it; 'supporter' in every other case."""
+    if verified and _ORACLE_MIN_WEI > 0 and value_wei >= _ORACLE_MIN_WEI:
+        return "oracle"
+    return "supporter"
 
 
 def accept_offchain_payment(tx_hash: str) -> Tuple[bool, bool, str]:

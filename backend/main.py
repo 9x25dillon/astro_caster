@@ -16,6 +16,9 @@ Endpoints:
   POST /api/arcana-forecast     – daily transit card overlay (Phase 7)
   POST /api/learning-path       – deterministic archetypal learning path (Classroom)
   POST /api/arcana-calendar     – export forecast as an .ics calendar (ritual/journal)
+  POST /api/oracle-report       – Fable 5 long-form report (oracle tier; offline fallback)
+  POST /api/personal-report     – deluxe compiled edition (optional post-Oracle product)
+  POST /api/deck-art            – deterministic deck-art prompts (Studio)
   POST /api/synastry            – two-chart inter-aspects + house grid
   POST /api/composite           – midpoint composite chart
   POST /api/davison             – Davison time/space midpoint chart
@@ -79,6 +82,8 @@ from models import (
 import tarot as TAROT
 import arcana_calendar as CAL
 import deck_art as DA
+import oracle_report as ORACLE
+import personal_report as PERSONAL
 from tarot_models import (
     ArcanaCalendarRequest,
     ArcanaForecastRequest,
@@ -88,6 +93,10 @@ from tarot_models import (
     LearningPathRequest,
     LearningPathResponse,
     NatalArcanaSignature,
+    OracleReportRequest,
+    OracleReportResponse,
+    PersonalReportRequest,
+    PersonalReportResponse,
     TarotReadingRequest,
     TarotReadingResponse,
 )
@@ -249,17 +258,21 @@ async def donate_verify(req: DonateVerifyRequest):
     the tx on-chain when an RPC is configured; otherwise trust mode applies.
     """
     if req.chain == "evm":
-        ok, verified, note = await ENT.verify_eth_payment(req.tx_hash)
+        ok, verified, note, value_wei = await ENT.verify_eth_payment_details(req.tx_hash)
     else:
         # Non-EVM chains: no on-chain check here — gated behind dev trust mode.
         ok, verified, note = ENT.accept_offchain_payment(req.tx_hash)
+        value_wei = 0
     if not ok:
         raise HTTPException(status_code=402, detail=note)
-    ent = ENT.mint_entitlement("supporter", ref=req.tx_hash[:18], verified=verified)
+    # Oracle tier only for an on-chain-verified value at/above AAE_ORACLE_MIN_WEI
+    # (explicitly configured); everything else — incl. trust mode — is supporter.
+    tier = ENT.paid_tier(verified, value_wei)
+    ent = ENT.mint_entitlement(tier, ref=req.tx_hash[:18], verified=verified)
     _spawn(TEL.log_tier(
-        action="donate_verify", tier="supporter", verified=verified, ref=req.tx_hash[:18]
+        action="donate_verify", tier=tier, verified=verified, ref=req.tx_hash[:18]
     ))
-    return {"granted": True, "note": note, "entitlement": ent}
+    return {"granted": True, "tier": tier, "note": note, "entitlement": ent}
 
 
 @app.get("/api/entitlement")
@@ -505,6 +518,65 @@ async def learning_path(req: LearningPathRequest):
         return TAROT.build_learning_path(req)
     except Exception as exc:
         raise HTTPException(status_code=400, detail=f"learning path failed: {exc}")
+
+
+@app.post("/api/oracle-report", response_model=OracleReportResponse)
+async def oracle_report(req: OracleReportRequest):
+    """The paid Oracle Report — Fable 5 enriched synthesis over the deterministic
+    substrate. ORACLE TIER ONLY (the reading fee): fails closed with 402 before
+    any work — no substrate is built and the AI layer is never attempted for
+    lower tiers. Falls back to a deterministic offline report (honest ai_source)
+    if the AI layer is unavailable or the model chain refuses.
+    """
+    tier = ENT.entitlement_status(req.entitlement).get("tier", "free")
+    if tier != "oracle":
+        raise HTTPException(
+            status_code=402,
+            detail="oracle entitlement required — the Oracle Report is a paid reading",
+        )
+    try:
+        result = await ORACLE.generate_oracle_report(req)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"oracle report failed: {exc}")
+    _spawn(TEL.log_ai(
+        tier=tier, lens="oracle_report", depth="report", query=req.question,
+        provider="anthropic" if result.ai_source == "llm" else "offline",
+        model=str(result.model or ""), response_len=len(result.report),
+        source=result.ai_source, sel_type="spread", sel_id=req.spread,
+    ))
+    return result
+
+
+@app.post("/api/personal-report", response_model=PersonalReportResponse)
+async def personal_report(req: PersonalReportRequest):
+    """The Astra Arcana Personal Report — deluxe compiled edition, an OPTIONAL
+    post-Oracle product. Gated twice, fail closed: (1) oracle tier only (402);
+    (2) the referenced Oracle session must be genuine — its seed is re-derived
+    from (chart, spread, question, date, source) and a mismatch is rejected
+    (409). Falls back to a deterministic compiled edition with honest
+    provenance when the AI layer is unavailable.
+    """
+    tier = ENT.entitlement_status(req.entitlement).get("tier", "free")
+    if tier != "oracle":
+        raise HTTPException(
+            status_code=402,
+            detail="oracle entitlement required — the Personal Report is an "
+                   "optional deluxe edition compiled from your Oracle session",
+        )
+    try:
+        result = await PERSONAL.generate_personal_report(req)
+    except ValueError as exc:
+        # Post-Oracle gate: fabricated/foreign session reference.
+        raise HTTPException(status_code=409, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"personal report failed: {exc}")
+    _spawn(TEL.log_ai(
+        tier=tier, lens="personal_report", depth="report", query=req.oracle.question,
+        provider="anthropic" if result.ai_source == "llm" else "offline",
+        model=str(result.model or ""), response_len=len(result.report_markdown),
+        source=result.ai_source, sel_type="spread", sel_id=req.oracle.spread,
+    ))
+    return result
 
 
 @app.post("/api/deck-art", response_model=DeckArtResponse)

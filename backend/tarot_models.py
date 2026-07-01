@@ -224,6 +224,83 @@ class DeckArtResponse(BaseModel):
 
 
 # --------------------------------------------------------------------------- #
+# Oracle Report — paid Fable 5 enriched synthesis (oracle tier)
+# --------------------------------------------------------------------------- #
+
+
+class OracleReportRequest(BaseModel):
+    chart: ChartResponse
+    spread: SpreadType = "three_card"
+    source: SourceSystem = "golden_dawn"
+    question: str = "What do I need to understand right now?"
+    date: Optional[str] = None             # ISO local date for the 'daily' spread
+    steps: int = 5                         # learning-path depth woven into the report
+    entitlement: Optional[str] = None      # REQUIRED in practice: oracle tier only
+
+
+class OracleReportResponse(BaseModel):
+    spread: SpreadType
+    source: SourceSystem
+    question: str
+    seed: str                              # the deterministic draw is reproducible
+    lineage: str
+    report: str                            # markdown; enriched (llm) or deterministic (offline)
+    ai_source: Literal["llm", "offline"]   # honest provenance — the client must show it
+    model: Optional[str] = None            # serving model when ai_source == "llm"
+    disclaimer: str = DISCLAIMER
+
+
+# --------------------------------------------------------------------------- #
+# Personal Report — deluxe compiled edition (optional post-Oracle product)
+# --------------------------------------------------------------------------- #
+
+
+class OracleSessionRef(BaseModel):
+    """The triggering Oracle session the deluxe edition is compiled from.
+
+    The server RE-DERIVES the deterministic seed from (chart, spread, question,
+    date, source) and rejects the request if it doesn't match `seed` — the
+    Personal Report is only available for a genuine Oracle session on this chart
+    (post-Oracle gating, fail closed, stateless)."""
+    seed: str
+    spread: SpreadType
+    source: SourceSystem
+    question: str
+    date: Optional[str] = None             # local date passed on the oracle call
+    report: str                            # the Oracle report text the user received
+    generated_at: Optional[str] = None     # ISO date shown on the cover
+    ai_source: Optional[Literal["llm", "offline"]] = None
+    model: Optional[str] = None
+
+
+class PersonalReportRequest(BaseModel):
+    chart: ChartResponse
+    oracle: OracleSessionRef
+    # Cover personalization. display_name may reach the AI prompt (a name is not
+    # birth data); birth_summary NEVER does — the markdown cover carries a
+    # {{BIRTH_INFO}} placeholder the client/renderer fills after generation, so
+    # raw birth details stay out of prompts (privacy invariant).
+    display_name: Optional[str] = None
+    birth_summary: Optional[str] = None
+    sigil_notes: Optional[str] = None      # client-side sigil formation notes (chaos/kamea)
+    predictive_summary: Optional[str] = None  # optional predictive highlights insert
+    steps: int = 5                         # learning-path depth
+    entitlement: Optional[str] = None      # oracle tier only
+
+
+class PersonalReportResponse(BaseModel):
+    seed: str                              # verified Oracle session seed
+    oracle_date: str                       # session date shown on the cover
+    spread: SpreadType
+    source: SourceSystem
+    lineage: str
+    report_markdown: str                   # the full deluxe edition (PDF-ready markdown)
+    ai_source: Literal["llm", "offline"]
+    model: Optional[str] = None
+    disclaimer: str = DISCLAIMER
+
+
+# --------------------------------------------------------------------------- #
 # Phase 3.2 — Arcana calendar (.ics) export
 # --------------------------------------------------------------------------- #
 
