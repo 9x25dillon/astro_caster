@@ -78,13 +78,14 @@ No control was weakened, bypassed, or made conditional in any diff reviewed.
 
 ## 5. Open items / operator log
 
-1. **Git-history purge — DEFERRED (operator decision, 2026-07-01).** Real birth
-   data (`34.935,-117.199` · 1987-11-11) remains in git history from `b1bdd5f`
-   onward on the GitHub remote. Removal procedure when approved:
-   `git filter-repo --replace-text` (or BFG) targeting the coordinate/date
-   strings → force-push → all collaborators re-clone → invalidate GitHub's
-   cached views (contact support or make the repo private/public cycle).
-   Interim mitigation available: make the repository private.
+1. **Git-history purge — RESOLVED: LEAVE (explicit operator decision,
+   2026-07-01).** The operator has confirmed the history stays as-is. Real
+   birth data (`34.935,-117.199` · 1987-11-11) remains in git history from
+   `b1bdd5f` onward; the working tree has been clean since Phase 1.2. Revisit
+   this decision if the repository is ever made public. Removal procedure
+   retained for reference: `git filter-repo --replace-text` (or BFG) targeting
+   the coordinate/date strings → force-push → collaborators re-clone →
+   invalidate GitHub's cached views (support ticket or private/public cycle).
 2. **CI first run:** the workflow exists on the branch but has not yet executed;
    verify all three jobs pass on the PR before merge.
 3. **Informational:** endpoint error details interpolate exception text
@@ -96,3 +97,58 @@ No control was weakened, bypassed, or made conditional in any diff reviewed.
 
 _End of regression audit. Bracket closed: `AUDIT_BASELINE.md` (before) →
 `AUDIT_REGRESSION.md` (after)._
+
+---
+
+## 6. Mini-audit — PDF-2: Personal Report separate purchase rail (2026-07-01)
+
+Appended per the **new-paid-surface rule** (every new paid surface gets a fresh
+mini-audit). Surface under audit: `POST /api/personal-report/purchase` (new) and
+the purchase gate added to `POST /api/personal-report`.
+
+### Fail-closed matrix
+
+| Scenario | Outcome |
+|---|---|
+| No entitlement / supporter tier hits purchase rail | 402 before any payment work |
+| Oracle tier, no RPC, trust mode off | 402 — payment unverifiable, no mint |
+| Trust mode on in production | impossible — `assert_safe_boot` refuses boot |
+| On-chain verified tx, `AAE_REPORT_MIN_WEI` unset/0 | 402 — purchases disabled until the operator prices the product |
+| On-chain verified tx below `AAE_REPORT_MIN_WEI` | 402 — below price |
+| Oracle tier compiles without a claim | 402 (detail names "purchase") — the old free-ride is closed |
+| Claim minted for a different session seed | 402 — one-shot per session |
+| Tier entitlement token passed as a claim | 402 — no `product` field; token kinds are disjoint |
+| Claim passed as a tier entitlement | free tier — no `tier` field; fails closed |
+| Expired claim (`AAE_REPORT_TOKEN_DAYS`, default 30) | rejected by `verify_report_token` |
+| Dev/admin token | exempt from the claim (already an operator bypass for tier) |
+
+### Controls carried over from existing paid surfaces
+
+- **Rate limiting:** the purchase rail shares the `oracle` bucket and is checked
+  **before** tier work and the RPC call — a spray of fake tx hashes cannot run up
+  RPC cost.
+- **Constant-time comparisons:** claim signature via `hmac.compare_digest`
+  (inherited from `verify_token`); seed binding compared constant-time as well.
+- **Honest provenance:** trust-mode mints carry `verified: false` end-to-end and
+  the response `note` says so.
+- **Telemetry:** `report_purchase` logged to `tier_events` (action-keyed, visible
+  in the existing admin summary); no new PII — `ref` is the tx-hash prefix,
+  consistent with `donate_verify`.
+- **Gate ordering:** a purchase claim does NOT substitute for the genuine-session
+  proof — a claim bound to a fabricated seed still 409s
+  (`test_fabricated_seed_rejected` now proves the ordering explicitly).
+
+### Known limitation (accepted, tracked)
+
+Claims are **stateless** (by design — no payment-system rebuild): the server
+keeps no receipt ledger, so one on-chain tx that meets the price can be
+presented repeatedly to mint claims for *different* session seeds. Blast radius
+is bounded — oracle tier plus a real qualifying payment are still required, and
+each mint is telemetry-logged with the tx prefix, so reuse is visible in
+`tier_events`. Follow-up when a shared store lands for R2 (Redis/SQLite):
+record redeemed tx hashes and reject reuse.
+
+### Coverage
+
+10 new behavioral tests in `test_personal_report.py`; full suite 144 green.
+Frontend `tsc -b && vite build` green.

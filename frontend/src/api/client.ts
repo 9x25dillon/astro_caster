@@ -21,6 +21,16 @@ export function trackEvent(name: string, props?: Record<string, unknown>): void 
   }).catch(() => undefined);
 }
 
+/** API error carrying the HTTP status so callers can branch on it (e.g. 402 →
+ *  support flow) without string-parsing. Message format is unchanged from the
+ *  previous plain Error, so existing `String(e)` displays are unaffected. */
+export class ApiError extends Error {
+  constructor(public status: number, detail: string) {
+    super(`${status}: ${detail}`);
+    this.name = "ApiError";
+  }
+}
+
 async function post<T>(path: string, body: unknown): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     method: "POST",
@@ -29,7 +39,7 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   });
   if (!res.ok) {
     const detail = await res.text().catch(() => res.statusText);
-    throw new Error(`${res.status}: ${detail}`);
+    throw new ApiError(res.status, detail);
   }
   return res.json() as Promise<T>;
 }
@@ -403,7 +413,7 @@ export function fetchNatalArcana(chart: ChartResponse): Promise<NatalArcanaSigna
 }
 
 // Local calendar date "YYYY-MM-DD" in the browser's own timezone.
-function localToday(): string {
+export function localToday(): string {
   const d = new Date();
   const m = `${d.getMonth() + 1}`.padStart(2, "0");
   const day = `${d.getDate()}`.padStart(2, "0");
@@ -471,6 +481,124 @@ export function fetchLearningPath(
     source: opts.source ?? "golden_dawn",
     steps: opts.steps ?? 5,
     entitlement: opts.entitlement ?? null,
+  });
+}
+
+// ── Oracle Report — paid Fable 5 enriched synthesis (oracle tier only) ────────
+
+export interface OracleReportResponse {
+  spread: SpreadType;
+  source: SourceSystem;
+  question: string;
+  seed: string;
+  lineage: string;
+  report: string;
+  ai_source: "llm" | "offline";
+  model: string | null;
+  disclaimer: string;
+}
+
+/** The paid enriched reading. The backend answers 402 for anything below
+ *  oracle tier — catch it and route the user to the support flow. */
+export function fetchOracleReport(
+  chart: ChartResponse,
+  question: string,
+  opts: {
+    spread?: SpreadType;
+    source?: SourceSystem;
+    date?: string;
+    entitlement?: string | null;
+  } = {},
+): Promise<OracleReportResponse> {
+  return post<OracleReportResponse>("/oracle-report", {
+    chart,
+    spread: opts.spread ?? "three_card",
+    source: opts.source ?? "golden_dawn",
+    question,
+    date: opts.date ?? ((opts.spread ?? "three_card") === "daily" ? localToday() : null),
+    entitlement: opts.entitlement ?? null,
+  });
+}
+
+// ── Personal Report — deluxe compiled edition (optional post-Oracle product) ──
+
+export interface PersonalReportResponse {
+  seed: string;
+  oracle_date: string;
+  spread: SpreadType;
+  source: SourceSystem;
+  lineage: string;
+  report_markdown: string;
+  ai_source: "llm" | "offline";
+  model: string | null;
+  disclaimer: string;
+}
+
+/** PDF-2 — the deluxe edition's separate purchase rail. Verifies a treasury
+ *  contribution tx and mints a report token bound to ONE Oracle session seed.
+ *  402 below oracle tier or when the payment doesn't verify / meet the price. */
+export interface ReportPurchaseResponse {
+  granted: boolean;
+  product: string;
+  note: string;
+  report_token: {
+    token: string;
+    seed: string;
+    verified: boolean;
+    exp: number;
+  };
+}
+
+export function purchasePersonalReport(
+  txHash: string,
+  seed: string,
+  opts: { chain?: string; entitlement?: string | null } = {},
+): Promise<ReportPurchaseResponse> {
+  return post<ReportPurchaseResponse>("/personal-report/purchase", {
+    tx_hash: txHash,
+    chain: opts.chain ?? "evm",
+    seed,
+    entitlement: opts.entitlement ?? null,
+  });
+}
+
+/** Compile the deluxe edition from a GENUINE prior Oracle session. The server
+ *  re-derives the session seed and answers 409 on a mismatch (e.g. the chart
+ *  changed since the Oracle ran) and 402 below oracle tier OR without a valid
+ *  `reportToken` purchase claim for this session (detail names "purchase" so
+ *  callers can branch). `date` must be the exact local date sent on the
+ *  triggering Oracle call (null for non-daily). */
+export function fetchPersonalReport(
+  chart: ChartResponse,
+  oracle: OracleReportResponse,
+  opts: {
+    date?: string | null;
+    generatedAt?: string;
+    displayName?: string;
+    sigilNotes?: string;
+    predictiveSummary?: string;
+    entitlement?: string | null;
+    reportToken?: string | null;
+  } = {},
+): Promise<PersonalReportResponse> {
+  return post<PersonalReportResponse>("/personal-report", {
+    chart,
+    oracle: {
+      seed: oracle.seed,
+      spread: oracle.spread,
+      source: oracle.source,
+      question: oracle.question,
+      date: opts.date ?? null,
+      report: oracle.report,
+      generated_at: opts.generatedAt ?? localToday(),
+      ai_source: oracle.ai_source,
+      model: oracle.model,
+    },
+    display_name: opts.displayName ?? null,
+    sigil_notes: opts.sigilNotes ?? null,
+    predictive_summary: opts.predictiveSummary ?? null,
+    entitlement: opts.entitlement ?? null,
+    report_token: opts.reportToken ?? null,
   });
 }
 

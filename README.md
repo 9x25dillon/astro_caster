@@ -122,7 +122,69 @@ available engine in order:
 |---|---|---|---|
 | free | `claude-haiku-4-5` / local ollama | 1000 tok | default |
 | supporter | `claude-sonnet-4-6` | 3000 tok | crypto contribution via `/api/donate/verify` |
-| oracle | `claude-opus-4-8` | 6000 tok | `AAE_DEV_TOKEN` or future higher-tier entitlement |
+| oracle | `claude-opus-4-8` | 6000 tok | `AAE_DEV_TOKEN`, or an **on-chain-verified** contribution ≥ `AAE_ORACLE_MIN_WEI` (must be explicitly set > 0; trust-mode payments never mint oracle) |
+
+### Oracle Report — Claude Fable 5 (oracle tier)
+
+The deepest paid reading: `POST /api/oracle-report` builds the full **deterministic
+substrate first** (natal signature + chart-weighted spread + learning path — zero AI),
+then layers a long-form Claude **Fable 5** synthesis over it via the official Anthropic
+SDK. If the AI layer is unavailable (no key, network down, safety refusal) the endpoint
+returns a deterministic offline report with honest provenance — `ai_source` is always
+`"llm"` or `"offline"`, and `model` names the actual serving model. Server-side fallback
+to Opus 4.8 is enabled so a false-positive safety decline is transparently re-served.
+The response `seed` makes the draw reproducible; the disclaimer rides the data.
+
+Configuration (`backend/.env`):
+
+```
+AAE_ANTHROPIC_API_KEY=sk-ant-...          # unset => deterministic offline report
+AAE_ORACLE_REPORT_MODEL=claude-fable-5
+AAE_ORACLE_REPORT_FALLBACK=claude-opus-4-8
+AAE_ORACLE_REPORT_MAX_TOKENS=16000
+AAE_ORACLE_REPORT_EFFORT=high             # low|medium|high|xhigh|max
+```
+
+> **Cost & requirements:** Fable 5 is Anthropic's premium tier (~$10/$50 per MTok —
+> roughly 2× Opus pricing) and requires **30-day data retention** on your Anthropic org
+> (zero-data-retention orgs get a 400 on every call). A single report can run minutes
+> and consume meaningful output tokens — budget accordingly and consider rate limiting
+> (see the reliability backlog) before opening it to wide traffic.
+
+### Personal Report — deluxe compiled edition (optional post-Oracle product)
+
+`POST /api/personal-report` compiles a research-paper-style deluxe edition (PDF-ready
+markdown: cover, sigil & invocation, natal foundation, psychological + evolutionary
+deep-dive, the Oracle I–V core, chart-referenced tarot layout, Career Constellation and
+Relationship Mirror inserts, sigil codex, practices, appendix). **Gated twice, fail
+closed:** oracle tier (402), and the request must reference a **genuine prior Oracle
+session** — the server re-derives the deterministic seed from (chart, spread, question,
+date, source) and rejects a fabricated or foreign session with 409. Privacy: the AI
+prompt carries only symbolic data; the cover uses a `{{BIRTH_INFO}}` placeholder the
+renderer fills client-side. Offline fallback compiles the same 11-part structure
+deterministically with honest `ai_source`. Spec: `FABLE5_PERSONAL_REPORT_PROMPT.md`;
+PDF design: `docs/ASTRO_ARCANA_PERSONAL_REPORT_DESIGN.md` (+ printable mock).
+
+In the UI, a **"✦ Compile Personal Report"** affordance appears beneath a successful
+Oracle Report (Draw tab): it echoes the exact session context (seed/date) for the
+server's verification, previews the 11 parts, and downloads the PDF-ready `.md`.
+
+### Rate limiting (cost protection)
+
+The AI paths are protected by a sliding-window limiter keyed by client IP + entitlement
+digest: `/api/ai-ask*`, `/api/suggestions`, and AI-enriched `/api/tarot-reading` share
+the `AAE_RATE_LIMIT_AI` budget (default 20/min); the two paid Fable endpoints
+(`/api/oracle-report`, `/api/personal-report`) share the stricter
+`AAE_RATE_LIMIT_ORACLE` budget (default 5/min). Over-budget requests get **429** with a
+`Retry-After` header. **Default: on in production, off in dev/test** (mirror of the
+trust-mode philosophy); `AAE_RATE_LIMIT_ENABLED=1/0` overrides explicitly. Deterministic
+offline draws are never throttled.
+
+```
+AAE_PERSONAL_REPORT_MODEL=claude-fable-5   # shares AAE_ANTHROPIC_API_KEY + fallback
+AAE_PERSONAL_REPORT_MAX_TOKENS=32000       # 24–36-page PDF target — expensive; budget it
+AAE_PERSONAL_REPORT_EFFORT=high
+```
 
 ### Ephemeris files (optional — for arc-second precision)
 
@@ -192,6 +254,13 @@ AI-free**; AI enrichment is opt-in and tier-gated. Opened via the **✶ Arcana**
   weight — the panel and the seed can never disagree).
 - **AI reading** (supporter/oracle) — weaves the drawn cards with the natal placements through the
   same provider/tier routing as the main guide, falling back silently to deterministic prose offline.
+- **Oracle Report** (oracle tier) — the observatory's deepest reading: a long-form Claude
+  **Fable 5** synthesis (`## I..V` structure — Signature / Spread / Path / Practices /
+  Synthesis) over the full deterministic substrate, triggered from the Draw tab. The UI shows
+  honest provenance (the actual serving model, or a "deterministic offline report" badge), the
+  reproducible `seed` (copyable), the lineage, and the disclaimer; sections render as
+  collapsible cards with per-section Speak/Copy. Lower tiers get a clear 402 → support flow.
+  See **Oracle Report — Claude Fable 5** under Configuration.
 - **Transit cards** — a thin overlay on the forecast engine: each day's top activation mapped to a
   trump with lesson, shadow, alignment action, and journal prompt. Requests accept `start_date`
   (ISO) and `timezone` (IANA) so the window starts on the *querent's* local day; an N-day request
@@ -255,6 +324,8 @@ AI-free**; AI enrichment is opt-in and tier-gated. Opened via the **✶ Arcana**
 | POST | `/api/suggestions` | — | navigational questions for the focal house |
 | POST | `/api/natal-arcana` | — | deterministic natal tarot signature (AI-free) |
 | POST | `/api/tarot-reading` | optional entitlement | chart-weighted spread + optional AI enrichment (`source`, `date`) |
+| POST | `/api/oracle-report` | **oracle tier** (402 below) | long-form Fable 5 report over the deterministic substrate (`ai_source`, `model`, `seed`, disclaimer) |
+| POST | `/api/personal-report` | **oracle tier** + verified Oracle session (409 on mismatch) | deluxe compiled edition (PDF-ready markdown) — optional post-Oracle product |
 | POST | `/api/arcana-forecast` | — | daily transit-card overlay (`start_date`, `timezone`, `source`; exactly N cards) |
 | POST | `/api/learning-path` | — | deterministic archetypal learning path (anchor → growth edge) |
 | POST | `/api/deck-art` | — | deterministic deck-art prompts (one card or the soul deck) |
@@ -330,6 +401,16 @@ cd frontend && ./node_modules/.bin/tsc -b && npm run build
 - [x] CI: pytest + boot guard + frontend build + secret scan; Dependabot
 
 ---
+
+## Development & Progress Tracking
+
+For ongoing work:
+
+- See `COMPREHENSIVE_TASK_SCHEDULE.md` (prioritized tasks, Fable 5 completion items, reliability backlog, recommendations, ACs, and verification commands).
+- See `PROJECT_WORK_HISTORY_MAP.md` (full timeline by wave/phase/branch, feature status tables, audit brackets, git commands, and instructions for keeping the map current).
+- Update both + `CHANGELOG.md` after every logical phase or branch close.
+- Always run: `cd backend && .venv/bin/python -m pytest -q` and `cd frontend && npm run build`.
+- Core invariants (never break): deterministic AI-free core; `DISCLAIMER` travels on every response; fail-closed security.
 
 ## License
 

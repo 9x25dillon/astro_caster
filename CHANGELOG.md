@@ -3,6 +3,200 @@
 Per-phase log for the Production Hardening & Symbolic Intelligence Expansion pass.
 Baseline: `d9afc4b` (36 backend tests, clean frontend build).
 
+## PDF-2 — Separate purchase rail for the deluxe edition (2026-07-01, reliability-pdf)
+
+Operator decision recorded: **off-chain `personal_report` receipt/token** (over a
+per-product `MIN_WEI` tier or a payment-system rebuild) — reuses the repo's
+existing payment primitive (HMAC-signed stateless tokens minted off a verified
+treasury tx).
+
+- New `POST /api/personal-report/purchase`: oracle tier required (the product only
+  exists post-Oracle), rate-limited on the `oracle` bucket **before** any RPC work.
+  Verifies the tx via the existing `verify_eth_payment_details` path, then applies
+  the fail-closed product policy (`entitlements.report_purchase_allowed`):
+  on-chain purchases qualify **only** when `AAE_REPORT_MIN_WEI` is explicitly set
+  (>0) and met — unset means purchases are disabled; unverified acceptance can only
+  come from dev trust mode, which `assert_safe_boot` makes impossible in production.
+- Mints a **report token bound to ONE Oracle session seed** (`mint_report_token`,
+  product-tagged, `AAE_REPORT_TOKEN_DAYS` default 30) — a stateless one-shot claim:
+  recompiles of the same session stay allowed; any other session needs a new
+  purchase. A tier entitlement token can never pass as a claim (no `product`
+  field), and a claim can never grant a tier (no `tier` field).
+- `/api/personal-report` now enforces the claim: 402 whose detail names
+  "purchase" (the frontend branches on it) unless the caller holds the dev/admin
+  token. Gate order proven by test: purchase claim ≠ genuine-session proof — a
+  claim for a fabricated seed still 409s.
+- Frontend: purchase rail in the deluxe block (tx-hash input → `✧ Verify deluxe
+  purchase`), claims persisted per-seed in `localStorage["aae.report_tokens"]`
+  (the seed is deterministic, so a purchase survives refresh + identical re-runs);
+  stale/expired claims are dropped on a purchase-402 so the rail reappears; a
+  ghost "already unlocked? compile" path keeps dev-token compiles working.
+- Telemetry: `report_purchase` tier-event; `personal_report_purchase` /
+  `personal_report_purchase_gated` feature events.
+- Tests: +10 in `test_personal_report.py` (144 green) — free-ride 402, foreign-seed
+  claim, token-kind confusion both ways, expiry, dev bypass, purchase rail tier
+  gate, fail-closed no-RPC/no-trust, missing seed, price threshold matrix, and the
+  full trust-mode purchase → seed-bound claim → compile happy path.
+- Known limitation (recorded in the AUDIT_REGRESSION mini-audit): claims are
+  stateless, so one paid tx can be replayed across different session seeds until a
+  receipt ledger lands (R2-adjacent follow-up).
+
+## R1 + PDF-1 — Cost protection & print renderer (2026-07-01, reliability-pdf)
+
+### R1 — Rate limiting on the AI paths
+- New `backend/ratelimit.py`: dependency-free in-process **sliding-window** limiter,
+  keyed by client IP + entitlement digest (a hot token can't hide behind rotating IPs;
+  a shared office IP isn't starved by one token). 429 + `Retry-After`; bounded key map.
+- Enablement mirrors the trust-mode philosophy: **ON by default in production, OFF in
+  dev/test**, `AAE_RATE_LIMIT_ENABLED=1/0` overrides explicitly. Budgets:
+  `AAE_RATE_LIMIT_AI` (default 20/window) for `/api/ai-ask`, `/api/ai-ask-stream`,
+  `/api/suggestions`, and `/api/tarot-reading` **only when `include_ai`** (the
+  deterministic draw is never throttled — offline-first invariant);
+  `AAE_RATE_LIMIT_ORACLE` (default 5/window) for the two paid Fable endpoints,
+  checked **before** tier/verification work. `AAE_RATE_LIMIT_WINDOW_S` (default 60).
+- Tests: `test_ratelimit.py` (10) — enablement semantics, budget exhaustion +
+  Retry-After, sliding window (mocked clock), per-entitlement keying, endpoint 429s,
+  deterministic-path immunity, suite-default untouched. Test-authoring lesson: the
+  first version of the ai-ask test hit a **real** LLM (local `.env` key) — the AI layer
+  is now faked in tests; noted as a suite-wide pattern to enforce.
+- Docs: README "Rate limiting (cost protection)" section; `.env.example` block.
+- R2 (Redis) remains the horizontal-scale upgrade; call sites won't change.
+
+### PDF-1 — Print renderer for the deluxe edition (client-side)
+- New `frontend/src/lib/printReport.ts`: `report_markdown` → styled, paginated print
+  document (browser dialog → "Save as PDF"). **Zero dependencies** — print CSS lifted
+  from the visual contract (`docs/Astro_Arcana_Report_Design_Mock.html`): Georgia
+  serif, cream/ink/amethyst/gold palette, Cinzel-style part headers, dark-gradient
+  cover page, gold pull-quotes, disclaimer styling, `@page` 8.5×11.
+- **Privacy invariant completed:** `{{BIRTH_INFO}}` is filled **in the browser** from
+  local store state (formatted birth line) — birth details never reached the server or
+  the AI, and now render only at print time. `{{SIGIL}}` slots are filled with a real,
+  deterministic **chaos-sigil SVG** (`lib/sigil.ts` construction, seeded by the Oracle
+  question) inside the mock's gold ring styling.
+- **Injection-safe:** every text fragment is HTML-escaped before styling tags are
+  applied (the markdown embeds model output + user questions). Verified by compiled
+  ground-truth assertions: 11/11 (cover/page split, placeholder fill, sigil embed +
+  determinism, list/bold/italic/blockquote, `<script>` escaped, disclaimer classed).
+- UI: "⎙ print / save as PDF" button in the deluxe block (popup-blocked hint;
+  `personal_report_print` telemetry).
+
+## PR-2 — Deluxe-edition frontend + branch close (2026-07-01, fable5-oracle-report)
+
+- **"✦ Compile Personal Report"** affordance beneath a successful Oracle Report
+  (Draw tab): `loadPersonalReport()` echoes the **exact session context** — the
+  Oracle call now passes its local date explicitly and stores `{date, generatedAt}`
+  (`oracleCtx`) so the server's seed re-derivation verifies; regenerating the Oracle
+  clears any stale deluxe edition; chart change clears both.
+- Client: `fetchPersonalReport` (builds the `OracleSessionRef` wire shape),
+  `PersonalReportResponse` type, `localToday` exported.
+- Render: provenance badges (actual serving model / "Deterministic offline edition"),
+  "Compiled from your Oracle session of [date] · seed […]" line, collapsible preview
+  of the 11 top-level parts, **↓ download .md** (PDF-ready markdown), copy, recompile,
+  disclaimer. 402 → support flow; **409 → "generate a fresh Oracle Report first"**
+  (session/chart mismatch). Telemetry: `personal_report`, `personal_report_gated`.
+- F5-5: secret-rotation note in `.env.example` (`AAE_SECRET`/`AAE_DEV_TOKEN`; rotation
+  invalidates issued entitlement tokens). F5-4/F5-6: single-commit strategy recorded;
+  git-history PII residual stays Option A (leave + audit note) pending explicit go/no-go.
+- Verified: full backend suite + frontend build green; branch closed as **one commit**.
+
+## PR-1 — Personal Report: deluxe compiled edition (2026-07-01, fable5-oracle-report)
+
+- **New optional post-Oracle product** — `backend/personal_report.py` +
+  `POST /api/personal-report` → PDF-ready markdown deluxe edition (11 parts: cover,
+  sigil & invocation, natal foundation, psychological/evolutionary deep-dive, the
+  Oracle I–V core, chart-referenced tarot layout, Career Constellation, Relationship
+  Mirror, sigil codex, practices, appendix). API-tuned system prompt derived from
+  `FABLE5_PERSONAL_REPORT_PROMPT.md`; renders against
+  `docs/ASTRO_ARCANA_PERSONAL_REPORT_DESIGN.md`.
+- **Gated twice, fail closed:** oracle tier (402 for free *and* supporter), plus a
+  stateless **post-Oracle gate** — the server re-derives the Oracle session's
+  deterministic seed from (chart, spread, question, date, source) and 409s any
+  fabricated/foreign/empty session reference. The seed is the proof of purchase-path.
+- **Privacy invariant extended:** the Fable prompt carries symbolic data only
+  (sign/degree/house citations, cards, weights); user birth details never enter the
+  prompt — the cover uses `{{BIRTH_INFO}}`/`{{SIGIL}}` placeholders the renderer fills.
+  Proven by test (`birth_summary` supplied, asserted absent from prompt).
+- **Honest fallback:** without the AI layer, `_offline_compiled` assembles the same
+  11-part structure deterministically (`ai_source: "offline"`, `model: null`), cover
+  framing included ("Compiled from your Oracle Report session of [date] • Seed: […]",
+  "Deluxe Compiled Edition — Optional Post-Oracle Product").
+- `oracle_report._call_fable` generalized with per-call `model`/`max_tokens`/`effort`
+  overrides (oracle path behavior unchanged); Personal Report uses
+  `AAE_PERSONAL_REPORT_*` env knobs (default 32K tokens for the 24–36-page target).
+- Telemetry: `lens="personal_report"`. Docs: README (API row + product section),
+  `.env.example`.
+- Tests: `test_personal_report.py` (8) — tier gates, seed-mismatch/foreign-params/empty
+  -report rejection, offline structure (cover lines + 11 parts in order + embedded
+  Oracle text + disclaimer), substrate determinism, prompt privacy.
+- **Not yet built (flagged follow-ups):** PDF renderer (design + mock exist under
+  `docs/`), separate-purchase payment rail (today's gate = oracle tier + verified
+  session; entitlements are tier-based), frontend surface for the deluxe edition.
+
+## F5-2 — Docs sync: Oracle Report / Fable 5 (2026-07-01, fable5-oracle-report)
+
+- README: `/api/oracle-report` + `/api/personal-report` rows in the API table; tier
+  routing table now documents oracle-tier minting (`AAE_ORACLE_MIN_WEI`, on-chain
+  verified only — trust mode never mints oracle); new "Oracle Report — Claude Fable 5"
+  configuration section (env vars, honest-provenance contract, server-side fallback)
+  with a **cost & requirements** note (~$10/$50 per MTok, 30-day retention, minutes-long
+  calls, rate-limiting advice); Arcana features section gained the Oracle Report bullet
+  (Draw-tab trigger, badges, seed, 402 → support flow).
+- CHANGELOG: backend Oracle Report entry added below (the feature predates this sync).
+
+## Oracle Report backend — Claude Fable 5 (2026-07-01, fable5-oracle-report)
+
+_Recorded retroactively for completeness (built earlier on this branch)._
+- `backend/oracle_report.py` + `POST /api/oracle-report` (oracle tier, 402 fail-closed
+  before any work): deterministic substrate first (signature + chart-weighted spread +
+  learning path, zero AI), then a streamed Claude Fable 5 synthesis via the official
+  Anthropic SDK — no `thinking` param, no sampling params, `output_config.effort`,
+  server-side fallback to Opus 4.8 (`server-side-fallback-2026-06-01`), refusal
+  handling, honest `ai_source`/`model`, disclosed reproducible `seed`.
+- Oracle-tier minting: `AAE_ORACLE_MIN_WEI` (on-chain-verified value only).
+- Tests: `test_oracle_report.py`; env docs in `.env.example`.
+
+## F5-1 — Oracle Report frontend integration (2026-07-01, fable5-oracle-report)
+
+- **Wired the Oracle Report into the UI** (the last gap on this branch — the build
+  was failing on the unused scaffolding until now). New `loadOracleReport()` in
+  `ArcanaModal.tsx` (modeled on `loadDeckArt`), using the pre-declared
+  `oracleLoading` so the Draw button stays usable during a long Fable 5 call.
+- **Placement:** a dedicated "✧ Generate Oracle Report" block at the foot of the
+  **Draw** tab — reuses the tab's spread/lineage/question controls; works pre- or
+  post-draw (the backend rebuilds its own deterministic substrate). Framed as the
+  observatory's deepest offering, labeled **Oracle tier only**.
+- **Rendering:** reuses `DetailPanel`'s `Interpretation` accordion (now exported) —
+  the `## I..V` sections render as collapsible cards with per-section 🔊 Speak
+  (via `useSpeech` + `speakableText`) and ↓ Copy. New `renderBody` upgrade renders
+  `### ` per-card subsections as styled subheadings instead of literal text
+  (benefits the deep AI report too).
+- **Provenance honesty:** badge shows the *actual serving model*
+  (`ORACLE_MODEL_LABELS`: Claude Fable 5 / Claude Opus 4.8 — fallback-served
+  reports are labeled as Opus, never claimed as Fable) or a clearly-titled
+  "Deterministic offline report" badge when `ai_source === "offline"`.
+- **Reproducibility:** the deterministic `seed` is displayed (select-all `<code>`)
+  with a copy button; `lineage` shown in the header; full `disclaimer` rendered.
+- **Tier gate UX:** new typed `ApiError` (carries HTTP status; message format
+  unchanged so existing `String(e)` callers unaffected) — on **402** the modal
+  shows "Oracle tier required…" and opens the Support flow (`openSupport(true)`),
+  tracked as `oracle_report_gated`. Success tracked as `oracle_report`
+  {spread, source, ai, model}.
+- Oracle state resets on chart change (a report never displays against another
+  chart). Whole-report copy + speak/stop + regenerate controls.
+- **Verified:** frontend build green (was red); backend 116 passed; end-to-end
+  TestClient smoke with the exact frontend body shape — free **402**, supporter
+  **402** (no leak), oracle **200** with all rendered fields, exactly the five
+  `## I..V` sections + `###` subsections, honest offline provenance.
+
+## Tracking Infrastructure (2026-07-01, fable5-oracle-report)
+
+- Created `PROJECT_WORK_HISTORY_MAP.md`: comprehensive, updateable timeline of waves, branches, phases (0–6), feature status, audit brackets, and maintenance commands so progress can always be tracked from git + docs.
+- Created `COMPREHENSIVE_TASK_SCHEDULE.md`: living prioritized schedule merging prior plans (`IMPLEMENTATION_SCHEDULE.md`, `ASTRA_ARCANA_PLAN.md`, `FABLE5_HANDOFF.md`), review recommendations, Fable 5 completion tasks (F5-1..F5-6), reliability (R*), foundations, and strategic backlog with explicit ACs and verification commands.
+- These two files + `CHANGELOG.md` + `AUDIT_*` + git now form the canonical progress record. Update them on every phase or branch close.
+
+---
+
+
 ## Phase 1 — Critical security & correctness (the hard gate)
 
 ### 1.1 — Closed the donation trust-mode bypass (Critical)

@@ -32,7 +32,9 @@ function parseSections(text: string): InterpSection[] {
 }
 
 // Structured, collapsible sections with per-section Speak + Copy.
-const Interpretation: React.FC<{
+// Exported for reuse — the Oracle Report (ArcanaModal) renders through the
+// same `## Section` accordion so the two long-form surfaces stay consistent.
+export const Interpretation: React.FC<{
   text: string;
   streaming?: boolean;
   onSpeak?: (text: string) => void;
@@ -62,7 +64,7 @@ const Interpretation: React.FC<{
         }
 
         return (
-          <div key={i} className="interp-section">
+          <div key={`s${i}`} className="interp-section">
             <div className="interp-section-head" onClick={() => !incomplete && toggle(i)}>
               <span className="interp-section-chevron">{isOpen ? "▾" : "▸"}</span>
               <h2 className="interp-section-title">{s.title}</h2>
@@ -84,7 +86,7 @@ const Interpretation: React.FC<{
             </div>
             {isOpen && (
               <div className="interp-section-body">
-                {renderInline(s.body)}
+                {renderBody(s.body)}
               </div>
             )}
           </div>
@@ -125,6 +127,29 @@ function renderInline(s: string): React.ReactNode {
       <span key={i}>{p}</span>
     )
   );
+}
+
+// Section bodies may carry `### ` subsections (e.g. the Oracle Report's one
+// subsection per drawn card). Render those as styled subheadings instead of
+// literal "###" text; everything else flows through renderInline.
+function renderBody(body: string): React.ReactNode {
+  const chunks = body.split(/\n(?=### )/g);
+  if (chunks.length === 1 && !body.startsWith("### ")) return renderInline(body);
+  return chunks.map((chunk, i) => {
+    if (!chunk.startsWith("### ")) return <span key={i}>{renderInline(chunk)}</span>;
+    const nl = chunk.indexOf("\n");
+    const title = nl === -1 ? chunk.slice(4) : chunk.slice(4, nl);
+    const rest = nl === -1 ? "" : chunk.slice(nl + 1);
+    return (
+      <div key={i} className="interp-subsection">
+        <h3 className="interp-subsection-title"
+            style={{ margin: "10px 0 4px", fontSize: "0.9rem", color: "var(--gold-soft)" }}>
+          {renderInline(title)}
+        </h3>
+        {rest && renderInline(rest)}
+      </div>
+    );
+  });
 }
 
 export const DetailPanel: React.FC = () => {

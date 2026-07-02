@@ -196,32 +196,34 @@ def entitlement_status(token: Optional[str]) -> dict:
 # --------------------------------------------------------------------------- #
 
 
-async def verify_eth_payment(tx_hash: str) -> Tuple[bool, bool, str]:
+async def verify_eth_payment_details(tx_hash: str) -> Tuple[bool, bool, str, int]:
     """
     Verify an EVM tx pays the treasury at least the minimum.
-    Returns (ok, verified_on_chain, note). In trust mode (no RPC) any non-empty
-    hash is accepted (ok=True) but flagged verified_on_chain=False.
+    Returns (ok, verified_on_chain, note, value_wei). In trust mode (no RPC) any
+    non-empty hash is accepted (ok=True) but flagged verified_on_chain=False and
+    carries value_wei=0 — trust mode can therefore never satisfy an on-chain
+    value threshold (see paid_tier).
     """
     tx_hash = tx_hash.strip()
     if not tx_hash:
-        return False, False, "missing tx hash"
+        return False, False, "missing tx hash", 0
     if not _ETH_RPC:
         # No on-chain verification configured. Accept ONLY in explicit dev trust
         # mode; otherwise fail closed and deny the entitlement.
         if trust_mode_allowed():
-            return True, False, "accepted in trust mode (dev only; unverified)"
+            return True, False, "accepted in trust mode (dev only; unverified)", 0
         return False, False, (
             "on-chain verification unavailable and trust mode is disabled — set "
             "AAE_ETH_RPC to verify, or enable AAE_TRUST_MODE in a non-production "
             "environment"
-        )
+        ), 0
 
     info = TR.treasury_info()
     treasury_addr = next(
         (c["address"].lower() for c in info["chains"] if c["id"] == "evm"), None
     )
     if not treasury_addr:
-        return False, False, "no EVM treasury configured"
+        return False, False, "no EVM treasury configured", 0
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
             r = await client.post(_ETH_RPC, json={
@@ -231,16 +233,37 @@ async def verify_eth_payment(tx_hash: str) -> Tuple[bool, bool, str]:
             r.raise_for_status()
             tx = r.json().get("result")
     except Exception as exc:
-        return False, False, f"rpc error: {type(exc).__name__}"
+        return False, False, f"rpc error: {type(exc).__name__}", 0
     if not tx:
-        return False, False, "transaction not found (still pending?)"
+        return False, False, "transaction not found (still pending?)", 0
     to_addr = (tx.get("to") or "").lower()
     value_wei = int(tx.get("value", "0x0"), 16)
     if to_addr != treasury_addr:
-        return False, False, "transaction recipient is not the treasury"
+        return False, False, "transaction recipient is not the treasury", 0
     if value_wei < _MIN_WEI:
-        return False, False, "amount below minimum"
-    return True, True, "verified on-chain"
+        return False, False, "amount below minimum", 0
+    return True, True, "verified on-chain", value_wei
+
+
+async def verify_eth_payment(tx_hash: str) -> Tuple[bool, bool, str]:
+    """Back-compat 3-tuple wrapper over verify_eth_payment_details."""
+    ok, verified, note, _ = await verify_eth_payment_details(tx_hash)
+    return ok, verified, note
+
+
+# Oracle tier is minted only for on-chain-VERIFIED contributions at/above an
+# explicitly configured threshold. Unset/zero threshold disables oracle minting
+# entirely (fail closed) — trust-mode grants carry value 0 and can never reach it.
+_ORACLE_MIN_WEI = int(os.environ.get("AAE_ORACLE_MIN_WEI", "0"))
+
+
+def paid_tier(verified: bool, value_wei: int) -> str:
+    """Tier for an accepted contribution: 'oracle' only when the payment was
+    verified on-chain AND AAE_ORACLE_MIN_WEI is configured (>0) AND the value
+    meets it; 'supporter' in every other case."""
+    if verified and _ORACLE_MIN_WEI > 0 and value_wei >= _ORACLE_MIN_WEI:
+        return "oracle"
+    return "supporter"
 
 
 def accept_offchain_payment(tx_hash: str) -> Tuple[bool, bool, str]:
@@ -252,3 +275,71 @@ def accept_offchain_payment(tx_hash: str) -> Tuple[bool, bool, str]:
     if trust_mode_allowed():
         return True, False, "accepted in trust mode (dev only; unverified)"
     return False, False, "off-chain verification unavailable and trust mode is disabled"
+
+
+# --------------------------------------------------------------------------- #
+# PDF-2 — Personal Report purchase (separate product beyond oracle tier)
+# --------------------------------------------------------------------------- #
+# The deluxe compiled edition is a SEPARATE purchase: an oracle-tier
+# entitlement alone must not unlock it. A purchase mints a report token BOUND
+# to exactly one Oracle session seed — a stateless one-shot claim. Recompiles
+# of that same session stay allowed (same seed, same product); any other
+# session requires a new purchase. Same fail-closed posture as oracle-tier
+# minting: on-chain purchases qualify only above an explicitly configured
+# threshold, and unverified acceptance exists only in dev trust mode (which
+# assert_safe_boot makes impossible in production).
+#
+# Env:
+#     AAE_REPORT_MIN_WEI      product price in wei; unset/0 DISABLES on-chain
+#                             purchases entirely (fail closed)
+#     AAE_REPORT_TOKEN_DAYS   claim lifetime in days (default 30)
+
+_REPORT_PRODUCT = "personal_report"
+_REPORT_MIN_WEI = int(os.environ.get("AAE_REPORT_MIN_WEI", "0"))
+_REPORT_TOKEN_DAYS = int(os.environ.get("AAE_REPORT_TOKEN_DAYS", "30"))
+
+
+def report_purchase_allowed(verified: bool, value_wei: int) -> Tuple[bool, str]:
+    """Fail-closed purchase policy for the deluxe edition.
+
+    A payment that arrives here already passed verify_eth_payment_details /
+    accept_offchain_payment, so `verified=False` can only mean dev trust mode
+    — allowed (unverified, dev only). A verified on-chain payment qualifies
+    only when AAE_REPORT_MIN_WEI is explicitly configured (>0) and met.
+    """
+    if verified:
+        if _REPORT_MIN_WEI <= 0:
+            return False, (
+                "personal-report purchases are not enabled — the operator must "
+                "set AAE_REPORT_MIN_WEI to the product price"
+            )
+        if value_wei < _REPORT_MIN_WEI:
+            return False, "amount below the personal-report price"
+        return True, "verified on-chain"
+    return True, "accepted in trust mode (dev only; unverified)"
+
+
+def mint_report_token(seed: str, ref: str, verified: bool) -> dict:
+    """Mint the one-shot claim for one Oracle session's deluxe edition."""
+    now = int(time.time())
+    payload = {
+        "product": _REPORT_PRODUCT,
+        "seed": seed,
+        "ref": ref,
+        "verified": verified,
+        "iat": now,
+        "exp": now + _REPORT_TOKEN_DAYS * 86400,
+    }
+    return {"token": _sign(payload), **payload}
+
+
+def verify_report_token(token: Optional[str], seed: str) -> Optional[dict]:
+    """Payload if `token` is a valid, unexpired report claim bound to `seed`,
+    else None. A tier entitlement token never passes (no `product` field), and
+    a claim for a different Oracle session never passes (seed mismatch)."""
+    payload = verify_token(token)
+    if not payload or payload.get("product") != _REPORT_PRODUCT:
+        return None
+    if not hmac.compare_digest(str(payload.get("seed", "")), seed):
+        return None
+    return payload

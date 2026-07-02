@@ -16,6 +16,10 @@ Endpoints:
   POST /api/arcana-forecast     – daily transit card overlay (Phase 7)
   POST /api/learning-path       – deterministic archetypal learning path (Classroom)
   POST /api/arcana-calendar     – export forecast as an .ics calendar (ritual/journal)
+  POST /api/oracle-report       – Fable 5 long-form report (oracle tier; offline fallback)
+  POST /api/personal-report     – deluxe compiled edition (optional post-Oracle product)
+  POST /api/personal-report/purchase – separate purchase rail: mint a report claim (PDF-2)
+  POST /api/deck-art            – deterministic deck-art prompts (Studio)
   POST /api/synastry            – two-chart inter-aspects + house grid
   POST /api/composite           – midpoint composite chart
   POST /api/davison             – Davison time/space midpoint chart
@@ -53,7 +57,7 @@ except ImportError:  # dotenv is optional
 
 import json as _json
 
-from fastapi import FastAPI, HTTPException, Response
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -64,6 +68,7 @@ import logging
 
 import ephemeris as E
 import entitlements as ENT
+import ratelimit as RL
 import telemetry as TEL
 import treasury as TR
 import tts as T
@@ -79,6 +84,8 @@ from models import (
 import tarot as TAROT
 import arcana_calendar as CAL
 import deck_art as DA
+import oracle_report as ORACLE
+import personal_report as PERSONAL
 from tarot_models import (
     ArcanaCalendarRequest,
     ArcanaForecastRequest,
@@ -88,6 +95,10 @@ from tarot_models import (
     LearningPathRequest,
     LearningPathResponse,
     NatalArcanaSignature,
+    OracleReportRequest,
+    OracleReportResponse,
+    PersonalReportRequest,
+    PersonalReportResponse,
     TarotReadingRequest,
     TarotReadingResponse,
 )
@@ -202,7 +213,8 @@ async def transits(req: TransitRequest):
 
 
 @app.post("/api/ai-ask")
-async def ai_ask(req: AIRequest):
+async def ai_ask(req: AIRequest, request: Request):
+    RL.check(request, "ai", req.entitlement)
     if req.depth == "deep":
         _require_supporter(req.entitlement)
     tier = ENT.entitlement_status(req.entitlement).get("tier", "free")
@@ -249,17 +261,63 @@ async def donate_verify(req: DonateVerifyRequest):
     the tx on-chain when an RPC is configured; otherwise trust mode applies.
     """
     if req.chain == "evm":
-        ok, verified, note = await ENT.verify_eth_payment(req.tx_hash)
+        ok, verified, note, value_wei = await ENT.verify_eth_payment_details(req.tx_hash)
     else:
         # Non-EVM chains: no on-chain check here — gated behind dev trust mode.
         ok, verified, note = ENT.accept_offchain_payment(req.tx_hash)
+        value_wei = 0
     if not ok:
         raise HTTPException(status_code=402, detail=note)
-    ent = ENT.mint_entitlement("supporter", ref=req.tx_hash[:18], verified=verified)
+    # Oracle tier only for an on-chain-verified value at/above AAE_ORACLE_MIN_WEI
+    # (explicitly configured); everything else — incl. trust mode — is supporter.
+    tier = ENT.paid_tier(verified, value_wei)
+    ent = ENT.mint_entitlement(tier, ref=req.tx_hash[:18], verified=verified)
     _spawn(TEL.log_tier(
-        action="donate_verify", tier="supporter", verified=verified, ref=req.tx_hash[:18]
+        action="donate_verify", tier=tier, verified=verified, ref=req.tx_hash[:18]
     ))
-    return {"granted": True, "note": note, "entitlement": ent}
+    return {"granted": True, "tier": tier, "note": note, "entitlement": ent}
+
+
+class ReportPurchaseRequest(BaseModel):
+    tx_hash: str
+    chain: str = "evm"
+    seed: str                            # the Oracle session the claim binds to
+    entitlement: Optional[str] = None    # oracle tier required
+
+
+@app.post("/api/personal-report/purchase")
+async def personal_report_purchase(req: ReportPurchaseRequest, request: Request):
+    """PDF-2 — the deluxe edition's SEPARATE purchase rail. Verifies a
+    contribution (on-chain when an RPC is configured; dev trust mode otherwise
+    — fails closed in production) against the AAE_REPORT_MIN_WEI product price
+    and mints a report token bound to ONE Oracle session seed. Oracle tier is
+    still required: the product only exists post-Oracle.
+    """
+    RL.check(request, "oracle", req.entitlement)   # shares the paid-path budget
+    tier = ENT.entitlement_status(req.entitlement).get("tier", "free")
+    if tier != "oracle":
+        raise HTTPException(
+            status_code=402,
+            detail="oracle entitlement required — the deluxe edition is an "
+                   "optional post-Oracle product",
+        )
+    if not req.seed.strip():
+        raise HTTPException(status_code=400, detail="missing oracle session seed")
+    if req.chain == "evm":
+        ok, verified, note, value_wei = await ENT.verify_eth_payment_details(req.tx_hash)
+    else:
+        ok, verified, note = ENT.accept_offchain_payment(req.tx_hash)
+        value_wei = 0
+    if ok:
+        ok, note = ENT.report_purchase_allowed(verified, value_wei)
+    if not ok:
+        raise HTTPException(status_code=402, detail=note)
+    tok = ENT.mint_report_token(seed=req.seed, ref=req.tx_hash[:18], verified=verified)
+    _spawn(TEL.log_tier(
+        action="report_purchase", tier=tier, verified=verified, ref=req.tx_hash[:18]
+    ))
+    return {"granted": True, "product": "personal_report", "note": note,
+            "report_token": tok}
 
 
 @app.get("/api/entitlement")
@@ -305,9 +363,10 @@ async def tts(req: TTSRequest):
 
 
 @app.post("/api/ai-ask-stream")
-async def ai_ask_stream(req: AIRequest):
+async def ai_ask_stream(req: AIRequest, request: Request):
     """Server-Sent Events stream of Astra's reflection as it is generated."""
 
+    RL.check(request, "ai", req.entitlement)
     if req.depth == "deep":
         _require_supporter(req.entitlement)  # in-depth reading is a supporter feature
 
@@ -433,13 +492,17 @@ async def natal_arcana(req: ChartResponse):
 
 
 @app.post("/api/tarot-reading", response_model=TarotReadingResponse)
-async def tarot_reading(req: TarotReadingRequest):
+async def tarot_reading(req: TarotReadingRequest, request: Request):
     """
     Chart-weighted, deterministic tarot reading. The core (signature, draw,
     static meanings/lessons/activities) is AI-free and offline. When
     `include_ai` is set, an enriched interpretation is layered on for paid tiers,
     falling back silently to the deterministic prose on any failure.
     """
+    if req.include_ai:
+        # Only the AI-enriched path costs money — the deterministic draw stays
+        # unthrottled (offline-first invariant: free reflection is never gated).
+        RL.check(request, "ai", req.entitlement)
     try:
         reading = TAROT.build_reading_core(req)
     except Exception as exc:
@@ -505,6 +568,78 @@ async def learning_path(req: LearningPathRequest):
         return TAROT.build_learning_path(req)
     except Exception as exc:
         raise HTTPException(status_code=400, detail=f"learning path failed: {exc}")
+
+
+@app.post("/api/oracle-report", response_model=OracleReportResponse)
+async def oracle_report(req: OracleReportRequest, request: Request):
+    """The paid Oracle Report — Fable 5 enriched synthesis over the deterministic
+    substrate. ORACLE TIER ONLY (the reading fee): fails closed with 402 before
+    any work — no substrate is built and the AI layer is never attempted for
+    lower tiers. Falls back to a deterministic offline report (honest ai_source)
+    if the AI layer is unavailable or the model chain refuses.
+    """
+    RL.check(request, "oracle", req.entitlement)   # cost cap before any work
+    tier = ENT.entitlement_status(req.entitlement).get("tier", "free")
+    if tier != "oracle":
+        raise HTTPException(
+            status_code=402,
+            detail="oracle entitlement required — the Oracle Report is a paid reading",
+        )
+    try:
+        result = await ORACLE.generate_oracle_report(req)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"oracle report failed: {exc}")
+    _spawn(TEL.log_ai(
+        tier=tier, lens="oracle_report", depth="report", query=req.question,
+        provider="anthropic" if result.ai_source == "llm" else "offline",
+        model=str(result.model or ""), response_len=len(result.report),
+        source=result.ai_source, sel_type="spread", sel_id=req.spread,
+    ))
+    return result
+
+
+@app.post("/api/personal-report", response_model=PersonalReportResponse)
+async def personal_report(req: PersonalReportRequest, request: Request):
+    """The Astra Arcana Personal Report — deluxe compiled edition, an OPTIONAL
+    post-Oracle product. Gated three times, fail closed: (1) oracle tier only
+    (402); (2) PDF-2 — the edition is a SEPARATE purchase, so a report token
+    minted by /api/personal-report/purchase and bound to this exact session
+    seed is required (402; dev/admin token exempt); (3) the referenced Oracle
+    session must be genuine — its seed is re-derived from (chart, spread,
+    question, date, source) and a mismatch is rejected (409). Falls back to a
+    deterministic compiled edition with honest provenance when the AI layer is
+    unavailable.
+    """
+    RL.check(request, "oracle", req.entitlement)   # cost cap before any work
+    tier = ENT.entitlement_status(req.entitlement).get("tier", "free")
+    if tier != "oracle":
+        raise HTTPException(
+            status_code=402,
+            detail="oracle entitlement required — the Personal Report is an "
+                   "optional deluxe edition compiled from your Oracle session",
+        )
+    if not ENT.check_dev_token(req.entitlement) and \
+            ENT.verify_report_token(req.report_token, req.oracle.seed) is None:
+        raise HTTPException(
+            status_code=402,
+            detail="deluxe purchase required — the Personal Report is a separate "
+                   "one-time purchase per Oracle session; verify your "
+                   "contribution at /api/personal-report/purchase to unlock it",
+        )
+    try:
+        result = await PERSONAL.generate_personal_report(req)
+    except ValueError as exc:
+        # Post-Oracle gate: fabricated/foreign session reference.
+        raise HTTPException(status_code=409, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"personal report failed: {exc}")
+    _spawn(TEL.log_ai(
+        tier=tier, lens="personal_report", depth="report", query=req.oracle.question,
+        provider="anthropic" if result.ai_source == "llm" else "offline",
+        model=str(result.model or ""), response_len=len(result.report_markdown),
+        source=result.ai_source, sel_type="spread", sel_id=req.oracle.spread,
+    ))
+    return result
 
 
 @app.post("/api/deck-art", response_model=DeckArtResponse)
@@ -674,11 +809,12 @@ async def fixed_stars(req: FixedStarRequest):
 
 
 @app.post("/api/suggestions")
-async def suggestions(req: AIRequest):
+async def suggestions(req: AIRequest, request: Request):
     """
     Navigational suggestions: find the most-tenanted house, then ask Astra for
     introspective questions + one exercise grounded in that house's themes.
     """
+    RL.check(request, "ai", req.entitlement)
     chart = req.chart
     counts: dict[int, int] = {}
     for p in chart.planets:
