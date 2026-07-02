@@ -534,10 +534,40 @@ export interface PersonalReportResponse {
   disclaimer: string;
 }
 
+/** PDF-2 — the deluxe edition's separate purchase rail. Verifies a treasury
+ *  contribution tx and mints a report token bound to ONE Oracle session seed.
+ *  402 below oracle tier or when the payment doesn't verify / meet the price. */
+export interface ReportPurchaseResponse {
+  granted: boolean;
+  product: string;
+  note: string;
+  report_token: {
+    token: string;
+    seed: string;
+    verified: boolean;
+    exp: number;
+  };
+}
+
+export function purchasePersonalReport(
+  txHash: string,
+  seed: string,
+  opts: { chain?: string; entitlement?: string | null } = {},
+): Promise<ReportPurchaseResponse> {
+  return post<ReportPurchaseResponse>("/personal-report/purchase", {
+    tx_hash: txHash,
+    chain: opts.chain ?? "evm",
+    seed,
+    entitlement: opts.entitlement ?? null,
+  });
+}
+
 /** Compile the deluxe edition from a GENUINE prior Oracle session. The server
  *  re-derives the session seed and answers 409 on a mismatch (e.g. the chart
- *  changed since the Oracle ran) and 402 below oracle tier. `date` must be the
- *  exact local date sent on the triggering Oracle call (null for non-daily). */
+ *  changed since the Oracle ran) and 402 below oracle tier OR without a valid
+ *  `reportToken` purchase claim for this session (detail names "purchase" so
+ *  callers can branch). `date` must be the exact local date sent on the
+ *  triggering Oracle call (null for non-daily). */
 export function fetchPersonalReport(
   chart: ChartResponse,
   oracle: OracleReportResponse,
@@ -548,6 +578,7 @@ export function fetchPersonalReport(
     sigilNotes?: string;
     predictiveSummary?: string;
     entitlement?: string | null;
+    reportToken?: string | null;
   } = {},
 ): Promise<PersonalReportResponse> {
   return post<PersonalReportResponse>("/personal-report", {
@@ -567,6 +598,7 @@ export function fetchPersonalReport(
     sigil_notes: opts.sigilNotes ?? null,
     predictive_summary: opts.predictiveSummary ?? null,
     entitlement: opts.entitlement ?? null,
+    report_token: opts.reportToken ?? null,
   });
 }
 

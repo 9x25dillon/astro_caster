@@ -3,6 +3,44 @@
 Per-phase log for the Production Hardening & Symbolic Intelligence Expansion pass.
 Baseline: `d9afc4b` (36 backend tests, clean frontend build).
 
+## PDF-2 — Separate purchase rail for the deluxe edition (2026-07-01, reliability-pdf)
+
+Operator decision recorded: **off-chain `personal_report` receipt/token** (over a
+per-product `MIN_WEI` tier or a payment-system rebuild) — reuses the repo's
+existing payment primitive (HMAC-signed stateless tokens minted off a verified
+treasury tx).
+
+- New `POST /api/personal-report/purchase`: oracle tier required (the product only
+  exists post-Oracle), rate-limited on the `oracle` bucket **before** any RPC work.
+  Verifies the tx via the existing `verify_eth_payment_details` path, then applies
+  the fail-closed product policy (`entitlements.report_purchase_allowed`):
+  on-chain purchases qualify **only** when `AAE_REPORT_MIN_WEI` is explicitly set
+  (>0) and met — unset means purchases are disabled; unverified acceptance can only
+  come from dev trust mode, which `assert_safe_boot` makes impossible in production.
+- Mints a **report token bound to ONE Oracle session seed** (`mint_report_token`,
+  product-tagged, `AAE_REPORT_TOKEN_DAYS` default 30) — a stateless one-shot claim:
+  recompiles of the same session stay allowed; any other session needs a new
+  purchase. A tier entitlement token can never pass as a claim (no `product`
+  field), and a claim can never grant a tier (no `tier` field).
+- `/api/personal-report` now enforces the claim: 402 whose detail names
+  "purchase" (the frontend branches on it) unless the caller holds the dev/admin
+  token. Gate order proven by test: purchase claim ≠ genuine-session proof — a
+  claim for a fabricated seed still 409s.
+- Frontend: purchase rail in the deluxe block (tx-hash input → `✧ Verify deluxe
+  purchase`), claims persisted per-seed in `localStorage["aae.report_tokens"]`
+  (the seed is deterministic, so a purchase survives refresh + identical re-runs);
+  stale/expired claims are dropped on a purchase-402 so the rail reappears; a
+  ghost "already unlocked? compile" path keeps dev-token compiles working.
+- Telemetry: `report_purchase` tier-event; `personal_report_purchase` /
+  `personal_report_purchase_gated` feature events.
+- Tests: +10 in `test_personal_report.py` (144 green) — free-ride 402, foreign-seed
+  claim, token-kind confusion both ways, expiry, dev bypass, purchase rail tier
+  gate, fail-closed no-RPC/no-trust, missing seed, price threshold matrix, and the
+  full trust-mode purchase → seed-bound claim → compile happy path.
+- Known limitation (recorded in the AUDIT_REGRESSION mini-audit): claims are
+  stateless, so one paid tx can be replayed across different session seeds until a
+  receipt ledger lands (R2-adjacent follow-up).
+
 ## R1 + PDF-1 — Cost protection & print renderer (2026-07-01, reliability-pdf)
 
 ### R1 — Rate limiting on the AI paths

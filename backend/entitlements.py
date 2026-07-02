@@ -275,3 +275,71 @@ def accept_offchain_payment(tx_hash: str) -> Tuple[bool, bool, str]:
     if trust_mode_allowed():
         return True, False, "accepted in trust mode (dev only; unverified)"
     return False, False, "off-chain verification unavailable and trust mode is disabled"
+
+
+# --------------------------------------------------------------------------- #
+# PDF-2 — Personal Report purchase (separate product beyond oracle tier)
+# --------------------------------------------------------------------------- #
+# The deluxe compiled edition is a SEPARATE purchase: an oracle-tier
+# entitlement alone must not unlock it. A purchase mints a report token BOUND
+# to exactly one Oracle session seed — a stateless one-shot claim. Recompiles
+# of that same session stay allowed (same seed, same product); any other
+# session requires a new purchase. Same fail-closed posture as oracle-tier
+# minting: on-chain purchases qualify only above an explicitly configured
+# threshold, and unverified acceptance exists only in dev trust mode (which
+# assert_safe_boot makes impossible in production).
+#
+# Env:
+#     AAE_REPORT_MIN_WEI      product price in wei; unset/0 DISABLES on-chain
+#                             purchases entirely (fail closed)
+#     AAE_REPORT_TOKEN_DAYS   claim lifetime in days (default 30)
+
+_REPORT_PRODUCT = "personal_report"
+_REPORT_MIN_WEI = int(os.environ.get("AAE_REPORT_MIN_WEI", "0"))
+_REPORT_TOKEN_DAYS = int(os.environ.get("AAE_REPORT_TOKEN_DAYS", "30"))
+
+
+def report_purchase_allowed(verified: bool, value_wei: int) -> Tuple[bool, str]:
+    """Fail-closed purchase policy for the deluxe edition.
+
+    A payment that arrives here already passed verify_eth_payment_details /
+    accept_offchain_payment, so `verified=False` can only mean dev trust mode
+    — allowed (unverified, dev only). A verified on-chain payment qualifies
+    only when AAE_REPORT_MIN_WEI is explicitly configured (>0) and met.
+    """
+    if verified:
+        if _REPORT_MIN_WEI <= 0:
+            return False, (
+                "personal-report purchases are not enabled — the operator must "
+                "set AAE_REPORT_MIN_WEI to the product price"
+            )
+        if value_wei < _REPORT_MIN_WEI:
+            return False, "amount below the personal-report price"
+        return True, "verified on-chain"
+    return True, "accepted in trust mode (dev only; unverified)"
+
+
+def mint_report_token(seed: str, ref: str, verified: bool) -> dict:
+    """Mint the one-shot claim for one Oracle session's deluxe edition."""
+    now = int(time.time())
+    payload = {
+        "product": _REPORT_PRODUCT,
+        "seed": seed,
+        "ref": ref,
+        "verified": verified,
+        "iat": now,
+        "exp": now + _REPORT_TOKEN_DAYS * 86400,
+    }
+    return {"token": _sign(payload), **payload}
+
+
+def verify_report_token(token: Optional[str], seed: str) -> Optional[dict]:
+    """Payload if `token` is a valid, unexpired report claim bound to `seed`,
+    else None. A tier entitlement token never passes (no `product` field), and
+    a claim for a different Oracle session never passes (seed mismatch)."""
+    payload = verify_token(token)
+    if not payload or payload.get("product") != _REPORT_PRODUCT:
+        return None
+    if not hmac.compare_digest(str(payload.get("seed", "")), seed):
+        return None
+    return payload

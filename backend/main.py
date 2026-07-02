@@ -18,6 +18,7 @@ Endpoints:
   POST /api/arcana-calendar     – export forecast as an .ics calendar (ritual/journal)
   POST /api/oracle-report       – Fable 5 long-form report (oracle tier; offline fallback)
   POST /api/personal-report     – deluxe compiled edition (optional post-Oracle product)
+  POST /api/personal-report/purchase – separate purchase rail: mint a report claim (PDF-2)
   POST /api/deck-art            – deterministic deck-art prompts (Studio)
   POST /api/synastry            – two-chart inter-aspects + house grid
   POST /api/composite           – midpoint composite chart
@@ -275,6 +276,48 @@ async def donate_verify(req: DonateVerifyRequest):
         action="donate_verify", tier=tier, verified=verified, ref=req.tx_hash[:18]
     ))
     return {"granted": True, "tier": tier, "note": note, "entitlement": ent}
+
+
+class ReportPurchaseRequest(BaseModel):
+    tx_hash: str
+    chain: str = "evm"
+    seed: str                            # the Oracle session the claim binds to
+    entitlement: Optional[str] = None    # oracle tier required
+
+
+@app.post("/api/personal-report/purchase")
+async def personal_report_purchase(req: ReportPurchaseRequest, request: Request):
+    """PDF-2 — the deluxe edition's SEPARATE purchase rail. Verifies a
+    contribution (on-chain when an RPC is configured; dev trust mode otherwise
+    — fails closed in production) against the AAE_REPORT_MIN_WEI product price
+    and mints a report token bound to ONE Oracle session seed. Oracle tier is
+    still required: the product only exists post-Oracle.
+    """
+    RL.check(request, "oracle", req.entitlement)   # shares the paid-path budget
+    tier = ENT.entitlement_status(req.entitlement).get("tier", "free")
+    if tier != "oracle":
+        raise HTTPException(
+            status_code=402,
+            detail="oracle entitlement required — the deluxe edition is an "
+                   "optional post-Oracle product",
+        )
+    if not req.seed.strip():
+        raise HTTPException(status_code=400, detail="missing oracle session seed")
+    if req.chain == "evm":
+        ok, verified, note, value_wei = await ENT.verify_eth_payment_details(req.tx_hash)
+    else:
+        ok, verified, note = ENT.accept_offchain_payment(req.tx_hash)
+        value_wei = 0
+    if ok:
+        ok, note = ENT.report_purchase_allowed(verified, value_wei)
+    if not ok:
+        raise HTTPException(status_code=402, detail=note)
+    tok = ENT.mint_report_token(seed=req.seed, ref=req.tx_hash[:18], verified=verified)
+    _spawn(TEL.log_tier(
+        action="report_purchase", tier=tier, verified=verified, ref=req.tx_hash[:18]
+    ))
+    return {"granted": True, "product": "personal_report", "note": note,
+            "report_token": tok}
 
 
 @app.get("/api/entitlement")
@@ -558,11 +601,14 @@ async def oracle_report(req: OracleReportRequest, request: Request):
 @app.post("/api/personal-report", response_model=PersonalReportResponse)
 async def personal_report(req: PersonalReportRequest, request: Request):
     """The Astra Arcana Personal Report — deluxe compiled edition, an OPTIONAL
-    post-Oracle product. Gated twice, fail closed: (1) oracle tier only (402);
-    (2) the referenced Oracle session must be genuine — its seed is re-derived
-    from (chart, spread, question, date, source) and a mismatch is rejected
-    (409). Falls back to a deterministic compiled edition with honest
-    provenance when the AI layer is unavailable.
+    post-Oracle product. Gated three times, fail closed: (1) oracle tier only
+    (402); (2) PDF-2 — the edition is a SEPARATE purchase, so a report token
+    minted by /api/personal-report/purchase and bound to this exact session
+    seed is required (402; dev/admin token exempt); (3) the referenced Oracle
+    session must be genuine — its seed is re-derived from (chart, spread,
+    question, date, source) and a mismatch is rejected (409). Falls back to a
+    deterministic compiled edition with honest provenance when the AI layer is
+    unavailable.
     """
     RL.check(request, "oracle", req.entitlement)   # cost cap before any work
     tier = ENT.entitlement_status(req.entitlement).get("tier", "free")
@@ -571,6 +617,14 @@ async def personal_report(req: PersonalReportRequest, request: Request):
             status_code=402,
             detail="oracle entitlement required — the Personal Report is an "
                    "optional deluxe edition compiled from your Oracle session",
+        )
+    if not ENT.check_dev_token(req.entitlement) and \
+            ENT.verify_report_token(req.report_token, req.oracle.seed) is None:
+        raise HTTPException(
+            status_code=402,
+            detail="deluxe purchase required — the Personal Report is a separate "
+                   "one-time purchase per Oracle session; verify your "
+                   "contribution at /api/personal-report/purchase to unlock it",
         )
     try:
         result = await PERSONAL.generate_personal_report(req)
