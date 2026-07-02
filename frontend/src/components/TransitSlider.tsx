@@ -1,6 +1,7 @@
 // components/TransitSlider.tsx — scrub a date to drive the transit overlay.
 import React, { useEffect, useRef } from "react";
 import { useStore } from "../store/useStore";
+import { toDatetimeLocal } from "../lib/datetime";
 
 // Range spans ±50 years around "now" expressed as days from epoch midpoint.
 const DAY = 86_400_000;
@@ -19,7 +20,10 @@ export const TransitSlider: React.FC = () => {
   const now = Date.now();
   const min = now - 50 * 365 * DAY;
   const max = now + 50 * 365 * DAY;
-  const value = new Date(transitIso).getTime();
+  // Guard against a transiently-cleared datetime-local field (empty string
+  // parses to NaN and would freeze the slider at the far left).
+  const parsed = new Date(transitIso).getTime();
+  const value = Number.isFinite(parsed) ? parsed : now;
 
   // Debounced fetch as the user scrubs so we don't spam the backend.
   useEffect(() => {
@@ -48,8 +52,9 @@ export const TransitSlider: React.FC = () => {
     minute: "2-digit",
   });
 
-  const step = (days: number) =>
-    setTransitIso(new Date(value + days * DAY).toISOString().slice(0, 16));
+  // Local-time formatting: toISOString() would shift the wall-clock time by
+  // the user's UTC offset on every interaction.
+  const step = (days: number) => setTransitIso(toDatetimeLocal(value + days * DAY));
 
   return (
     <div className="panel timeline">
@@ -68,7 +73,7 @@ export const TransitSlider: React.FC = () => {
           max={max}
           step={DAY}
           value={value}
-          onChange={(e) => setTransitIso(new Date(Number(e.target.value)).toISOString().slice(0, 16))}
+          onChange={(e) => setTransitIso(toDatetimeLocal(Number(e.target.value)))}
           style={{ flex: 1, minWidth: 180 }}
         />
         <button className="ghost" style={{ width: "auto" }} onClick={() => step(30)}>mo ›</button>
