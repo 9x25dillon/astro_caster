@@ -849,6 +849,10 @@ button.ghost:hover {
   border-radius: 10px;
   background: var(--obsidian-3);
   overflow: hidden;
+  /* overflow:hidden zeroes a flex item's automatic min-size, letting the fixed-
+     height .gloss-list column crush every entry to ~4px ("no text"). Never
+     shrink — overflow scrolls the list instead. */
+  flex-shrink: 0;
   transition: border-color 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out);
 }
 .gloss-entry:hover { border-color: rgba(201,168,76,0.35); }

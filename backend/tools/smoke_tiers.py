@@ -158,16 +158,20 @@ def main() -> None:
     print("\n─ PDF-2 purchase rail ─")
     r = c.post("/personal-report/purchase", json={"tx_hash": "0xsmoke", "seed": "s"})
     check("purchase · no entitlement → 402", r.status_code == 402, f"{r.status_code}")
-    trust = ENT.trust_mode_allowed()
+    # The SERVER's trust mode can differ from this shell's env (run.sh exports
+    # AAE_ENV=development and may add AAE_TRUST_MODE), so don't guess — accept
+    # either coherent outcome and verify its invariants.
     r = c.post("/personal-report/purchase",
                json={"tx_hash": "0xsmoke", "seed": "smoke-fake-seed",
                      "entitlement": ora})
-    if trust:
-        ok = r.status_code == 200 and r.json()["report_token"]["verified"] is False
-        check("purchase · oracle + trust mode → 200 unverified mint", ok,
-              f"{r.status_code}")
+    if r.status_code == 200:
+        tok = r.json()["report_token"]
+        ok = (tok["verified"] is False   # honest: trust mode, not on-chain
+              and ENT.verify_report_token(tok["token"], "smoke-fake-seed") is not None
+              and ENT.verify_report_token(tok["token"], "another-seed") is None)
+        check("purchase · trust mode ON → 200 unverified, seed-bound mint", ok, "200")
     else:
-        check("purchase · oracle, no RPC/trust → 402 fail-closed",
+        check("purchase · trust mode OFF → 402 fail-closed",
               r.status_code == 402, f"{r.status_code}")
         print("     (to exercise the mint through the UI: AAE_TRUST_MODE=1 ./run.sh)")
 
