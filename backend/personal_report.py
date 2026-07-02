@@ -31,6 +31,7 @@ Env:
 from __future__ import annotations
 
 import datetime as _dt
+import hashlib
 import os
 from typing import Dict, List
 
@@ -95,8 +96,12 @@ titles, `## ` for sections within a part):
 1. Cover / Title Page  2. Personal Sigil & Invocation  3. The Natal Foundation
 4. In-Depth Psychological & Evolutionary Natal Report (psychological lens:
 Moon/Mercury/Venus/Mars + aspects; evolutionary lens: Nodes/Pluto/Saturn/12th
-house; integration; pull-quotes from the Oracle text)
-5. The Oracle Report — Structured Synthesis (the I–V core, elegantly expanded)
+house; integration; pull-quotes from the Oracle text; when SOUL PROFILE or
+LIFE PATH NUMEROLOGY data is supplied, give each its own `## ` subsection here,
+woven against the placements — cite both systems side by side)
+5. The Oracle Report — Structured Synthesis (the I–V core, elegantly expanded;
+when ASTRA'S REFLECTION is supplied, quote it as a `## Astra's Reflection`
+subsection and braid it into the synthesis)
 6. Personalized Tarot Card Layout (position label e.g. "Your Sun • Pisces •
 12th House", card + orientation, meaning, why-drawn weight sources, natal link)
 7. Career Constellation (MC, 10th house, predictive highlights if provided)
@@ -188,7 +193,10 @@ def build_personal_substrate(req: PersonalReportRequest) -> Dict:
             "moon": _citation(moon) if moon else "",
         },
         "oracle_date": req.oracle.generated_at or _dt.date.today().isoformat(),
-        "short_seed": req.oracle.seed[-12:],
+        # Display fragment for the cover/UI. A DIGEST, not a raw slice — the
+        # seed is the signature string and its tail is the user's question, so
+        # seed[-12:] printed "Seed: d right now?" on the cover.
+        "short_seed": hashlib.sha256(req.oracle.seed.encode()).hexdigest()[:12],
     })
     return sub
 
@@ -238,6 +246,20 @@ def _substrate_prompt(req: PersonalReportRequest, sub: Dict) -> str:
         lines += ["", f"SIGIL FORMATION NOTES (client-side): {req.sigil_notes}"]
     if req.predictive_summary:
         lines += ["", f"PREDICTIVE HIGHLIGHTS: {req.predictive_summary}"]
+    # Module inserts — weave, don't just append: the soul profile and life path
+    # belong in the psychological/evolutionary deep-dive, the reflection in the
+    # Oracle synthesis (quote it like the Oracle text).
+    if req.soul_profile:
+        lines += ["", "SOUL PROFILE (from the observatory's Soul Profile module — "
+                      "integrate into the natal deep-dive):", req.soul_profile]
+    if req.life_path:
+        lines += ["", "LIFE PATH NUMEROLOGY (Pythagorean; integrate as its own "
+                      "subsection of the deep-dive and echo it in Practices):",
+                  req.life_path]
+    if req.reflection_summary:
+        lines += ["", "ASTRA'S REFLECTION (an AI reading the user already received "
+                      "in the Detail panel — quote and expand it inside the Oracle "
+                      "synthesis):", req.reflection_summary]
     return "\n".join(lines)
 
 
@@ -295,12 +317,24 @@ def _offline_compiled(req: PersonalReportRequest, sub: Dict) -> str:
         "## Integration",
         f"Strongest archetypes: {', '.join(sig.themes)}. "
         f"Growth-ward edges: {', '.join(sig.shadows) or 'in balance'}.",
+    ]
+    if req.soul_profile:
+        p += ["", "## Soul Profile", req.soul_profile]
+    if req.life_path:
+        p += ["", "## Life Path Numerology", req.life_path]
+    p += [
         f"> {DISCLAIMER}",
         "",
         "# The Oracle Report — Structured Synthesis",
         f"*Your Oracle session of {sub['oracle_date']}, integrated in full:*",
         "",
         o.report,
+    ]
+    if req.reflection_summary:
+        p += ["", "## Astra's Reflection",
+              "*From your reading in the observatory's Detail panel:*", "",
+              f"> {req.reflection_summary}"]
+    p += [
         "",
         "# Personalized Tarot Card Layout",
     ]
@@ -384,7 +418,8 @@ async def generate_personal_report(req: PersonalReportRequest) -> PersonalReport
     else:
         markdown, ai_source, model = _offline_compiled(req, sub), "offline", None
     return PersonalReportResponse(
-        seed=req.oracle.seed, oracle_date=sub["oracle_date"],
+        seed=req.oracle.seed, short_seed=sub["short_seed"],
+        oracle_date=sub["oracle_date"],
         spread=req.oracle.spread, source=req.oracle.source,
         lineage=sub["meta"]["name"], report_markdown=markdown,
         ai_source=ai_source, model=model,

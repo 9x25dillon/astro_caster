@@ -284,6 +284,12 @@ class PersonalReportRequest(BaseModel):
     birth_summary: Optional[str] = None
     sigil_notes: Optional[str] = None      # client-side sigil formation notes (chaos/kamea)
     predictive_summary: Optional[str] = None  # optional predictive highlights insert
+    # Module inserts — client-derived symbolic texts woven into the deluxe
+    # edition (all optional; none carries raw birth data — the life path is a
+    # reduced digit + archetype text, the soul profile is chart-derived):
+    reflection_summary: Optional[str] = None  # Astra's Detail-panel reflection
+    soul_profile: Optional[str] = None        # Soul Profile module (archetype/themes)
+    life_path: Optional[str] = None           # Life Path numerology module
     steps: int = 5                         # learning-path depth
     entitlement: Optional[str] = None      # oracle tier only
     # PDF-2: the deluxe edition is a SEPARATE purchase — a report token minted
@@ -294,6 +300,7 @@ class PersonalReportRequest(BaseModel):
 
 class PersonalReportResponse(BaseModel):
     seed: str                              # verified Oracle session seed
+    short_seed: str = ""                   # display digest (cover/UI chip)
     oracle_date: str                       # session date shown on the cover
     spread: SpreadType
     source: SourceSystem

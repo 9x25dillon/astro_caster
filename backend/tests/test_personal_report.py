@@ -225,9 +225,11 @@ def test_genuine_session_compiles_offline(monkeypatch):
     assert d["ai_source"] == "offline" and d["model"] is None    # honest provenance
     assert d["disclaimer"] == DISCLAIMER
     md = d["report_markdown"]
-    # Mandated cover framing
+    # Mandated cover framing. short_seed is a DIGEST fragment (the raw seed's
+    # tail is the user's question — never printed).
     assert "Compiled from your Oracle Report session of 2026-07-01" in md
-    assert f"Seed: {d['seed'][-12:]}" in md
+    assert len(d["short_seed"]) == 12 and d["short_seed"] not in d["seed"]
+    assert f"Seed: {d['short_seed']}" in md
     assert PERSONAL.COVER_PRODUCT_LINE in md
     # All 11 top-level parts present, in order
     idx = -1
@@ -244,6 +246,36 @@ def test_genuine_session_compiles_offline(monkeypatch):
     assert "ORACLE_TEXT_MARKER" in md
     assert "{{SIGIL}}" in md and "{{BIRTH_INFO}}" in md
     assert DISCLAIMER in md
+
+
+def test_module_inserts_woven_offline(monkeypatch):
+    # Soul Profile + Life Path land in the deep-dive part; Astra's Reflection
+    # lands inside the Oracle synthesis part — woven, not appended at the end.
+    _force_offline(monkeypatch)
+    r = client.post("/api/personal-report", json=_payload(
+        entitlement=_token("oracle"), report_token=_report_token(),
+        soul_profile="SOUL_MARKER The Alchemist (Water · Fixed)",
+        life_path="LIFEPATH_MARKER Life Path 7 — The Seeker.",
+        reflection_summary="REFLECT_MARKER Saturn asks for structure."))
+    assert r.status_code == 200, r.text[:200]
+    md = r.json()["report_markdown"]
+    deep = md.split("# The Oracle Report")[0]
+    assert "## Soul Profile" in deep and "SOUL_MARKER" in deep
+    assert "## Life Path Numerology" in deep and "LIFEPATH_MARKER" in deep
+    oracle_part = md.split("# The Oracle Report")[1].split("\n# ")[0]
+    assert "## Astra's Reflection" in oracle_part and "REFLECT_MARKER" in oracle_part
+
+
+def test_module_inserts_reach_prompt():
+    req = PersonalReportRequest(
+        chart=_CHART, oracle=OracleSessionRef(**_genuine_session()),
+        soul_profile="SOUL_MARKER", life_path="LIFEPATH_MARKER",
+        reflection_summary="REFLECT_MARKER")
+    sub = PERSONAL.build_personal_substrate(req)
+    prompt = PERSONAL._substrate_prompt(req, sub)
+    assert "SOUL PROFILE" in prompt and "SOUL_MARKER" in prompt
+    assert "LIFE PATH NUMEROLOGY" in prompt and "LIFEPATH_MARKER" in prompt
+    assert "ASTRA'S REFLECTION" in prompt and "REFLECT_MARKER" in prompt
 
 
 def test_substrate_is_deterministic():

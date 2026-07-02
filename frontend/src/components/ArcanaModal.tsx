@@ -31,7 +31,9 @@ import { CLASSROOM, EXPRESSION_KINDS, generateArtifact, type Artifact } from "..
 import { Interpretation } from "./DetailPanel";
 import { useSpeech, speakableText } from "../lib/speech";
 import { printReport } from "../lib/printReport";
-import { chaosLetters } from "../lib/sigil";
+import { chaosLetters, wordValue, reduceDigit, planetToKamea } from "../lib/sigil";
+import { deriveSoulProfile } from "../lib/archetypes";
+import { computeLifePath, LIFE_PATH_DATA, getResonance } from "../lib/numerology";
 
 // Friendly labels for the models that can serve an Oracle Report (requested
 // model + its server-side fallback). Unknown IDs fall through as-is — honest
@@ -83,6 +85,7 @@ function CardChip({ name, reversed }: { name: string; reversed?: boolean }) {
 export const ArcanaModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const chart = useStore((s) => s.chart);
   const birth = useStore((s) => s.birth);
+  const aiResult = useStore((s) => s.aiResult);   // Astra's Detail-panel reading
   const entitlement = useStore((s) => s.entitlement);
   const isSupporter = useStore((s) => s.isSupporter);
   const openSupport = useStore((s) => s.openSupport);
@@ -250,16 +253,46 @@ export const ArcanaModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       // PDF-4: sigil formation notes, derived deterministically from the SAME
       // construction the printed codex draws (chaos method over the question's
       // consonants) — so the notes, the prompt, and the printed sigil agree.
+      // Extended with the gematria/kamea reading the Oracle module teaches.
+      const profile = deriveSoulProfile(chart);
       const letters = chaosLetters(oracle.question);
+      const gv = wordValue(oracle.question);
       const sigilNotes = letters.length >= 2
         ? `Chaos method: the querent's question was distilled to its unique ` +
           `consonants (${letters.join(" · ").toUpperCase()}) and traced as a ` +
-          `single unbroken line on a ${letters.length}-point ring.`
+          `single unbroken line on a ${letters.length}-point ring. ` +
+          `Gematria: the question's letters sum to ${gv}, reducing to the root ` +
+          `digit ${reduceDigit(gv)}. Kamea method: the same intention can be ` +
+          `traced on the ${planetToKamea(profile.dominantPlanet)} magic square — ` +
+          `the planetary kamea answering the chart's dominant ${profile.dominantPlanet}.`
+        : undefined;
+      // Module inserts: the observatory's other Astra surfaces, woven into the
+      // deluxe edition. All client-derived symbolic text — no raw birth data
+      // (the life path is a reduced digit; the soul profile is chart-derived).
+      const soulProfile =
+        `${profile.soulType} (${profile.archetype}) — "${profile.tagline}" ` +
+        `${profile.description} Dominant planet: ${profile.dominantPlanet} ` +
+        `${profile.dominantGlyph}. ${profile.manifestation} Life themes: ` +
+        profile.lifeThemes.map((t) =>
+          `House ${t.house} (${t.planets.join(", ")}): ${t.theme} — ${t.focus}`).join("; ") + ".";
+      const lpNum = computeLifePath(birth);
+      const lp = LIFE_PATH_DATA[lpNum];
+      const lifePath = lp
+        ? `Life Path ${lpNum} ${lp.glyph} — ${lp.name}. "${lp.tagline}" ` +
+          `${lp.frequency} Gift: ${lp.gift} Shadow: ${lp.shadow} ` +
+          `Resonance with the dominant element (${profile.dominantElement}): ` +
+          getResonance(lpNum, profile.dominantElement)
+        : undefined;
+      const reflectionSummary = aiResult?.interpretation?.trim()
+        ? aiResult.interpretation.trim().slice(0, 1600)
         : undefined;
       const p = await fetchPersonalReport(chart, oracle, {
         date: oracleCtx?.date ?? null,
         generatedAt: oracleCtx?.generatedAt,
         sigilNotes,
+        soulProfile,
+        lifePath,
+        reflectionSummary,
         entitlement,
         reportToken,
       });
@@ -351,6 +384,9 @@ export const ArcanaModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       birthInfo,
       sigilPhrase: oracle?.question || "astra arcana",
       title: `Astra Arcana — Personal Report · ${personal.oracle_date}`,
+      // Tome frontispiece: the user's own constellation + session star field.
+      chartPlanets: chart?.planets.map((p) => ({ id: p.id, longitude: p.longitude })),
+      seed: personal.seed,
     });
     if (!ok) setErr("Popup blocked — allow popups for this site to print the report.");
     else trackEvent("personal_report_print", { spread: personal.spread });
@@ -647,7 +683,7 @@ export const ArcanaModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                           </div>
                           <p style={{ fontSize: "0.75rem", opacity: 0.75, margin: "4px 0 8px" }}>
                             Compiled from your Oracle session of {personal.oracle_date} · seed{" "}
-                            <code style={{ userSelect: "all" }}>{personal.seed.slice(-12)}</code>
+                            <code style={{ userSelect: "all" }}>{personal.short_seed || personal.seed.slice(0, 12)}</code>
                           </p>
 
                           {/* Top-level part preview — the full render is the PDF pipeline's job. */}

@@ -25,12 +25,15 @@ const CSS = `
   .page:last-child { page-break-after: auto; }
   .cover { display: flex; flex-direction: column; align-items: center; justify-content: center;
            text-align: center; color: #F8F4E9;
-           background: linear-gradient(180deg, #1A0F33 0%, #2C1654 100%); }
+           background: linear-gradient(180deg, #0D0620 0%, #1A0F33 55%, #2C1654 100%); }
   .cover h2, .cover h3 { color: #F8F4E9; border: none; }
   .cover .meta { color: #C9A84C; font-style: italic; margin: 0.35rem 0; }
+  .cover-art { width: 100%; max-width: 5.4in; margin: 0 auto 0.5rem; display: block; }
   h1 { font-family: "Cinzel", Georgia, serif; font-size: 2rem; letter-spacing: 2px;
        color: #2C1654; margin: 0.3rem 0 0.8rem; }
-  .cover h1 { color: #F8F4E9; font-size: 2.6rem; }
+  .page h1::after { content: "✦ ✧ ✦"; display: block; text-align: center;
+       color: #C9A84C; font-size: 0.72rem; letter-spacing: 9px; margin-top: 0.25rem; }
+  .cover h1 { color: #F8F4E9; font-size: 2.4rem; }
   h2 { font-family: "Cinzel", Georgia, serif; font-size: 1.25rem; color: #2C1654;
        border-bottom: 1px solid #C9A84C; padding-bottom: 0.2rem; margin-top: 1.2rem; }
   h3 { font-size: 1.02rem; color: #2C1654; margin: 0.9rem 0 0.3rem; }
@@ -79,6 +82,155 @@ export function sigilSvg(phrase: string): string {
   </svg>`;
 }
 
+// ── Esoteric-tome cover art ───────────────────────────────────────────────────
+// A deterministic generative frontispiece: the user's OWN sky. Star scatter
+// seeded by the Oracle session seed, the zodiac ring, the natal planets set at
+// their true longitudes and joined into a personal constellation, and the
+// question's chaos sigil at the heart. Pure SVG — offline, reproducible, and
+// nothing leaves the browser.
+
+const ZODIAC_GLYPHS = ["♈", "♉", "♊", "♋", "♌", "♍", "♎", "♏", "♐", "♑", "♒", "♓"];
+const PLANET_GLYPHS: Record<string, string> = {
+  Sun: "☉", Moon: "☽", Mercury: "☿", Venus: "♀", Mars: "♂", Jupiter: "♃",
+  Saturn: "♄", Uranus: "♅", Neptune: "♆", Pluto: "♇",
+};
+
+/** Tiny seeded PRNG (mulberry32 over a string hash) — same seed, same sky. */
+function seededRandom(seedStr: string): () => number {
+  let h = 1779033703 ^ seedStr.length;
+  for (let i = 0; i < seedStr.length; i++) {
+    h = Math.imul(h ^ seedStr.charCodeAt(i), 3432918353);
+    h = (h << 13) | (h >>> 19);
+  }
+  let a = h >>> 0;
+  return () => {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+export interface CoverArtOptions {
+  /** Natal placements: id + ecliptic longitude (drawn at their true degrees). */
+  planets?: { id: string; longitude: number }[];
+  /** Oracle session seed — drives the star scatter. */
+  seed?: string;
+  /** The question — drives the central chaos sigil. */
+  phrase?: string;
+}
+
+export function coverArtSvg(opts: CoverArtOptions = {}): string {
+  const W = 620, H = 620, cx = W / 2, cy = H / 2;
+  const rnd = seededRandom(opts.seed || opts.phrase || "astra arcana");
+  const gold = "#C9A84C", cream = "#F8F4E9";
+
+  // Star scatter — three magnitudes, kept off the central sigil disc.
+  const stars: string[] = [];
+  for (let i = 0; i < 110; i++) {
+    const x = 18 + rnd() * (W - 36), y = 18 + rnd() * (H - 36);
+    if (Math.hypot(x - cx, y - cy) < 118) continue;
+    const m = rnd();
+    const r = m < 0.75 ? 0.7 : m < 0.94 ? 1.25 : 1.9;
+    const o = (0.25 + rnd() * 0.55).toFixed(2);
+    stars.push(`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r}" fill="${cream}" opacity="${o}"/>`);
+  }
+
+  // Zodiac ring — 0° Aries at 9 o'clock, counter-clockwise (chart convention).
+  // U+FE0E forces TEXT presentation: engraved gold glyphs, not color emoji
+  // (emoji also renders unreliably in print/PDF pipelines).
+  const TEXT_STYLE = `font-family="Georgia, 'Noto Sans Symbols', serif"`;
+  const zodiacR = 262;
+  const zodiac = ZODIAC_GLYPHS.map((g, i) => {
+    const a = Math.PI - ((i * 30 + 15) * Math.PI) / 180;
+    const x = cx + zodiacR * Math.cos(a), y = cy - zodiacR * Math.sin(a);
+    return `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" font-size="19" fill="${gold}" ${TEXT_STYLE}
+      opacity="0.85" text-anchor="middle" dominant-baseline="central">${g}︎</text>`;
+  }).join("");
+  const ticks = Array.from({ length: 12 }, (_, i) => {
+    const a = Math.PI - (i * 30 * Math.PI) / 180;
+    const x1 = cx + 240 * Math.cos(a), y1 = cy - 240 * Math.sin(a);
+    const x2 = cx + 284 * Math.cos(a), y2 = cy - 284 * Math.sin(a);
+    return `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}"
+      stroke="${gold}" stroke-width="0.6" opacity="0.45"/>`;
+  }).join("");
+
+  // The personal constellation — planets at their true longitudes, joined in
+  // zodiacal order into a single figure only this chart draws.
+  const bodies = (opts.planets ?? [])
+    .filter((p) => PLANET_GLYPHS[p.id])
+    .sort((a, b) => a.longitude - b.longitude);
+  const planetR = 205;
+  const pts = bodies.map((p) => {
+    const a = Math.PI - (p.longitude * Math.PI) / 180;
+    return { ...p, x: cx + planetR * Math.cos(a), y: cy - planetR * Math.sin(a) };
+  });
+  const constellation = pts.length >= 2
+    ? `<polyline points="${pts.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ")}"
+        fill="none" stroke="${gold}" stroke-width="0.7" opacity="0.5" stroke-dasharray="1 3"/>`
+    : "";
+  const planetMarks = pts.map((p) => {
+    const lum = p.id === "Sun" || p.id === "Moon";
+    return `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${lum ? 3.4 : 2.3}"
+        fill="${gold}"/>` +
+      `<text x="${p.x.toFixed(1)}" y="${(p.y - 11).toFixed(1)}" font-size="${lum ? 15 : 12}" ${TEXT_STYLE}
+        fill="${cream}" opacity="0.92" text-anchor="middle">${PLANET_GLYPHS[p.id]}︎</text>`;
+  }).join("");
+
+  // Heart of the tome: the question's chaos sigil inside a gold annulus.
+  const data = buildChaosData(opts.phrase || "astra arcana", cx, cy, 78);
+  const sigilPath = chaosToSVGPath(data);
+  const sigilDots = data.letters.map((_, i) => {
+    const a = (i * 2 * Math.PI) / data.letters.length - Math.PI / 2;
+    return `<circle cx="${(cx + 78 * Math.cos(a)).toFixed(1)}" cy="${(cy + 78 * Math.sin(a)).toFixed(1)}"
+      r="1.8" fill="${gold}" opacity="0.9"/>`;
+  }).join("");
+
+  // Corner ornaments — the tome's binding flourishes.
+  const corner = (x: number, y: number, sx: number, sy: number) =>
+    `<path d="M ${x} ${y + 26 * sy} L ${x} ${y} L ${x + 26 * sx} ${y}
+       M ${x + 6 * sx} ${y + 14 * sy} L ${x + 6 * sx} ${y + 6 * sy} L ${x + 14 * sx} ${y + 6 * sy}"
+       fill="none" stroke="${gold}" stroke-width="1.4" opacity="0.9"/>`;
+
+  return `<svg class="cover-art" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img"
+    aria-label="Esoteric frontispiece: your natal constellation around your question's sigil">
+    <defs>
+      <radialGradient id="tome-void" cx="50%" cy="46%" r="72%">
+        <stop offset="0%" stop-color="#2C1654"/>
+        <stop offset="55%" stop-color="#1A0F33"/>
+        <stop offset="100%" stop-color="#0D0620"/>
+      </radialGradient>
+      <radialGradient id="tome-halo" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="${gold}" stop-opacity="0.22"/>
+        <stop offset="70%" stop-color="${gold}" stop-opacity="0.05"/>
+        <stop offset="100%" stop-color="${gold}" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+    <rect width="${W}" height="${H}" fill="url(#tome-void)"/>
+    <rect x="10" y="10" width="${W - 20}" height="${H - 20}" fill="none"
+      stroke="${gold}" stroke-width="2" opacity="0.9"/>
+    <rect x="18" y="18" width="${W - 36}" height="${H - 36}" fill="none"
+      stroke="${gold}" stroke-width="0.6" opacity="0.55"/>
+    ${corner(26, 26, 1, 1)}${corner(W - 26, 26, -1, 1)}
+    ${corner(26, H - 26, 1, -1)}${corner(W - 26, H - 26, -1, -1)}
+    ${stars.join("")}
+    <circle cx="${cx}" cy="${cy}" r="284" fill="none" stroke="${gold}" stroke-width="1.1" opacity="0.8"/>
+    <circle cx="${cx}" cy="${cy}" r="240" fill="none" stroke="${gold}" stroke-width="0.8" opacity="0.6"/>
+    ${ticks}${zodiac}
+    <circle cx="${cx}" cy="${cy}" r="${planetR}" fill="none" stroke="${gold}" stroke-width="0.4"
+      opacity="0.3" stroke-dasharray="2 5"/>
+    ${constellation}${planetMarks}
+    <circle cx="${cx}" cy="${cy}" r="112" fill="url(#tome-halo)"/>
+    <circle cx="${cx}" cy="${cy}" r="96" fill="none" stroke="${gold}" stroke-width="1.3" opacity="0.9"/>
+    <circle cx="${cx}" cy="${cy}" r="88" fill="none" stroke="${gold}" stroke-width="0.5" opacity="0.5"/>
+    ${sigilDots}
+    ${sigilPath ? `<path d="${sigilPath}" fill="none" stroke="${cream}" stroke-width="2.6"
+      stroke-linecap="round" stroke-linejoin="round" opacity="0.95"/>
+    <path d="${sigilPath}" fill="none" stroke="${gold}" stroke-width="5.5"
+      stroke-linecap="round" stroke-linejoin="round" opacity="0.22"/>` : ""}
+  </svg>`;
+}
+
 /** One markdown part (text between `# ` headings) → HTML blocks. */
 function renderBlocks(body: string, sigil: string): string {
   const out: string[] = [];
@@ -116,11 +268,20 @@ export interface PrintOptions {
   birthInfo?: string;   // filled locally — never sent anywhere
   sigilPhrase?: string; // seeds the chaos sigil (e.g. the Oracle question)
   title?: string;
+  /** Natal placements for the tome-cover constellation (id + longitude). */
+  chartPlanets?: { id: string; longitude: number }[];
+  /** Oracle session seed — makes the cover's star scatter this session's own. */
+  seed?: string;
 }
 
 /** Markdown → full standalone print document (HTML string). */
 export function reportToPrintHtml(markdown: string, opts: PrintOptions = {}): string {
   const sigil = sigilSvg(opts.sigilPhrase ?? "astra arcana");
+  const coverArt = coverArtSvg({
+    planets: opts.chartPlanets,
+    seed: opts.seed,
+    phrase: opts.sigilPhrase,
+  });
   // Fill the local-only placeholder BEFORE escaping (value is escaped itself).
   const md = markdown.replace(/\{\{BIRTH_INFO\}\}/g, opts.birthInfo ?? "");
   const parts = md.split(/\n(?=# )/g);
@@ -134,7 +295,13 @@ export function reportToPrintHtml(markdown: string, opts: PrintOptions = {}): st
     }
     const cls = i === 0 ? "page cover" : "page";
     const h = title ? `<h1>${inline(escapeHtml(title))}</h1>` : "";
-    return `<section class="${cls}">${h}${renderBlocks(body, sigil)}</section>`;
+    // The frontispiece replaces the plain sigil slot on the cover; inner
+    // {{SIGIL}} slots keep the focused chaos-sigil rendering.
+    const art = i === 0 ? coverArt : "";
+    const bodyHtml = i === 0
+      ? renderBlocks(body.replace(/^\s*\{\{SIGIL\}\}\s*$/m, ""), sigil)
+      : renderBlocks(body, sigil);
+    return `<section class="${cls}">${art}${h}${bodyHtml}</section>`;
   });
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
 <title>${escapeHtml(opts.title ?? "Astra Arcana — Personal Report")}</title>

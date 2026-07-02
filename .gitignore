@@ -31,3 +31,6 @@ oracle_report_*.txt
 GROK_FEEDBACK_REPORT.md
 journal/
 TASKS.md
+
+# Personal print artifacts (contain birth data) — never commit
+*.pdf

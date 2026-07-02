@@ -524,6 +524,7 @@ export function fetchOracleReport(
 
 export interface PersonalReportResponse {
   seed: string;
+  short_seed: string;   // display digest — the raw seed's tail is the question
   oracle_date: string;
   spread: SpreadType;
   source: SourceSystem;
@@ -577,6 +578,9 @@ export function fetchPersonalReport(
     displayName?: string;
     sigilNotes?: string;
     predictiveSummary?: string;
+    reflectionSummary?: string;   // Astra's Detail-panel reading
+    soulProfile?: string;         // Soul Profile module text
+    lifePath?: string;            // Life Path numerology text
     entitlement?: string | null;
     reportToken?: string | null;
   } = {},
@@ -597,6 +601,9 @@ export function fetchPersonalReport(
     display_name: opts.displayName ?? null,
     sigil_notes: opts.sigilNotes ?? null,
     predictive_summary: opts.predictiveSummary ?? null,
+    reflection_summary: opts.reflectionSummary ?? null,
+    soul_profile: opts.soulProfile ?? null,
+    life_path: opts.lifePath ?? null,
     entitlement: opts.entitlement ?? null,
     report_token: opts.reportToken ?? null,
   });
