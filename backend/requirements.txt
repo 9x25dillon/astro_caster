@@ -3,7 +3,7 @@ uvicorn[standard]==0.34.0
 pydantic==2.10.4
 pyswisseph==2.10.3.2
 httpx==0.28.1
-python-dotenv==1.0.1
+python-dotenv==1.2.2
 tzdata==2026.2
 anthropic==0.115.0
 pytest==8.3.4
