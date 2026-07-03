@@ -5,7 +5,7 @@ _Baseline commit: `d9afc4b` (main, clean tree). Backend: 36 tests passing. Front
 
 > This is the pre-work map. It records the topology, the AI-authorship seams, the
 > orphan candidates, and the confirmed Phase 1 findings at their true severity. It is
-> the "before" half of the audit bracket; `AUDIT_REGRESSION.md` (Phase 6) is the "after".
+> the "before" half of the audit bracket; `docs/audits/AUDIT_REGRESSION.md` (Phase 6) is the "after".
 
 ---
 
@@ -96,7 +96,7 @@ shape, telemetry) is centralized here — Phase 1 and Phase 5 both concentrate o
 | `daily_arcana_from_events` skip-on-no-event | Conditionally-produced state read as if complete (`if ev is None: continue`, `tarot.py:449`) | **Latent defect → Phase 1.5.** A 7-day request can return <7 cards. |
 | `_default_seed` daily-branch date source | `_dt.date.today()` (server-local) written into the determinism seed unconditionally | **→ Phase 1.4.** Seed depends on server clock, not the querent's local day. |
 | `arcana-forecast` start date | `dt.date.today()` (main.py:443) | **→ Phase 1.4.** Same server-clock coupling. |
-| `IMPLEMENTATION_SCHEDULE.md`, `Hand_off.md` | Untracked planning docs at repo root | Context artifacts. Keep untracked or move to `docs/`; not source. |
+| `docs/archive/IMPLEMENTATION_SCHEDULE.md`, `docs/progress/Hand_off.md` | Untracked planning docs at repo root | Context artifacts. Keep untracked or move to `docs/`; not source. |
 
 _No modules with zero callers other than `verify_ai.py`. No dead API routes detected._
 

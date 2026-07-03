@@ -1,3 +1,5 @@
+> **Archived.** This mid-flight handoff (2026-07-01, production hardening phases 0-3) was completed and closed out; the current session handoff is [`docs/progress/Hand_off.md`](../progress/Hand_off.md). Kept for historical reference.
+
 # Astra Arcana — Handoff for Fable 5 (Production Hardening, mid-flight)
 
 _Written 2026-07-01, end of an Opus 4.8 session. You are picking up a **partially
@@ -40,7 +42,7 @@ contracts were assumed rather than honored.
 - **Remote:** `github.com/9x25dillon/astro_caster`.
 
 ### Deliverables already produced
-- `AUDIT_BASELINE.md` (Phase 0 topology map, AI-authorship markers, orphan sweep,
+- `docs/audits/AUDIT_BASELINE.md` (Phase 0 topology map, AI-authorship markers, orphan sweep,
   confirmed findings at audit severity). **Read this first** — it's the map.
 - `CHANGELOG.md` (per-phase log of exactly what changed and why). **Read this second.**
 - 8 new backend test modules + `backend/tests/conftest.py`.
@@ -119,11 +121,11 @@ same symbolic substrate the engine already models (`tarot_data.py`, the natal si
   it's any *app-boot* step in CI that needs the env var.
 
 ### Phase 6 — Regression audit (closing gate)
-- Produce **`AUDIT_REGRESSION.md`**: review every security-sensitive diff (trust-mode
+- Produce **`docs/audits/AUDIT_REGRESSION.md`**: review every security-sensitive diff (trust-mode
   gate, entitlement checks, input validation, seeding) for silently-weakened controls;
   confirm token validation is complete (signature + expiry checked — see
   `entitlements.verify_token`); re-inspect the producer/consumer boundaries flagged in
-  `AUDIT_BASELINE.md` §3 now that types changed.
+  `docs/audits/AUDIT_BASELINE.md` §3 now that types changed.
 - **Consolidated README update** (deliverable): arcana-lens decision, the new request
   fields (`date`/`start_date`/`timezone`/`source`), source-system selection, calendar
   export, CI status badge. (README was only minimally touched in 1.3; the full pass is
@@ -173,7 +175,7 @@ every response; CI green (`pytest` + `tsc -b && vite build` on clean checkout).
 1. **Git-history purge:** the real birth data (`34.935,-117.199`, 1987-11-11) is scrubbed
    from the working tree but **remains in git history** (commits `b1bdd5f`→). Full removal
    needs a destructive rewrite (`git filter-repo`/BFG + force-push). **Deferred pending an
-   explicit go/no-go.** Log the outcome in `AUDIT_REGRESSION.md`.
+   explicit go/no-go.** Log the outcome in `docs/audits/AUDIT_REGRESSION.md`.
 2. **Commit/branch strategy:** everything is uncommitted on `main`. The user's PR workflow
    is: **branch before committing to `main`**, then open a PR. Confirm branch name /
    whether to split Phases 1–3 into logical commits before you add Phase 4+.
@@ -187,12 +189,12 @@ every response; CI green (`pytest` + `tsc -b && vite build` on clean checkout).
 - End git commit messages with the required `Co-Authored-By` trailer; branch before
   committing to `main`; use `gh` for PRs.
 - Track work with the task tools; update `CHANGELOG.md` per phase; keep the two audit
-  docs (`AUDIT_BASELINE.md`, and the owed `AUDIT_REGRESSION.md`) as the audit bracket.
+  docs (`docs/audits/AUDIT_BASELINE.md`, and the owed `docs/audits/AUDIT_REGRESSION.md`) as the audit bracket.
 
 ---
 
 ## 8. First moves when you start
-1. Read `AUDIT_BASELINE.md` then `CHANGELOG.md` (full context in ~5 min).
+1. Read `docs/audits/AUDIT_BASELINE.md` then `CHANGELOG.md` (full context in ~5 min).
 2. `cd backend && .venv/bin/python -m pytest -q` → confirm `78 passed`.
 3. `cd frontend && npm run build` → confirm clean.
 4. Ask the user the two §6 decisions (git history, commit strategy).

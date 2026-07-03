@@ -23,6 +23,7 @@ import type {
   TransitResponse,
 } from "../types";
 import { trackEvent } from "../api/client";
+import { toDatetimeLocal } from "../lib/datetime";
 
 // Default chart — an obviously-synthetic sample (Y2K noon, Greenwich) so the
 // observatory is never empty on first visit. Carries no personal data, and is
@@ -124,7 +125,7 @@ export const useStore = create<AstroState>((set, get) => ({
 
   chart: null,
   transit: null,
-  transitIso: new Date().toISOString().slice(0, 16),
+  transitIso: toDatetimeLocal(new Date()),
 
   selection: null,
   hovered: null,
@@ -164,7 +165,9 @@ export const useStore = create<AstroState>((set, get) => ({
   },
 
   loadTransit: async (iso) => {
-    set({ transitIso: iso });
+    // Keep transitIso in local datetime-local format: a raw toISOString()
+    // value (trailing seconds + "Z") blanks <input type="datetime-local">.
+    set({ transitIso: toDatetimeLocal(iso) });
     try {
       const transit = await fetchTransits(get().birth, new Date(iso).toISOString());
       set({ transit });

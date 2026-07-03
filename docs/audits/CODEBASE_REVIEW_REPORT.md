@@ -35,7 +35,7 @@ All findings below are categorized. "Broken" = non-functional or mismatched vs s
 **Severity:** High (directly contradicts user requirement + design spec).
 
 - **User spec**: "optional product that must be purchased separately after they have produced output from the oracle".
-- **Design** (`ASTRO_ARCANA_PERSONAL_REPORT_DESIGN.md`): Explicit "separate payment flow (or one-time report token)", "purchase/ generation option must only be offered after successful `/api/oracle-report`". Two-factor gate (tier + purchase).
+- **Design** (`docs/design/ASTRO_ARCANA_PERSONAL_REPORT_DESIGN.md`): Explicit "separate payment flow (or one-time report token)", "purchase/ generation option must only be offered after successful `/api/oracle-report`". Two-factor gate (tier + purchase).
 - **Current code**:
   - Backend (`main.py:558`, `personal_report.py`): Only checks `tier == "oracle"` (402) + `verify_oracle_session` (409 on seed mismatch). No purchase token/product SKU.
   - Frontend (`client.ts:541`, `ArcanaModal.tsx:219`): `fetchPersonalReport` callable immediately after `oracle` state exists. Button "✦ Compile Personal Report" appears with no purchase step. Directly calls backend.
@@ -66,7 +66,7 @@ All findings below are categorized. "Broken" = non-functional or mismatched vs s
   - `downloadMarkdown`, preview in `<details>` accordion in ArcanaModal (crude split on `# `).
   - No server-side PDF (no WeasyPrint, reportlab, etc. in deps or code).
   - `lib/printReport.ts` handles basic, but not full typography/grid from design mock.
-- **Broken connection**: `FABLE5_PERSONAL_REPORT_PROMPT.md` + design → actual output is markdown + browser print, not polished PDF.
+- **Broken connection**: `docs/prompts/FABLE5_PERSONAL_REPORT_PROMPT.md` + design → actual output is markdown + browser print, not polished PDF.
 - Audio companion hooks exist but rely on `speech` lib (ElevenLabs or browser).
 
 ## 3. Medium / Functional Gaps & Potential Bugs
@@ -129,4 +129,4 @@ All findings below are categorized. "Broken" = non-functional or mismatched vs s
 
 Report generated from live inspection (tests, imports, routes, source, runtime calls). All exercised flows succeeded. Fix the gating and renderer for full alignment. 
 
-(End of report. Suggested: Write this to disk and track in `COMPREHENSIVE_TASK_SCHEDULE.md` under follow-ups.)
+(End of report. Suggested: Write this to disk and track in `docs/progress/COMPREHENSIVE_TASK_SCHEDULE.md` under follow-ups.)

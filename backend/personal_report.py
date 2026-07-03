@@ -4,8 +4,8 @@ personal_report.py
 The Astra Arcana Personal Report — a deluxe compiled edition sold as an
 OPTIONAL, SEPARATE post-Oracle product. Not the regular Oracle Report: this is
 the research-paper-style culmination of an Oracle session, compiled into
-PDF-ready markdown (design: docs/ASTRO_ARCANA_PERSONAL_REPORT_DESIGN.md; the
-canonical prompt spec: FABLE5_PERSONAL_REPORT_PROMPT.md).
+PDF-ready markdown (design: docs/design/ASTRO_ARCANA_PERSONAL_REPORT_DESIGN.md; the
+canonical prompt spec: docs/prompts/FABLE5_PERSONAL_REPORT_PROMPT.md).
 
 Invariants honored:
   • Deterministic substrate first — chart citations, arcana signature, spread,
@@ -60,7 +60,7 @@ REPORT_PARTS = [
     "Sigil Codex & Creative Prompts", "Practices, Prompts & Closing", "Appendix",
 ]
 
-# API-tuned system prompt — derived from FABLE5_PERSONAL_REPORT_PROMPT.md (the
+# API-tuned system prompt — derived from docs/prompts/FABLE5_PERSONAL_REPORT_PROMPT.md (the
 # canonical spec). Differences from the console version: input arrives as a
 # structured user message (substrate), placeholders replace user-supplied birth
 # data, and output is markdown only.

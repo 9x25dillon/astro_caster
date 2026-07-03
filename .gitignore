@@ -34,3 +34,6 @@ TASKS.md
 
 # Personal print artifacts (contain birth data) — never commit
 *.pdf
+
+# TypeScript incremental build state
+*.tsbuildinfo

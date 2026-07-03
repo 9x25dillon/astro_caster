@@ -14,10 +14,10 @@ You are an expert full-stack engineer (React/TypeScript + Python FastAPI) workin
 ## MANDATORY FIRST ACTIONS (do these before any code changes)
 
 1. Read these files **in order** and internalize them:
-   - `COMPREHENSIVE_TASK_SCHEDULE.md` — especially the **Immediate Priorities** block (F5-1 to F5-6) and exit criteria
-   - `PROJECT_WORK_HISTORY_MAP.md` — current status, invariants, what is already shipped
-   - `FABLE5_HANDOFF.md` — project philosophy, two **non-negotiable invariants**, working style notes, and Phase 4-6 guidance
-   - `CHANGELOG.md` (recent sections) and `AUDIT_REGRESSION.md` (security posture)
+   - `docs/progress/COMPREHENSIVE_TASK_SCHEDULE.md` — especially the **Immediate Priorities** block (F5-1 to F5-6) and exit criteria
+   - `docs/progress/PROJECT_WORK_HISTORY_MAP.md` — current status, invariants, what is already shipped
+   - `docs/archive/FABLE5_HANDOFF.md` — project philosophy, two **non-negotiable invariants**, working style notes, and Phase 4-6 guidance
+   - `CHANGELOG.md` (recent sections) and `docs/audits/AUDIT_REGRESSION.md` (security posture)
 
 2. Explore the current state of the Oracle Report feature:
    - `backend/oracle_report.py` (full file) — understand `build_report_substrate`, `_offline_report`, `_call_fable`, `generate_oracle_report`
@@ -44,7 +44,7 @@ You are an expert full-stack engineer (React/TypeScript + Python FastAPI) workin
 
 Current status (from review): Backend, models, client fetch, and basic state scaffolding are done. **The UI wiring and rendering are missing.**
 
-**Acceptance Criteria (from COMPREHENSIVE_TASK_SCHEDULE.md):**
+**Acceptance Criteria (from docs/progress/COMPREHENSIVE_TASK_SCHEDULE.md):**
 - `fetchOracleReport` is actually called.
 - The markdown report is beautifully rendered (preserve the ## I. The Signature / II. The Spread / III. The Path / IV. Practices / V. Synthesis structure).
 - Badges for `ai_source` ("Fable 5" when llm, "offline" when deterministic) and the actual `model`.
@@ -77,8 +77,8 @@ Once F5-1 is solid:
 - Acceptance criteria first. State clearly what "done" means before you start coding a piece.
 - After meaningful changes:
   1. Run the verification commands above.
-  2. Update `COMPREHENSIVE_TASK_SCHEDULE.md` (mark F5 items done with date + notes).
-  3. Update `PROJECT_WORK_HISTORY_MAP.md` (add progress note under current branch).
+  2. Update `docs/progress/COMPREHENSIVE_TASK_SCHEDULE.md` (mark F5 items done with date + notes).
+  3. Update `docs/progress/PROJECT_WORK_HISTORY_MAP.md` (add progress note under current branch).
   4. Add a concise entry to `CHANGELOG.md`.
 - Use the existing style: clear comments, determinism where possible, defensive error handling.
 - Prefer extending existing components rather than creating new files unless necessary.

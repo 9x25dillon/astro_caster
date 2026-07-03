@@ -4,6 +4,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useStore } from "../store/useStore";
 import { formatPos, ORDINAL, glyphText } from "../lib/astro";
+import { PLANET_METAL, MODALITY_PRINCIPLE } from "../lib/alchemy";
+import { ElementSigil, PrincipleSigil } from "./AlchemySigil";
 import { useSpeech } from "../lib/speech";
 import { GlossaryTooltip } from "./GlossaryTooltip";
 import type { Lens } from "../types";
@@ -273,6 +275,35 @@ export const DetailPanel: React.FC = () => {
           <div className="kv"><b>Dignity</b><span><GlossaryTooltip term={p.dignity}>{p.dignity}</GlossaryTooltip></span></div>
           <div className="kv"><b>Speed</b><span>{p.speed.toFixed(3)}°/day</span></div>
           <div className="kv"><b>Declination</b><span>{p.declination.toFixed(2)}°</span></div>
+          {PLANET_METAL[p.id] && (() => {
+            const metal = PLANET_METAL[p.id];
+            const principle = MODALITY_PRINCIPLE[p.modality];
+            return (
+              <div className="alchemy-card" style={{ borderColor: `${metal.color}55` }}>
+                <div className="alchemy-card-head">
+                  <span className="alchemy-metal-sigil" style={{ color: metal.color }}>
+                    {metal.sigil}
+                  </span>
+                  <span className="alchemy-metal-name">
+                    {metal.metal} <i className="alchemy-latin">· {metal.latin}</i>
+                  </span>
+                  {metal.stage && <span className="alchemy-stage">{metal.stage}</span>}
+                </div>
+                <div className="alchemy-correspondence">
+                  <span className="alchemy-corr-item">
+                    <ElementSigil element={p.element} color="var(--gold-soft)" /> {p.element}
+                  </span>
+                  {principle && (
+                    <span className="alchemy-corr-item" title={principle.gloss}>
+                      <PrincipleSigil principle={principle.name} color="var(--amethyst-soft)" />{" "}
+                      {principle.name}
+                    </span>
+                  )}
+                </div>
+                <div className="alchemy-motto">{metal.motto}</div>
+              </div>
+            );
+          })()}
           {related.length > 0 && (
             <>
               <div style={{ marginTop: 10, color: "var(--gold)", fontSize: 13 }}>Aspects</div>

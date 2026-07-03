@@ -162,8 +162,8 @@ session** — the server re-derives the deterministic seed from (chart, spread, 
 date, source) and rejects a fabricated or foreign session with 409. Privacy: the AI
 prompt carries only symbolic data; the cover uses a `{{BIRTH_INFO}}` placeholder the
 renderer fills client-side. Offline fallback compiles the same 11-part structure
-deterministically with honest `ai_source`. Spec: `FABLE5_PERSONAL_REPORT_PROMPT.md`;
-PDF design: `docs/ASTRO_ARCANA_PERSONAL_REPORT_DESIGN.md` (+ printable mock).
+deterministically with honest `ai_source`. Spec: `docs/prompts/FABLE5_PERSONAL_REPORT_PROMPT.md`;
+PDF design: `docs/design/ASTRO_ARCANA_PERSONAL_REPORT_DESIGN.md` (+ printable mock).
 
 In the UI, a **"✦ Compile Personal Report"** affordance appears beneath a successful
 Oracle Report (Draw tab): it echoes the exact session context (seed/date) for the
@@ -404,10 +404,13 @@ cd frontend && ./node_modules/.bin/tsc -b && npm run build
 
 ## Development & Progress Tracking
 
-For ongoing work:
+For ongoing work (full documentation map: [`docs/README.md`](docs/README.md) —
+living progress docs in `docs/progress/`, audits in `docs/audits/`, prompt
+specs in `docs/prompts/`, design contracts in `docs/design/`, superseded
+plans in `docs/archive/`):
 
-- See `COMPREHENSIVE_TASK_SCHEDULE.md` (prioritized tasks, Fable 5 completion items, reliability backlog, recommendations, ACs, and verification commands).
-- See `PROJECT_WORK_HISTORY_MAP.md` (full timeline by wave/phase/branch, feature status tables, audit brackets, git commands, and instructions for keeping the map current).
+- See `docs/progress/COMPREHENSIVE_TASK_SCHEDULE.md` (prioritized tasks, Fable 5 completion items, reliability backlog, recommendations, ACs, and verification commands).
+- See `docs/progress/PROJECT_WORK_HISTORY_MAP.md` (full timeline by wave/phase/branch, feature status tables, audit brackets, git commands, and instructions for keeping the map current).
 - Update both + `CHANGELOG.md` after every logical phase or branch close.
 - Always run: `cd backend && .venv/bin/python -m pytest -q` and `cd frontend && npm run build`.
 - Core invariants (never break): deterministic AI-free core; `DISCLAIMER` travels on every response; fail-closed security.

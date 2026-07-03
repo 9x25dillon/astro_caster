@@ -58,7 +58,7 @@ You are Fable 5, the advanced reasoning and synthesis model used inside Astra Ar
 
 ## Required Output Structure (for PDF)
 
-Produce rich, well-structured Markdown optimized for conversion to the research-paper PDF design (see docs/ASTRO_ARCANA_PERSONAL_REPORT_DESIGN.md and the printable mock in docs/Astro_Arcana_Report_Design_Mock.html).
+Produce rich, well-structured Markdown optimized for conversion to the research-paper PDF design (see docs/design/ASTRO_ARCANA_PERSONAL_REPORT_DESIGN.md and the printable mock in docs/design/Astro_Arcana_Report_Design_Mock.html).
 
 Use this exact high-level order:
 

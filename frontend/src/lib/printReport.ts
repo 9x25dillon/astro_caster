@@ -2,7 +2,7 @@
 //
 // Turns the deluxe edition's PDF-ready markdown into a styled, paginated
 // document and opens the browser's print dialog ("Save as PDF"). Design tokens
-// are lifted from docs/Astro_Arcana_Report_Design_Mock.html (the visual
+// are lifted from docs/design/Astro_Arcana_Report_Design_Mock.html (the visual
 // contract): Georgia serif, cream #F8F4E9, ink #1A0F33, amethyst #2C1654,
 // gold #C9A84C, Cinzel-style part headers, gold pull-quotes.
 //
@@ -15,6 +15,7 @@
 // the report can inject markup into the print document.
 
 import { buildChaosData, chaosToSVGPath } from "./sigil";
+import { PLANET_METAL, MODALITY_PRINCIPLE } from "./alchemy";
 
 const CSS = `
   @page { size: 8.5in 11in; margin: 0.6in 0.75in; }
@@ -49,6 +50,19 @@ const CSS = `
   .sigil-caption { text-align: center; font-size: 0.7rem; letter-spacing: 3px;
                    color: #C9A84C; margin-top: -0.6rem; }
   .disclaimer { font-size: 0.72rem; opacity: 0.8; font-style: italic; }
+  /* Alchemical correspondences appendix */
+  .alch-table { width: 100%; border-collapse: collapse; margin: 0.8rem 0 0.4rem; font-size: 0.86rem; }
+  .alch-table th { font-family: "Cinzel", Georgia, serif; font-size: 0.72rem; letter-spacing: 2px;
+                   text-transform: uppercase; color: #2C1654; text-align: left;
+                   border-bottom: 1.5px solid #C9A84C; padding: 0.25rem 0.4rem; }
+  .alch-table td { border-bottom: 1px solid rgba(201,168,76,0.35); padding: 0.32rem 0.4rem;
+                   vertical-align: top; }
+  .alch-sigil { font-size: 1.05rem; color: #2C1654; }
+  .alch-latin { font-style: italic; color: #6b5a8e; font-size: 0.78rem; }
+  .alch-stage { font-size: 0.68rem; letter-spacing: 1.5px; text-transform: uppercase; color: #8a6d2f; }
+  .alch-motto { font-style: italic; color: #4a3a6e; font-size: 0.8rem; border-bottom: none !important;
+                padding-top: 0 !important; }
+  .alch-mark { vertical-align: -0.14em; margin-right: 0.22rem; }
 `;
 
 function escapeHtml(s: string): string {
@@ -272,6 +286,57 @@ export interface PrintOptions {
   chartPlanets?: { id: string; longitude: number }[];
   /** Oracle session seed — makes the cover's star scatter this session's own. */
   seed?: string;
+  /** When provided, an "Alchemical Correspondences" appendix page is added:
+   *  each classical body's metal, opus stage, element, and principle. */
+  alchemyPlanets?: { id: string; element: string; modality: string; sign: string }[];
+}
+
+/** Tiny inline-SVG element triangle for print (fonts can't be trusted with
+ *  the Unicode alchemical block). Ink strokes on cream. */
+function elementMarkSvg(element: string): string {
+  const up = element === "Fire" || element === "Air";
+  const barred = element === "Air" || element === "Earth";
+  const tri = up ? "M6 1.5 L11 10.5 L1 10.5 Z" : "M6 10.5 L1 1.5 L11 1.5 Z";
+  const bar = barred
+    ? `<line x1="3" y1="${up ? 7.4 : 4.6}" x2="9" y2="${up ? 7.4 : 4.6}"/>`
+    : "";
+  return `<svg class="alch-mark" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#2C1654" stroke-width="1.1" stroke-linejoin="round"><path d="${tri}"/>${bar}</svg>`;
+}
+
+/** The appendix page: metals of the reader's own sky. Static correspondence
+ *  copy from lib/alchemy plus chart-derived element/sign — all escaped. */
+function alchemyPageHtml(
+  planets: NonNullable<PrintOptions["alchemyPlanets"]>,
+): string {
+  const rows = planets
+    .filter((p) => PLANET_METAL[p.id])
+    .map((p) => {
+      const m = PLANET_METAL[p.id];
+      const principle = MODALITY_PRINCIPLE[p.modality];
+      return `<tr>
+        <td><span class="alch-sigil">${escapeHtml(m.sigil)}</span> ${escapeHtml(p.id)}</td>
+        <td>${escapeHtml(m.metal)} <span class="alch-latin">· ${escapeHtml(m.latin)}</span>
+            ${m.stage ? `<div class="alch-stage">${escapeHtml(m.stage)}</div>` : ""}</td>
+        <td>${elementMarkSvg(p.element)}${escapeHtml(p.element)} · ${escapeHtml(p.sign)}</td>
+        <td>${principle ? escapeHtml(principle.name) : "—"}</td>
+      </tr>
+      <tr><td style="border-bottom:none"></td><td colspan="3" class="alch-motto">${escapeHtml(m.motto)}</td></tr>`;
+    })
+    .join("\n");
+  if (!rows) return "";
+  return `<section class="page">
+    <h1>Alchemical Correspondences</h1>
+    <p>The old cosmos gave each wandering light a metal, and each temperament a
+    principle of the <i>tria prima</i>. The table sets your own placements
+    beside their classical correspondences — read them as mirrors for
+    reflection, a vocabulary rather than a verdict.</p>
+    <table class="alch-table">
+      <thead><tr><th>Body</th><th>Metal</th><th>Element · Sign</th><th>Principle</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <blockquote class="disclaimer">Symbolic correspondence, not chemistry or
+    counsel — a contemplative vocabulary drawn from the history of the art.</blockquote>
+  </section>`;
 }
 
 /** Markdown → full standalone print document (HTML string). */
@@ -303,6 +368,10 @@ export function reportToPrintHtml(markdown: string, opts: PrintOptions = {}): st
       : renderBlocks(body, sigil);
     return `<section class="${cls}">${art}${h}${bodyHtml}</section>`;
   });
+  // Appendix: the metals of the reader's sky (only when placements provided).
+  if (opts.alchemyPlanets?.length) {
+    pages.push(alchemyPageHtml(opts.alchemyPlanets));
+  }
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
 <title>${escapeHtml(opts.title ?? "Astra Arcana — Personal Report")}</title>
 <style>${CSS}</style></head><body>${pages.join("\n")}</body></html>`;

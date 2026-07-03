@@ -1,3 +1,5 @@
+> **Archived.** This plan was merged into [`docs/progress/COMPREHENSIVE_TASK_SCHEDULE.md`](../progress/COMPREHENSIVE_TASK_SCHEDULE.md), which is the living schedule. Kept for historical reference.
+
 # Astra Arcana — Natal Tarot Observatory
 
 ## Purpose

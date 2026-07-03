@@ -2,12 +2,14 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useStore } from "../store/useStore";
 import {
-  fetchProgressed, fetchSolarReturn, fetchEclipses, trackEvent,
+  fetchProgressed, fetchSolarReturn, fetchEclipses, trackEvent, localToday,
   type ProgressedChart, type SolarReturnChart, type EclipseTimeline,
 } from "../api/client";
 
 type Tab = "progressions" | "solar" | "eclipses";
-const today = () => new Date().toISOString().slice(0, 10);
+// Browser-local calendar date — toISOString() is UTC and shows the wrong
+// default date for users within tz-offset hours of midnight.
+const today = localToday;
 
 export const PredictiveModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const birth = useStore((s) => s.birth);

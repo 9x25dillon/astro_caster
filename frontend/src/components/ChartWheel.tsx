@@ -9,13 +9,14 @@
 //   5. Aspect layer  (chords inside the inner circle, coloured by aspect family)
 //
 // Orientation: Ascendant fixed at 9 o'clock (left), longitude increasing CCW.
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useStore } from "../store/useStore";
 import {
   lonToAngle, polar, SIGN_GLYPHS, SIGN_NAMES, ELEMENT_OF_SIGN_INDEX, ELEMENT_COLORS,
   POINT_IDS, glyphText, PLANET_INFLUENCE, SIGN_INFLUENCE, SIGN_MODALITIES,
   HOUSE_INFLUENCE, ASPECT_INFLUENCE, ASPECT_SYMBOL, formatPos, ORDINAL,
 } from "../lib/astro";
+import { PLANET_METAL, SEAL_ORDER } from "../lib/alchemy";
 import type { Aspect, PlanetData } from "../types";
 
 interface Props {
@@ -78,6 +79,17 @@ export const ChartWheel: React.FC<Props> = ({ size = 720 }) => {
   const rAspect       = R * 0.51;
 
   const asc = chart?.angles.ascendant ?? 0;
+
+  // Transmutation: when a chart is cast (object identity changes), the seal
+  // flares once through the four stages of the work — a single 2.4s sweep,
+  // no strobe, gone on prefers-reduced-motion (global animation kill).
+  const [casting, setCasting] = useState(false);
+  useEffect(() => {
+    if (!chart) return;
+    setCasting(true);
+    const t = window.setTimeout(() => setCasting(false), 2400);
+    return () => window.clearTimeout(t);
+  }, [chart]);
 
   const planetAngles = useMemo(() => {
     if (!chart) return {};
@@ -259,6 +271,27 @@ export const ChartWheel: React.FC<Props> = ({ size = 720 }) => {
             </g>
           );
         })}
+
+      {/* Engraved degree ring — 5° ticks along the zodiac band's inner edge,
+          deepened at each sign boundary, like graduations on an astrolabe. */}
+      {layers.zodiac && (
+        <g style={{ pointerEvents: "none" }}>
+          {Array.from({ length: 72 }).map((_, i) => {
+            const a = lonToAngle(i * 5, asc);
+            const major = i % 6 === 0;
+            const [x0, y0] = polar(rZodiacInner, a);
+            const [x1, y1] = polar(rZodiacInner + (major ? 7 : 3.5), a);
+            return (
+              <line
+                key={`tick-${i}`}
+                x1={x0} y1={y0} x2={x1} y2={y1}
+                stroke={major ? "rgba(201,168,76,0.4)" : "rgba(201,168,76,0.16)"}
+                strokeWidth={major ? 1 : 0.5}
+              />
+            );
+          })}
+        </g>
+      )}
 
       {/* ---- Layer 2: House ring + cusps ---- */}
       {layers.houses && (
@@ -475,7 +508,16 @@ export const ChartWheel: React.FC<Props> = ({ size = 720 }) => {
                   dominantBaseline="central"
                   textAnchor="middle"
                   fontSize={isPoint && p.glyph.length > 1 ? 11 : 17}
-                  fill={sel ? "var(--gold-soft)" : hov ? "var(--sepia)" : undefined}
+                  // Metal tint: each classical body wears its own metal's
+                  // colour (inline style so it wins over the CSS default);
+                  // points fall through to the parchment CSS fill.
+                  style={{
+                    fill: sel
+                      ? "var(--gold-soft)"
+                      : hov
+                        ? "var(--gold-bright)"
+                        : PLANET_METAL[p.id]?.color,
+                  }}
                 >
                   {p.glyph.length > 1 ? p.glyph : glyphText(p.glyph)}
                 </text>
@@ -631,6 +673,46 @@ export const ChartWheel: React.FC<Props> = ({ size = 720 }) => {
           </foreignObject>
         );
       })()}
+
+      {/* Central alchemical seal — the seven classical metals in Chaldean
+          order on a slowly turning engraved ring, with a counter-rotating
+          inner band. Pure ornament: very slow (≥80s/rev), low-contrast, and
+          non-interactive, so it reads as engraving rather than data. */}
+      <g style={{ pointerEvents: "none" }}>
+        {/* Transmutation flare — two staggered rings sweep outward, their
+            stroke passing nigredo → albedo → citrinitas → rubedo. */}
+        {casting && (
+          <g>
+            <circle className="transmute-ring" r={8} fill="none" strokeWidth={2.5} />
+            <circle className="transmute-ring transmute-ring--echo" r={8} fill="none" strokeWidth={1.2} />
+          </g>
+        )}
+        <circle r={58} fill="none" stroke="rgba(201,168,76,0.15)" strokeWidth={0.6} />
+        <g className={casting ? "seal-ring seal-casting" : "seal-ring"}>
+          <circle r={44} fill="none" stroke="rgba(201,168,76,0.28)" strokeWidth={0.7} strokeDasharray="2 5" />
+          {SEAL_ORDER.map((id, i) => {
+            const a = (i / SEAL_ORDER.length) * Math.PI * 2 - Math.PI / 2;
+            return (
+              <text
+                key={id}
+                x={Math.cos(a) * 44}
+                y={Math.sin(a) * 44}
+                textAnchor="middle"
+                dominantBaseline="central"
+                fontSize={11.5}
+                fill={PLANET_METAL[id].color}
+                opacity={0.85}
+                style={{ filter: "drop-shadow(0 0 3px rgba(201,168,76,0.4))" }}
+              >
+                {PLANET_METAL[id].sigil}
+              </text>
+            );
+          })}
+        </g>
+        <g className="seal-ring-counter">
+          <circle r={31} fill="none" stroke="rgba(142,124,195,0.22)" strokeWidth={0.7} strokeDasharray="1 6" />
+        </g>
+      </g>
 
       {/* Cosmic heartbeat — ring of light emanating from center periodically */}
       <circle className="heartbeat" cx={0} cy={0} fill="none" stroke="rgba(201,168,76,0.45)" strokeWidth={1.5} />

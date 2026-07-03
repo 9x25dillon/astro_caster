@@ -165,6 +165,8 @@ export const ForecastPanel: React.FC<{ onClose: () => void }> = ({ onClose }) =>
   const birth = useStore((s) => s.birth);
   const setTransitIso = useStore((s) => s.setTransitIso);
   const ask = useStore((s) => s.ask);
+  const transitsOn = useStore((s) => s.layers.transits);
+  const toggleLayer = useStore((s) => s.toggleLayer);
 
   const isDefaultChart =
     birth.year  === PLACEHOLDER_BIRTH.year  &&
@@ -194,6 +196,9 @@ export const ForecastPanel: React.FC<{ onClose: () => void }> = ({ onClose }) =>
 
   const handleJump = (iso: string) => {
     setTransitIso(iso);
+    // Jumping to a date is only visible on the wheel with the transit layer
+    // on — enable it (never disable) so the jump lands somewhere.
+    if (!transitsOn) toggleLayer("transits");
     onClose();
   };
 

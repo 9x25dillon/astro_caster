@@ -1,12 +1,12 @@
 # AUDIT_REGRESSION.md — Astra Arcana
 
 _Phase 6 closing gate. The "after" half of the audit bracket opened by
-`AUDIT_BASELINE.md` (baseline commit `d9afc4b`). Reviewed 2026-07-01 on branch
+`docs/audits/AUDIT_BASELINE.md` (baseline commit `d9afc4b`). Reviewed 2026-07-01 on branch
 `production-hardening`, commits `96f3f71`…`9378fc6` + this phase._
 
 **Method:** every security-sensitive diff since baseline re-read in final form
 (not from the changelog), each control given a verdict; the producer/consumer
-boundaries flagged in `AUDIT_BASELINE.md` §3 re-inspected against the changed
+boundaries flagged in `docs/audits/AUDIT_BASELINE.md` §3 re-inspected against the changed
 types; new surface (Phases 4–5) audited as new perimeter. Suite state at review:
 **105 backend tests passing, frontend `tsc -b && vite build` clean, 34 routes boot.**
 
@@ -95,8 +95,8 @@ No control was weakened, bypassed, or made conditional in any diff reviewed.
 
 ---
 
-_End of regression audit. Bracket closed: `AUDIT_BASELINE.md` (before) →
-`AUDIT_REGRESSION.md` (after)._
+_End of regression audit. Bracket closed: `docs/audits/AUDIT_BASELINE.md` (before) →
+`docs/audits/AUDIT_REGRESSION.md` (after)._
 
 ---
 
