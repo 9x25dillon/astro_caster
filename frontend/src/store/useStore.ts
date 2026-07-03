@@ -111,6 +111,25 @@ const EMPTY_RESULT: AIResult = {
   provider: undefined,
 };
 
+// Mobile-friendly unlock: `?entitlement=<token>` stores the token exactly like
+// the devtools localStorage snippet would (Termux/phone browsers have no
+// console). `?entitlement=clear` returns to free tier. The param is scrubbed
+// from the address bar immediately; startup validation still clears any
+// invalid/expired token, so a bad paste just lands on free.
+(() => {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("entitlement");
+    if (token === null) return;
+    if (token === "clear" || token === "") localStorage.removeItem(ENT_KEY);
+    else localStorage.setItem(ENT_KEY, token);
+    params.delete("entitlement");
+    const rest = params.toString();
+    window.history.replaceState(
+      null, "", window.location.pathname + (rest ? `?${rest}` : "") + window.location.hash);
+  } catch { /* sandboxed storage or no window: ignore */ }
+})();
+
 export const useStore = create<AstroState>((set, get) => ({
   birth: DEFAULT_BIRTH,
   lens: "psychological",

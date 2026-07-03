@@ -46,6 +46,19 @@ the claim into `aae.report_tokens` where the UI looks for it.
 > Startup validation clears expired/invalid tokens automatically, so a wrong
 > paste just lands you back on free tier.
 
+### No devtools console? (mobile / Termux)
+
+Phone browsers have no console, so the same unlock works as a URL parameter —
+open (or tap) a link of the form:
+
+```
+http://localhost:5173/?entitlement=<token>     # any tier token, or AAE_DEV_TOKEN
+http://localhost:5173/?entitlement=clear       # back to free
+```
+
+The token is stored exactly as the console snippet would store it and the
+parameter is scrubbed from the address bar immediately.
+
 ## 3. Automated tier matrix
 
 ```bash
