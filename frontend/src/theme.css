@@ -2100,3 +2100,32 @@ h2.section::after {
   border-top: 1px dotted rgba(201, 168, 76, 0.18);
   padding-top: 7px;
 }
+
+/* ── Transmutation — the casting flare ────────────────────────────────────── */
+/* One outward sweep per cast, stroke passing through the four stages of the
+   work (nigredo → albedo → citrinitas → rubedo). Single gradual color ramp,
+   ~2.2s, then gone — nothing strobes. */
+.transmute-ring {
+  animation: transmute 2.2s var(--ease-out) forwards;
+}
+.transmute-ring--echo {
+  animation-duration: 2.4s;
+  animation-delay: 0.35s;
+  opacity: 0;
+}
+@keyframes transmute {
+  0%   { r: 8px;   stroke: #2b2b33; opacity: 0.95; }  /* nigredo */
+  30%  {           stroke: #cdd5e0; opacity: 0.8;  }  /* albedo */
+  62%  {           stroke: #c9a84c; opacity: 0.6;  }  /* citrinitas */
+  100% { r: 330px; stroke: #b0432e; opacity: 0;    }  /* rubedo */
+}
+/* While the flare runs, the seven metals kindle briefly. */
+.seal-casting text {
+  filter: drop-shadow(0 0 6px rgba(242, 220, 160, 0.9));
+  opacity: 1 !important;
+  transition: filter 0.4s var(--ease-out);
+}
+.seal-casting circle {
+  stroke: rgba(224, 197, 120, 0.55);
+  transition: stroke 0.4s var(--ease-out);
+}

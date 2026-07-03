@@ -9,7 +9,7 @@
 //   5. Aspect layer  (chords inside the inner circle, coloured by aspect family)
 //
 // Orientation: Ascendant fixed at 9 o'clock (left), longitude increasing CCW.
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useStore } from "../store/useStore";
 import {
   lonToAngle, polar, SIGN_GLYPHS, SIGN_NAMES, ELEMENT_OF_SIGN_INDEX, ELEMENT_COLORS,
@@ -79,6 +79,17 @@ export const ChartWheel: React.FC<Props> = ({ size = 720 }) => {
   const rAspect       = R * 0.51;
 
   const asc = chart?.angles.ascendant ?? 0;
+
+  // Transmutation: when a chart is cast (object identity changes), the seal
+  // flares once through the four stages of the work — a single 2.4s sweep,
+  // no strobe, gone on prefers-reduced-motion (global animation kill).
+  const [casting, setCasting] = useState(false);
+  useEffect(() => {
+    if (!chart) return;
+    setCasting(true);
+    const t = window.setTimeout(() => setCasting(false), 2400);
+    return () => window.clearTimeout(t);
+  }, [chart]);
 
   const planetAngles = useMemo(() => {
     if (!chart) return {};
@@ -497,7 +508,16 @@ export const ChartWheel: React.FC<Props> = ({ size = 720 }) => {
                   dominantBaseline="central"
                   textAnchor="middle"
                   fontSize={isPoint && p.glyph.length > 1 ? 11 : 17}
-                  fill={sel ? "var(--gold-soft)" : hov ? "var(--sepia)" : undefined}
+                  // Metal tint: each classical body wears its own metal's
+                  // colour (inline style so it wins over the CSS default);
+                  // points fall through to the parchment CSS fill.
+                  style={{
+                    fill: sel
+                      ? "var(--gold-soft)"
+                      : hov
+                        ? "var(--gold-bright)"
+                        : PLANET_METAL[p.id]?.color,
+                  }}
                 >
                   {p.glyph.length > 1 ? p.glyph : glyphText(p.glyph)}
                 </text>
@@ -659,8 +679,16 @@ export const ChartWheel: React.FC<Props> = ({ size = 720 }) => {
           inner band. Pure ornament: very slow (≥80s/rev), low-contrast, and
           non-interactive, so it reads as engraving rather than data. */}
       <g style={{ pointerEvents: "none" }}>
+        {/* Transmutation flare — two staggered rings sweep outward, their
+            stroke passing nigredo → albedo → citrinitas → rubedo. */}
+        {casting && (
+          <g>
+            <circle className="transmute-ring" r={8} fill="none" strokeWidth={2.5} />
+            <circle className="transmute-ring transmute-ring--echo" r={8} fill="none" strokeWidth={1.2} />
+          </g>
+        )}
         <circle r={58} fill="none" stroke="rgba(201,168,76,0.15)" strokeWidth={0.6} />
-        <g className="seal-ring">
+        <g className={casting ? "seal-ring seal-casting" : "seal-ring"}>
           <circle r={44} fill="none" stroke="rgba(201,168,76,0.28)" strokeWidth={0.7} strokeDasharray="2 5" />
           {SEAL_ORDER.map((id, i) => {
             const a = (i / SEAL_ORDER.length) * Math.PI * 2 - Math.PI / 2;

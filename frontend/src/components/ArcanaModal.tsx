@@ -387,6 +387,10 @@ export const ArcanaModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       // Tome frontispiece: the user's own constellation + session star field.
       chartPlanets: chart?.planets.map((p) => ({ id: p.id, longitude: p.longitude })),
       seed: personal.seed,
+      // Appendix page: each body's metal, opus stage, element, and principle.
+      alchemyPlanets: chart?.planets.map((p) => ({
+        id: p.id, element: p.element, modality: p.modality, sign: p.sign,
+      })),
     });
     if (!ok) setErr("Popup blocked — allow popups for this site to print the report.");
     else trackEvent("personal_report_print", { spread: personal.spread });
