@@ -79,7 +79,7 @@ cd frontend && npm run build               # typecheck + build
 - **Receipt ledger (R2-adjacent):** report claims are stateless, so one paid
   tx can be replayed across different session seeds. When a shared store
   lands (Redis/SQLite), record redeemed tx hashes and reject reuse. Recorded
-  in `AUDIT_REGRESSION.md` §6.
+  in `docs/audits/AUDIT_REGRESSION.md` §6.
 - **PDF-1 follow-on (optional):** richer tarot-card grid + two-column layouts
   from the design mock in the print renderer.
 - **AdminPanel:** surface `report_purchase` tier-events explicitly in the UI
@@ -90,7 +90,7 @@ cd frontend && npm run build               # typecheck + build
   happen on push).
 - Before any public deploy: set `AAE_ETH_RPC`, `AAE_ORACLE_MIN_WEI`,
   `AAE_REPORT_MIN_WEI`; revisit the git-history birth-data decision
-  (`AUDIT_REGRESSION.md` §5.1, operator chose LEAVE on 2026-07-01).
+  (`docs/audits/AUDIT_REGRESSION.md` §5.1, operator chose LEAVE on 2026-07-01).
 
 ## Known gotchas (carried forward)
 

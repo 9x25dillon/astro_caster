@@ -2,7 +2,7 @@
 //
 // Turns the deluxe edition's PDF-ready markdown into a styled, paginated
 // document and opens the browser's print dialog ("Save as PDF"). Design tokens
-// are lifted from docs/Astro_Arcana_Report_Design_Mock.html (the visual
+// are lifted from docs/design/Astro_Arcana_Report_Design_Mock.html (the visual
 // contract): Georgia serif, cream #F8F4E9, ink #1A0F33, amethyst #2C1654,
 // gold #C9A84C, Cinzel-style part headers, gold pull-quotes.
 //

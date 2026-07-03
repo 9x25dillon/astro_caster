@@ -65,7 +65,7 @@ treasury tx).
 ### PDF-1 — Print renderer for the deluxe edition (client-side)
 - New `frontend/src/lib/printReport.ts`: `report_markdown` → styled, paginated print
   document (browser dialog → "Save as PDF"). **Zero dependencies** — print CSS lifted
-  from the visual contract (`docs/Astro_Arcana_Report_Design_Mock.html`): Georgia
+  from the visual contract (`docs/design/Astro_Arcana_Report_Design_Mock.html`): Georgia
   serif, cream/ink/amethyst/gold palette, Cinzel-style part headers, dark-gradient
   cover page, gold pull-quotes, disclaimer styling, `@page` 8.5×11.
 - **Privacy invariant completed:** `{{BIRTH_INFO}}` is filled **in the browser** from
@@ -106,8 +106,8 @@ treasury tx).
   sigil & invocation, natal foundation, psychological/evolutionary deep-dive, the
   Oracle I–V core, chart-referenced tarot layout, Career Constellation, Relationship
   Mirror, sigil codex, practices, appendix). API-tuned system prompt derived from
-  `FABLE5_PERSONAL_REPORT_PROMPT.md`; renders against
-  `docs/ASTRO_ARCANA_PERSONAL_REPORT_DESIGN.md`.
+  `docs/prompts/FABLE5_PERSONAL_REPORT_PROMPT.md`; renders against
+  `docs/design/ASTRO_ARCANA_PERSONAL_REPORT_DESIGN.md`.
 - **Gated twice, fail closed:** oracle tier (402 for free *and* supporter), plus a
   stateless **post-Oracle gate** — the server re-derives the Oracle session's
   deterministic seed from (chart, spread, question, date, source) and 409s any
@@ -190,8 +190,8 @@ _Recorded retroactively for completeness (built earlier on this branch)._
 
 ## Tracking Infrastructure (2026-07-01, fable5-oracle-report)
 
-- Created `PROJECT_WORK_HISTORY_MAP.md`: comprehensive, updateable timeline of waves, branches, phases (0–6), feature status, audit brackets, and maintenance commands so progress can always be tracked from git + docs.
-- Created `COMPREHENSIVE_TASK_SCHEDULE.md`: living prioritized schedule merging prior plans (`IMPLEMENTATION_SCHEDULE.md`, `ASTRA_ARCANA_PLAN.md`, `FABLE5_HANDOFF.md`), review recommendations, Fable 5 completion tasks (F5-1..F5-6), reliability (R*), foundations, and strategic backlog with explicit ACs and verification commands.
+- Created `docs/progress/PROJECT_WORK_HISTORY_MAP.md`: comprehensive, updateable timeline of waves, branches, phases (0–6), feature status, audit brackets, and maintenance commands so progress can always be tracked from git + docs.
+- Created `docs/progress/COMPREHENSIVE_TASK_SCHEDULE.md`: living prioritized schedule merging prior plans (`docs/archive/IMPLEMENTATION_SCHEDULE.md`, `docs/archive/ASTRA_ARCANA_PLAN.md`, `docs/archive/FABLE5_HANDOFF.md`), review recommendations, Fable 5 completion tasks (F5-1..F5-6), reliability (R*), foundations, and strategic backlog with explicit ACs and verification commands.
 - These two files + `CHANGELOG.md` + `AUDIT_*` + git now form the canonical progress record. Update them on every phase or branch close.
 
 ---
@@ -228,7 +228,7 @@ _Recorded retroactively for completeness (built earlier on this branch)._
 - ⚠️ **Residual:** the real data remains in **git history** (commits `b1bdd5f`→).
   A full purge needs a history rewrite (`git filter-repo`/BFG) + force-push —
   destructive, deferred to an explicit operator decision. Tracked in
-  `AUDIT_REGRESSION.md`.
+  `docs/audits/AUDIT_REGRESSION.md`.
 
 ### 1.3 — Resolved the arcana-lens type contract
 - Decision: **Arcana is a separate endpoint** (`/api/tarot-reading` via
@@ -307,7 +307,7 @@ _Recorded retroactively for completeness (built earlier on this branch)._
 
 ## Phase 6 — Regression audit & consolidated docs (closing gate)
 
-- **`AUDIT_REGRESSION.md`** closes the audit bracket opened by `AUDIT_BASELINE.md`:
+- **`docs/audits/AUDIT_REGRESSION.md`** closes the audit bracket opened by `docs/audits/AUDIT_BASELINE.md`:
   control-by-control verdicts on every security-sensitive diff since `d9afc4b`
   (no control weakened; trust gate, boot guard, token verification, dev token,
   headers, `_spawn`, input validation, seeding all strengthened or intact);

@@ -1,3 +1,5 @@
+> **Archived.** Superseded by [`docs/progress/COMPREHENSIVE_TASK_SCHEDULE.md`](../progress/COMPREHENSIVE_TASK_SCHEDULE.md). Kept for historical reference.
+
 # Implementation Schedule — Astra AAE
 
 _Generated 2026-06-30. Turns the enhancement backlog into a sequenced, dependency-aware plan._

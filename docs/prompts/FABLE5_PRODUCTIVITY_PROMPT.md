@@ -11,10 +11,10 @@ Your core mandate at the close of every significant work session is to perform t
 ## Phase 1: Mandatory Context Loading (do this first, no exceptions)
 
 1. Read and internalize the current state of:
-   - `COMPREHENSIVE_TASK_SCHEDULE.md`
-   - `PROJECT_WORK_HISTORY_MAP.md`
-   - `FABLE5_HANDOFF.md` (if relevant to current thread)
-   - The most recent relevant design documents (e.g. `docs/ASTRO_ARCANA_PERSONAL_REPORT_DESIGN.md` and any associated mock files)
+   - `docs/progress/COMPREHENSIVE_TASK_SCHEDULE.md`
+   - `docs/progress/PROJECT_WORK_HISTORY_MAP.md`
+   - `docs/archive/FABLE5_HANDOFF.md` (if relevant to current thread)
+   - The most recent relevant design documents (e.g. `docs/design/ASTRO_ARCANA_PERSONAL_REPORT_DESIGN.md` and any associated mock files)
    - The conversation history of the current session (the work we just completed)
 
 2. Summarize in your thinking (do not output yet):
@@ -25,14 +25,14 @@ Your core mandate at the close of every significant work session is to perform t
 ## Phase 2: Generate / Update the Two Core Tracking Artifacts
 
 **A. Comprehensive Task Schedule**
-- Produce a fresh or substantially updated version of `COMPREHENSIVE_TASK_SCHEDULE.md` (or the relevant section if we are mid-document).
+- Produce a fresh or substantially updated version of `docs/progress/COMPREHENSIVE_TASK_SCHEDULE.md` (or the relevant section if we are mid-document).
 - Include clear recommendations and suggestions.
 - Prioritize based on current realities: post-Oracle gating for the Personal Report product, UI/UX implications, generation pipeline needs, separate purchase flow, future physical + ElevenLabs audio companion.
 - Use the established format: Immediate Priorities, phased sections, acceptance criteria, size estimates, dependencies, and explicit "done when" statements.
 - Incorporate both tactical next steps and strategic suggestions (process improvements, tooling, gating logic, etc.).
 
 **B. Project Work History Map**
-- Produce a fresh or substantially updated version of `PROJECT_WORK_HISTORY_MAP.md`.
+- Produce a fresh or substantially updated version of `docs/progress/PROJECT_WORK_HISTORY_MAP.md`.
 - Make the map self-contained and queryable so that "progress can always stay tracked."
 - Structure it chronologically by waves/phases/branches while highlighting key decisions, invariants preserved, and product positioning (especially the "optional, separately purchased, post-Oracle" nature of the Personal Report).
 - Include clear maintenance instructions so future sessions can easily append to it.

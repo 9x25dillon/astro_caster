@@ -2,7 +2,7 @@
 
 **Living document.** Incorporates:
 - Current project state (fable5-oracle-report branch)
-- All prior planning (`IMPLEMENTATION_SCHEDULE.md`, `ASTRA_ARCANA_PLAN.md`, `FABLE5_HANDOFF.md`)
+- All prior planning (`docs/archive/IMPLEMENTATION_SCHEDULE.md`, `docs/archive/ASTRA_ARCANA_PLAN.md`, `docs/archive/FABLE5_HANDOFF.md`)
 - Hardening phase outcomes
 - Review recommendations & suggestions from 2026-07-01 filesystem review
 
@@ -20,7 +20,7 @@
 - Acceptance criteria upfront. "Done = tests green + relevant docs updated + (PR merged)".
 - Branch before committing to main.
 - Update `CHANGELOG.md` per logical phase.
-- Update this schedule and `PROJECT_WORK_HISTORY_MAP.md` on major progress.
+- Update this schedule and `docs/progress/PROJECT_WORK_HISTORY_MAP.md` on major progress.
 - Use `./run.sh`, explicit venv python, `AAE_ENV=development|test`.
 
 ---
@@ -31,7 +31,7 @@
 ---|---|---|---|---
 **F5-1** | ✅ **DONE 2026-07-01** — Complete Oracle Report frontend integration | M | `fetchOracleReport` is called from ArcanaModal (or dedicated surface); oracle report markdown rendered with sections, ai_source badge, disclaimer, copy/speak controls; 402 routes user to Support; loading + error states; seeded from chart + spread + question + source. Add simple "Oracle Report (Oracle tier)" affordance in Arcana draw or new tab. | Done: `loadOracleReport()` + Draw-tab block; `Interpretation` accordion reused (exported from DetailPanel, `###` subsection rendering added); actual-model badge / offline badge; copyable seed + lineage + disclaimer; typed `ApiError` → 402 opens Support; `oracle_report`/`oracle_report_gated` events; state reset on chart change. Verified: build green, 116 backend tests, 3-tier TestClient smoke (free 402 / supporter 402 / oracle 200, I–V sections). |
 **F5-2** | ✅ **DONE 2026-07-01** — Update documentation for Oracle Report / Fable 5 | S | README.md API table includes `/api/oracle-report`; tier routing + `AAE_ORACLE_*` vars documented; CHANGELOG.md has Fable 5 entry; `.env.example` already good. | Done: README API rows (oracle-report + personal-report), tier-routing oracle-minting row, "Oracle Report — Claude Fable 5" config section with cost/retention note, Arcana features bullet; CHANGELOG gained retroactive Oracle-backend entry + F5-2 entry. |
-**PR-1** | ✅ **DONE 2026-07-01** — Personal Report backend (deluxe post-Oracle product) | M | `/api/personal-report` compiles the 11-part PDF-ready markdown edition from an oracle session; oracle tier 402; **seed-verified post-Oracle gate** (409 on fabricated/foreign session); prompt privacy (placeholders, no birth data); honest offline fallback; telemetry `lens=personal_report`. | Done: `personal_report.py` (API-tuned system prompt from `FABLE5_PERSONAL_REPORT_PROMPT.md`), models (`OracleSessionRef`, `PersonalReportRequest/Response`), `_call_fable` generalized, `AAE_PERSONAL_REPORT_*` env, 8 tests. **Follow-ups (open):** PDF renderer (design docs ready), separate-purchase rail, frontend surface. |
+**PR-1** | ✅ **DONE 2026-07-01** — Personal Report backend (deluxe post-Oracle product) | M | `/api/personal-report` compiles the 11-part PDF-ready markdown edition from an oracle session; oracle tier 402; **seed-verified post-Oracle gate** (409 on fabricated/foreign session); prompt privacy (placeholders, no birth data); honest offline fallback; telemetry `lens=personal_report`. | Done: `personal_report.py` (API-tuned system prompt from `docs/prompts/FABLE5_PERSONAL_REPORT_PROMPT.md`), models (`OracleSessionRef`, `PersonalReportRequest/Response`), `_call_fable` generalized, `AAE_PERSONAL_REPORT_*` env, 8 tests. **Follow-ups (open):** PDF renderer (design docs ready), separate-purchase rail, frontend surface. |
 **F5-3** | ✅ **DONE 2026-07-01** — Verify full suite + security on fable5 changes | S | `pytest -q` (all 116+), `npm run build`, manual boot with `AAE_ENV=development`, run `test_oracle_report.py` + `test_security.py` + `test_entitlements.py` explicitly. Confirm oracle tier never leaks to lower tiers. | Done: 124 passed; 32-route boot; build green; 3-tier smoke proved free/supporter 402 on both paid endpoints. |
 **F5-4** | ✅ **DONE 2026-07-01** — Branch hygiene & commit decision | S | Confirm strategy (one commit or split). Add `Co-Authored-By` trailer on commits. Disposition of untracked planning files documented. | **Decision (operator): ONE commit** for the whole branch (oracle backend + F5-1 UI + docs + Personal Report backend/frontend + planning docs). Planning docs committed per §6 disposition rules. |
 **F5-5** | ✅ **DONE 2026-07-01** — Secret hygiene pass | S | Confirm `.env` is gitignored (yes); add rotation note for `AAE_SECRET` / `AAE_DEV_TOKEN`. | Done: rotation note in `.env.example` (incl. "rotation invalidates issued entitlement tokens"). Boot guard from Phase 1 already refuses default/blank secrets in prod. |
@@ -47,7 +47,7 @@
 **ID** | **Task** | **Size** | **AC / Done When** | **Deps / Notes**
 ---|---|---|---|---
 **PDF-1** | ✅ **DONE 2026-07-01** — PDF renderer for the deluxe edition | L | `report_markdown` → styled PDF per the design doc; placeholders filled client-side; mock is the visual contract; works offline | Done via the print-CSS route, zero deps: `lib/printReport.ts` (escape-then-style converter, dark cover, chaos-sigil SVG in `{{SIGIL}}`, local `{{BIRTH_INFO}}` fill, browser print→PDF). Ground-truth verified 11/11 incl. injection escape + sigil determinism. Follow-on (optional): richer tarot-card grid + two-col layouts from the mock. |
-**PDF-2** | ✅ **DONE 2026-07-01** — Separate purchase rail for the deluxe edition | M | A distinct entitlement (or one-shot claim) beyond oracle tier; fail-closed like trust-mode/oracle gates; fresh mini-audit appended to `AUDIT_REGRESSION.md` (new paid surface rule) | **Operator decision (2026-07-01): off-chain `personal_report` receipt/token.** Done: `POST /api/personal-report/purchase` verifies a treasury tx against `AAE_REPORT_MIN_WEI` (unset ⇒ purchases disabled, fail closed; dev trust mode = unverified mint, impossible in prod) and mints an HMAC report token **bound to one Oracle session seed** (`AAE_REPORT_TOKEN_DAYS`, default 30). `/api/personal-report` now requires the claim (402 names "purchase"; dev token exempt). UI: purchase rail in the deluxe block; claims persisted per-seed in `aae.report_tokens`. 10 new tests (144 green). Known limit → mini-audit: stateless claims mean one paid tx can be replayed across sessions until a receipt ledger lands (R2-adjacent follow-up).
+**PDF-2** | ✅ **DONE 2026-07-01** — Separate purchase rail for the deluxe edition | M | A distinct entitlement (or one-shot claim) beyond oracle tier; fail-closed like trust-mode/oracle gates; fresh mini-audit appended to `docs/audits/AUDIT_REGRESSION.md` (new paid surface rule) | **Operator decision (2026-07-01): off-chain `personal_report` receipt/token.** Done: `POST /api/personal-report/purchase` verifies a treasury tx against `AAE_REPORT_MIN_WEI` (unset ⇒ purchases disabled, fail closed; dev trust mode = unverified mint, impossible in prod) and mints an HMAC report token **bound to one Oracle session seed** (`AAE_REPORT_TOKEN_DAYS`, default 30). `/api/personal-report` now requires the claim (402 names "purchase"; dev token exempt). UI: purchase rail in the deluxe block; claims persisted per-seed in `aae.report_tokens`. 10 new tests (144 green). Known limit → mini-audit: stateless claims mean one paid tx can be replayed across sessions until a receipt ledger lands (R2-adjacent follow-up).
 **PDF-3** | Audio companion (ElevenLabs) | M | "Narrate Synthesis + practices" from the deluxe edition via existing `/api/tts` (supporter-gated); chunking for long text; UI in the deluxe block | Rides existing TTS; no new provider.
 **R1** | ✅ **DONE 2026-07-01** — Rate limiting on paid AI paths | M | 429s on `/api/oracle-report` + `/api/personal-report` + `/api/ai-ask*`; env-configurable; tests | Done: `ratelimit.py` sliding window (IP+entitlement-digest key), prod-on/dev-off auto default, `Retry-After`, deterministic paths never throttled; 10 tests. R2 (Redis) = horizontal-scale upgrade later. |
 **PDF-4** | Sigil data pipeline | S | Studio sigil generation can pass `sigil_notes` (formation summary) into `fetchPersonalReport` so the codex section is personalized | Frontend-only wiring; `lib/sigil.ts` already generates.
@@ -121,12 +121,12 @@ These come directly from the 2026-07-01 review + cross-referenced handoff/audit 
 **High Priority Recommendations:**
 1. **Oracle Report UI completeness (F5-1)**: The most visible gap on current branch. Backend is excellent (substrate first, honest fallback, privacy-safe prompt, strict tier gate). Make the paid experience discoverable and polished inside ArcanaModal (or add a dedicated "Oracle Report" surface). Include lineage/source selector reuse, question input, and clear "Oracle tier only" messaging + upgrade path.
 2. **Docs sync (F5-2)**: README and CHANGELOG lag on Fable 5. Keep user-facing truth current.
-3. **Tracking discipline**: Maintain `PROJECT_WORK_HISTORY_MAP.md` and this schedule as first-class artifacts. Update on every phase close. This directly addresses "progress can always stay tracked."
+3. **Tracking discipline**: Maintain `docs/progress/PROJECT_WORK_HISTORY_MAP.md` and this schedule as first-class artifacts. Update on every phase close. This directly addresses "progress can always stay tracked."
 4. **Git history PII decision**: Make an explicit recorded decision (see F5-6). Option A: leave + note in audits (current default). Option B: `git filter-repo` + force push + collaborator re-clone. Option C: make repo private temporarily.
 5. **Secret & config hygiene**: Real values in `.env` are fine locally (gitignored), but document rotation procedure. Consider a lightweight boot-time check or CI note.
 6. **Rate limiting + cost guardrails** before heavy oracle usage (R1). Fable 5 is expensive ($10/50 per MTok range noted in .env.example).
-7. **Continue audit culture**: On any new paid surface or entitlement change, produce a mini "regression note" or append to `AUDIT_REGRESSION.md`.
-8. **Reconcile old plans**: Many items in `IMPLEMENTATION_SCHEDULE.md` and `ASTRA_ARCANA_PLAN.md` (e.g. classroom as community curriculum, full expression studio depth, synastry optional TODOs) are still relevant. Mark completed items explicitly when done.
+7. **Continue audit culture**: On any new paid surface or entitlement change, produce a mini "regression note" or append to `docs/audits/AUDIT_REGRESSION.md`.
+8. **Reconcile old plans**: Many items in `docs/archive/IMPLEMENTATION_SCHEDULE.md` and `docs/archive/ASTRA_ARCANA_PLAN.md` (e.g. classroom as community curriculum, full expression studio depth, synastry optional TODOs) are still relevant. Mark completed items explicitly when done.
 9. **Data-driven tarot** (F5 old): Move more hardcoded logic to JSON for maintainability/i18n.
 10. **Observability for oracle**: Ensure `lens="oracle_report"` is visible in AdminPanel and telemetry summaries.
 11. **Frontend perf & architecture**: Tackle A1–A3 before adding more heavy modals or large datasets.
@@ -208,13 +208,13 @@ git status --porcelain -b
 1. Triage remaining R and F items (pick 1-2 highest leverage per sprint).
 2. Surface more of the advanced backends (P3, A4, A5) — high user value, backend already done.
 3. Address long-horizon items only after reliability foundation (R1–R4).
-4. Revisit original `ASTRA_ARCANA_PLAN.md` expression studio / classroom depth if gaps remain in current ArcanaModal.
+4. Revisit original `docs/archive/ASTRA_ARCANA_PLAN.md` expression studio / classroom depth if gaps remain in current ArcanaModal.
 
 ---
 
 **End of Schedule.**
 
-This document + `PROJECT_WORK_HISTORY_MAP.md` + `CHANGELOG.md` + git history + the two AUDIT files provide complete, self-contained progress tracking.
+This document + `docs/progress/PROJECT_WORK_HISTORY_MAP.md` + `CHANGELOG.md` + git history + the two AUDIT files provide complete, self-contained progress tracking.
 
 **Last major update:** 2026-07-01 (session close) — Immediate block COMPLETE: F5-1..F5-6,
 PR-1 (Personal Report backend, seed-verified post-Oracle gate), PR-2 (deluxe frontend).

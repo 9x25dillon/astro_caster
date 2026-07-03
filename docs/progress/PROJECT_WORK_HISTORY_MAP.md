@@ -7,7 +7,7 @@
 **This branch:** R1 rate limiting (`ratelimit.py`, 6 endpoints wired, 10 tests — 134 total) +
 PDF-1 print renderer (`lib/printReport.ts`, zero-dep print-CSS from the design mock,
 local `{{BIRTH_INFO}}`/`{{SIGIL}}` fill, injection-safe, ground-truth verified 11/11).
-Operator decision recorded: **git-history PII = LEAVE (final)** — see `AUDIT_REGRESSION.md` §5.
+Operator decision recorded: **git-history PII = LEAVE (final)** — see `docs/audits/AUDIT_REGRESSION.md` §5.
 **Remote:** github.com/9x25dillon/astro_caster (inferred from history/docs)
 **Verification Snapshot (at branch close):**
 - Backend tests: **124 passed** (`cd backend && .venv/bin/python -m pytest -q`)
@@ -55,13 +55,13 @@ Phases executed on `production-hardening` branch and merged.
 
 | Phase | Title | Key Deliverables | Tests Added / Changes | Audit Notes |
 |-------|-------|------------------|-----------------------|-------------|
-| Phase 0 | Audit Baseline | `AUDIT_BASELINE.md`, topology map, seam identification (esp. synastry draft), orphan sweep, confirmed findings (trust mode, real PII, arcana-lens contract, server-clock dates) | Baseline 36 tests | Identified risks at AI-authorship seams and perimeter |
+| Phase 0 | Audit Baseline | `docs/audits/AUDIT_BASELINE.md`, topology map, seam identification (esp. synastry draft), orphan sweep, confirmed findings (trust mode, real PII, arcana-lens contract, server-clock dates) | Baseline 36 tests | Identified risks at AI-authorship seams and perimeter |
 | Phase 1 | Critical security & correctness (1.1–1.6) | Trust-mode dual gate + `assert_safe_boot()`, real birth data → Einstein + synthetic default, arcana-lens contract resolution (separate `/api/tarot-reading`), local date/timezone control + `resolve_local_date`, exactly-N daily cards, security headers + `_spawn` + constant-time dev token | `test_entitlements.py`, `test_security.py`, `test_lens_contract.py`, `test_timezone_seed.py`, `test_daily_forecast.py` | Fail-before/pass-after tests for each gate |
 | Phase 2 | Explainability & sourcing | `weight_sources` (sum-to-weight invariant), `SourceSystem` (golden_dawn/rws/thoth/jungian) in seed + prose/prompts | `test_explainability.py` | Panel and seed can never disagree |
 | Phase 3 | Learning paths & temporal | `POST /api/learning-path`, `POST /api/arcana-calendar` (RFC 5545 .ics, local dates), frontend integration | `test_learning_path.py`, `test_arcana_calendar.py` | Deterministic path from anchor → growth edge |
 | Phase 4 | Deck-Art Prompt Studio | `deck_art.py`, `/api/deck-art`, deterministic prompts from substrate + lineage, Studio tab updates | `test_deck_art.py` (12 tests) | Prompts only — no image gen |
 | Phase 5 | Test & CI hardening | `test_api_endpoints.py` (behavioral contracts, tier gates, offline honesty), `.github/workflows/ci.yml` (pytest + boot smoke + prod guard + full Gitleaks), Dependabot | 15+ new endpoint tests; total ~105 at close | Fix: unparseable date now 400 |
-| Phase 6 | Regression audit + docs | `AUDIT_REGRESSION.md` (control-by-control verdicts — no regressions), consolidated README, CI badge | Audit bracket closed | Re-inspected boundaries; git history PII residual logged |
+| Phase 6 | Regression audit + docs | `docs/audits/AUDIT_REGRESSION.md` (control-by-control verdicts — no regressions), consolidated README, CI badge | Audit bracket closed | Re-inspected boundaries; git history PII residual logged |
 
 **Definition of Done (from FABLE5_HANDOFF / audits):** No swallowed errors; no hardcoded secrets; no IDOR; no orphans; determinism intact; disclaimer on every response; CI green.
 
@@ -104,7 +104,7 @@ Phases executed on `production-hardening` branch and merged.
 - `.env` gitignored; `.env.example` maintained
 
 **Unimplemented / Partial (from plans):**
-- Many items in `IMPLEMENTATION_SCHEDULE.md` (API v1, structured logs, rate limiting, Redis, containers, Web Workers, virtualization, WebGL, i18n, accounts, etc.)
+- Many items in `docs/archive/IMPLEMENTATION_SCHEDULE.md` (API v1, structured logs, rate limiting, Redis, containers, Web Workers, virtualization, WebGL, i18n, accounts, etc.)
 - Full data-driven tarot meanings (F5 note in schedule)
 - Oracle Report full UI (current gap)
 - Oracle Report in README / consolidated docs
@@ -117,20 +117,20 @@ Phases executed on `production-hardening` branch and merged.
 - `production-hardening`: Hardening phases (merged)
 - `fable5-oracle-report`: Current work (Oracle Report backend complete; frontend partial; uncommitted files listed below)
 - Planning artifacts (untracked or root-level in working tree):
-  - `FABLE5_HANDOFF.md`, `Hand_off.md`, `IMPLEMENTATION_SCHEDULE.md`, `ASTRA_ARCANA_PLAN.md`
-  - `AUDIT_BASELINE.md`, `AUDIT_REGRESSION.md`, `CHANGELOG.md`
+  - `docs/archive/FABLE5_HANDOFF.md`, `docs/progress/Hand_off.md`, `docs/archive/IMPLEMENTATION_SCHEDULE.md`, `docs/archive/ASTRA_ARCANA_PLAN.md`
+  - `docs/audits/AUDIT_BASELINE.md`, `docs/audits/AUDIT_REGRESSION.md`, `CHANGELOG.md`
 - Key generated: `docs/screenshots/` (17 UI captures), `backend/data/telemetry.db`, ephe/*.se1
 
 **Uncommitted on fable5-oracle-report (as of review):**
 - Modified: `backend/.env.example`, `entitlements.py`, `main.py`, `requirements.txt`, `tarot_models.py`, `frontend/src/api/client.ts`, `frontend/src/components/ArcanaModal.tsx`
-- New/untracked: `FABLE5_HANDOFF.md`, `Hand_off.md`, `IMPLEMENTATION_SCHEDULE.md`, `backend/oracle_report.py`, `backend/tests/test_oracle_report.py`
+- New/untracked: `docs/archive/FABLE5_HANDOFF.md`, `docs/progress/Hand_off.md`, `docs/archive/IMPLEMENTATION_SCHEDULE.md`, `backend/oracle_report.py`, `backend/tests/test_oracle_report.py`
 
 ---
 
 ## 5. Audit Brackets (Security & Correctness)
 
-- **Opened:** `AUDIT_BASELINE.md` (Phase 0) — before any hardening changes.
-- **Closed:** `AUDIT_REGRESSION.md` (Phase 6) — control verdicts, boundary re-inspection, DoD rubric, open items (git history purge deferred).
+- **Opened:** `docs/audits/AUDIT_BASELINE.md` (Phase 0) — before any hardening changes.
+- **Closed:** `docs/audits/AUDIT_REGRESSION.md` (Phase 6) — control verdicts, boundary re-inspection, DoD rubric, open items (git history purge deferred).
 - Ongoing practice: Re-audit on any security-sensitive change (entitlements, tier gates, seeding, new paid endpoints).
 
 **Tracked Residuals:**
