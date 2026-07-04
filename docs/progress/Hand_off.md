@@ -1,15 +1,35 @@
 # Hand_off.md
 
-_Last updated: 2026-07-01 (end of PDF-2/testing/enrichment session)_
+_Last updated: 2026-07-04 (resonarium + mobile-roadmap session)_
 
 ## TL;DR for next session
 
-Everything is **merged to `main` @ `508c5a5` and pushed**; all feature branches
-(`reliability-pdf`, `fable5-oracle-report`, `production-hardening`) are deleted
-locally and on origin. Working tree clean, **146 backend tests green**, frontend
-builds clean. You're picking up from a stable, single-branch baseline.
+Tip is `b8d4a26` on `claude/resonarium-biosentinel-integration-6gzi6a` — **2 commits
+ahead of `origin/main`** (URL entitlement unlock + `MOBILE_ROADMAP.md`); everything
+before that (Resonarium, the alchemical UI layer) is merged to `main` via PR #20.
+Working tree clean. **146 backend tests green** + **38 resonarium tests green**
+(`python3 -m unittest discover -s resonarium/tests`, all parity cases run with Node
+present); frontend builds clean.
 
-## What shipped this session (now on `main`)
+## What shipped this/most-recent session
+
+1. **Resonarium × Biosentinel** (`resonarium/`, merged to `main`) — standalone,
+   local-only natal-seeded audiovisual instrument. Bit-exact seed across Python and
+   JS (`natal_seed.{py,js}`), Sentinel Mode browser app over an immutable natal
+   bedrock, headless CLI + `state_schema.json`, and a 38-test parity + safety suite.
+   Photosensitivity/audio clamps; CSP-locked, no network. **Not a medical device.**
+   Full detail in `resonarium/README.md` and `CHANGELOG.md`.
+2. **Alchemical UI layer** (merged) — metals seal, correspondence card, sigil marks,
+   transmutation cast flare, alchemy print appendix; plus transit datetime fixes.
+3. **Mobile URL entitlement unlock** (`useStore.ts`, this branch) — `?entitlement=
+   <token>` stores the tier token like the console snippet would (phone browsers have
+   no devtools); `?entitlement=clear` → free. Param scrubbed from the address bar.
+   Documented in `TESTING.md` §2. Verified headless.
+4. **`docs/progress/MOBILE_ROADMAP.md`** (this branch) — three-horizon compute-gradient
+   plan (H1 PWA → H2 Capacitor → H3 on-device ASTRA-CORE). Its §7 immediate next
+   actions are the strongest candidates for the next session (see below).
+
+## What shipped the prior session (now on `main`)
 
 1. **PDF-2 — separate purchase rail for the deluxe Personal Report.**
    Operator decision recorded: off-chain receipt/token (no payment rebuild).
@@ -56,6 +76,8 @@ cd backend && .venv/bin/pytest -q          # 146 tests
 cd frontend && npm run build               # typecheck + build
 .venv/bin/python tools/smoke_tiers.py      # tier gate matrix vs live server
 .venv/bin/python tools/mint_test_tokens.py # browser tokens for any tier
+python3 -m unittest discover -s resonarium/tests -v   # 38 resonarium tests (parity needs node)
+python3 resonarium/resonarium_biosentinel_cli.py verify
 ```
 
 ## Environment reality (shapes what "working" looks like locally)
@@ -76,6 +98,12 @@ cd frontend && npm run build               # typecheck + build
 
 ## Open threads / next candidates
 
+- **Mobile roadmap §7 (highest-leverage next steps):** promote the scratchpad
+  Playwright suites into `frontend/e2e/`; self-host EB Garamond/Cormorant (closes
+  the app's last external request); `backend/tools/gen_parity_vectors.py` + first
+  vector file to make ASTRA-CORE concrete; offline app-shell pass on the service
+  worker; Ed25519 dual-issue spike in `entitlements.py`. Detail + acceptance
+  criteria in `docs/progress/MOBILE_ROADMAP.md`.
 - **Receipt ledger (R2-adjacent):** report claims are stateless, so one paid
   tx can be replayed across different session seeds. When a shared store
   lands (Redis/SQLite), record redeemed tx hashes and reject reuse. Recorded

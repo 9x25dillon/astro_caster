@@ -3,6 +3,55 @@
 Per-phase log for the Production Hardening & Symbolic Intelligence Expansion pass.
 Baseline: `d9afc4b` (36 backend tests, clean frontend build).
 
+## Mobile roadmap + URL entitlement unlock (2026-07-03, resonarium-biosentinel-integration / PR #20)
+
+- **`?entitlement=<token>` URL parameter** (`frontend/src/store/useStore.ts`): phone
+  browsers (the Termux workflow) have no devtools console for the localStorage
+  tier-unlock snippet, so the store now accepts the token on boot — stored
+  identically to the console path, param scrubbed from the address bar via
+  `history.replaceState`, `?entitlement=clear` returns to free tier. Startup
+  validation still clears invalid/expired tokens. Documented in `TESTING.md` §2.
+  Verified in headless Chromium.
+- **`docs/progress/MOBILE_ROADMAP.md`** — living, owner-reviewed three-horizon
+  plan (H1 hardened PWA → H2 Capacitor wrapper → H3 on-device **ASTRA-CORE**),
+  building the mobile counterpart on the golden-vector parity methodology proven
+  by `resonarium/natal_seed.{py,js}`. Records the architecture decision, rejected
+  alternatives, subsystem plans, systemic multi-year risks, phase gates, and
+  immediate next actions. Indexed in `docs/README.md`.
+
+## Resonarium × Biosentinel — natal-seeded local instrument (2026-07-02, resonarium-biosentinel-integration)
+
+Standalone, local-only audiovisual instrument in `resonarium/` (not wired into the
+FastAPI app or React client). Three commits: shared deterministic natal seed layer
+(Python + JS), versioned state schema + headless CLI, and the Sentinel Mode browser
+app with a parity + safety test suite.
+
+- **Bit-exact natal seed across Python and JS** (`natal_seed.py` / `natal_seed.js`):
+  canonical chart serialization → SHA-256 → 64-bit seed (first 8 bytes big-endian)
+  → mulberry32 PRNG, with intention sanitization, safety clamps, and a trace privacy
+  guard. Same chart + intention ⇒ identical seed on both sides (vector
+  `86813727ef5b4048`).
+- **Sentinel Mode overlay** (`resonarium-enhanced.html`) over an immutable natal
+  bedrock — ghost oscillators/rings only; turning it off restores the pure natal
+  output exactly. All Biosentinel randomness is seeded from the natal seed.
+- **Headless controller** (`resonarium_biosentinel_cli.py`) + versioned
+  `state_schema.json` (`1.0.0`); CLI ⇄ browser state sync via redacted JSON.
+- **Safety / privacy:** visual modulation hard-capped at 2.5 Hz (below the 3–30 Hz
+  photosensitive zone), audio clamped 20 Hz–18 kHz; raw chart/intention live in page
+  memory only (never localStorage, trace, console, or default export); HTML CSP
+  `default-src 'none'; connect-src 'none'`. **Not a medical device.**
+- **38-test verification suite** (`resonarium/tests/`, stdlib `unittest`) including
+  a `TestBrowserParity` class that runs the JS side via Node (skips if absent);
+  scans all shipped files for network tokens.
+
+## Alchemical UI + transit fixes (2026-07-02, main)
+
+- **Alchemical UI layer** — metals seal, correspondence card, sigil marks
+  (`frontend/src/lib/alchemy.ts`, `sigil.ts`, `AlchemySigil.tsx`); transmutation
+  cast flare, metal-tinted glyphs, alchemy print appendix in the deluxe report.
+- **Transit datetime fix** — blanking input, UTC drift, and the dead-end jump on
+  transit navigation.
+
 ## PDF-2 — Separate purchase rail for the deluxe edition (2026-07-01, reliability-pdf)
 
 Operator decision recorded: **off-chain `personal_report` receipt/token** (over a

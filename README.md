@@ -309,6 +309,19 @@ AI-free**; AI enrichment is opt-in and tier-gated. Opened via the **✶ Arcana**
 - KPI cards, AI-by-tier/depth/lens/model bar charts, top features
 - SQLite telemetry at `backend/data/telemetry.db`
 
+### Resonarium × Biosentinel — natal-seeded instrument
+- Standalone, **local-only** audiovisual instrument in [`resonarium/`](resonarium/) —
+  not wired into the FastAPI app or the React client; runs offline by construction
+  (HTML ships a `default-src 'none'; connect-src 'none'` CSP)
+- Deterministic **natal seed** shared bit-exact across Python and JS
+  (`natal_seed.py` / `natal_seed.js`): SHA-256 → 64-bit seed → mulberry32 PRNG,
+  enforced by a cross-platform parity suite (`resonarium/tests/`, 38 tests)
+- Browser app (`resonarium-enhanced.html`) with a **Sentinel Mode** overlay over
+  an immutable natal bedrock, plus a headless controller
+  (`resonarium_biosentinel_cli.py`) sharing `state_schema.json`
+- **Not a medical device** — no health claims; visual modulation hard-capped at
+  2.5 Hz, audio clamped 20 Hz–18 kHz. See [`resonarium/README.md`](resonarium/README.md)
+
 ---
 
 ## API
@@ -399,6 +412,10 @@ cd frontend && ./node_modules/.bin/tsc -b && npm run build
 - [x] Explainable draws (`weight_sources`), local-date determinism, exactly-N daily cards
 - [x] Learning paths, `.ics` calendar export, deck-art prompt studio
 - [x] CI: pytest + boot guard + frontend build + secret scan; Dependabot
+- [x] Resonarium × Biosentinel — natal-seeded local instrument, Python↔JS parity suite
+- [x] Alchemical UI layer — metals seal, correspondence card, sigil marks, transmutation flare
+- [x] Mobile unlock via `?entitlement=<token>` URL param (Termux/phone browsers)
+- [ ] Mobile counterpart — see [`docs/progress/MOBILE_ROADMAP.md`](docs/progress/MOBILE_ROADMAP.md) (H1 PWA → H2 Capacitor → H3 on-device ASTRA-CORE)
 
 ---
 
