@@ -24,6 +24,24 @@ qualifying tx mint deluxe claims for *different* Oracle sessions.
 - 9 tests (test_receipts.py, unit + endpoint incl. fail-closed); 171 backend
   tests green.
 
+## Offline app shell — last cast survives losing the network (2026-07-04, offline-shell)
+
+Mobile roadmap §7.4. The static shell (js/css/html/svg/woff2) was already
+fully precached by the service worker after the fonts work; this adds the
+dynamic half so a network-dead reload still boots a living observatory.
+
+- **`useStore.generate()`**: every successful cast persists
+  `{birth, chart}` to `localStorage["aae.last_chart"]` (best-effort, label
+  excluded from identity); on API failure it restores the cached chart —
+  **only when the birth data matches** — instead of showing a dead wheel,
+  and sets `chartFromCache`.
+- **`.offline-note` badge** over the wheel ("☾ offline — showing your last
+  cast", amethyst pill, `role="status"`) so a cached view is never mistaken
+  for a live compute. No cache → the honest error path, unchanged.
+- **`e2e/offline-shell.spec.ts`**: online visit → sever `/api/**` → reload →
+  wheel restored + note visible; fresh profile offline → error surfaced,
+  no note. Runs in both desktop and mobile projects.
+
 ## Parity vectors — ASTRA-CORE drift lock begins (2026-07-04, parity-vectors)
 
 Mobile roadmap §7.3 / §3: golden vectors as a product, not a QA step.
