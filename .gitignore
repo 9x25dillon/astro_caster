@@ -37,3 +37,8 @@ TASKS.md
 
 # TypeScript incremental build state
 *.tsbuildinfo
+
+# Playwright e2e artifacts
+frontend/playwright-report/
+frontend/test-results/
+frontend/e2e/.tokens.json
