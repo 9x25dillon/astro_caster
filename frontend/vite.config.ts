@@ -9,6 +9,11 @@ export default defineConfig({
     VitePWA({
       registerType: "autoUpdate",
       includeAssets: ["favicon.svg"],
+      // Precache the self-hosted fonts too (workbox default is js/css/html
+      // only) — the offline app shell must not fall back to system serifs.
+      workbox: {
+        globPatterns: ["**/*.{js,css,html,svg,woff2}"],
+      },
       manifest: {
         name: "Astra — Natal Observatory",
         short_name: "Astra",

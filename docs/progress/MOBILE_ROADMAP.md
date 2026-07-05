@@ -195,9 +195,16 @@ carries over unchanged.
 
 ## 7. Immediate next actions (this branch or next)
 
-1. Promote the scratchpad Playwright suites into `frontend/e2e/` (foundation
-   for every gate above).
-2. Self-host EB Garamond/Cormorant (closes the last external request).
+1. ✅ **DONE 2026-07-04** — Playwright harness in `frontend/e2e/` (the original
+   scratchpad suites didn't survive /tmp, so rebuilt fresh): desktop + Pixel 7
+   projects, boots the real stack via `run.sh` (`gracefulShutdown: SIGTERM` so
+   run.sh's trap can reap its setsid'd children), app-shell / glossary-regression /
+   URL-unlock / no-external-request specs, real tokens minted in global setup.
+   `npm run e2e`; documented in `TESTING.md` §3.5.
+2. ✅ **DONE 2026-07-04** — EB Garamond + Cormorant Garamond self-hosted in
+   `frontend/public/fonts/` (latin + latin-ext woff2, deduped variable-font
+   files, ~370 KB), Google Fonts `<link>`s removed, woff2 added to the PWA
+   precache glob. Guarded by the `no-external.spec.ts` e2e test.
 3. `backend/tools/gen_parity_vectors.py` + first vector file (natal chart for the
    two reference charts in `conftest.py`) — makes ASTRA-CORE start concrete.
 4. Offline app-shell pass on the existing service worker (cache
