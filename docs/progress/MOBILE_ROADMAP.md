@@ -97,8 +97,15 @@ implementations) into a mechanical gate.
   exact-day. Tarot/forecast/numerology: exact equality (they're arithmetic).
 
 **Sequencing inside the initiative** (each step independently shippable):
-1. `@astra/core/chart` — positions, houses, angles, aspects, dignities,
-   elements/modalities, patterns. *Unblocks offline chart casting.*
+1. ✅ **v0.1 DONE 2026-07-05** — `@astra/core/chart` (`packages/astra-core/`):
+   positions, houses (Placidus from scratch), angles, aspects, dignities,
+   elements/modalities, patterns — reproduces `parity/natal-chart.json` within
+   the cross-engine tolerance (worst longitude Δ ~0.003°, cusps ~0.001°) using
+   `astronomy-engine`, an *independent* Moshier implementation. CI job
+   `astra-core` gates every commit. **Known gap:** Node/Chiron/Lilith need an
+   ephemeris source astronomy-engine lacks — comparison restricts to the
+   supported body set; closing it is the WASM-Swiss escalation below.
+   *Unblocks offline chart casting.*
 2. `@astra/core/tarot` — deterministic natal-arcana + spreads (pure data
    transforms; port is mechanical).
 3. `@astra/core/forecast` — transit scan + station finder (the CPU-heavy one;
