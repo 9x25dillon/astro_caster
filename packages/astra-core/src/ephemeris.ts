@@ -8,7 +8,16 @@
 // engine doesn't provide — tracked as the WASM-escalation decision in
 // MOBILE_ROADMAP §3.
 
-import {
+// astronomy-engine ships esm/astronomy.js with real ESM `export` syntax but
+// no "type":"module" in its package.json, so Node's `import` condition
+// mis-detects its named exports as CJS on Node < 24 (green on 26, red on CI's
+// 22). Force the correctly-packaged CJS build via createRequire; types still
+// come from the package's own declarations via `import type`.
+import { createRequire } from "node:module";
+import type * as AstronomyTypes from "astronomy-engine";
+
+const require = createRequire(import.meta.url);
+const {
   Body,
   Ecliptic,
   EquatorFromVector,
@@ -18,8 +27,8 @@ import {
   Rotation_EQJ_EQD,
   SiderealTime,
   e_tilt,
-  type AstroTime,
-} from "astronomy-engine";
+} = require("astronomy-engine") as typeof import("astronomy-engine");
+type AstroTime = AstronomyTypes.AstroTime;
 
 import {
   ASPECT_DEFS,
@@ -43,7 +52,7 @@ import type {
   PlanetData,
 } from "./types.js";
 
-const PLANET_TABLE: [string, Body, string][] = [
+const PLANET_TABLE: [string, AstronomyTypes.Body, string][] = [
   ["Sun", Body.Sun, "☉"],
   ["Moon", Body.Moon, "☽"],
   ["Mercury", Body.Mercury, "☿"],
@@ -105,7 +114,7 @@ function timeFromJd(jd: number): AstroTime {
 // Bodies
 // ---------------------------------------------------------------------------
 
-function eclipticOfDate(body: Body, time: AstroTime): { lon: number; lat: number } {
+function eclipticOfDate(body: AstronomyTypes.Body, time: AstroTime): { lon: number; lat: number } {
   // GeoVector: geocentric J2000 equatorial, corrected for light travel and
   // aberration; Ecliptic() rotates to the TRUE ecliptic and equinox of date.
   const ecl = Ecliptic(GeoVector(body, time, true));
@@ -114,7 +123,7 @@ function eclipticOfDate(body: Body, time: AstroTime): { lon: number; lat: number
 
 function calcBody(
   jd: number,
-  body: Body
+  body: AstronomyTypes.Body
 ): { lon: number; lat: number; speed: number; dec: number } {
   const time = timeFromJd(jd);
   const { lon, lat } = eclipticOfDate(body, time);
