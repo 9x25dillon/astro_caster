@@ -29,6 +29,30 @@ Mobile roadmap §7.3 / §3: golden vectors as a product, not a QA step.
   landed in the second slot. All pattern iteration/unpacking is now sorted and
   Kites check both orientations.
 
+## Ed25519 dual-issue spike (2026-07-04, ed25519-spike)
+
+Mobile roadmap §7.5 / §4.2 — the asymmetric-verification groundwork for
+on-device tier checks. (Landed in parallel with the offline-shell entry; see
+its section for §7.4.)
+
+- **`AAE_SIGN_ALGO=ed25519`** (+ `AAE_ED25519_SEED`, 32-byte hex) switches
+  token MINTING to Ed25519: signature carried as `e1` + 128 hex chars, so it
+  can never be confused with a 64-char HMAC digest. `verify_token()` is
+  scheme-detecting and **accepts both kinds regardless of the active algo** —
+  flipping the flag in either direction never strands outstanding tokens.
+  Report claims ride the same `_sign` path, so PDF-2 purchase tokens dual-
+  issue for free.
+- **`ed25519_public_key_hex()`** exports the verify-only key a client embeds;
+  the test suite proves a signature checks out with *only* the public key —
+  exactly the on-device flow. Keygen: `tools/gen_ed25519_key.py` (prints env
+  lines + public key + rotation semantics).
+- **Fail-closed**: production boot refused when `AAE_SIGN_ALGO=ed25519` with
+  a missing/invalid seed (mirrors the AAE_SECRET guard); minting raises a
+  clear error in dev. Key material is read per call, not at import, so tests
+  and rotation don't fight module state. HMAC remains the default; retirement
+  is an H3 decision per roadmap §4.2.
+- New dep `cryptography==49.0.0`; 13 new tests (162 backend total).
+
 ## E2E foundation + self-hosted fonts (2026-07-04, e2e-foundation)
 
 Mobile roadmap §7 items 1–2 — the observability foundation and the last

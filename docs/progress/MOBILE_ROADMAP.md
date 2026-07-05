@@ -216,7 +216,14 @@ carries over unchanged.
    kites when the trine member landed second). See `parity/README.md`.
 4. Offline app-shell pass on the existing service worker (cache
    last-chart + static engines' data files).
-5. Ed25519 dual-issue spike in `entitlements.py` behind `AAE_SIGN_ALGO=ed25519`.
+5. ✅ **DONE 2026-07-04** — Ed25519 dual-issue spike: `AAE_SIGN_ALGO=ed25519`
+   (+ `AAE_ED25519_SEED`, keygen in `tools/gen_ed25519_key.py`) switches
+   minting to Ed25519 signatures marked `e1`; `verify_token` accepts both
+   schemes regardless of active algo, report claims ride the same signer,
+   prod boot refused on missing seed, `ed25519_public_key_hex()` ready for
+   client embedding. 13 tests incl. a verify-with-public-key-only case
+   (exactly what the device will do). HMAC stays the default; retirement at
+   H3 per §4.2.
 
 ---
 
