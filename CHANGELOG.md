@@ -3,6 +3,35 @@
 Per-phase log for the Production Hardening & Symbolic Intelligence Expansion pass.
 Baseline: `d9afc4b` (36 backend tests, clean frontend build).
 
+## @astra/core/chart v0.1 — ASTRA-CORE lands (2026-07-05, astra-core-chart)
+
+Mobile roadmap §3 step 1: the first deterministic engine ported to TypeScript
+and **drift-locked to the Python backend** through the committed golden vectors
+(the parity methodology finally has a consumer on the other side).
+
+- **`packages/astra-core/`** — dependency-light TS package. `calculateChart(req)`
+  reproduces the backend `ChartResponse`: ecliptic positions via
+  `astronomy-engine` (MIT, pure TS, an *independent* Moshier implementation
+  from the backend's pyswisseph, which is what makes parity meaningful),
+  Placidus houses + Asc/MC computed from scratch (GAST + true obliquity, no
+  Swiss dependency), and direct ports of `astrology.py` / `patterns.py` for the
+  symbolic layer (carries the sorted-iteration determinism fix and both-
+  orientation Kite detection).
+- **Parity is the referee**: `test/parity.test.ts` reads the SAME
+  `parity/natal-chart.json` the backend generates and reproduces both reference
+  charts within the file's cross-engine tolerance — worst longitude Δ ~0.003°
+  (Uranus), house cusps ~0.001°. CI job `astra-core` (typecheck + parity) gates
+  every commit.
+- **Getting there** surfaced the Placidus subtlety worth recording: our horizon
+  formula `asc1` leads Swiss Ephemeris's `Asc1` by 90° (cos vs sin numerator),
+  so the Ascendant is `asc1(armc)` directly and the intermediate-cusp RA offsets
+  are Swiss's minus 90 (−60/−30/+30/+60). Angular cusps then fall out exact.
+- **Known gap (documented, tracked)**: North/South Node, Chiron, Lilith aren't
+  computable with astronomy-engine — the parity comparison restricts to the
+  supported body set (Sun–Pluto, Asc, MC, Part of Fortune) and filters
+  aspects/patterns accordingly. Closing it is the WASM-Swiss escalation in
+  roadmap §3; the vectors keep the full body set so the target never drifts.
+
 ## Receipt ledger — deluxe purchase replay closed (2026-07-05, receipt-ledger)
 
 Closes the one accepted security limitation on the books

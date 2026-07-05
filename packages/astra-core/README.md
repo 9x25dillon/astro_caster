@@ -1,0 +1,48 @@
+# @astra/core
+
+The deterministic astrology engines, in dependency-light TypeScript, **drift-locked
+to the Python backend** through the golden vectors in [`/parity`](../../parity)
+(MOBILE_ROADMAP §3). This is the load-bearing initiative for on-device compute
+(H3): the same chart math the server runs, provably equivalent, in the browser.
+
+## v0.1 — the chart module
+
+`calculateChart(req)` reproduces the backend's `ChartResponse`:
+
+- **Ephemeris**: [`astronomy-engine`](https://github.com/cosinekitty/astronomy)
+  (MIT, pure TS, ~Moshier-class) — an *independent* implementation from the
+  backend's pyswisseph/Moshier, which is exactly what makes the parity test
+  meaningful. Positions on the true ecliptic of date; declinations in the
+  equator of date; longitude speed by central difference.
+- **Houses**: Placidus cusps + Ascendant/Midheaven computed from apparent
+  sidereal time (GAST) and true obliquity — ported from the horizon/pole
+  formulae, no Swiss dependency. Reproduces `swe.houses_ex` to ~0.001°.
+- **Symbolic layer**: signs, dignities, aspects, patterns, element/modality
+  tallies — direct ports of `astrology.py` / `patterns.py` (including the
+  sorted-iteration determinism fix and both-orientation Kite detection).
+
+### Body coverage & the known gap
+
+Ships: Sun–Pluto, Ascendant, Midheaven, Part of Fortune. **Not yet**: North/
+South Node, Chiron, Lilith — astronomy-engine doesn't provide them. The parity
+test restricts its comparison to the supported set and filters aspects/patterns
+accordingly. Closing the gap is the WASM-Swiss escalation decision tracked in
+MOBILE_ROADMAP §3; until then the vectors themselves carry the full body set so
+the target never drifts.
+
+### Accuracy (v0.1, vs the committed vectors)
+
+Worst-case longitude delta across both reference charts: **~0.003°** (Uranus),
+well inside the parity contract's cross-engine tolerance (±0.01° × 5). Angular
+house cusps are exact; intermediate cusps ~0.001°.
+
+## Develop
+
+```bash
+npm install
+npm test          # parity vs /parity/natal-chart.json (tsx --test)
+npm run typecheck # tsc --noEmit, strict
+```
+
+The parity test reads the SAME `parity/natal-chart.json` the backend generates
+and pins itself to; regenerate vectors only via `backend/tools/gen_parity_vectors.py`.
