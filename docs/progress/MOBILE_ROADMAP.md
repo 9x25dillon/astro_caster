@@ -106,8 +106,16 @@ implementations) into a mechanical gate.
    ephemeris source astronomy-engine lacks — comparison restricts to the
    supported body set; closing it is the WASM-Swiss escalation below.
    *Unblocks offline chart casting.*
-2. `@astra/core/tarot` — deterministic natal-arcana + spreads (pure data
-   transforms; port is mechanical).
+2. ✅ **v0.2 DONE 2026-07-05** — `@astra/core/tarot`: natal signature + weighted
+   spread draws, **bit-exact** to the backend. The "mechanical port" framing
+   undersold it — the draw seeds CPython's `random.Random`, so it required a
+   Python-compatible **MT19937** (`mt19937.ts`: `init_by_array` seeding from the
+   256-bit sha256, `genrand_res53`), proven against `parity/mt19937.json`
+   independently of tarot. Draws proven against `parity/tarot-draw.json` (exact,
+   not tolerance). Two traps caught: the backend joins seed parts with an
+   invisible U+0001 separator (`"\x01".join`), and weights are Python
+   round-half-even before feeding the RNG. Deck/weight data generated from the
+   Python source (DRY). Prose/lessons/learning-path deferred (static lookups).
 3. `@astra/core/forecast` — transit scan + station finder (the CPU-heavy one;
    runs in a Web Worker, chunked, cancellable).
 4. `@astra/core/relational` + `predictive` + `advanced` — long tail, gated by

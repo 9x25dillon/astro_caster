@@ -12,3 +12,12 @@ export {
   julianDay,
   julianDayUtc,
 } from "./ephemeris.js";
+export { MT19937 } from "./mt19937.js";
+export {
+  buildNatalArcanaSignature,
+  weightedDraw,
+  SPREAD_POSITIONS,
+  pyRound,
+  type NatalArcanaSignature,
+  type DrawnCard,
+} from "./tarot.js";

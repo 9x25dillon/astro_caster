@@ -36,11 +36,30 @@ Worst-case longitude delta across both reference charts: **~0.003°** (Uranus),
 well inside the parity contract's cross-engine tolerance (±0.01° × 5). Angular
 house cusps are exact; intermediate cusps ~0.001°.
 
+## v0.2 — the tarot module
+
+`buildNatalArcanaSignature(chart)` + `weightedDraw(sig, spread, seed)` reproduce
+the backend's natal-tarot draw **bit-for-bit**. This is a stronger claim than
+the chart: the draw is pure arithmetic plus a seeded PRNG, so parity is exact,
+not tolerance-based.
+
+- **`mt19937.ts`** — a CPython-compatible Mersenne Twister. The backend seeds
+  `random.Random(int(sha256_hex, 16))`; matching a draw requires the same
+  `init_by_array` seeding and `genrand_res53` float. Proven on its own against
+  `parity/mt19937.json`.
+- Deck order, suits, and planet/sign→trump mappings live in `tarot-data.json`,
+  **generated from the Python source** (`gen_parity_vectors.py` side) — no hand
+  transcription of 78 cards.
+- Gotchas the parity vectors caught: the backend joins seed parts with an
+  invisible `U+0001` separator, and rounds weights half-to-even before the draw.
+
+Prose, lessons and learning paths (static lookups) are deferred to a later step.
+
 ## Develop
 
 ```bash
 npm install
-npm test          # parity vs /parity/natal-chart.json (tsx --test)
+npm test          # parity vs /parity/*.json (chart, mt19937, tarot-draw)
 npm run typecheck # tsc --noEmit, strict
 ```
 

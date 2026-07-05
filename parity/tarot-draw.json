@@ -1,0 +1,899 @@
+{
+ "cases": [
+  {
+   "draws": [
+    {
+     "cards": [
+      {
+       "card": "ten_of_wands",
+       "position": "Today",
+       "reversed": false
+      }
+     ],
+     "seed": "natal-seed-1",
+     "spread": "daily"
+    },
+    {
+     "cards": [
+      {
+       "card": "high_priestess",
+       "position": "Today",
+       "reversed": false
+      }
+     ],
+     "seed": "2026-07-05|oracle",
+     "spread": "daily"
+    },
+    {
+     "cards": [
+      {
+       "card": "hermit",
+       "position": "Self",
+       "reversed": false
+      },
+      {
+       "card": "moon",
+       "position": "Mirror",
+       "reversed": false
+      },
+      {
+       "card": "world",
+       "position": "Shadow",
+       "reversed": false
+      }
+     ],
+     "seed": "natal-seed-1",
+     "spread": "three_card"
+    },
+    {
+     "cards": [
+      {
+       "card": "five_of_cups",
+       "position": "Self",
+       "reversed": false
+      },
+      {
+       "card": "nine_of_pentacles",
+       "position": "Mirror",
+       "reversed": false
+      },
+      {
+       "card": "world",
+       "position": "Shadow",
+       "reversed": false
+      }
+     ],
+     "seed": "2026-07-05|oracle",
+     "spread": "three_card"
+    },
+    {
+     "cards": [
+      {
+       "card": "nine_of_swords",
+       "position": "Fire",
+       "reversed": false
+      },
+      {
+       "card": "eight_of_cups",
+       "position": "Water",
+       "reversed": true
+      },
+      {
+       "card": "four_of_cups",
+       "position": "Air",
+       "reversed": false
+      },
+      {
+       "card": "king_of_cups",
+       "position": "Earth",
+       "reversed": false
+      },
+      {
+       "card": "seven_of_wands",
+       "position": "Spirit",
+       "reversed": false
+      }
+     ],
+     "seed": "natal-seed-1",
+     "spread": "elemental_balance"
+    },
+    {
+     "cards": [
+      {
+       "card": "page_of_pentacles",
+       "position": "Fire",
+       "reversed": true
+      },
+      {
+       "card": "three_of_swords",
+       "position": "Water",
+       "reversed": false
+      },
+      {
+       "card": "four_of_cups",
+       "position": "Air",
+       "reversed": false
+      },
+      {
+       "card": "four_of_swords",
+       "position": "Earth",
+       "reversed": false
+      },
+      {
+       "card": "ten_of_pentacles",
+       "position": "Spirit",
+       "reversed": false
+      }
+     ],
+     "seed": "2026-07-05|oracle",
+     "spread": "elemental_balance"
+    },
+    {
+     "cards": [
+      {
+       "card": "knight_of_pentacles",
+       "position": "Sun",
+       "reversed": false
+      },
+      {
+       "card": "king_of_pentacles",
+       "position": "Moon",
+       "reversed": false
+      },
+      {
+       "card": "tower",
+       "position": "Mercury",
+       "reversed": false
+      },
+      {
+       "card": "two_of_wands",
+       "position": "Venus",
+       "reversed": false
+      },
+      {
+       "card": "five_of_cups",
+       "position": "Mars",
+       "reversed": true
+      },
+      {
+       "card": "two_of_cups",
+       "position": "Jupiter",
+       "reversed": true
+      },
+      {
+       "card": "three_of_cups",
+       "position": "Saturn",
+       "reversed": true
+      }
+     ],
+     "seed": "natal-seed-1",
+     "spread": "planetary_seven"
+    },
+    {
+     "cards": [
+      {
+       "card": "king_of_pentacles",
+       "position": "Sun",
+       "reversed": false
+      },
+      {
+       "card": "queen_of_cups",
+       "position": "Moon",
+       "reversed": false
+      },
+      {
+       "card": "two_of_swords",
+       "position": "Mercury",
+       "reversed": true
+      },
+      {
+       "card": "six_of_swords",
+       "position": "Venus",
+       "reversed": false
+      },
+      {
+       "card": "devil",
+       "position": "Mars",
+       "reversed": true
+      },
+      {
+       "card": "knight_of_wands",
+       "position": "Jupiter",
+       "reversed": false
+      },
+      {
+       "card": "queen_of_pentacles",
+       "position": "Saturn",
+       "reversed": false
+      }
+     ],
+     "seed": "2026-07-05|oracle",
+     "spread": "planetary_seven"
+    },
+    {
+     "cards": [
+      {
+       "card": "devil",
+       "position": "House 1",
+       "reversed": false
+      },
+      {
+       "card": "queen_of_wands",
+       "position": "House 2",
+       "reversed": true
+      },
+      {
+       "card": "page_of_pentacles",
+       "position": "House 3",
+       "reversed": true
+      },
+      {
+       "card": "king_of_swords",
+       "position": "House 4",
+       "reversed": false
+      },
+      {
+       "card": "moon",
+       "position": "House 5",
+       "reversed": false
+      },
+      {
+       "card": "ace_of_wands",
+       "position": "House 6",
+       "reversed": true
+      },
+      {
+       "card": "king_of_wands",
+       "position": "House 7",
+       "reversed": true
+      },
+      {
+       "card": "five_of_wands",
+       "position": "House 8",
+       "reversed": true
+      },
+      {
+       "card": "knight_of_pentacles",
+       "position": "House 9",
+       "reversed": false
+      },
+      {
+       "card": "sun",
+       "position": "House 10",
+       "reversed": false
+      },
+      {
+       "card": "king_of_pentacles",
+       "position": "House 11",
+       "reversed": false
+      },
+      {
+       "card": "king_of_cups",
+       "position": "House 12",
+       "reversed": false
+      }
+     ],
+     "seed": "natal-seed-1",
+     "spread": "twelve_house"
+    },
+    {
+     "cards": [
+      {
+       "card": "seven_of_wands",
+       "position": "House 1",
+       "reversed": false
+      },
+      {
+       "card": "nine_of_cups",
+       "position": "House 2",
+       "reversed": false
+      },
+      {
+       "card": "ten_of_cups",
+       "position": "House 3",
+       "reversed": false
+      },
+      {
+       "card": "knight_of_pentacles",
+       "position": "House 4",
+       "reversed": true
+      },
+      {
+       "card": "eight_of_swords",
+       "position": "House 5",
+       "reversed": true
+      },
+      {
+       "card": "chariot",
+       "position": "House 6",
+       "reversed": false
+      },
+      {
+       "card": "eight_of_wands",
+       "position": "House 7",
+       "reversed": false
+      },
+      {
+       "card": "hanged_man",
+       "position": "House 8",
+       "reversed": true
+      },
+      {
+       "card": "page_of_pentacles",
+       "position": "House 9",
+       "reversed": false
+      },
+      {
+       "card": "seven_of_swords",
+       "position": "House 10",
+       "reversed": false
+      },
+      {
+       "card": "knight_of_cups",
+       "position": "House 11",
+       "reversed": false
+      },
+      {
+       "card": "high_priestess",
+       "position": "House 12",
+       "reversed": true
+      }
+     ],
+     "seed": "2026-07-05|oracle",
+     "spread": "twelve_house"
+    },
+    {
+     "cards": [
+      {
+       "card": "five_of_wands",
+       "position": "You",
+       "reversed": false
+      },
+      {
+       "card": "hierophant",
+       "position": "The Other",
+       "reversed": false
+      },
+      {
+       "card": "four_of_cups",
+       "position": "The Bond",
+       "reversed": false
+      },
+      {
+       "card": "three_of_cups",
+       "position": "The Lesson",
+       "reversed": false
+      },
+      {
+       "card": "ace_of_swords",
+       "position": "The Becoming",
+       "reversed": true
+      }
+     ],
+     "seed": "natal-seed-1",
+     "spread": "relationship"
+    },
+    {
+     "cards": [
+      {
+       "card": "ace_of_cups",
+       "position": "You",
+       "reversed": false
+      },
+      {
+       "card": "emperor",
+       "position": "The Other",
+       "reversed": true
+      },
+      {
+       "card": "six_of_pentacles",
+       "position": "The Bond",
+       "reversed": false
+      },
+      {
+       "card": "fool",
+       "position": "The Lesson",
+       "reversed": false
+      },
+      {
+       "card": "nine_of_cups",
+       "position": "The Becoming",
+       "reversed": false
+      }
+     ],
+     "seed": "2026-07-05|oracle",
+     "spread": "relationship"
+    }
+   ],
+   "id": "einstein-ulm-1879",
+   "request": {
+    "day": 14,
+    "hour": 11,
+    "lat": 48.4011,
+    "lng": 9.9876,
+    "minute": 30,
+    "month": 3,
+    "second": 0,
+    "tz_offset": 0.67,
+    "year": 1879
+   },
+   "signature": {
+    "dominant_element": "Water",
+    "dominant_modality": "Mutable",
+    "major_weights": {
+     "chariot": 2.5,
+     "devil": 0.6,
+     "emperor": 1.68,
+     "empress": 1.5,
+     "fool": 1.0,
+     "hanged_man": 1.0,
+     "hermit": 0.4,
+     "hierophant": 0.8,
+     "high_priestess": 3.0,
+     "judgement": 1.0,
+     "magician": 1.5,
+     "moon": 2.7,
+     "star": 0.48,
+     "sun": 3.0,
+     "temperance": 1.2,
+     "tower": 1.5,
+     "wheel_of_fortune": 1.2,
+     "world": 1.2
+    },
+    "suit_bias": {
+     "cups": 0.375,
+     "pentacles": 0.25,
+     "swords": 0.062,
+     "wands": 0.312
+    }
+   }
+  },
+  {
+   "draws": [
+    {
+     "cards": [
+      {
+       "card": "ten_of_wands",
+       "position": "Today",
+       "reversed": false
+      }
+     ],
+     "seed": "natal-seed-1",
+     "spread": "daily"
+    },
+    {
+     "cards": [
+      {
+       "card": "high_priestess",
+       "position": "Today",
+       "reversed": false
+      }
+     ],
+     "seed": "2026-07-05|oracle",
+     "spread": "daily"
+    },
+    {
+     "cards": [
+      {
+       "card": "wheel_of_fortune",
+       "position": "Self",
+       "reversed": false
+      },
+      {
+       "card": "star",
+       "position": "Mirror",
+       "reversed": false
+      },
+      {
+       "card": "world",
+       "position": "Shadow",
+       "reversed": false
+      }
+     ],
+     "seed": "natal-seed-1",
+     "spread": "three_card"
+    },
+    {
+     "cards": [
+      {
+       "card": "eight_of_cups",
+       "position": "Self",
+       "reversed": false
+      },
+      {
+       "card": "ten_of_pentacles",
+       "position": "Mirror",
+       "reversed": false
+      },
+      {
+       "card": "world",
+       "position": "Shadow",
+       "reversed": false
+      }
+     ],
+     "seed": "2026-07-05|oracle",
+     "spread": "three_card"
+    },
+    {
+     "cards": [
+      {
+       "card": "king_of_swords",
+       "position": "Fire",
+       "reversed": false
+      },
+      {
+       "card": "page_of_cups",
+       "position": "Water",
+       "reversed": true
+      },
+      {
+       "card": "six_of_cups",
+       "position": "Air",
+       "reversed": false
+      },
+      {
+       "card": "five_of_swords",
+       "position": "Earth",
+       "reversed": false
+      },
+      {
+       "card": "seven_of_wands",
+       "position": "Spirit",
+       "reversed": false
+      }
+     ],
+     "seed": "natal-seed-1",
+     "spread": "elemental_balance"
+    },
+    {
+     "cards": [
+      {
+       "card": "page_of_pentacles",
+       "position": "Fire",
+       "reversed": true
+      },
+      {
+       "card": "nine_of_swords",
+       "position": "Water",
+       "reversed": false
+      },
+      {
+       "card": "five_of_cups",
+       "position": "Air",
+       "reversed": false
+      },
+      {
+       "card": "ten_of_swords",
+       "position": "Earth",
+       "reversed": false
+      },
+      {
+       "card": "knight_of_pentacles",
+       "position": "Spirit",
+       "reversed": false
+      }
+     ],
+     "seed": "2026-07-05|oracle",
+     "spread": "elemental_balance"
+    },
+    {
+     "cards": [
+      {
+       "card": "queen_of_pentacles",
+       "position": "Sun",
+       "reversed": false
+      },
+      {
+       "card": "king_of_pentacles",
+       "position": "Moon",
+       "reversed": false
+      },
+      {
+       "card": "tower",
+       "position": "Mercury",
+       "reversed": false
+      },
+      {
+       "card": "ace_of_wands",
+       "position": "Venus",
+       "reversed": false
+      },
+      {
+       "card": "seven_of_cups",
+       "position": "Mars",
+       "reversed": true
+      },
+      {
+       "card": "two_of_cups",
+       "position": "Jupiter",
+       "reversed": true
+      },
+      {
+       "card": "four_of_cups",
+       "position": "Saturn",
+       "reversed": true
+      }
+     ],
+     "seed": "natal-seed-1",
+     "spread": "planetary_seven"
+    },
+    {
+     "cards": [
+      {
+       "card": "king_of_pentacles",
+       "position": "Sun",
+       "reversed": false
+      },
+      {
+       "card": "five_of_swords",
+       "position": "Moon",
+       "reversed": false
+      },
+      {
+       "card": "eight_of_swords",
+       "position": "Mercury",
+       "reversed": true
+      },
+      {
+       "card": "page_of_swords",
+       "position": "Venus",
+       "reversed": false
+      },
+      {
+       "card": "devil",
+       "position": "Mars",
+       "reversed": true
+      },
+      {
+       "card": "knight_of_wands",
+       "position": "Jupiter",
+       "reversed": false
+      },
+      {
+       "card": "queen_of_pentacles",
+       "position": "Saturn",
+       "reversed": false
+      }
+     ],
+     "seed": "2026-07-05|oracle",
+     "spread": "planetary_seven"
+    },
+    {
+     "cards": [
+      {
+       "card": "devil",
+       "position": "House 1",
+       "reversed": false
+      },
+      {
+       "card": "queen_of_wands",
+       "position": "House 2",
+       "reversed": true
+      },
+      {
+       "card": "knight_of_pentacles",
+       "position": "House 3",
+       "reversed": true
+      },
+      {
+       "card": "three_of_pentacles",
+       "position": "House 4",
+       "reversed": false
+      },
+      {
+       "card": "moon",
+       "position": "House 5",
+       "reversed": false
+      },
+      {
+       "card": "ace_of_wands",
+       "position": "House 6",
+       "reversed": true
+      },
+      {
+       "card": "king_of_wands",
+       "position": "House 7",
+       "reversed": true
+      },
+      {
+       "card": "five_of_wands",
+       "position": "House 8",
+       "reversed": true
+      },
+      {
+       "card": "page_of_pentacles",
+       "position": "House 9",
+       "reversed": false
+      },
+      {
+       "card": "sun",
+       "position": "House 10",
+       "reversed": false
+      },
+      {
+       "card": "king_of_pentacles",
+       "position": "House 11",
+       "reversed": false
+      },
+      {
+       "card": "six_of_swords",
+       "position": "House 12",
+       "reversed": false
+      }
+     ],
+     "seed": "natal-seed-1",
+     "spread": "twelve_house"
+    },
+    {
+     "cards": [
+      {
+       "card": "seven_of_wands",
+       "position": "House 1",
+       "reversed": false
+      },
+      {
+       "card": "king_of_cups",
+       "position": "House 2",
+       "reversed": false
+      },
+      {
+       "card": "ace_of_swords",
+       "position": "House 3",
+       "reversed": false
+      },
+      {
+       "card": "queen_of_pentacles",
+       "position": "House 4",
+       "reversed": true
+      },
+      {
+       "card": "queen_of_swords",
+       "position": "House 5",
+       "reversed": true
+      },
+      {
+       "card": "lovers",
+       "position": "House 6",
+       "reversed": false
+      },
+      {
+       "card": "eight_of_wands",
+       "position": "House 7",
+       "reversed": false
+      },
+      {
+       "card": "hanged_man",
+       "position": "House 8",
+       "reversed": true
+      },
+      {
+       "card": "page_of_pentacles",
+       "position": "House 9",
+       "reversed": false
+      },
+      {
+       "card": "page_of_swords",
+       "position": "House 10",
+       "reversed": false
+      },
+      {
+       "card": "three_of_swords",
+       "position": "House 11",
+       "reversed": false
+      },
+      {
+       "card": "high_priestess",
+       "position": "House 12",
+       "reversed": true
+      }
+     ],
+     "seed": "2026-07-05|oracle",
+     "spread": "twelve_house"
+    },
+    {
+     "cards": [
+      {
+       "card": "five_of_wands",
+       "position": "You",
+       "reversed": false
+      },
+      {
+       "card": "emperor",
+       "position": "The Other",
+       "reversed": false
+      },
+      {
+       "card": "seven_of_cups",
+       "position": "The Bond",
+       "reversed": false
+      },
+      {
+       "card": "six_of_cups",
+       "position": "The Lesson",
+       "reversed": false
+      },
+      {
+       "card": "eight_of_swords",
+       "position": "The Becoming",
+       "reversed": true
+      }
+     ],
+     "seed": "natal-seed-1",
+     "spread": "relationship"
+    },
+    {
+     "cards": [
+      {
+       "card": "ace_of_cups",
+       "position": "You",
+       "reversed": false
+      },
+      {
+       "card": "emperor",
+       "position": "The Other",
+       "reversed": true
+      },
+      {
+       "card": "eight_of_pentacles",
+       "position": "The Bond",
+       "reversed": false
+      },
+      {
+       "card": "fool",
+       "position": "The Lesson",
+       "reversed": false
+      },
+      {
+       "card": "king_of_cups",
+       "position": "The Becoming",
+       "reversed": false
+      }
+     ],
+     "seed": "2026-07-05|oracle",
+     "spread": "relationship"
+    }
+   ],
+   "id": "greenwich-noon-j2000",
+   "request": {
+    "day": 1,
+    "hour": 12,
+    "lat": 51.4769,
+    "lng": 0.0,
+    "minute": 0,
+    "month": 1,
+    "second": 0,
+    "tz_offset": 0.0,
+    "year": 2000
+   },
+   "signature": {
+    "dominant_element": "Earth",
+    "dominant_modality": "Cardinal",
+    "major_weights": {
+     "death": 1.2,
+     "devil": 3.3,
+     "emperor": 2.98,
+     "empress": 1.5,
+     "fool": 1.0,
+     "hanged_man": 1.0,
+     "hierophant": 0.48,
+     "high_priestess": 3.0,
+     "judgement": 1.0,
+     "magician": 1.5,
+     "star": 1.4,
+     "sun": 3.0,
+     "temperance": 1.0,
+     "tower": 1.5,
+     "wheel_of_fortune": 1.2,
+     "world": 1.2
+    },
+    "suit_bias": {
+     "cups": 0.125,
+     "pentacles": 0.375,
+     "swords": 0.188,
+     "wands": 0.312
+    }
+   }
+  }
+ ],
+ "schema": "astra-parity/tarot-draw@1"
+}
