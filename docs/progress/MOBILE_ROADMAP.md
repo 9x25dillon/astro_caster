@@ -205,8 +205,15 @@ carries over unchanged.
    `frontend/public/fonts/` (latin + latin-ext woff2, deduped variable-font
    files, ~370 KB), Google Fonts `<link>`s removed, woff2 added to the PWA
    precache glob. Guarded by the `no-external.spec.ts` e2e test.
-3. `backend/tools/gen_parity_vectors.py` + first vector file (natal chart for the
-   two reference charts in `conftest.py`) — makes ASTRA-CORE start concrete.
+3. ✅ **DONE 2026-07-04** — `backend/tools/gen_parity_vectors.py` →
+   `parity/natal-chart.json` (schema `astra-parity/natal-chart@1`): full
+   ChartResponse vectors for Einstein/Ulm-1879 + Greenwich-noon-J2000 with the
+   §3 tolerance contract embedded; `tests/test_parity_vectors.py` pins the
+   backend to the file (§3 step 5) and CI runs a `--check` byte-drift
+   tripwire. Building it surfaced and fixed real nondeterminism in
+   `patterns.py`: set-iteration order varied per process (wording, pattern
+   order, and Kite detection itself — the single arbitrary unpack missed
+   kites when the trine member landed second). See `parity/README.md`.
 4. Offline app-shell pass on the existing service worker (cache
    last-chart + static engines' data files).
 5. Ed25519 dual-issue spike in `entitlements.py` behind `AAE_SIGN_ALGO=ed25519`.

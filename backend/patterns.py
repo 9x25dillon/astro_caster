@@ -79,8 +79,11 @@ def detect_patterns(planets, aspects) -> List["Pattern"]:
             ))
 
     # --- T-Square: two squares converging on an opposition ----------------- #
-    for opp in opps:
-        x, y = tuple(opp)
+    # Iteration and pair-unpack order are sorted throughout: sets of frozensets
+    # iterate in hash order, which varies per process and made pattern order,
+    # description wording, and (for Kites) detection itself nondeterministic.
+    for opp in sorted(opps, key=sorted):
+        x, y = sorted(opp)
         for apex in ids:
             if apex in (x, y):
                 continue
@@ -93,10 +96,10 @@ def detect_patterns(planets, aspects) -> List["Pattern"]:
                 ))
 
     # --- Grand Cross: two oppositions mutually squared --------------------- #
-    opp_list = list(opps)
+    opp_list = sorted(opps, key=sorted)
     for o1, o2 in combinations(opp_list, 2):
-        a, b = tuple(o1)
-        c, d = tuple(o2)
+        a, b = sorted(o1)
+        c, d = sorted(o2)
         quad = {a, b, c, d}
         if len(quad) != 4:
             continue
@@ -110,8 +113,8 @@ def detect_patterns(planets, aspects) -> List["Pattern"]:
             ))
 
     # --- Yod (Finger of God): two quincunxes onto a sextile base ----------- #
-    for sx in sextiles:
-        x, y = tuple(sx)
+    for sx in sorted(sextiles, key=sorted):
+        x, y = sorted(sx)
         for apex in ids:
             if apex in (x, y):
                 continue
@@ -126,18 +129,21 @@ def detect_patterns(planets, aspects) -> List["Pattern"]:
     # --- Kite: Grand Trine with an opposition to one apex ------------------ #
     grand_trines = [set(p.planets) for p in patterns if p.type == "Grand Trine"]
     for gt in grand_trines:
-        for opp in opps:
-            x, y = tuple(opp)
-            if x in gt and y not in gt:
-                # y opposes a trine member x, and should sextile the other two.
-                others = gt - {x}
-                if all(_has(sextiles, y, o) for o in others):
-                    patterns.append(Pattern(
-                        type="Kite", planets=sorted(gt | {y}),
-                        description="A Grand Trine focused and made productive by an "
-                                    "opposition — talent given direction and an outlet.",
-                        extra={"focus": y},
-                    ))
+        for opp in sorted(opps, key=sorted):
+            # Check both orientations: the old single arbitrary unpack missed
+            # the kite whenever the trine member happened to land in y.
+            lo, hi = sorted(opp)
+            for x, y in ((lo, hi), (hi, lo)):
+                if x in gt and y not in gt:
+                    # y opposes a trine member x, and should sextile the other two.
+                    others = gt - {x}
+                    if all(_has(sextiles, y, o) for o in others):
+                        patterns.append(Pattern(
+                            type="Kite", planets=sorted(gt | {y}),
+                            description="A Grand Trine focused and made productive by an "
+                                        "opposition — talent given direction and an outlet.",
+                            extra={"focus": y},
+                        ))
 
     # De-duplicate (same type + same member set can arise via multiple paths).
     seen: Set[Tuple[str, frozenset]] = set()

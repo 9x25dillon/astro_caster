@@ -9,7 +9,9 @@ carries roadmap §7 items 1–2: the **Playwright e2e harness in `frontend/e2e/`
 (desktop + Pixel 7, 20 checks ≈ 21 s, real minted tokens) with a **CI e2e job**,
 and **self-hosted EB Garamond/Cormorant** (zero external requests, guarded by
 `no-external.spec.ts`). 146 backend + 38 resonarium tests green; build green.
-Next candidates: roadmap §7 items 3–5 (parity vectors → offline app shell →
+§7.3 landed too (branch `parity-vectors`): golden vectors in `parity/` +
+backend drift-lock test + CI tripwire, plus a real determinism/Kite-detection
+fix in `patterns.py` it flushed out. Next: §7 items 4–5 (offline app shell,
 Ed25519 spike), receipt ledger.
 
 ## Session notes (2026-07-04, e2e + fonts)

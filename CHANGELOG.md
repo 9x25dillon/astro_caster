@@ -3,6 +3,32 @@
 Per-phase log for the Production Hardening & Symbolic Intelligence Expansion pass.
 Baseline: `d9afc4b` (36 backend tests, clean frontend build).
 
+## Parity vectors — ASTRA-CORE drift lock begins (2026-07-04, parity-vectors)
+
+Mobile roadmap §7.3 / §3: golden vectors as a product, not a QA step.
+
+- **`backend/tools/gen_parity_vectors.py` → `parity/natal-chart.json`**
+  (schema `astra-parity/natal-chart@1`): the full ChartResponse for the two
+  reference charts the suites already lean on (Einstein/Ulm 1879, Greenwich
+  noon J2000) — planets, cusps, angles, aspects, patterns, weighted tallies,
+  julian day — with the roadmap §3 **tolerance contract embedded in the file**
+  (longitudes ±0.01°, cusps/angles ±0.02°, orbs ±0.01°, categorical fields
+  exact) and the generating ephemeris engine stamped (`moshier`).
+- **`tests/test_parity_vectors.py`** — roadmap §3 step 5 arrives early: the
+  Python backend now pins itself to the committed vectors (circular angle
+  comparison, exact aspect/pattern sets, ×5 tolerance widening only across
+  engine changes). The future `@astra/core` runs the same comparison against
+  the same file. CI additionally runs `gen_parity_vectors.py --check` as a
+  byte-drift tripwire. 149 backend tests green.
+- **Determinism fix in `patterns.py`** (found by the vectors' own `--check`
+  round-trip): sets of frozensets iterate in per-process hash order, so
+  pattern order and description wording varied between server restarts —
+  violating the deterministic-core invariant — and **Kite detection was
+  genuinely random**: the single arbitrary pair-unpack checked only one
+  orientation of each opposition, missing the kite whenever the trine member
+  landed in the second slot. All pattern iteration/unpacking is now sorted and
+  Kites check both orientations.
+
 ## E2E foundation + self-hosted fonts (2026-07-04, e2e-foundation)
 
 Mobile roadmap §7 items 1–2 — the observability foundation and the last
