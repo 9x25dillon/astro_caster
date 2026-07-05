@@ -69,6 +69,7 @@ import logging
 import ephemeris as E
 import entitlements as ENT
 import ratelimit as RL
+import receipts as RCPT
 import telemetry as TEL
 import treasury as TR
 import tts as T
@@ -310,6 +311,11 @@ async def personal_report_purchase(req: ReportPurchaseRequest, request: Request)
         value_wei = 0
     if ok:
         ok, note = ENT.report_purchase_allowed(verified, value_wei)
+    if ok:
+        # Receipt ledger (closes AUDIT_REGRESSION §6): first redemption wins;
+        # re-minting for the SAME session stays allowed, a different session
+        # needs its own payment. Fails closed if the ledger is unavailable.
+        ok, note = RCPT.claim_tx(req.tx_hash, req.seed, verified=verified, wei=value_wei)
     if not ok:
         raise HTTPException(status_code=402, detail=note)
     tok = ENT.mint_report_token(seed=req.seed, ref=req.tx_hash[:18], verified=verified)
