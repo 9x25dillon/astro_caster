@@ -3,6 +3,27 @@
 Per-phase log for the Production Hardening & Symbolic Intelligence Expansion pass.
 Baseline: `d9afc4b` (36 backend tests, clean frontend build).
 
+## Receipt ledger — deluxe purchase replay closed (2026-07-05, receipt-ledger)
+
+Closes the one accepted security limitation on the books
+(docs/audits/AUDIT_REGRESSION.md §6): stateless report claims let a single
+qualifying tx mint deluxe claims for *different* Oracle sessions.
+
+- **backend/receipts.py**: stdlib-SQLite ledger beside the telemetry db
+  (AAE_RECEIPTS_DB, default data/receipts.db, covered by the existing
+  backend/data/*.db gitignore). Atomic redemption via BEGIN IMMEDIATE;
+  tx hashes normalized (strip + lowercase).
+- **/api/personal-report/purchase** redeems after payment verification,
+  before minting: first redemption wins; the SAME seed stays idempotent
+  (recompiles, lost-claim recovery); a different seed 402s naming the reuse;
+  a broken/unavailable ledger FAILS CLOSED — a paid surface never mints
+  unrecorded.
+- **/api/donate/verify deliberately unchanged**: tier re-verification is the
+  documented recovery path (lost localStorage, AAE_SECRET rotation) and has
+  no cross-seed amplification.
+- 9 tests (test_receipts.py, unit + endpoint incl. fail-closed); 171 backend
+  tests green.
+
 ## Parity vectors — ASTRA-CORE drift lock begins (2026-07-04, parity-vectors)
 
 Mobile roadmap §7.3 / §3: golden vectors as a product, not a QA step.
