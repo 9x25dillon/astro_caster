@@ -37,6 +37,8 @@ jobs:
         run: pip install -r requirements.txt
       - name: Run tests
         run: python -m pytest -q
+      - name: Parity vectors byte-drift tripwire
+        run: python tools/gen_parity_vectors.py --check
       - name: Boot smoke check (app imports, routes registered)
         run: |
           python -c "
