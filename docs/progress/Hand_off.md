@@ -1,17 +1,33 @@
 # Hand_off.md
 
-_Last updated: 2026-07-04 (resonarium + mobile-roadmap session)_
+_Last updated: 2026-07-04 (e2e-foundation + fonts session)_
 
 ## TL;DR for next session
 
-Tip is `b8d4a26` on `claude/resonarium-biosentinel-integration-6gzi6a` — **2 commits
-ahead of `origin/main`** (URL entitlement unlock + `MOBILE_ROADMAP.md`); everything
-before that (Resonarium, the alchemical UI layer) is merged to `main` via PR #20.
-Working tree clean. **146 backend tests green** + **38 resonarium tests green**
-(`python3 -m unittest discover -s resonarium/tests`, all parity cases run with Node
-present); frontend builds clean.
+PR #21 (URL unlock + mobile roadmap) is **merged**; PR #22 (`e2e-foundation`)
+carries roadmap §7 items 1–2: the **Playwright e2e harness in `frontend/e2e/`**
+(desktop + Pixel 7, 20 checks ≈ 21 s, real minted tokens) with a **CI e2e job**,
+and **self-hosted EB Garamond/Cormorant** (zero external requests, guarded by
+`no-external.spec.ts`). 146 backend + 38 resonarium tests green; build green.
+Next candidates: roadmap §7 items 3–5 (parity vectors → offline app shell →
+Ed25519 spike), receipt ledger.
 
-## What shipped this/most-recent session
+## Session notes (2026-07-04, e2e + fonts)
+
+- The scratchpad Playwright suites referenced by roadmap §7.1 **did not survive
+  /tmp** — rebuilt fresh in-repo. Lesson recorded: anything a plan depends on
+  must be committed, not left in a session scratchpad.
+- Playwright `webServer` + `run.sh` gotcha: run.sh setsids its children, so
+  Playwright's default SIGKILL orphans uvicorn/vite and teardown hangs forever
+  on their inherited stdio pipes. Fix: `gracefulShutdown: { signal: "SIGTERM" }`
+  so run.sh's trap reaps both process groups.
+- Google serves **byte-identical variable-font files per requested weight** —
+  dedupe and declare `font-weight: 400 600` ranges instead of per-weight files.
+- The outer `/home/kill/astro-aae` checkout is a **stale clone of this same
+  GitHub repo** (astro_caster nests inside it). It's synced to main and its
+  `.git/info/exclude` hides the nested clone; do day-to-day work here.
+
+## What shipped the session before (PR #20/#21)
 
 1. **Resonarium × Biosentinel** (`resonarium/`, merged to `main`) — standalone,
    local-only natal-seeded audiovisual instrument. Bit-exact seed across Python and
