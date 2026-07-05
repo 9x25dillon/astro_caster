@@ -138,7 +138,7 @@ the purchase gate added to `POST /api/personal-report`.
   proof — a claim bound to a fabricated seed still 409s
   (`test_fabricated_seed_rejected` now proves the ordering explicitly).
 
-### Known limitation (accepted, tracked)
+### Known limitation (accepted, tracked) — CLOSED 2026-07-05
 
 Claims are **stateless** (by design — no payment-system rebuild): the server
 keeps no receipt ledger, so one on-chain tx that meets the price can be
@@ -147,6 +147,18 @@ is bounded — oracle tier plus a real qualifying payment are still required, an
 each mint is telemetry-logged with the tx prefix, so reuse is visible in
 `tier_events`. Follow-up when a shared store lands for R2 (Redis/SQLite):
 record redeemed tx hashes and reject reuse.
+
+**Closure (2026-07-05, receipt-ledger branch):** backend/receipts.py — a
+SQLite ledger beside the telemetry db (AAE_RECEIPTS_DB, default
+data/receipts.db, gitignored). /api/personal-report/purchase redeems the tx
+atomically (BEGIN IMMEDIATE) after payment verification and before minting:
+first redemption wins; re-minting for the SAME seed stays allowed
+(recompiles / lost-claim recovery); a different seed 402s naming the reuse;
+an unavailable ledger FAILS CLOSED (no mint). Tx hashes normalized
+(strip+lowercase) so case variants are one receipt. /api/donate/verify
+intentionally stays replayable — supporters re-verify their tx to recover a
+lost tier token (the documented AAE_SECRET-rotation path), and a tier token
+has no cross-seed amplification. 9 tests in test_receipts.py.
 
 ### Coverage
 
