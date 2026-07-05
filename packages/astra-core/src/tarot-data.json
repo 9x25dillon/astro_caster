@@ -1,0 +1,287 @@
+{
+ "element_suit": {
+  "Air": "swords",
+  "Earth": "pentacles",
+  "Fire": "wands",
+  "Water": "cups"
+ },
+ "major_ids": [
+  "fool",
+  "magician",
+  "high_priestess",
+  "empress",
+  "emperor",
+  "hierophant",
+  "lovers",
+  "chariot",
+  "strength",
+  "hermit",
+  "wheel_of_fortune",
+  "justice",
+  "hanged_man",
+  "death",
+  "temperance",
+  "devil",
+  "tower",
+  "star",
+  "moon",
+  "sun",
+  "judgement",
+  "world"
+ ],
+ "minor": [
+  {
+   "id": "ace_of_wands",
+   "suit": "wands"
+  },
+  {
+   "id": "two_of_wands",
+   "suit": "wands"
+  },
+  {
+   "id": "three_of_wands",
+   "suit": "wands"
+  },
+  {
+   "id": "four_of_wands",
+   "suit": "wands"
+  },
+  {
+   "id": "five_of_wands",
+   "suit": "wands"
+  },
+  {
+   "id": "six_of_wands",
+   "suit": "wands"
+  },
+  {
+   "id": "seven_of_wands",
+   "suit": "wands"
+  },
+  {
+   "id": "eight_of_wands",
+   "suit": "wands"
+  },
+  {
+   "id": "nine_of_wands",
+   "suit": "wands"
+  },
+  {
+   "id": "ten_of_wands",
+   "suit": "wands"
+  },
+  {
+   "id": "page_of_wands",
+   "suit": "wands"
+  },
+  {
+   "id": "knight_of_wands",
+   "suit": "wands"
+  },
+  {
+   "id": "queen_of_wands",
+   "suit": "wands"
+  },
+  {
+   "id": "king_of_wands",
+   "suit": "wands"
+  },
+  {
+   "id": "ace_of_cups",
+   "suit": "cups"
+  },
+  {
+   "id": "two_of_cups",
+   "suit": "cups"
+  },
+  {
+   "id": "three_of_cups",
+   "suit": "cups"
+  },
+  {
+   "id": "four_of_cups",
+   "suit": "cups"
+  },
+  {
+   "id": "five_of_cups",
+   "suit": "cups"
+  },
+  {
+   "id": "six_of_cups",
+   "suit": "cups"
+  },
+  {
+   "id": "seven_of_cups",
+   "suit": "cups"
+  },
+  {
+   "id": "eight_of_cups",
+   "suit": "cups"
+  },
+  {
+   "id": "nine_of_cups",
+   "suit": "cups"
+  },
+  {
+   "id": "ten_of_cups",
+   "suit": "cups"
+  },
+  {
+   "id": "page_of_cups",
+   "suit": "cups"
+  },
+  {
+   "id": "knight_of_cups",
+   "suit": "cups"
+  },
+  {
+   "id": "queen_of_cups",
+   "suit": "cups"
+  },
+  {
+   "id": "king_of_cups",
+   "suit": "cups"
+  },
+  {
+   "id": "ace_of_swords",
+   "suit": "swords"
+  },
+  {
+   "id": "two_of_swords",
+   "suit": "swords"
+  },
+  {
+   "id": "three_of_swords",
+   "suit": "swords"
+  },
+  {
+   "id": "four_of_swords",
+   "suit": "swords"
+  },
+  {
+   "id": "five_of_swords",
+   "suit": "swords"
+  },
+  {
+   "id": "six_of_swords",
+   "suit": "swords"
+  },
+  {
+   "id": "seven_of_swords",
+   "suit": "swords"
+  },
+  {
+   "id": "eight_of_swords",
+   "suit": "swords"
+  },
+  {
+   "id": "nine_of_swords",
+   "suit": "swords"
+  },
+  {
+   "id": "ten_of_swords",
+   "suit": "swords"
+  },
+  {
+   "id": "page_of_swords",
+   "suit": "swords"
+  },
+  {
+   "id": "knight_of_swords",
+   "suit": "swords"
+  },
+  {
+   "id": "queen_of_swords",
+   "suit": "swords"
+  },
+  {
+   "id": "king_of_swords",
+   "suit": "swords"
+  },
+  {
+   "id": "ace_of_pentacles",
+   "suit": "pentacles"
+  },
+  {
+   "id": "two_of_pentacles",
+   "suit": "pentacles"
+  },
+  {
+   "id": "three_of_pentacles",
+   "suit": "pentacles"
+  },
+  {
+   "id": "four_of_pentacles",
+   "suit": "pentacles"
+  },
+  {
+   "id": "five_of_pentacles",
+   "suit": "pentacles"
+  },
+  {
+   "id": "six_of_pentacles",
+   "suit": "pentacles"
+  },
+  {
+   "id": "seven_of_pentacles",
+   "suit": "pentacles"
+  },
+  {
+   "id": "eight_of_pentacles",
+   "suit": "pentacles"
+  },
+  {
+   "id": "nine_of_pentacles",
+   "suit": "pentacles"
+  },
+  {
+   "id": "ten_of_pentacles",
+   "suit": "pentacles"
+  },
+  {
+   "id": "page_of_pentacles",
+   "suit": "pentacles"
+  },
+  {
+   "id": "knight_of_pentacles",
+   "suit": "pentacles"
+  },
+  {
+   "id": "queen_of_pentacles",
+   "suit": "pentacles"
+  },
+  {
+   "id": "king_of_pentacles",
+   "suit": "pentacles"
+  }
+ ],
+ "planet_major": {
+  "Chiron": "hermit",
+  "Jupiter": "wheel_of_fortune",
+  "Mars": "tower",
+  "Mercury": "magician",
+  "Moon": "high_priestess",
+  "Neptune": "hanged_man",
+  "North Node": "star",
+  "Pluto": "judgement",
+  "Saturn": "world",
+  "South Node": "moon",
+  "Sun": "sun",
+  "Uranus": "fool",
+  "Venus": "empress"
+ },
+ "sign_major": {
+  "Aquarius": "star",
+  "Aries": "emperor",
+  "Cancer": "chariot",
+  "Capricorn": "devil",
+  "Gemini": "lovers",
+  "Leo": "strength",
+  "Libra": "justice",
+  "Pisces": "moon",
+  "Sagittarius": "temperance",
+  "Scorpio": "death",
+  "Taurus": "hierophant",
+  "Virgo": "hermit"
+ }
+}

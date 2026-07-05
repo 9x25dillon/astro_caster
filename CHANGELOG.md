@@ -3,6 +3,34 @@
 Per-phase log for the Production Hardening & Symbolic Intelligence Expansion pass.
 Baseline: `d9afc4b` (36 backend tests, clean frontend build).
 
+## @astra/core/tarot v0.2 — bit-exact natal draw (2026-07-05, astra-core-tarot)
+
+Mobile roadmap §3 step 2. The tarot draw is deterministic and must match the
+backend *exactly* (not within tolerance — it's arithmetic + a seeded PRNG), so
+this is a stronger parity claim than the chart.
+
+- **`packages/astra-core/src/mt19937.ts`** — a Python-compatible Mersenne
+  Twister. The backend seeds `random.Random(int(sha256_hex, 16))` and consumes
+  `.random()`; reproducing a draw on-device means matching CPython bit-for-bit:
+  `init_by_array` seeding from the 256-bit digest and the 53-bit
+  `genrand_res53` float. Proven against a dedicated `parity/mt19937.json`
+  (Python-generated sequences, compared with `===`) independently of tarot.
+- **`src/tarot.ts`** — natal-arcana signature (chart → weighted major/minor
+  emphasis) and `weightedDraw` (seeded, no-replacement, per-position reversal),
+  ports of the draw-relevant core of `tarot.py`. Deck order, suits and
+  planet/sign→trump mappings are generated from the Python source into
+  `tarot-data.json` (DRY, no transcription). Proven against
+  `parity/tarot-draw.json` — signatures + every seeded spread draw, exact.
+- **Two determinism traps caught by parity** (both silent until the vector
+  disagreed): the backend joins seed parts with an **invisible U+0001**
+  separator (`"\x01".join(parts)` renders as `""`), and it rounds weights with
+  **Python's round-half-to-even** before they feed the RNG comparison — a naive
+  round drifts the cumulative-weight pick at boundaries. `pyRound` matches.
+- **Generator** `gen_parity_vectors.py` now emits three files (chart + mt19937 +
+  tarot-draw); the CI `--check` byte-drift tripwire covers all three, and the
+  tarot vector targets the v0.1 supported body set (documented) so it's exactly
+  what @astra/core can reproduce. 9 TS parity tests; 171 backend tests green.
+
 ## @astra/core/chart v0.1 — ASTRA-CORE lands (2026-07-05, astra-core-chart)
 
 Mobile roadmap §3 step 1: the first deterministic engine ported to TypeScript
