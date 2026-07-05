@@ -14,6 +14,7 @@ import {
 } from "../api/client";
 
 const ENT_KEY = "aae.entitlement";
+const LAST_CHART_KEY = "aae.last_chart";
 import type {
   BirthInput,
   ChartResponse,
@@ -54,6 +55,27 @@ export const PLACEHOLDER_BIRTH: BirthInput = {
   house_system: "P", zodiac: "tropical", ayanamsha: 1, label: "",
 };
 
+// Offline app shell (MOBILE_ROADMAP §7.4): the last successful cast persists
+// so a network-dead reload still boots a living observatory. The label is
+// excluded — it's cosmetic, not chart-determining.
+const BIRTH_FIELDS: (keyof BirthInput)[] = [
+  "year", "month", "day", "hour", "minute", "second",
+  "lat", "lng", "tz_offset", "house_system", "zodiac", "ayanamsha",
+];
+
+function sameBirth(a: BirthInput, b: BirthInput): boolean {
+  return BIRTH_FIELDS.every((k) => a[k] === b[k]);
+}
+
+function readLastChart(): { birth: BirthInput; chart: ChartResponse } | null {
+  try {
+    const raw = localStorage.getItem(LAST_CHART_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
 interface AstroState {
   // Inputs
   birth: BirthInput;
@@ -62,6 +84,7 @@ interface AstroState {
 
   // Data
   chart: ChartResponse | null;
+  chartFromCache: boolean; // chart restored from the offline cache, not the API
   transit: TransitResponse | null;
   transitIso: string; // ISO datetime for the slider
 
@@ -143,6 +166,7 @@ export const useStore = create<AstroState>((set, get) => ({
   },
 
   chart: null,
+  chartFromCache: false,
   transit: null,
   transitIso: toDatetimeLocal(new Date()),
 
@@ -177,8 +201,21 @@ export const useStore = create<AstroState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const chart = await generateChart(get().birth);
-      set({ chart, loading: false, selection: null, transit: null });
+      set({ chart, loading: false, selection: null, transit: null, chartFromCache: false });
+      try {
+        localStorage.setItem(LAST_CHART_KEY, JSON.stringify({ birth: get().birth, chart }));
+      } catch {
+        /* storage full or sandboxed — the offline cache is best-effort */
+      }
     } catch (e) {
+      // Offline shell: restore the last successful cast of the same birth
+      // data instead of a dead wheel; the UI flags it as a cached view.
+      const cached = readLastChart();
+      if (cached && sameBirth(cached.birth, get().birth)) {
+        set({ chart: cached.chart, loading: false, error: null,
+              selection: null, transit: null, chartFromCache: true });
+        return;
+      }
       set({ loading: false, error: (e as Error).message });
     }
   },

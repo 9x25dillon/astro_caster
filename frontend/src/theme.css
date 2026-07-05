@@ -161,7 +161,26 @@ body::before {
 }
 
 .controls { grid-area: controls; }
-.wheel-area { grid-area: wheel; display: flex; align-items: center; justify-content: center; }
+.wheel-area { grid-area: wheel; display: flex; align-items: center; justify-content: center; position: relative; }
+
+/* Offline app shell: the wheel is a restored last cast, not a live compute. */
+.offline-note {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  font-family: var(--serif);
+  font-size: 12px;
+  font-style: italic;
+  letter-spacing: 0.04em;
+  color: var(--amethyst-soft);
+  background: rgba(11, 11, 15, 0.82);
+  border: 1px solid var(--amethyst);
+  border-radius: 999px;
+  padding: 3px 14px;
+  pointer-events: none;
+}
 .detail { grid-area: detail; }
 .timeline { grid-area: timeline; }
 

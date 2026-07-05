@@ -214,8 +214,16 @@ carries over unchanged.
    `patterns.py`: set-iteration order varied per process (wording, pattern
    order, and Kite detection itself — the single arbitrary unpack missed
    kites when the trine member landed second). See `parity/README.md`.
-4. Offline app-shell pass on the existing service worker (cache
-   last-chart + static engines' data files).
+4. ✅ **DONE 2026-07-04** — offline app shell: the service worker already
+   precaches the full static shell incl. fonts (§7.2 glob covers js/css/html/
+   svg/woff2; all frontend engine data is bundled JS, so "static engines' data
+   files" is covered by the same precache). App layer added on top: the last
+   successful cast persists to `localStorage["aae.last_chart"]` and
+   `generate()` restores it (same birth data only) when the API is
+   unreachable, with an `.offline-note` badge over the wheel;
+   `validateEntitlement` was already offline-tolerant. Proven by
+   `e2e/offline-shell.spec.ts` (offline reload → wheel from cache + note;
+   no cache → honest error).
 5. Ed25519 dual-issue spike in `entitlements.py` behind `AAE_SIGN_ALGO=ed25519`.
 
 ---
