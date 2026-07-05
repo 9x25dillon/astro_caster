@@ -72,6 +72,23 @@ even with API keys configured). `--full` actually compiles — free offline
 locally; **costs real money** if `AAE_ANTHROPIC_API_KEY` is set. If you see
 429s, the rate limiter is on: `AAE_RATE_LIMIT_ENABLED=0`.
 
+## 3.5 Browser e2e suite (Playwright)
+
+```bash
+cd frontend
+npx playwright install chromium   # once per machine
+npm run e2e                       # boots ../run.sh itself, desktop + mobile
+```
+
+Lives in `frontend/e2e/` (MOBILE_ROADMAP §4.5/§7.1). Two projects — Desktop
+Chrome and Pixel 7 emulation — cover the app shell (boot → auto-cast →
+populated wheel), the glossary (entry-height regression + search), and the
+mobile `?entitlement=` URL unlock. Global setup mints real tokens via
+`mint_test_tokens.py` so the unlock spec exercises genuine server-side
+validation; the token-dependent test skips itself if the backend venv is
+missing. Zero AI spend. `npm run e2e:report` opens the HTML report on
+failures.
+
 ## 4. Manual UI walkthrough
 
 Run each block once as **free**, once as **supporter**, once as **oracle**

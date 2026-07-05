@@ -3,6 +3,35 @@
 Per-phase log for the Production Hardening & Symbolic Intelligence Expansion pass.
 Baseline: `d9afc4b` (36 backend tests, clean frontend build).
 
+## E2E foundation + self-hosted fonts (2026-07-04, e2e-foundation)
+
+Mobile roadmap §7 items 1–2 — the observability foundation and the last
+external request.
+
+- **Playwright harness in `frontend/e2e/`** (the scratchpad suites from the
+  resonarium session didn't survive /tmp, so rebuilt fresh in-repo): two
+  projects — Desktop Chrome + **Pixel 7 emulation** — against the real stack;
+  the config's `webServer` boots `run.sh` itself and tears it down with
+  `gracefulShutdown: SIGTERM` (run.sh setsids its children, so the default
+  SIGKILL orphaned uvicorn/vite and teardown hung on their inherited pipes).
+  Suites: app shell (boot → auto-cast → populated wheel; module pills open
+  their overlays; forecast panel), glossary (entry-height floor — the 4px
+  flex-crush regression — and search narrowing), and the mobile
+  `?entitlement=` URL unlock (clear / invalid-token-cleared-by-validation /
+  real minted token → supporter chrome). Global setup mints genuine tokens via
+  `backend/tools/mint_test_tokens.py`; token tests skip when the venv is
+  absent. `npm run e2e`; TESTING.md §3.5. 20 checks, ~21 s, zero AI spend.
+- **Fonts self-hosted** (`frontend/public/fonts/`): EB Garamond
+  (400–600 + italic 400) and Cormorant Garamond (500–600) vendored as latin +
+  latin-ext woff2 — both are variable fonts, so the per-weight files Google
+  serves were byte-identical and deduped to 6 files (~370 KB) declared with
+  `font-weight` ranges. Google Fonts `<link>`/preconnects removed from
+  `index.html`; `woff2` added to the PWA precache glob (14 entries, 870 KiB)
+  so the offline shell keeps its typographic voice.
+- **`no-external.spec.ts`** locks the property in: app boot makes **zero
+  requests off 127.0.0.1/localhost** (fails listing offenders), and
+  `document.fonts` proves EB Garamond actually loads from the vendored files.
+
 ## Mobile roadmap + URL entitlement unlock (2026-07-03, resonarium-biosentinel-integration / PR #20)
 
 - **`?entitlement=<token>` URL parameter** (`frontend/src/store/useStore.ts`): phone
