@@ -5,8 +5,17 @@ The "open paywall" unlock layer. Premium features are never hard-walled; a
 supporter who contributes any amount receives a signed entitlement token that
 unlocks the deep features for a generous period.
 
-Token = base64(payload).hex(HMAC-SHA256(payload, secret)). Stateless, so no DB
-is required; the client stores it in localStorage and sends it with requests.
+Token = base64(payload).signature — stateless, so no DB is required; the
+client stores it in localStorage and sends it with requests. Two signature
+schemes coexist (MOBILE_ROADMAP §4.2 — dual-issue during the mobile
+migration):
+  • HMAC-SHA256 hexdigest (64 hex chars) — the default; verification requires
+    the server secret.
+  • Ed25519, marked with an "e1" prefix (e1 + 128 hex chars) — enabled with
+    AAE_SIGN_ALGO=ed25519; anything holding the PUBLIC key can verify, which
+    is what lets a device check tiers offline without shipping a secret.
+verify_token() accepts BOTH kinds whenever the respective key material is
+configured, so flipping AAE_SIGN_ALGO never strands outstanding tokens.
 
 On-chain verification is pluggable:
   • If AAE_ETH_RPC is set, a tx hash is checked against the treasury address and
@@ -26,6 +35,11 @@ Env:
     AAE_ENT_DAYS      entitlement lifetime in days (default 365)
     AAE_ETH_RPC       optional EVM JSON-RPC URL for real verification
     AAE_MIN_WEI       minimum accepted value in wei (default 0 = any)
+    AAE_SIGN_ALGO     "hmac" (default) or "ed25519" — which scheme SIGNS new
+                      tokens; verification always accepts both when possible
+    AAE_ED25519_SEED  64 hex chars (32-byte private seed) — required whenever
+                      AAE_SIGN_ALGO=ed25519 (boot refused in production
+                      otherwise); generate with tools/gen_ed25519_key.py
 """
 
 from __future__ import annotations
@@ -107,17 +121,78 @@ def assert_safe_boot() -> None:
             "default in production. Entitlement tokens would be forgeable. Set a "
             "strong random AAE_SECRET."
         )
+    if _sign_algo() == "ed25519":
+        try:
+            configured = _ed25519_private() is not None
+        except Exception:
+            configured = False
+        if not configured:
+            raise RuntimeError(
+                "Refusing to boot: AAE_SIGN_ALGO=ed25519 in production but "
+                "AAE_ED25519_SEED is unset/invalid (need 64 hex chars) or the "
+                "cryptography package is unavailable. Tokens could not be "
+                "minted. Generate a keypair with tools/gen_ed25519_key.py."
+            )
 
 
 # --------------------------------------------------------------------------- #
 # Token mint / verify
 # --------------------------------------------------------------------------- #
+# Ed25519 dual-issue (MOBILE_ROADMAP §4.2 / §7.5 spike). The signature scheme
+# is chosen per-mint by AAE_SIGN_ALGO; verification is scheme-detecting via
+# the "e1" marker (an HMAC digest is exactly 64 hex chars, an Ed25519 sig is
+# e1 + 128 hex chars — the marker makes the distinction explicit rather than
+# inferred). Key material is read per call, not at import, so tests and key
+# rotation don't fight module state.
+
+_ED25519_MARK = "e1"
+
+
+def _sign_algo() -> str:
+    return os.environ.get("AAE_SIGN_ALGO", "hmac").strip().lower()
+
+
+def _ed25519_private():
+    """The configured Ed25519 private key, or None if unset/invalid.
+    Raises only if the cryptography package itself is missing."""
+    raw = os.environ.get("AAE_ED25519_SEED", "").strip()
+    if not raw:
+        return None
+    try:
+        seed = bytes.fromhex(raw)
+    except ValueError:
+        return None
+    if len(seed) != 32:
+        return None
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+    return Ed25519PrivateKey.from_private_bytes(seed)
+
+
+def ed25519_public_key_hex() -> Optional[str]:
+    """Hex public key for embedding in clients (verify-only, roadmap §4.2),
+    or None when no valid seed is configured."""
+    from cryptography.hazmat.primitives import serialization
+    key = _ed25519_private()
+    if key is None:
+        return None
+    return key.public_key().public_bytes(
+        serialization.Encoding.Raw, serialization.PublicFormat.Raw
+    ).hex()
 
 
 def _sign(payload: dict) -> str:
     raw = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode()
     body = base64.urlsafe_b64encode(raw).decode().rstrip("=")
-    sig = hmac.new(_SECRET, body.encode(), hashlib.sha256).hexdigest()
+    if _sign_algo() == "ed25519":
+        key = _ed25519_private()
+        if key is None:
+            raise RuntimeError(
+                "AAE_SIGN_ALGO=ed25519 but AAE_ED25519_SEED is unset or invalid "
+                "(need 64 hex chars — generate with tools/gen_ed25519_key.py)"
+            )
+        sig = _ED25519_MARK + key.sign(body.encode()).hex()
+    else:
+        sig = hmac.new(_SECRET, body.encode(), hashlib.sha256).hexdigest()
     return f"{body}.{sig}"
 
 
@@ -134,13 +209,31 @@ def mint_entitlement(tier: str, ref: str, verified: bool) -> dict:
 
 
 def verify_token(token: Optional[str]) -> Optional[dict]:
-    """Return the decoded payload if the token is valid & unexpired, else None."""
+    """Return the decoded payload if the token is valid & unexpired, else None.
+
+    Accepts both signature schemes regardless of the active AAE_SIGN_ALGO
+    (dual-accept), so a migration in either direction never strands
+    outstanding tokens.
+    """
     if not token or "." not in token:
         return None
     body, sig = token.rsplit(".", 1)
-    expected = hmac.new(_SECRET, body.encode(), hashlib.sha256).hexdigest()
-    if not hmac.compare_digest(sig, expected):
-        return None
+    if sig.startswith(_ED25519_MARK) and len(sig) == len(_ED25519_MARK) + 128:
+        try:
+            key = _ed25519_private()
+            if key is None:
+                return None
+            from cryptography.exceptions import InvalidSignature
+            try:
+                key.public_key().verify(bytes.fromhex(sig[len(_ED25519_MARK):]), body.encode())
+            except (InvalidSignature, ValueError):
+                return None
+        except ImportError:
+            return None
+    else:
+        expected = hmac.new(_SECRET, body.encode(), hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(sig, expected):
+            return None
     try:
         pad = "=" * (-len(body) % 4)
         payload = json.loads(base64.urlsafe_b64decode(body + pad))
