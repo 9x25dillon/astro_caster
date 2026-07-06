@@ -83,6 +83,8 @@ export function pyRound(x: number, ndigits: number): number {
 export interface ArcanaLink {
   body: string;
   card_id: string;
+  sign: string | null;
+  house: number | null;
   note: string;
 }
 
@@ -137,6 +139,8 @@ export function buildNatalArcanaSignature(chart: ChartResponse): NatalArcanaSign
     links.push({
       body,
       card_id: cardId,
+      sign: p.sign ?? null,
+      house: (p as any).house ?? null,
       note: `${body} in ${p.sign} (house ${(p as any).house}) — ${name} working through ${theme}.`,
     });
   }
@@ -218,6 +222,59 @@ export interface DrawnCard {
   card: string;
   reversed: boolean;
   position: string;
+}
+
+// Sign → element, for the shadow (weakest-element trumps) computation.
+const SIGN_ELEMENT: Record<string, string> = {
+  Aries: "Fire", Leo: "Fire", Sagittarius: "Fire",
+  Taurus: "Earth", Virgo: "Earth", Capricorn: "Earth",
+  Gemini: "Air", Libra: "Air", Aquarius: "Air",
+  Cancer: "Water", Scorpio: "Water", Pisces: "Water",
+};
+
+/** Full frontend-shaped natal signature (links with card objects, themes,
+ *  shadows, disclaimer) — the on-device equivalent of /api/natal-arcana. */
+export function buildLocalSignature(chart: ChartResponse) {
+  const sig = buildNatalArcanaSignature(chart);
+
+  const links = sig.links.map((l) => ({
+    body: l.body,
+    sign: l.sign,
+    house: l.house,
+    card: CARD_BY_ID[l.card_id],
+    note: l.note,
+  }));
+
+  const themes = Object.entries(sig.major_weights)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([id]) => CARD_BY_ID[id]?.name)
+    .filter(Boolean) as string[];
+
+  // Shadows: trumps of the weakest element's signs (port of build_natal_arcana_signature).
+  const elements = chart.elements ?? {};
+  const weakestEl =
+    Object.keys(elements).length > 0
+      ? Object.entries(elements).reduce((a, b) => (b[1] < a[1] ? b : a))[0]
+      : "Earth";
+  const shadowSet = new Set<string>();
+  for (const [sign, el] of Object.entries(SIGN_ELEMENT)) {
+    if (el !== weakestEl) continue;
+    const cardId = D.sign_major[sign];
+    if (cardId) shadowSet.add(CARD_BY_ID[cardId]?.name ?? cardId);
+  }
+  const shadows = [...shadowSet].sort();
+
+  return {
+    links,
+    dominant_element: sig.dominant_element,
+    dominant_modality: sig.dominant_modality,
+    suit_bias: sig.suit_bias,
+    major_weights: sig.major_weights,
+    themes,
+    shadows,
+    disclaimer: DISCLAIMER,
+  };
 }
 
 // The backend joins seed parts with a literal U+0001 (SOH) separator — it

@@ -3,6 +3,22 @@
 Per-phase log for the Production Hardening & Symbolic Intelligence Expansion pass.
 Baseline: `d9afc4b` (36 backend tests, clean frontend build).
 
+## Offline natal-arcana signature on-device (2026-07-05, offline-natal-arcana)
+
+Mobile roadmap H1: the Arcana Natal tab now builds its signature on-device when
+the backend is down — completing the offline Arcana surface.
+
+- **`@astra/core` `buildLocalSignature(chart)`**: the frontend-shaped
+  `NatalArcanaSignature` — links (now carrying `sign`/`house` + full card
+  objects), themes (top-weighted trumps), and shadows (weakest-element trumps,
+  ported from `build_natal_arcana_signature`), plus the disclaimer.
+- **Parity**: the `tarot-reading.json` vector now also carries the backend
+  signature; `buildLocalSignature` reproduces its links, themes, shadows, and
+  dominants **exactly** (asserted in `tarot-reading.test.ts`).
+- **Frontend**: `client.localNatalArcana()` + an ArcanaModal Natal-tab fallback.
+  `e2e/arcana-offline.spec.ts` now also asserts the Natal-tab links render with
+  the backend severed. 28 e2e; 25 core parity; 171 backend green.
+
 ## Offline transit forecast on-device (2026-07-05, offline-forecast)
 
 Mobile roadmap H1: the ForecastPanel now lists upcoming transits with the

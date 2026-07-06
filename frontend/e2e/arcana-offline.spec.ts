@@ -17,6 +17,12 @@ test("draws a tarot spread on-device with the backend offline", async ({ page, c
 
   await page.getByRole("button", { name: "✶ Arcana" }).click();
   await expect(page.locator(".arcana-modal")).toBeVisible();
+
+  // Natal tab (default) builds its signature on-device — links render.
+  await expect
+    .poll(() => page.locator(".arc-link-card").count(), { timeout: 15_000 })
+    .toBeGreaterThan(0);
+
   await page.getByRole("button", { name: "Draw", exact: true }).first().click();
   // Two buttons share .arc-draw-btn (spread draw + Oracle Report); take the draw one.
   await page.locator(".arc-draw-btn").filter({ hasText: /^Draw$/ }).click();

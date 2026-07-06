@@ -19,6 +19,7 @@ export { sha256Hex } from "./sha256.js";
 export {
   buildNatalArcanaSignature,
   weightedDraw,
+  buildLocalSignature,
   SPREAD_POSITIONS,
   pyRound,
   type NatalArcanaSignature,

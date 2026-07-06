@@ -155,6 +155,10 @@ implementations) into a mechanical gate.
     to `@astra/core`'s scanner (Sun–Pluto) when the backend is down, with an
     on-device tag. Chart casting, tarot, and forecast now all degrade to local
     compute — the H1 offline-first core is in place.
+  - ✅ **2026-07-05** — on-device **natal-arcana signature**: the Arcana Natal
+    tab builds its signature (links + themes + shadows) via
+    `buildLocalSignature`, matching the backend exactly. The whole Arcana
+    surface (Natal + Draw) now works offline.
 - **H2:** Capacitor wrapper: share-sheet PDF export (replacing print-dialog
   UX), haptics on wheel selection, keep-awake during Resonarium sessions,
   file-system access for state import/export. One repo, `mobile/` directory,
