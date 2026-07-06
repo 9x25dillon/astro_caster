@@ -223,7 +223,7 @@ export const useStore = create<AstroState>((set, get) => ({
       // 2) No cache for this birth — cast it on-device with @astra/core
       // (reduced body set). Genuinely offline-capable, any birth data.
       try {
-        const chart = localChart(get().birth);
+        const chart = await localChart(get().birth);
         set({ chart, loading: false, error: null, selection: null,
               transit: null, chartFromCache: true, chartFromLocal: true });
         return;

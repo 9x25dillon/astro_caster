@@ -1,12 +1,17 @@
 // api/client.ts — thin typed wrapper over the FastAPI backend.
-import {
-  calculateChart as coreCalculateChart,
-  buildLocalReading,
-  buildLocalSignature,
-  generateForecast as coreGenerateForecast,
-  type ChartRequest as CoreChartRequest,
-  type ChartResponse as CoreChartResponse,
+// @astra/core (chart/tarot/forecast engines + astronomy-engine, ~200 kB) is
+// only needed for the offline fallbacks, so it's dynamically imported — Vite
+// splits it into its own chunk loaded on first offline use, not on app boot.
+// Types are erased, so `import type` here adds no runtime dependency.
+import type {
+  ChartRequest as CoreChartRequest,
+  ChartResponse as CoreChartResponse,
 } from "@astra/core";
+
+let _corePromise: Promise<typeof import("@astra/core")> | null = null;
+function core(): Promise<typeof import("@astra/core")> {
+  return (_corePromise ??= import("@astra/core"));
+}
 import type {
   BirthInput,
   ChartResponse,
@@ -62,10 +67,11 @@ export function generateChart(birth: BirthInput): Promise<ChartResponse> {
  * chart for this birth data. Reduced body set vs the server (no lunar Node /
  * Chiron / Lilith — the TS ephemeris lacks them), so the UI flags it.
  */
-export function localChart(birth: BirthInput): ChartResponse {
+export async function localChart(birth: BirthInput): Promise<ChartResponse> {
   // @astra/core mirrors models.py; BirthInput is a structural superset of
   // ChartRequest (the extra `label` is ignored by the engine).
-  return coreCalculateChart(birth as unknown as CoreChartRequest) as unknown as ChartResponse;
+  const { calculateChart } = await core();
+  return calculateChart(birth as unknown as CoreChartRequest) as unknown as ChartResponse;
 }
 
 export function fetchTransits(
@@ -347,20 +353,21 @@ const FC_ASPECT_COLOR: Record<string, string> = {
  * the backend's offline scan gives (Sun–Pluto transits; no Chiron/Node). Used
  * as the fallback when the backend is unreachable.
  */
-export function localForecast(
+export async function localForecast(
   natal: BirthInput,
   days = 90,
   minSig: "high" | "medium" | "low" = "medium",
-): ForecastResponse {
-  const chart = coreCalculateChart(natal as unknown as CoreChartRequest);
+): Promise<ForecastResponse> {
+  const { calculateChart, generateForecast } = await core();
+  const chart = calculateChart(natal as unknown as CoreChartRequest);
   const targets = ["Sun", "Moon", "Mercury", "Venus", "Mars", "Jupiter",
     "Saturn", "Uranus", "Neptune", "Pluto", "Ascendant", "Midheaven"];
   const natalMap: Record<string, number> = {};
   for (const p of chart.planets) if (targets.includes(p.id)) natalMap[p.id] = p.longitude;
 
   const start = localToday();
-  const core = coreGenerateForecast(natalMap, start, days, minSig);
-  const events: ForecastEvent[] = core.map((e) => {
+  const coreEvents = generateForecast(natalMap, start, days, minSig);
+  const events: ForecastEvent[] = coreEvents.map((e) => {
     const color = e.type === "station"
       ? (e.direction === "retrograde" ? "#b87333" : "#c9a84c")
       : FC_ASPECT_COLOR[e.aspect ?? ""] ?? "#9a8f78";
@@ -487,7 +494,8 @@ export function fetchNatalArcana(chart: ChartResponse): Promise<NatalArcanaSigna
 
 /** On-device natal-arcana signature via @astra/core (links/themes/shadows match
  *  the backend exactly). Fallback when /api/natal-arcana is unreachable. */
-export function localNatalArcana(chart: ChartResponse): NatalArcanaSignature {
+export async function localNatalArcana(chart: ChartResponse): Promise<NatalArcanaSignature> {
+  const { buildLocalSignature } = await core();
   return buildLocalSignature(
     chart as unknown as CoreChartResponse,
   ) as unknown as NatalArcanaSignature;
@@ -541,12 +549,13 @@ export function fetchTarotReading(
  * chart; AI enrichment and lesson/activity generators are backend-only, so
  * those fields come back empty. Used as the fallback when the backend is down.
  */
-export function localTarotReading(
+export async function localTarotReading(
   chart: ChartResponse,
   spread: SpreadType,
   question: string,
   opts: { source?: SourceSystem; date?: string } = {},
-): TarotReadingResponse {
+): Promise<TarotReadingResponse> {
+  const { buildLocalReading } = await core();
   const r = buildLocalReading(chart as unknown as CoreChartResponse, spread, question, {
     date: opts.date ?? (spread === "daily" ? localToday() : null),
     source: opts.source ?? "golden_dawn",

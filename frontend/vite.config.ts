@@ -38,6 +38,19 @@ export default defineConfig({
       },
     }),
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        // Split heavy, stable libraries into their own long-cached chunk so
+        // the app chunk stays small and a code change doesn't re-download them.
+        manualChunks: {
+          vendor: ["react", "react-dom", "zustand", "@react-spring/web"],
+          d3: ["d3"],
+          leaflet: ["leaflet"],
+        },
+      },
+    },
+  },
   server: {
     port: 5173,
     host: '127.0.0.1', // force IPv4; avoids ::1-only binding that breaks curl/fetch on some Linux systems

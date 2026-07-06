@@ -190,10 +190,10 @@ export const ForecastPanel: React.FC<{ onClose: () => void }> = ({ onClose }) =>
     setError(null);
     fetchForecast(birth, d, sig)
       .then((r) => { setEvents(r.events); setOffline(false); setLoading(false); })
-      .catch(() => {
+      .catch(async () => {
         // Backend down → scan transits on-device (Sun–Pluto; reduced set).
         try {
-          const r = localForecast(birth, d, sig);
+          const r = await localForecast(birth, d, sig);
           setEvents(r.events); setOffline(true); setLoading(false);
         } catch (e2) {
           setError((e2 as Error).message); setLoading(false);
