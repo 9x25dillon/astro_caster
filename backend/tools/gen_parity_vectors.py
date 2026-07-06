@@ -34,6 +34,7 @@ PARITY_DIR = REPO_ROOT / "parity"
 VECTOR_FILE = PARITY_DIR / "natal-chart.json"
 MT_FILE = PARITY_DIR / "mt19937.json"
 TAROT_FILE = PARITY_DIR / "tarot-draw.json"
+FORECAST_FILE = PARITY_DIR / "forecast.json"
 
 # The two reference charts every backend suite already leans on.
 CASES: list[tuple[str, dict]] = [
@@ -173,6 +174,62 @@ def build_tarot_payload() -> dict:
     return {"schema": "astra-parity/tarot-draw@1", "cases": cases}
 
 
+# --------------------------------------------------------------------------- #
+# Forecast — transit scan + stations, tolerance-based (event identity + ≤1-day
+# date window; astronomy-engine vs pyswisseph nudge near-midnight stations and
+# flat-minimum aspects by a day). Restricted to Sun–Pluto so it matches
+# @astra/core v0.1 (no Chiron / lunar Node).
+# --------------------------------------------------------------------------- #
+
+import datetime as _dt  # noqa: E402
+import forecast as FC  # noqa: E402
+
+FORECAST_START = "2026-01-01"
+FORECAST_DAYS = 60
+FORECAST_MIN_SIG = "medium"
+NATAL_TARGETS = ["Sun", "Moon", "Mercury", "Venus", "Mars", "Jupiter",
+                 "Saturn", "Uranus", "Neptune", "Pluto", "Ascendant", "Midheaven"]
+_SUPPORTED_TRANSITS = [(n, i) for n, i in FC._TRANSIT_BODIES
+                       if n not in ("Chiron", "North Node")]
+
+
+def _natal_map(req: dict) -> dict:
+    chart = E.calculate_chart(ChartRequest(**req))
+    idx = {p.id: p.longitude for p in chart.planets}
+    return {name: idx[name] for name in NATAL_TARGETS if name in idx}
+
+
+def build_forecast_payload() -> dict:
+    # Run the backend scanner over the supported transit set only, so the
+    # vector is exactly what @astra/core v0.1 can reproduce.
+    saved = FC._TRANSIT_BODIES
+    FC._TRANSIT_BODIES = _SUPPORTED_TRANSITS
+    try:
+        cases = []
+        start = _dt.date.fromisoformat(FORECAST_START)
+        for case_id, req in CASES:
+            natal = _natal_map(req)
+            events = FC.generate_forecast(natal, start, days=FORECAST_DAYS,
+                                          min_sig=FORECAST_MIN_SIG)
+            # Keep the structural fields the TS engine reproduces (prose omitted).
+            slim = [{
+                "date": e["date"], "type": e["type"], "planet": e["planet"],
+                "aspect": e.get("aspect"), "target": e.get("target"),
+                "orb": e.get("orb"), "significance": e["significance"],
+                "direction": e.get("direction"),
+            } for e in events]
+            cases.append({
+                "id": case_id, "request": req, "natal": natal,
+                "start": FORECAST_START, "days": FORECAST_DAYS,
+                "min_sig": FORECAST_MIN_SIG, "events": slim,
+            })
+        return {"schema": "astra-parity/forecast@1",
+                "date_tolerance_days": 1, "orb_tolerance_deg": 0.2,
+                "cases": cases}
+    finally:
+        FC._TRANSIT_BODIES = saved
+
+
 def _render(payload: dict) -> str:
     return json.dumps(payload, indent=1, sort_keys=True) + "\n"
 
@@ -187,6 +244,7 @@ def main() -> None:
         (VECTOR_FILE, build_payload()),
         (MT_FILE, build_mt_payload()),
         (TAROT_FILE, build_tarot_payload()),
+        (FORECAST_FILE, build_forecast_payload()),
     ]
 
     if args.check:

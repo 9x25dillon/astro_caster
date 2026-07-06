@@ -3,6 +3,27 @@
 Per-phase log for the Production Hardening & Symbolic Intelligence Expansion pass.
 Baseline: `d9afc4b` (36 backend tests, clean frontend build).
 
+## @astra/core/forecast v0.3 — transit scanner (2026-07-05, astra-core-forecast)
+
+Mobile roadmap §3 step 3 — the CPU-heavy engine. A faithful port of
+`forecast.py`'s day-by-day scan: stations (speed-sign zero-crossing via
+bisection), transit-to-transit and transit-to-natal aspect exactness with the
+Moon sampled at 6-hour resolution, the 0.03°/0.02° hysteresis, the last-day
+approaching-aspect pass, and the 10-day same-signature dedup.
+
+- **`src/forecast.ts`** + a shared `eclipticLonSpeed(jd, name)` primitive
+  exported from `ephemeris.ts` so the scanner reuses the chart's exact frames.
+- **Parity**: reproduces the backend's ~120-event, 60-day forecast for both
+  reference natals (`parity/forecast.json`), matched by event **identity**
+  (type, planet, aspect, target, direction) within a **±1-day date window and
+  0.2° orb** — like the chart, this is a cross-engine comparison
+  (astronomy-engine vs pyswisseph), and near-midnight stations / flat-minimum
+  aspects can legitimately land a day apart. Passed first run, both cases.
+- The vector is generated with the backend restricted to Sun–Pluto transits
+  (no Chiron / lunar Node — astronomy-engine lacks them), so it's exactly what
+  @astra/core v0.1 reproduces. `gen_parity_vectors.py` now emits four files;
+  CI `--check` covers all. 11 TS parity tests; 171 backend tests green.
+
 ## @astra/core/tarot v0.2 — bit-exact natal draw (2026-07-05, astra-core-tarot)
 
 Mobile roadmap §3 step 2. The tarot draw is deterministic and must match the

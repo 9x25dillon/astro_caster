@@ -55,6 +55,16 @@ not tolerance-based.
 
 Prose, lessons and learning paths (static lookups) are deferred to a later step.
 
+## v0.3 — the forecast module
+
+`generateForecast(natal, startISO, days, minSig)` scans transits day-by-day —
+stations, transit-to-transit and transit-to-natal exactness (Moon at 6h
+resolution), hysteresis, and dedup — a port of `forecast.py`. Parity is
+tolerance-based (a cross-engine comparison): it reproduces the backend's
+~120-event, 60-day forecast matched by event identity within a ±1-day / 0.2°
+window (`parity/forecast.json`). Sun–Pluto transits; still synchronous (the
+Web-Worker chunking is a UI-integration concern).
+
 ## Develop
 
 ```bash
