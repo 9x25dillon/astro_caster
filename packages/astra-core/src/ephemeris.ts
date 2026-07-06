@@ -27,8 +27,17 @@ const {
   Rotation_EQJ_EQD,
   SiderealTime,
   e_tilt,
-} = ((_AEns as any).default ?? _AEns) as typeof import("astronomy-engine");
+} = pickAstronomy(_AEns);
 type AstroTime = AstronomyTypes.AstroTime;
+
+// Under a bundler the ESM build's named exports live on the namespace; under
+// Node the CJS module object arrives as `.default`. Computed access keeps the
+// bundler from statically flagging a missing `default` on the ESM build.
+function pickAstronomy(ns: unknown): typeof import("astronomy-engine") {
+  const anyNs = ns as Record<string, unknown>;
+  const key = "default";
+  return (anyNs[key] ?? anyNs) as typeof import("astronomy-engine");
+}
 
 import {
   ASPECT_DEFS,

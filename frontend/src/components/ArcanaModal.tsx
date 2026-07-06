@@ -148,8 +148,8 @@ export const ArcanaModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     if (chart && !sig) {
       fetchNatalArcana(chart)
         .then(setSig)
-        .catch(() => {
-          try { setSig(localNatalArcana(chart)); }
+        .catch(async () => {
+          try { setSig(await localNatalArcana(chart)); }
           catch (e2) { setErr(String(e2)); }
         });
     }
@@ -172,7 +172,7 @@ export const ArcanaModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         setErr(String(e));
       } else {
         try {
-          setReading(localTarotReading(chart, spread, question, { source }));
+          setReading(await localTarotReading(chart, spread, question, { source }));
           trackEvent("arcana_draw", { spread, ai: false, source, offline: true });
         } catch {
           setErr(String(e));

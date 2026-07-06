@@ -3,6 +3,25 @@
 Per-phase log for the Production Hardening & Symbolic Intelligence Expansion pass.
 Baseline: `d9afc4b` (36 backend tests, clean frontend build).
 
+## Lazy-load @astra/core + chunk split — smaller initial bundle (2026-07-05, lazy-astra-core)
+
+The offline engines were shipping in the main bundle even though they're only
+needed when the backend is down. Deferring them (and splitting vendors) roughly
+halves the app chunk and clears the long-standing >500 kB chunk-size warning.
+
+- **`@astra/core` is now dynamically imported** in `client.ts` (`import()`),
+  so Vite emits it as its own async chunk (`browser-*.js`, ~161 kB incl.
+  astronomy-engine + card data) loaded on **first offline use**, not on boot.
+  The four `local*` fallbacks (`localChart`, `localTarotReading`,
+  `localForecast`, `localNatalArcana`) became async; their callers `await`.
+- **Vendor split** (`manualChunks`): react/react-dom/zustand/react-spring,
+  leaflet, and d3 each get a long-cached chunk. Result: main app chunk
+  **635 kB → 237 kB**, no chunk over 500 kB, warning gone.
+- **`ephemeris.ts`** picks the astronomy-engine namespace via a computed key so
+  the bundler stops warning about a missing `default` on the ESM build.
+- Verified: 28 e2e pass (the offline fallbacks load the lazy chunk on demand;
+  precached by the SW so they still work fully offline); 25 core parity tests.
+
 ## Offline natal-arcana signature on-device (2026-07-05, offline-natal-arcana)
 
 Mobile roadmap H1: the Arcana Natal tab now builds its signature on-device when

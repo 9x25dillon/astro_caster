@@ -130,7 +130,8 @@ python3 resonarium/resonarium_biosentinel_cli.py verify
   from the design mock in the print renderer.
 - **AdminPanel:** surface `report_purchase` tier-events explicitly in the UI
   (they're in `/api/admin/stats` → `tier_events` already).
-- **Frontend chunk-size warning** (>500 kB) — cosmetic, unaddressed.
+- ~~**Frontend chunk-size warning** (>500 kB)~~ — ✅ resolved 2026-07-05
+  (lazy `@astra/core` + vendor `manualChunks`; app chunk 635→237 kB).
 - **CI:** confirm the workflow's three jobs pass on GitHub now that
   everything is on `main` (defined during production-hardening; first runs
   happen on push).
