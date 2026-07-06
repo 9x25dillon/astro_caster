@@ -3,6 +3,32 @@
 Per-phase log for the Production Hardening & Symbolic Intelligence Expansion pass.
 Baseline: `d9afc4b` (36 backend tests, clean frontend build).
 
+## @astra/core wired into the frontend — offline chart casting (2026-07-05, wire-astra-core)
+
+Mobile roadmap H1 payoff: the observatory now casts charts **on-device** when
+the backend is unreachable, no cache required — the deterministic engines built
+in §3 doing real work in the browser.
+
+- **Isomorphic engine load.** `ephemeris.ts` now pulls astronomy-engine via a
+  static **namespace** import (`import * as`, taking `.default` under Node) —
+  no `createRequire` (absent in browsers) and no top-level await (forbidden by
+  the build target), yet still dodging the package's named-export detection bug
+  on Node < 24. Works identically under `tsx --test` and Vite/esbuild.
+- **Browser entry** `packages/astra-core/src/browser.ts` exposes the Node-free
+  engines (chart + forecast); the frontend aliases `@astra/core` to it (Vite
+  alias + tsconfig path). Tarot stays out of the browser bundle until its
+  `node:crypto` sha256 gets an isomorphic swap (follow-up).
+- **`client.localChart(birth)`** casts via `calculateChart`; the store's
+  `generate()` gains a third offline tier — **API → same-birth cache →
+  on-device compute** — with a distinct badge ("cast on your device" vs
+  "showing your last cast"). On-device charts carry the reduced body set
+  (no lunar Node / Chiron / Lilith), which the badge signals.
+- astronomy-engine is bundled (precache 930 KiB), so the `no-external` guarantee
+  holds and it works fully offline. `offline-shell.spec.ts` updated: a fresh
+  offline boot now renders an on-device chart (was: error); the cache test
+  waits for a real backend cast first (a cold backend would otherwise let the
+  fallback answer). 24 e2e pass; 11 core parity tests; frontend build clean.
+
 ## @astra/core/forecast v0.3 — transit scanner (2026-07-05, astra-core-forecast)
 
 Mobile roadmap §3 step 3 — the CPU-heavy engine. A faithful port of

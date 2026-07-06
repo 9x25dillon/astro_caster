@@ -7,6 +7,7 @@ import {
   checkEntitlement,
   fetchTransits,
   generateChart,
+  localChart,
   getTreasury,
   verifyDonation,
   type AIResult,
@@ -84,7 +85,8 @@ interface AstroState {
 
   // Data
   chart: ChartResponse | null;
-  chartFromCache: boolean; // chart restored from the offline cache, not the API
+  chartFromCache: boolean; // chart from offline fallback (cache or on-device), not the API
+  chartFromLocal: boolean; // chart computed on-device by @astra/core (reduced body set)
   transit: TransitResponse | null;
   transitIso: string; // ISO datetime for the slider
 
@@ -167,6 +169,7 @@ export const useStore = create<AstroState>((set, get) => ({
 
   chart: null,
   chartFromCache: false,
+  chartFromLocal: false,
   transit: null,
   transitIso: toDatetimeLocal(new Date()),
 
@@ -201,20 +204,31 @@ export const useStore = create<AstroState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const chart = await generateChart(get().birth);
-      set({ chart, loading: false, selection: null, transit: null, chartFromCache: false });
+      set({ chart, loading: false, selection: null, transit: null,
+            chartFromCache: false, chartFromLocal: false });
       try {
         localStorage.setItem(LAST_CHART_KEY, JSON.stringify({ birth: get().birth, chart }));
       } catch {
         /* storage full or sandboxed — the offline cache is best-effort */
       }
     } catch (e) {
-      // Offline shell: restore the last successful cast of the same birth
-      // data instead of a dead wheel; the UI flags it as a cached view.
+      // Offline degradation ladder. 1) The last successful cast of the SAME
+      // birth data is the best offline chart (full body set) — restore it.
       const cached = readLastChart();
       if (cached && sameBirth(cached.birth, get().birth)) {
         set({ chart: cached.chart, loading: false, error: null,
-              selection: null, transit: null, chartFromCache: true });
+              selection: null, transit: null, chartFromCache: true, chartFromLocal: false });
         return;
+      }
+      // 2) No cache for this birth — cast it on-device with @astra/core
+      // (reduced body set). Genuinely offline-capable, any birth data.
+      try {
+        const chart = localChart(get().birth);
+        set({ chart, loading: false, error: null, selection: null,
+              transit: null, chartFromCache: true, chartFromLocal: true });
+        return;
+      } catch {
+        /* local engine unavailable — fall through to the error */
       }
       set({ loading: false, error: (e as Error).message });
     }

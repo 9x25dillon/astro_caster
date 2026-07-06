@@ -1,4 +1,8 @@
 // api/client.ts — thin typed wrapper over the FastAPI backend.
+import {
+  calculateChart as coreCalculateChart,
+  type ChartRequest as CoreChartRequest,
+} from "@astra/core";
 import type {
   BirthInput,
   ChartResponse,
@@ -46,6 +50,18 @@ async function post<T>(path: string, body: unknown): Promise<T> {
 
 export function generateChart(birth: BirthInput): Promise<ChartResponse> {
   return post<ChartResponse>("/generate-chart", birth);
+}
+
+/**
+ * On-device chart cast via @astra/core (MOBILE_ROADMAP §3/H1). Used as the
+ * last-resort fallback when the backend is unreachable and there's no cached
+ * chart for this birth data. Reduced body set vs the server (no lunar Node /
+ * Chiron / Lilith — the TS ephemeris lacks them), so the UI flags it.
+ */
+export function localChart(birth: BirthInput): ChartResponse {
+  // @astra/core mirrors models.py; BirthInput is a structural superset of
+  // ChartRequest (the extra `label` is ignored by the engine).
+  return coreCalculateChart(birth as unknown as CoreChartRequest) as unknown as ChartResponse;
 }
 
 export function fetchTransits(
