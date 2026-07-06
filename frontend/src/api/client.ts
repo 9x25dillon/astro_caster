@@ -2,6 +2,7 @@
 import {
   calculateChart as coreCalculateChart,
   buildLocalReading,
+  generateForecast as coreGenerateForecast,
   type ChartRequest as CoreChartRequest,
   type ChartResponse as CoreChartResponse,
 } from "@astra/core";
@@ -326,6 +327,59 @@ export function fetchForecast(
     include_transit_transit: true,
     min_sig: minSig,
   });
+}
+
+// Display maps for the on-device forecast (the backend carries these server-side;
+// offline we add them to the structural events @astra/core produces).
+const FC_GLYPHS: Record<string, string> = {
+  Sun: "☉", Moon: "☽", Mercury: "☿", Venus: "♀", Mars: "♂", Jupiter: "♃",
+  Saturn: "♄", Uranus: "♅", Neptune: "♆", Pluto: "♇", Ascendant: "Asc", Midheaven: "MC",
+};
+const FC_ASPECT_COLOR: Record<string, string> = {
+  Conjunction: "#c9a84c", Opposition: "#b03a2e", Square: "#b03a2e",
+  Trine: "#2e86c1", Sextile: "#48a999",
+};
+
+/**
+ * On-device transit forecast via @astra/core (MOBILE_ROADMAP §3/H1). Computes
+ * the natal chart locally, then scans transits in the browser — the same events
+ * the backend's offline scan gives (Sun–Pluto transits; no Chiron/Node). Used
+ * as the fallback when the backend is unreachable.
+ */
+export function localForecast(
+  natal: BirthInput,
+  days = 90,
+  minSig: "high" | "medium" | "low" = "medium",
+): ForecastResponse {
+  const chart = coreCalculateChart(natal as unknown as CoreChartRequest);
+  const targets = ["Sun", "Moon", "Mercury", "Venus", "Mars", "Jupiter",
+    "Saturn", "Uranus", "Neptune", "Pluto", "Ascendant", "Midheaven"];
+  const natalMap: Record<string, number> = {};
+  for (const p of chart.planets) if (targets.includes(p.id)) natalMap[p.id] = p.longitude;
+
+  const start = localToday();
+  const core = coreGenerateForecast(natalMap, start, days, minSig);
+  const events: ForecastEvent[] = core.map((e) => {
+    const color = e.type === "station"
+      ? (e.direction === "retrograde" ? "#b87333" : "#c9a84c")
+      : FC_ASPECT_COLOR[e.aspect ?? ""] ?? "#9a8f78";
+    const meaning = e.type === "station"
+      ? `${e.planet} turns ${e.direction} — a review phase for what it governs.`
+      : e.summary + (e.harmony === "harmonious"
+          ? " A supportive current." : e.harmony === "challenging"
+          ? " Tension asking for adaptation." : " A significant meeting of currents.");
+    return {
+      date: e.date, jd: 0, type: e.type, planet: e.planet,
+      glyph: FC_GLYPHS[e.planet] ?? e.planet,
+      aspect: e.aspect, target: e.target,
+      target_glyph: e.target ? (FC_GLYPHS[e.target] ?? e.target) : null,
+      orb: e.orb, significance: e.significance as ForecastEvent["significance"],
+      direction: e.direction as ForecastEvent["direction"],
+      summary: e.summary, meaning,
+      color, harmony: e.harmony as ForecastEvent["harmony"],
+    };
+  });
+  return { events, start, days, natal_count: Object.keys(natalMap).length };
 }
 
 // ── Astra Arcana — natal tarot (symbolic mirror, never prediction) ──────────────

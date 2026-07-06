@@ -1,7 +1,7 @@
 // ForecastPanel.tsx — Upcoming astrological events for the next 90 days.
 import React, { useEffect, useRef, useState } from "react";
 import { useStore, PLACEHOLDER_BIRTH } from "../store/useStore";
-import { fetchForecast, type ForecastEvent } from "../api/client";
+import { fetchForecast, localForecast, type ForecastEvent } from "../api/client";
 
 const SIG_BADGE: Record<string, string> = {
   high:   "▲",
@@ -183,12 +183,22 @@ export const ForecastPanel: React.FC<{ onClose: () => void }> = ({ onClose }) =>
   const [bookmarks, setBookmarks] = useState<Set<string>>(loadBookmarks);
   const overlayRef = useRef<HTMLDivElement>(null);
 
+  const [offline, setOffline] = useState(false);
+
   const load = (d: number, sig: "high" | "medium" | "low") => {
     setLoading(true);
     setError(null);
     fetchForecast(birth, d, sig)
-      .then((r) => { setEvents(r.events); setLoading(false); })
-      .catch((e: Error) => { setError(e.message); setLoading(false); });
+      .then((r) => { setEvents(r.events); setOffline(false); setLoading(false); })
+      .catch(() => {
+        // Backend down → scan transits on-device (Sun–Pluto; reduced set).
+        try {
+          const r = localForecast(birth, d, sig);
+          setEvents(r.events); setOffline(true); setLoading(false);
+        } catch (e2) {
+          setError((e2 as Error).message); setLoading(false);
+        }
+      });
   };
 
   // Initial load
@@ -303,7 +313,12 @@ export const ForecastPanel: React.FC<{ onClose: () => void }> = ({ onClose }) =>
         <div className="forecast-header">
           <div>
             <h2 className="forecast-title">☌ Upcoming Transits</h2>
-            <p className="forecast-sub">Sky events and personal activations for the next {days} days</p>
+            <p className="forecast-sub">
+              Sky events and personal activations for the next {days} days
+              {offline && (
+                <span className="fc-offline-tag" role="status"> · ☾ on-device (offline)</span>
+              )}
+            </p>
           </div>
           <button className="modal-close" onClick={onClose}>✕</button>
         </div>

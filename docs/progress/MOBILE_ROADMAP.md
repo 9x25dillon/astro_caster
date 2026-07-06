@@ -151,6 +151,10 @@ implementations) into a mechanical gate.
     backend's offline reading exactly (seed + cards + meanings + natal-link
     notes), proven by `parity/tarot-reading.json`. Lesson/activity/AI enrichment
     stays backend-only.
+  - ✅ **2026-07-05** — on-device **transit forecast**: ForecastPanel falls back
+    to `@astra/core`'s scanner (Sun–Pluto) when the backend is down, with an
+    on-device tag. Chart casting, tarot, and forecast now all degrade to local
+    compute — the H1 offline-first core is in place.
 - **H2:** Capacitor wrapper: share-sheet PDF export (replacing print-dialog
   UX), haptics on wheel selection, keep-awake during Resonarium sessions,
   file-system access for state import/export. One repo, `mobile/` directory,
