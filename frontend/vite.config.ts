@@ -1,9 +1,19 @@
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
 
 // https://vite.dev/config
 export default defineConfig({
+  resolve: {
+    alias: {
+      // Consume the ASTRA-CORE engines directly from source (they're TS with no
+      // build step). Enables on-device chart casting when the backend is absent.
+      "@astra/core": fileURLToPath(
+        new URL("../packages/astra-core/src/browser.ts", import.meta.url)
+      ),
+    },
+  },
   plugins: [
     react(),
     VitePWA({

@@ -14,7 +14,10 @@
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+    "paths": {
+      "@astra/core": ["../packages/astra-core/src/browser.ts"]
+    }
   },
   "include": ["src"]
 }

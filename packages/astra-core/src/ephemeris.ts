@@ -8,15 +8,15 @@
 // engine doesn't provide — tracked as the WASM-escalation decision in
 // MOBILE_ROADMAP §3.
 
-// astronomy-engine ships esm/astronomy.js with real ESM `export` syntax but
-// no "type":"module" in its package.json, so Node's `import` condition
-// mis-detects its named exports as CJS on Node < 24 (green on 26, red on CI's
-// 22). Force the correctly-packaged CJS build via createRequire; types still
-// come from the package's own declarations via `import type`.
-import { createRequire } from "node:module";
+// Isomorphic astronomy-engine load — no top-level await (the browser build
+// target forbids it), no `node:module` (absent in browsers). The package ships
+// esm/astronomy.js with real ESM `export` syntax but no "type":"module", so
+// Node < 24 mis-detects its NAMED exports when imported statically. A static
+// NAMESPACE import dodges that: under Node the CJS module object arrives as
+// `.default`; under a bundler the namespace itself carries the bindings.
+import * as _AEns from "astronomy-engine";
 import type * as AstronomyTypes from "astronomy-engine";
 
-const require = createRequire(import.meta.url);
 const {
   Body,
   Ecliptic,
@@ -27,7 +27,7 @@ const {
   Rotation_EQJ_EQD,
   SiderealTime,
   e_tilt,
-} = require("astronomy-engine") as typeof import("astronomy-engine");
+} = ((_AEns as any).default ?? _AEns) as typeof import("astronomy-engine");
 type AstroTime = AstronomyTypes.AstroTime;
 
 import {

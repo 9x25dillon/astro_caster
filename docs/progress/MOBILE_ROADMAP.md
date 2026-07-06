@@ -139,6 +139,13 @@ implementations) into a mechanical gate.
   install prompts, iOS safe-areas, `share_target` for chart JSON import.
   Self-host the two webfonts (removes the app's only external request —
   flagged in this session's audit).
+  - ✅ **2026-07-05** — on-device **chart casting** landed: `@astra/core`
+    (chart + forecast engines) wired into the frontend via a browser-safe
+    entry; `generate()` degrades API → same-birth cache → on-device compute.
+    astronomy-engine bundled (no external request). Reduced body set on the
+    local path (no Node/Chiron/Lilith) until the WASM-Swiss escalation.
+    Remaining H1: on-device tarot (needs isomorphic sha256), queued AI asks,
+    install prompts, iOS safe-areas, `share_target`.
 - **H2:** Capacitor wrapper: share-sheet PDF export (replacing print-dialog
   UX), haptics on wheel selection, keep-awake during Resonarium sessions,
   file-system access for state import/export. One repo, `mobile/` directory,

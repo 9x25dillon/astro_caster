@@ -24,6 +24,7 @@ export const App: React.FC = () => {
   const generate = useStore((s) => s.generate);
   const chart = useStore((s) => s.chart);
   const chartFromCache = useStore((s) => s.chartFromCache);
+  const chartFromLocal = useStore((s) => s.chartFromLocal);
   const isSupporter = useStore((s) => s.isSupporter);
   const openSupport = useStore((s) => s.openSupport);
   const validateEntitlement = useStore((s) => s.validateEntitlement);
@@ -149,7 +150,9 @@ export const App: React.FC = () => {
       <div className="wheel-area">
         {chartFromCache && (
           <div className="offline-note" role="status">
-            ☾ offline — showing your last cast
+            {chartFromLocal
+              ? "☾ offline — cast on your device"
+              : "☾ offline — showing your last cast"}
           </div>
         )}
         <ChartWheel size={720} />
