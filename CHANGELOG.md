@@ -3,6 +3,22 @@
 Per-phase log for the Production Hardening & Symbolic Intelligence Expansion pass.
 Baseline: `d9afc4b` (36 backend tests, clean frontend build).
 
+## Offline transit forecast on-device (2026-07-05, offline-forecast)
+
+Mobile roadmap H1: the ForecastPanel now lists upcoming transits with the
+backend down, scanning on-device via `@astra/core`'s forecast engine.
+
+- **`client.localForecast(natal, days, minSig)`**: casts the natal chart
+  locally, runs `generateForecast` over Sun–Pluto transits, and enriches the
+  structural events with display fields (glyphs, aspect colors, meaning) the
+  backend serves server-side. Reduced body set (no Chiron / lunar Node),
+  flagged in the panel.
+- **ForecastPanel `load()`** falls back to `localForecast` on a backend
+  failure and shows a "☾ on-device (offline)" tag. Frontend-only; the forecast
+  engine and its parity vector already shipped in §3.3.
+- `e2e/forecast-offline.spec.ts`: backend severed → open Forecast → events
+  list + offline tag. 28 e2e pass; frontend build clean.
+
 ## Offline tarot readings on-device (2026-07-05, offline-tarot)
 
 Mobile roadmap H1: the Arcana Draw tab now deals a full spread with the backend
