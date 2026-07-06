@@ -76,6 +76,12 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - name: Install dependencies
         run: npm ci
+      - name: Install @astra/core deps (aliased into the build)
+        # The build imports @astra/core from packages/astra-core/src; tsc and
+        # Vite resolve its `astronomy-engine` dep from that package's own
+        # node_modules, so it must be installed too.
+        run: npm ci
+        working-directory: packages/astra-core
       - name: Typecheck + build
         run: npm run build
 
@@ -121,6 +127,9 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
         working-directory: frontend
+      - name: Install @astra/core deps (Vite bundles it for on-device casting)
+        run: npm ci
+        working-directory: packages/astra-core
       - name: Install Playwright chromium
         run: npx playwright install --with-deps chromium
         working-directory: frontend
