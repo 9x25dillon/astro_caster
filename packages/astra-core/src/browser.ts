@@ -31,8 +31,15 @@ export { sha256Hex } from "./sha256.js";
 export {
   buildNatalArcanaSignature,
   weightedDraw,
+  buildLocalReading,
+  cardById,
+  defaultSeed,
   SPREAD_POSITIONS,
+  DISCLAIMER,
   pyRound,
   type NatalArcanaSignature,
   type DrawnCard,
+  type TarotCard,
+  type LocalReading,
+  type ReadingDrawnCard,
 } from "./tarot.js";

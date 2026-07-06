@@ -144,8 +144,13 @@ implementations) into a mechanical gate.
     entry; `generate()` degrades API → same-birth cache → on-device compute.
     astronomy-engine bundled (no external request). Reduced body set on the
     local path (no Node/Chiron/Lilith) until the WASM-Swiss escalation.
-    Remaining H1: on-device tarot (needs isomorphic sha256), queued AI asks,
-    install prompts, iOS safe-areas, `share_target`.
+    Remaining H1: queued AI asks, install prompts, iOS safe-areas,
+    `share_target`.
+  - ✅ **2026-07-05** — on-device **tarot readings**: the Arcana Draw tab deals
+    a full spread offline via `@astra/core` `buildLocalReading`, reproducing the
+    backend's offline reading exactly (seed + cards + meanings + natal-link
+    notes), proven by `parity/tarot-reading.json`. Lesson/activity/AI enrichment
+    stays backend-only.
 - **H2:** Capacitor wrapper: share-sheet PDF export (replacing print-dialog
   UX), haptics on wheel selection, keep-awake during Resonarium sessions,
   file-system access for state import/export. One repo, `mobile/` directory,

@@ -6,6 +6,7 @@ import { useStore } from "../store/useStore";
 import {
   fetchNatalArcana,
   fetchTarotReading,
+  localTarotReading,
   fetchArcanaForecast,
   fetchLearningPath,
   fetchDeckArt,
@@ -159,7 +160,18 @@ export const ArcanaModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       setReading(r);
       trackEvent("arcana_draw", { spread, ai: wantAi, source });
     } catch (e) {
-      setErr(String(e));
+      // Offline: deal the same cards on-device (the backend's offline reading,
+      // minus AI/lesson enrichment). AI-gated 402s still surface normally.
+      if (e instanceof ApiError && e.status === 402) {
+        setErr(String(e));
+      } else {
+        try {
+          setReading(localTarotReading(chart, spread, question, { source }));
+          trackEvent("arcana_draw", { spread, ai: false, source, offline: true });
+        } catch {
+          setErr(String(e));
+        }
+      }
     } finally {
       setLoading(false);
     }

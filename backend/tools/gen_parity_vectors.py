@@ -34,6 +34,7 @@ PARITY_DIR = REPO_ROOT / "parity"
 VECTOR_FILE = PARITY_DIR / "natal-chart.json"
 MT_FILE = PARITY_DIR / "mt19937.json"
 TAROT_FILE = PARITY_DIR / "tarot-draw.json"
+READING_FILE = PARITY_DIR / "tarot-reading.json"
 FORECAST_FILE = PARITY_DIR / "forecast.json"
 
 # The two reference charts every backend suite already leans on.
@@ -230,6 +231,52 @@ def build_forecast_payload() -> dict:
         FC._TRANSIT_BODIES = saved
 
 
+# --------------------------------------------------------------------------- #
+# Offline tarot reading — proves the on-device reading matches the backend's
+# OFFLINE build_reading_core (seed string + dealt cards + per-card meaning).
+# Uses the FULL chart (all bodies), which the browser reproduces when fed a
+# cached full chart. Exact.
+# --------------------------------------------------------------------------- #
+
+from tarot_models import TarotReadingRequest  # noqa: E402
+
+READING_CASES = [
+    ("three_card", "what should I focus on", None, "golden_dawn"),
+    ("daily", "guidance for today", "2026-07-05", "golden_dawn"),
+    ("relationship", "where is this bond going", None, "thoth"),
+]
+
+
+def _slim_chart(chart) -> dict:
+    return {
+        "planets": [{"id": p.id, "longitude": p.longitude, "sign": p.sign,
+                     "house": p.house, "element": p.element, "modality": p.modality}
+                    for p in chart.planets],
+        "elements": chart.elements,
+        "modalities": chart.modalities,
+    }
+
+
+def build_reading_payload() -> dict:
+    cases = []
+    for case_id, req in CASES:
+        chart = E.calculate_chart(ChartRequest(**req))
+        readings = []
+        for spread, question, date, source in READING_CASES:
+            r = TAROT.build_reading_core(TarotReadingRequest(
+                chart=chart, spread=spread, question=question, date=date,
+                source=source, include_activities=False, include_lessons=False))
+            readings.append({
+                "spread": spread, "question": question, "date": date, "source": source,
+                "seed": r.seed,
+                "cards": [{"card": c.card.id, "reversed": c.reversed,
+                           "position": c.position, "meaning": c.meaning}
+                          for c in r.cards],
+            })
+        cases.append({"id": case_id, "chart": _slim_chart(chart), "readings": readings})
+    return {"schema": "astra-parity/tarot-reading@1", "cases": cases}
+
+
 def _render(payload: dict) -> str:
     return json.dumps(payload, indent=1, sort_keys=True) + "\n"
 
@@ -245,6 +292,7 @@ def main() -> None:
         (MT_FILE, build_mt_payload()),
         (TAROT_FILE, build_tarot_payload()),
         (FORECAST_FILE, build_forecast_payload()),
+        (READING_FILE, build_reading_payload()),
     ]
 
     if args.check:

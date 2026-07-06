@@ -7,7 +7,30 @@
 import { MT19937 } from "./mt19937.js";
 import { sha256Hex } from "./sha256.js";
 import DECK from "./tarot-data.json" with { type: "json" };
+import CARDS from "./tarot-cards.json" with { type: "json" };
 import type { ChartResponse } from "./types.js";
+
+export interface TarotCard {
+  id: string;
+  name: string;
+  arcana: "major" | "minor";
+  number: number | null;
+  suit: string | null;
+  keywords: string[];
+  element: string | null;
+  astrology: string[];
+  upright: string | null;
+  reversed_meaning: string | null;
+}
+const CARD_BY_ID = CARDS as Record<string, TarotCard>;
+const SUIT_ELEMENTS: Record<string, string> = {
+  wands: "Fire", cups: "Water", swords: "Air", pentacles: "Earth",
+};
+
+export const DISCLAIMER =
+  "Astra Arcana is a symbolic mirror for reflection and creative alignment, " +
+  "not a deterministic prediction engine. It does not foretell fixed events and " +
+  "does not replace professional medical, legal, financial, or mental-health support.";
 
 interface TarotData {
   major_ids: string[];
@@ -57,12 +80,35 @@ export function pyRound(x: number, ndigits: number): number {
   return r / m;
 }
 
+export interface ArcanaLink {
+  body: string;
+  card_id: string;
+  note: string;
+}
+
 export interface NatalArcanaSignature {
   suit_bias: Record<string, number>;
   major_weights: Record<string, number>;
   dominant_element: string;
   dominant_modality: string;
+  links: ArcanaLink[];
 }
+
+// House → life-domain phrase for natal-link notes (port of tarot_data.HOUSE_THEMES).
+const HOUSE_THEMES: Record<string, string> = {
+  "1": "identity and embodiment",
+  "2": "value, money, body, and voice",
+  "3": "language, learning, and the near world",
+  "4": "home, ancestry, and the inner root",
+  "5": "creativity, romance, and play",
+  "6": "health, craft, devotion, and service",
+  "7": "partnership and the mirror of the Other",
+  "8": "shadow, intimacy, death, and shared power",
+  "9": "belief, travel, and philosophy",
+  "10": "calling, visibility, and public role",
+  "11": "community, future, and networks",
+  "12": "dreams, isolation, spirit, and the unconscious",
+};
 
 function cardForBody(bodyId: string, sign: string | undefined): string | undefined {
   if (bodyId in D.planet_major) return D.planet_major[bodyId];
@@ -73,6 +119,7 @@ function cardForBody(bodyId: string, sign: string | undefined): string | undefin
 export function buildNatalArcanaSignature(chart: ChartResponse): NatalArcanaSignature {
   const planets = new Map(chart.planets.map((p) => [p.id, p]));
   const majorWeights: Record<string, number> = {};
+  const links: ArcanaLink[] = [];
 
   for (const body of SIGNATURE_ORDER) {
     const p = planets.get(body);
@@ -85,6 +132,13 @@ export function buildNatalArcanaSignature(chart: ChartResponse): NatalArcanaSign
     if (signCard && signCard !== cardId) {
       majorWeights[signCard] = (majorWeights[signCard] ?? 0) + w * 0.4;
     }
+    const theme = HOUSE_THEMES[String((p as any).house)] ?? "an important domain of life";
+    const name = CARD_BY_ID[cardId]?.name ?? cardId;
+    links.push({
+      body,
+      card_id: cardId,
+      note: `${body} in ${p.sign} (house ${(p as any).house}) — ${name} working through ${theme}.`,
+    });
   }
 
   const elements = chart.elements ?? {};
@@ -108,6 +162,7 @@ export function buildNatalArcanaSignature(chart: ChartResponse): NatalArcanaSign
     major_weights: rounded,
     dominant_element: dominantElement,
     dominant_modality: dominantModality,
+    links,
   };
 }
 
@@ -190,4 +245,174 @@ export function weightedDraw(
     reversed: rng.random() < REVERSED_PROB,
     position: positions[i],
   }));
+}
+
+// --------------------------------------------------------------------------- #
+// Offline reading — ports the deterministic half of backend build_reading_core
+// so a reading works with the backend absent. The seed and draw match the
+// backend's OFFLINE mode exactly (same cards); per-card meaning uses the same
+// template. AI interpretation and the lesson/activity generators are backend
+// enrichment, left null offline (the card meanings carry the substance).
+// --------------------------------------------------------------------------- #
+
+const DEFAULT_SOURCE = "golden_dawn";
+
+export function cardById(id: string): TarotCard | undefined {
+  return CARD_BY_ID[id];
+}
+
+/** Port of tarot._default_seed — identical string, so the offline draw
+ *  reproduces the backend's offline draw for the same inputs. */
+export function defaultSeed(
+  chart: ChartResponse,
+  spread: string,
+  question: string,
+  localDate?: string | null,
+  source: string = DEFAULT_SOURCE
+): string {
+  const bodies = [...chart.planets]
+    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+    .map((p) => `${p.id}:${round2(p.longitude)}`)
+    .join("|");
+  const day = spread === "daily" ? `#${localDate ?? isoToday()}` : "";
+  const src = !source || source === DEFAULT_SOURCE ? "" : `#src:${source}`;
+  return `${bodies}#${spread}#${question.trim().toLowerCase()}${day}${src}`;
+}
+
+// Python round(x, 2) — banker's rounding, to match the seed string byte-for-byte.
+function round2(x: number): number {
+  return pyRound(x, 2);
+}
+
+function isoToday(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+    d.getDate()
+  ).padStart(2, "0")}`;
+}
+
+function offlineMeaning(
+  cardId: string,
+  reversed: boolean,
+  position: string,
+  linkNote: string | null
+): string {
+  const d = CARD_BY_ID[cardId];
+  const face = reversed ? d.reversed_meaning : d.upright;
+  const orient = reversed ? "reversed" : "upright";
+  const kind = d.arcana === "minor" ? "card" : "archetype";
+  let base =
+    `**${d.name}** (${orient}) in the *${position}* position speaks of ${face}. ` +
+    `Its keywords — ${d.keywords.slice(0, 4).join(", ")} — color how this ${kind} ` +
+    `is moving for you now.`;
+  if (linkNote) base += ` In your chart, this trump already lives here: ${linkNote}`;
+  return base;
+}
+
+export interface WeightSource {
+  label: string;
+  weight: number;
+}
+
+function cardWeightSources(cardId: string, sig: NatalArcanaSignature): WeightSource[] {
+  const d = CARD_BY_ID[cardId];
+  if (d.arcana === "minor") {
+    const suit = d.suit ?? "";
+    const element = SUIT_ELEMENTS[suit] ?? "";
+    const bias = sig.suit_bias[suit] ?? 0;
+    return [{
+      label: `${suit[0]?.toUpperCase()}${suit.slice(1)} weighted by ${element} balance ` +
+             `(${Math.round(bias * 100)}% of the chart)`,
+      weight: pyRound(bias, 3),
+    }];
+  }
+  const w = sig.major_weights[cardId];
+  if (w) return [{ label: `Natal emphasis on ${d.name}`, weight: pyRound(w, 3) }];
+  return [{ label: "Neutral draw — no natal emphasis on this trump", weight: 0.0 }];
+}
+
+export interface ReadingDrawnCard {
+  position: string;
+  card: TarotCard & { reversed_meaning: string | null };
+  reversed: boolean;
+  natal_link: string | null;
+  meaning: string;
+  activity: string | null;
+  journal_prompt: string | null;
+  weight_sources: WeightSource[];
+}
+
+export interface LocalReading {
+  spread: string;
+  source: string;
+  question: string;
+  seed: string;
+  signature: NatalArcanaSignature & {
+    links: unknown[];
+    themes: string[];
+    shadows: string[];
+    disclaimer: string;
+  };
+  cards: ReadingDrawnCard[];
+  interpretation: string;
+  ai_source: "offline";
+  lessons: unknown[];
+  activities: unknown[];
+  disclaimer: string;
+}
+
+/** A complete offline reading, shaped to the backend's TarotReadingResponse. */
+export function buildLocalReading(
+  chart: ChartResponse,
+  spread: string,
+  question: string,
+  opts: { date?: string | null; source?: string } = {}
+): LocalReading {
+  const source = opts.source ?? DEFAULT_SOURCE;
+  const sig = buildNatalArcanaSignature(chart);
+  const seed = defaultSeed(chart, spread, question, opts.date ?? null, source);
+  const draw = weightedDraw(sig, spread, seed);
+
+  // First (Sun-first order) natal link per trump, so meanings/natal_link attach
+  // to the primary body — matches the backend's link_by_card.setdefault.
+  const linkByCard = new Map<string, ArcanaLink>();
+  for (const l of sig.links) if (!linkByCard.has(l.card_id)) linkByCard.set(l.card_id, l);
+
+  // Top-weighted trumps make the display "themes"; the draw doesn't use them.
+  const themes = Object.entries(sig.major_weights)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([id]) => CARD_BY_ID[id]?.name)
+    .filter(Boolean) as string[];
+
+  const cards: ReadingDrawnCard[] = draw.map((dc) => {
+    const link = linkByCard.get(dc.card) ?? null;
+    return {
+      position: dc.position,
+      card: CARD_BY_ID[dc.card],
+      reversed: dc.reversed,
+      natal_link: link ? link.body : null,
+      meaning: offlineMeaning(dc.card, dc.reversed, dc.position, link ? link.note : null),
+      activity: null,
+      journal_prompt: null,
+      weight_sources: cardWeightSources(dc.card, sig),
+    };
+  });
+
+  const names = cards.map((c) => `${c.card.name} (${c.position})`).join(", ");
+  const interpretation =
+    `Your ${spread.replace(/_/g, " ")} draw — ${names}. ` +
+    `Read on your device with the backend offline; the cards are the same the ` +
+    `server would deal for this question and chart.`;
+
+  return {
+    spread, source, question, seed,
+    signature: { ...sig, links: [], themes, shadows: [], disclaimer: DISCLAIMER },
+    cards,
+    interpretation,
+    ai_source: "offline",
+    lessons: [],
+    activities: [],
+    disclaimer: DISCLAIMER,
+  };
 }
