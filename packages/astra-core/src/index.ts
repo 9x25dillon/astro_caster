@@ -15,6 +15,7 @@ export {
 export { eclipticLonSpeed } from "./ephemeris.js";
 export { generateForecast, type ForecastEvent } from "./forecast.js";
 export { MT19937 } from "./mt19937.js";
+export { sha256Hex } from "./sha256.js";
 export {
   buildNatalArcanaSignature,
   weightedDraw,
