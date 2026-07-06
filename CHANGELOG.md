@@ -3,6 +3,23 @@
 Per-phase log for the Production Hardening & Symbolic Intelligence Expansion pass.
 Baseline: `d9afc4b` (36 backend tests, clean frontend build).
 
+## @astra/core tarot goes browser-safe — isomorphic SHA-256 (2026-07-05, tarot-browser)
+
+The last Node-only dependency in the engines. `tarot.ts` seeded its MT19937
+from `node:crypto`'s sha256, keeping it out of the browser bundle.
+
+- **`src/sha256.ts`** — a dependency-free, synchronous FIPS 180-4 SHA-256
+  (Web Crypto is async, `node:crypto` is Node-only; the seed needs a sync
+  digest). Verified byte-for-byte against `node:crypto` across empty, ASCII,
+  multibyte UTF-8, the tarot U+0001 separator, and 55/56/64-byte block
+  boundaries (12 cases).
+- `tarot.ts` now seeds from `sha256Hex` — the tarot parity vectors still match
+  exactly (the hash is bit-identical), and tarot joins chart + forecast in
+  `browser.ts`. All four engines are now browser-capable; the core's draw path
+  has zero Node dependencies. 23 core parity tests green; frontend build clean.
+- UI wiring (offline tarot in ArcanaModal, pairing the local draw with the
+  frontend's existing `tarotCopy.ts` prose) is the next step.
+
 ## @astra/core wired into the frontend — offline chart casting (2026-07-05, wire-astra-core)
 
 Mobile roadmap H1 payoff: the observatory now casts charts **on-device** when

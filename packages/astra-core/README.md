@@ -54,6 +54,9 @@ not tolerance-based.
   invisible `U+0001` separator, and rounds weights half-to-even before the draw.
 
 Prose, lessons and learning paths (static lookups) are deferred to a later step.
+The seed hash is a dependency-free `sha256Hex` (`src/sha256.ts`, verified
+against `node:crypto`), so the whole tarot path — like chart and forecast — is
+browser-safe and exported from `browser.ts`.
 
 ## v0.3 — the forecast module
 

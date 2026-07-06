@@ -4,9 +4,8 @@
 // lessons and learning paths are static lookups deferred to a later step;
 // this module is the part whose determinism must match the backend exactly.
 
-import { createHash } from "node:crypto";
-
 import { MT19937 } from "./mt19937.js";
+import { sha256Hex } from "./sha256.js";
 import DECK from "./tarot-data.json" with { type: "json" };
 import type { ChartResponse } from "./types.js";
 
@@ -172,8 +171,7 @@ export interface DrawnCard {
 const SEED_SEP = "\u0001";
 
 function seedRng(...parts: string[]): MT19937 {
-  const digest = createHash("sha256").update(parts.join(SEED_SEP), "utf8").digest("hex");
-  return new MT19937(digest);
+  return new MT19937(sha256Hex(parts.join(SEED_SEP)));
 }
 
 export function weightedDraw(
