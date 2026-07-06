@@ -9,7 +9,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { buildLocalReading } from "../src/tarot.js";
+import { buildLocalReading, buildLocalSignature } from "../src/tarot.js";
 import type { ChartResponse } from "../src/types.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -29,6 +29,19 @@ function asChart(slim: any): ChartResponse {
 for (const kase of payload.cases) {
   test(`tarot-reading: ${kase.id}`, () => {
     const chart = asChart(kase.chart);
+
+    // Natal signature (Arcana Natal tab / /api/natal-arcana).
+    const gotSig = buildLocalSignature(chart);
+    assert.deepEqual(
+      gotSig.links.map((l) => ({ body: l.body, card_id: l.card.id, note: l.note })),
+      kase.signature.links,
+      "signature links",
+    );
+    assert.deepEqual(gotSig.themes, kase.signature.themes, "themes");
+    assert.deepEqual(gotSig.shadows, kase.signature.shadows, "shadows");
+    assert.equal(gotSig.dominant_element, kase.signature.dominant_element);
+    assert.equal(gotSig.dominant_modality, kase.signature.dominant_modality);
+
     for (const r of kase.readings) {
       const got = buildLocalReading(chart, r.spread, r.question, {
         date: r.date, source: r.source,

@@ -5,6 +5,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useStore } from "../store/useStore";
 import {
   fetchNatalArcana,
+  localNatalArcana,
   fetchTarotReading,
   localTarotReading,
   fetchArcanaForecast,
@@ -142,10 +143,15 @@ export const ArcanaModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     setReportToken(null);   // claims bind to a session seed, not the chart
   }, [chart]);
 
-  // Load the natal signature once a chart exists.
+  // Load the natal signature once a chart exists; on-device if the backend is down.
   useEffect(() => {
     if (chart && !sig) {
-      fetchNatalArcana(chart).then(setSig).catch((e) => setErr(String(e)));
+      fetchNatalArcana(chart)
+        .then(setSig)
+        .catch(() => {
+          try { setSig(localNatalArcana(chart)); }
+          catch (e2) { setErr(String(e2)); }
+        });
     }
   }, [chart, sig]);
 

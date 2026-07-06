@@ -261,6 +261,15 @@ def build_reading_payload() -> dict:
     cases = []
     for case_id, req in CASES:
         chart = E.calculate_chart(ChartRequest(**req))
+        sig = TAROT.build_natal_arcana_signature(chart)
+        signature = {
+            "links": [{"body": l.body, "card_id": l.card.id, "note": l.note}
+                      for l in sig.links],
+            "themes": list(sig.themes),
+            "shadows": list(sig.shadows),
+            "dominant_element": sig.dominant_element,
+            "dominant_modality": sig.dominant_modality,
+        }
         readings = []
         for spread, question, date, source in READING_CASES:
             r = TAROT.build_reading_core(TarotReadingRequest(
@@ -273,7 +282,8 @@ def build_reading_payload() -> dict:
                            "position": c.position, "meaning": c.meaning}
                           for c in r.cards],
             })
-        cases.append({"id": case_id, "chart": _slim_chart(chart), "readings": readings})
+        cases.append({"id": case_id, "chart": _slim_chart(chart),
+                      "signature": signature, "readings": readings})
     return {"schema": "astra-parity/tarot-reading@1", "cases": cases}
 
 

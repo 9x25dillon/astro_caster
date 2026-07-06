@@ -2,6 +2,7 @@
 import {
   calculateChart as coreCalculateChart,
   buildLocalReading,
+  buildLocalSignature,
   generateForecast as coreGenerateForecast,
   type ChartRequest as CoreChartRequest,
   type ChartResponse as CoreChartResponse,
@@ -482,6 +483,14 @@ export interface ArcanaForecastResponse {
 
 export function fetchNatalArcana(chart: ChartResponse): Promise<NatalArcanaSignature> {
   return post<NatalArcanaSignature>("/natal-arcana", chart);
+}
+
+/** On-device natal-arcana signature via @astra/core (links/themes/shadows match
+ *  the backend exactly). Fallback when /api/natal-arcana is unreachable. */
+export function localNatalArcana(chart: ChartResponse): NatalArcanaSignature {
+  return buildLocalSignature(
+    chart as unknown as CoreChartResponse,
+  ) as unknown as NatalArcanaSignature;
 }
 
 // Local calendar date "YYYY-MM-DD" in the browser's own timezone.

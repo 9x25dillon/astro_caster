@@ -227,7 +227,90 @@
      "source": "thoth",
      "spread": "relationship"
     }
-   ]
+   ],
+   "signature": {
+    "dominant_element": "Water",
+    "dominant_modality": "Mutable",
+    "links": [
+     {
+      "body": "Sun",
+      "card_id": "sun",
+      "note": "Sun in Pisces (house 10) \u2014 The Sun working through calling, visibility, and public role."
+     },
+     {
+      "body": "Moon",
+      "card_id": "high_priestess",
+      "note": "Moon in Sagittarius (house 6) \u2014 The High Priestess working through health, craft, devotion, and service."
+     },
+     {
+      "body": "Ascendant",
+      "card_id": "chariot",
+      "note": "Ascendant in Cancer (house 1) \u2014 The Chariot working through identity and embodiment."
+     },
+     {
+      "body": "Mercury",
+      "card_id": "magician",
+      "note": "Mercury in Aries (house 10) \u2014 The Magician working through calling, visibility, and public role."
+     },
+     {
+      "body": "Venus",
+      "card_id": "empress",
+      "note": "Venus in Aries (house 10) \u2014 The Empress working through calling, visibility, and public role."
+     },
+     {
+      "body": "Mars",
+      "card_id": "tower",
+      "note": "Mars in Capricorn (house 7) \u2014 The Tower working through partnership and the mirror of the Other."
+     },
+     {
+      "body": "Jupiter",
+      "card_id": "wheel_of_fortune",
+      "note": "Jupiter in Aquarius (house 9) \u2014 Wheel of Fortune working through belief, travel, and philosophy."
+     },
+     {
+      "body": "Saturn",
+      "card_id": "world",
+      "note": "Saturn in Aries (house 10) \u2014 The World working through calling, visibility, and public role."
+     },
+     {
+      "body": "Uranus",
+      "card_id": "fool",
+      "note": "Uranus in Virgo (house 3) \u2014 The Fool working through language, learning, and the near world."
+     },
+     {
+      "body": "Neptune",
+      "card_id": "hanged_man",
+      "note": "Neptune in Taurus (house 11) \u2014 The Hanged Man working through community, future, and networks."
+     },
+     {
+      "body": "Pluto",
+      "card_id": "judgement",
+      "note": "Pluto in Taurus (house 11) \u2014 Judgement working through community, future, and networks."
+     },
+     {
+      "body": "North Node",
+      "card_id": "star",
+      "note": "North Node in Aquarius (house 8) \u2014 The Star working through shadow, intimacy, death, and shared power."
+     },
+     {
+      "body": "Midheaven",
+      "card_id": "moon",
+      "note": "Midheaven in Pisces (house 10) \u2014 The Moon working through calling, visibility, and public role."
+     }
+    ],
+    "shadows": [
+     "Justice",
+     "The Lovers",
+     "The Star"
+    ],
+    "themes": [
+     "The Sun",
+     "The High Priestess",
+     "The Moon",
+     "The Chariot",
+     "The Emperor"
+    ]
+   }
   },
   {
    "chart": {
@@ -456,7 +539,90 @@
      "source": "thoth",
      "spread": "relationship"
     }
-   ]
+   ],
+   "signature": {
+    "dominant_element": "Earth",
+    "dominant_modality": "Cardinal",
+    "links": [
+     {
+      "body": "Sun",
+      "card_id": "sun",
+      "note": "Sun in Capricorn (house 10) \u2014 The Sun working through calling, visibility, and public role."
+     },
+     {
+      "body": "Moon",
+      "card_id": "high_priestess",
+      "note": "Moon in Scorpio (house 7) \u2014 The High Priestess working through partnership and the mirror of the Other."
+     },
+     {
+      "body": "Ascendant",
+      "card_id": "emperor",
+      "note": "Ascendant in Aries (house 1) \u2014 The Emperor working through identity and embodiment."
+     },
+     {
+      "body": "Mercury",
+      "card_id": "magician",
+      "note": "Mercury in Capricorn (house 9) \u2014 The Magician working through belief, travel, and philosophy."
+     },
+     {
+      "body": "Venus",
+      "card_id": "empress",
+      "note": "Venus in Sagittarius (house 8) \u2014 The Empress working through shadow, intimacy, death, and shared power."
+     },
+     {
+      "body": "Mars",
+      "card_id": "tower",
+      "note": "Mars in Aquarius (house 12) \u2014 The Tower working through dreams, isolation, spirit, and the unconscious."
+     },
+     {
+      "body": "Jupiter",
+      "card_id": "wheel_of_fortune",
+      "note": "Jupiter in Aries (house 1) \u2014 Wheel of Fortune working through identity and embodiment."
+     },
+     {
+      "body": "Saturn",
+      "card_id": "world",
+      "note": "Saturn in Taurus (house 1) \u2014 The World working through identity and embodiment."
+     },
+     {
+      "body": "Uranus",
+      "card_id": "fool",
+      "note": "Uranus in Aquarius (house 11) \u2014 The Fool working through community, future, and networks."
+     },
+     {
+      "body": "Neptune",
+      "card_id": "hanged_man",
+      "note": "Neptune in Aquarius (house 11) \u2014 The Hanged Man working through community, future, and networks."
+     },
+     {
+      "body": "Pluto",
+      "card_id": "judgement",
+      "note": "Pluto in Sagittarius (house 8) \u2014 Judgement working through shadow, intimacy, death, and shared power."
+     },
+     {
+      "body": "North Node",
+      "card_id": "star",
+      "note": "North Node in Leo (house 5) \u2014 The Star working through creativity, romance, and play."
+     },
+     {
+      "body": "Midheaven",
+      "card_id": "devil",
+      "note": "Midheaven in Capricorn (house 10) \u2014 The Devil working through calling, visibility, and public role."
+     }
+    ],
+    "shadows": [
+     "Death",
+     "The Chariot",
+     "The Moon"
+    ],
+    "themes": [
+     "The Devil",
+     "The Sun",
+     "The High Priestess",
+     "The Emperor",
+     "The Star"
+    ]
+   }
   }
  ],
  "schema": "astra-parity/tarot-reading@1"
