@@ -1,0 +1,2483 @@
+{
+ "cases": [
+  {
+   "days": 60,
+   "events": [
+    {
+     "aspect": "Square",
+     "date": "2025-12-31",
+     "direction": null,
+     "orb": 1.751,
+     "planet": "Mercury",
+     "significance": "medium",
+     "target": "Saturn",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Opposition",
+     "date": "2025-12-31",
+     "direction": null,
+     "orb": 0.709,
+     "planet": "Mars",
+     "significance": "medium",
+     "target": "Ascendant",
+     "type": "transit_natal"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2025-12-31",
+     "direction": null,
+     "orb": 1.413,
+     "planet": "Saturn",
+     "significance": "medium",
+     "target": "Pluto",
+     "type": "transit_natal"
+    },
+    {
+     "aspect": "Conjunction",
+     "date": "2026-01-01",
+     "direction": null,
+     "orb": 1.281,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Uranus",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-01-01",
+     "direction": null,
+     "orb": 0.257,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Neptune",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-01-01",
+     "direction": null,
+     "orb": 0.098,
+     "planet": "Mercury",
+     "significance": "medium",
+     "target": "Neptune",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-01-01",
+     "direction": null,
+     "orb": 0.299,
+     "planet": "Mars",
+     "significance": "medium",
+     "target": "Midheaven",
+     "type": "transit_natal"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-01-02",
+     "direction": null,
+     "orb": 0.738,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Saturn",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-01-02",
+     "direction": null,
+     "orb": 0.246,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Neptune",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Conjunction",
+     "date": "2026-01-04",
+     "direction": null,
+     "orb": 0.743,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Jupiter",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-01-04",
+     "direction": null,
+     "orb": 1.099,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Uranus",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Opposition",
+     "date": "2026-01-05",
+     "direction": null,
+     "orb": 0.245,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Pluto",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-01-06",
+     "direction": null,
+     "orb": 0.614,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Uranus",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-01-08",
+     "direction": null,
+     "orb": 0.041,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Jupiter",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Opposition",
+     "date": "2026-01-09",
+     "direction": null,
+     "orb": 0.143,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Saturn",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Opposition",
+     "date": "2026-01-09",
+     "direction": null,
+     "orb": 0.317,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Neptune",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Trine",
+     "date": "2026-01-09",
+     "direction": null,
+     "orb": 0.107,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Pluto",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Opposition",
+     "date": "2026-01-09",
+     "direction": null,
+     "orb": 0.324,
+     "planet": "Venus",
+     "significance": "medium",
+     "target": "Jupiter",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Opposition",
+     "date": "2026-01-10",
+     "direction": null,
+     "orb": 0.158,
+     "planet": "Sun",
+     "significance": "medium",
+     "target": "Jupiter",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Opposition",
+     "date": "2026-01-10",
+     "direction": null,
+     "orb": 0.092,
+     "planet": "Mars",
+     "significance": "medium",
+     "target": "Jupiter",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-01-11",
+     "direction": null,
+     "orb": 1.427,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Jupiter",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-01-12",
+     "direction": null,
+     "orb": 0.483,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Pluto",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-01-12",
+     "direction": null,
+     "orb": 0.022,
+     "planet": "Saturn",
+     "significance": "medium",
+     "target": "Mars",
+     "type": "transit_natal"
+    },
+    {
+     "aspect": "Trine",
+     "date": "2026-01-14",
+     "direction": null,
+     "orb": 0.242,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Saturn",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Trine",
+     "date": "2026-01-14",
+     "direction": null,
+     "orb": 0.492,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Neptune",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Opposition",
+     "date": "2026-01-14",
+     "direction": null,
+     "orb": 0.407,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Uranus",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-01-14",
+     "direction": null,
+     "orb": 0.043,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Pluto",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Opposition",
+     "date": "2026-01-14",
+     "direction": null,
+     "orb": 0.271,
+     "planet": "Mercury",
+     "significance": "medium",
+     "target": "Jupiter",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-01-15",
+     "direction": null,
+     "orb": 0.279,
+     "planet": "Venus",
+     "significance": "medium",
+     "target": "Saturn",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Trine",
+     "date": "2026-01-15",
+     "direction": null,
+     "orb": 0.179,
+     "planet": "Venus",
+     "significance": "medium",
+     "target": "Uranus",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-01-15",
+     "direction": null,
+     "orb": 0.36,
+     "planet": "Mars",
+     "significance": "medium",
+     "target": "Sun",
+     "type": "transit_natal"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-01-15",
+     "direction": null,
+     "orb": 0.026,
+     "planet": "Pluto",
+     "significance": "medium",
+     "target": "Mercury",
+     "type": "transit_natal"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-01-16",
+     "direction": null,
+     "orb": 0.162,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Saturn",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-01-16",
+     "direction": null,
+     "orb": 0.344,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Neptune",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-01-17",
+     "direction": null,
+     "orb": 0.051,
+     "planet": "Sun",
+     "significance": "medium",
+     "target": "Saturn",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Trine",
+     "date": "2026-01-17",
+     "direction": null,
+     "orb": 0.214,
+     "planet": "Sun",
+     "significance": "medium",
+     "target": "Uranus",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-01-17",
+     "direction": null,
+     "orb": 0.177,
+     "planet": "Venus",
+     "significance": "medium",
+     "target": "Neptune",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Opposition",
+     "date": "2026-01-18",
+     "direction": null,
+     "orb": 0.573,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Jupiter",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Trine",
+     "date": "2026-01-19",
+     "direction": null,
+     "orb": 0.181,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Uranus",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-01-19",
+     "direction": null,
+     "orb": 1.059,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Neptune",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Conjunction",
+     "date": "2026-01-19",
+     "direction": null,
+     "orb": 0.729,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Pluto",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-01-19",
+     "direction": null,
+     "orb": 0.411,
+     "planet": "Sun",
+     "significance": "medium",
+     "target": "Neptune",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-01-19",
+     "direction": null,
+     "orb": 0.515,
+     "planet": "Mercury",
+     "significance": "medium",
+     "target": "Saturn",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Trine",
+     "date": "2026-01-19",
+     "direction": null,
+     "orb": 0.444,
+     "planet": "Mercury",
+     "significance": "medium",
+     "target": "Uranus",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-01-20",
+     "direction": null,
+     "orb": 0.027,
+     "planet": "Saturn",
+     "significance": "high",
+     "target": "Uranus",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-01-20",
+     "direction": null,
+     "orb": 0.176,
+     "planet": "Mercury",
+     "significance": "medium",
+     "target": "Neptune",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Conjunction",
+     "date": "2026-01-20",
+     "direction": null,
+     "orb": 0.405,
+     "planet": "Venus",
+     "significance": "medium",
+     "target": "Pluto",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-01-20",
+     "direction": null,
+     "orb": 0.172,
+     "planet": "Mars",
+     "significance": "medium",
+     "target": "Saturn",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Trine",
+     "date": "2026-01-20",
+     "direction": null,
+     "orb": 0.2,
+     "planet": "Mars",
+     "significance": "medium",
+     "target": "Uranus",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-01-21",
+     "direction": null,
+     "orb": 1.219,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Uranus",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Conjunction",
+     "date": "2026-01-22",
+     "direction": null,
+     "orb": 0.362,
+     "planet": "Mercury",
+     "significance": "medium",
+     "target": "Pluto",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Trine",
+     "date": "2026-01-23",
+     "direction": null,
+     "orb": 0.703,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Jupiter",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Conjunction",
+     "date": "2026-01-23",
+     "direction": null,
+     "orb": 1.36,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Saturn",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Conjunction",
+     "date": "2026-01-23",
+     "direction": null,
+     "orb": 0.719,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Neptune",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Conjunction",
+     "date": "2026-01-23",
+     "direction": null,
+     "orb": 0.063,
+     "planet": "Sun",
+     "significance": "medium",
+     "target": "Pluto",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-01-23",
+     "direction": null,
+     "orb": 0.168,
+     "planet": "Mars",
+     "significance": "medium",
+     "target": "Neptune",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-01-23",
+     "direction": null,
+     "orb": 0.928,
+     "planet": "Saturn",
+     "significance": "medium",
+     "target": "Mars",
+     "type": "transit_natal"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-01-25",
+     "direction": null,
+     "orb": 1.445,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Jupiter",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-01-26",
+     "direction": null,
+     "orb": 0.084,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Pluto",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-01-26",
+     "direction": null,
+     "orb": 0.378,
+     "planet": "Pluto",
+     "significance": "medium",
+     "target": "Mercury",
+     "type": "transit_natal"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-01-27",
+     "direction": null,
+     "orb": 0.344,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Jupiter",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Conjunction",
+     "date": "2026-01-27",
+     "direction": null,
+     "orb": 0.344,
+     "planet": "Mars",
+     "significance": "medium",
+     "target": "Pluto",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-01-28",
+     "direction": null,
+     "orb": 0.045,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Saturn",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Conjunction",
+     "date": "2026-01-28",
+     "direction": null,
+     "orb": 0.769,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Uranus",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-01-30",
+     "direction": null,
+     "orb": 1.149,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Saturn",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-01-30",
+     "direction": null,
+     "orb": 0.795,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Neptune",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-01-31",
+     "direction": null,
+     "orb": 1.126,
+     "planet": "Saturn",
+     "significance": "high",
+     "target": "Uranus",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Conjunction",
+     "date": "2026-01-31",
+     "direction": null,
+     "orb": 1.67,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Jupiter",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-02-01",
+     "direction": null,
+     "orb": 1.151,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Uranus",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Trine",
+     "date": "2026-02-01",
+     "direction": null,
+     "orb": 0.243,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Neptune",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Opposition",
+     "date": "2026-02-01",
+     "direction": null,
+     "orb": 0.219,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Pluto",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-02-03",
+     "direction": null,
+     "orb": 0.62,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Uranus",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": null,
+     "date": "2026-02-04",
+     "direction": "direct",
+     "orb": 0.0,
+     "planet": "Uranus",
+     "significance": "high",
+     "target": null,
+     "type": "station"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-02-04",
+     "direction": null,
+     "orb": 0.001,
+     "planet": "Jupiter",
+     "significance": "medium",
+     "target": "Venus",
+     "type": "transit_natal"
+    },
+    {
+     "aspect": "Opposition",
+     "date": "2026-02-05",
+     "direction": null,
+     "orb": 0.997,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Saturn",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Trine",
+     "date": "2026-02-05",
+     "direction": null,
+     "orb": 0.636,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Uranus",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Opposition",
+     "date": "2026-02-05",
+     "direction": null,
+     "orb": 1.048,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Neptune",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-02-05",
+     "direction": null,
+     "orb": 0.017,
+     "planet": "Mercury",
+     "significance": "medium",
+     "target": "Uranus",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Trine",
+     "date": "2026-02-06",
+     "direction": null,
+     "orb": 0.673,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Pluto",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-02-06",
+     "direction": null,
+     "orb": 0.727,
+     "planet": "Pluto",
+     "significance": "medium",
+     "target": "Mercury",
+     "type": "transit_natal"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-02-07",
+     "direction": null,
+     "orb": 0.311,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Jupiter",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-02-08",
+     "direction": null,
+     "orb": 1.509,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Pluto",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-02-08",
+     "direction": null,
+     "orb": 0.114,
+     "planet": "Venus",
+     "significance": "medium",
+     "target": "Uranus",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Trine",
+     "date": "2026-02-10",
+     "direction": null,
+     "orb": 0.293,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Saturn",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Opposition",
+     "date": "2026-02-10",
+     "direction": null,
+     "orb": 1.12,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Uranus",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-02-10",
+     "direction": null,
+     "orb": 0.346,
+     "planet": "Mars",
+     "significance": "medium",
+     "target": "Moon",
+     "type": "transit_natal"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-02-11",
+     "direction": null,
+     "orb": 1.264,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Pluto",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-02-13",
+     "direction": null,
+     "orb": 0.708,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Saturn",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-02-13",
+     "direction": null,
+     "orb": 1.356,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Neptune",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Opposition",
+     "date": "2026-02-14",
+     "direction": null,
+     "orb": 1.332,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Jupiter",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-02-15",
+     "direction": null,
+     "orb": 0.31,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Saturn",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-02-15",
+     "direction": null,
+     "orb": 0.724,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Neptune",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Conjunction",
+     "date": "2026-02-15",
+     "direction": null,
+     "orb": 1.14,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Pluto",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-02-15",
+     "direction": null,
+     "orb": 0.993,
+     "planet": "Jupiter",
+     "significance": "medium",
+     "target": "Venus",
+     "type": "transit_natal"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-02-16",
+     "direction": null,
+     "orb": 0.29,
+     "planet": "Sun",
+     "significance": "medium",
+     "target": "Uranus",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Trine",
+     "date": "2026-02-16",
+     "direction": null,
+     "orb": 0.552,
+     "planet": "Mercury",
+     "significance": "medium",
+     "target": "Jupiter",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-02-17",
+     "direction": null,
+     "orb": 1.279,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Uranus",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-02-17",
+     "direction": null,
+     "orb": 1.063,
+     "planet": "Pluto",
+     "significance": "medium",
+     "target": "Mercury",
+     "type": "transit_natal"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-02-17",
+     "direction": null,
+     "orb": 0.017,
+     "planet": "Pluto",
+     "significance": "medium",
+     "target": "Saturn",
+     "type": "transit_natal"
+    },
+    {
+     "aspect": "Trine",
+     "date": "2026-02-19",
+     "direction": null,
+     "orb": 0.305,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Jupiter",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Conjunction",
+     "date": "2026-02-20",
+     "direction": null,
+     "orb": 0.016,
+     "planet": "Saturn",
+     "significance": "high",
+     "target": "Neptune",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Conjunction",
+     "date": "2026-02-20",
+     "direction": null,
+     "orb": 1.558,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Saturn",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Conjunction",
+     "date": "2026-02-20",
+     "direction": null,
+     "orb": 1.654,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Neptune",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-02-21",
+     "direction": null,
+     "orb": 0.715,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Jupiter",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-02-22",
+     "direction": null,
+     "orb": 0.556,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Pluto",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Trine",
+     "date": "2026-02-22",
+     "direction": null,
+     "orb": 0.436,
+     "planet": "Venus",
+     "significance": "medium",
+     "target": "Jupiter",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-02-23",
+     "direction": null,
+     "orb": 1.116,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Jupiter",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Conjunction",
+     "date": "2026-02-24",
+     "direction": null,
+     "orb": 0.889,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Uranus",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Trine",
+     "date": "2026-02-24",
+     "direction": null,
+     "orb": 1.222,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Pluto",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-02-26",
+     "direction": null,
+     "orb": 0.946,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Saturn",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-02-26",
+     "direction": null,
+     "orb": 0.473,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Neptune",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Conjunction",
+     "date": "2026-02-27",
+     "direction": null,
+     "orb": 0.683,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Jupiter",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-02-27",
+     "direction": null,
+     "orb": 0.139,
+     "planet": "Mars",
+     "significance": "medium",
+     "target": "Uranus",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Trine",
+     "date": "2026-02-27",
+     "direction": null,
+     "orb": 0.787,
+     "planet": "Uranus",
+     "significance": "medium",
+     "target": "Mars",
+     "type": "transit_natal"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-02-27",
+     "direction": null,
+     "orb": 0.217,
+     "planet": "Uranus",
+     "significance": "medium",
+     "target": "Jupiter",
+     "type": "transit_natal"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-02-28",
+     "direction": null,
+     "orb": 0.952,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Uranus",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Trine",
+     "date": "2026-02-28",
+     "direction": null,
+     "orb": 0.5,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Saturn",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Trine",
+     "date": "2026-02-28",
+     "direction": null,
+     "orb": 1.138,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Neptune",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-02-28",
+     "direction": null,
+     "orb": 1.376,
+     "planet": "Pluto",
+     "significance": "medium",
+     "target": "Mercury",
+     "type": "transit_natal"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-02-28",
+     "direction": null,
+     "orb": 0.33,
+     "planet": "Pluto",
+     "significance": "medium",
+     "target": "Saturn",
+     "type": "transit_natal"
+    },
+    {
+     "aspect": "Opposition",
+     "date": "2026-03-01",
+     "direction": null,
+     "orb": 1.126,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Pluto",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Conjunction",
+     "date": "2026-03-01",
+     "direction": null,
+     "orb": 1.36,
+     "planet": "Saturn",
+     "significance": "medium",
+     "target": "Mercury",
+     "type": "transit_natal"
+    }
+   ],
+   "id": "einstein-ulm-1879",
+   "min_sig": "medium",
+   "natal": {
+    "Ascendant": 101.595857,
+    "Jupiter": 327.483988,
+    "Mars": 296.914115,
+    "Mercury": 3.143613,
+    "Midheaven": 342.772639,
+    "Moon": 254.523983,
+    "Neptune": 37.872204,
+    "Pluto": 54.725354,
+    "Saturn": 4.189799,
+    "Sun": 353.507602,
+    "Uranus": 151.288396,
+    "Venus": 16.984845
+   },
+   "request": {
+    "day": 14,
+    "hour": 11,
+    "lat": 48.4011,
+    "lng": 9.9876,
+    "minute": 30,
+    "month": 3,
+    "second": 0,
+    "tz_offset": 0.67,
+    "year": 1879
+   },
+   "start": "2026-01-01"
+  },
+  {
+   "days": 60,
+   "events": [
+    {
+     "aspect": "Square",
+     "date": "2025-12-31",
+     "direction": null,
+     "orb": 1.751,
+     "planet": "Mercury",
+     "significance": "medium",
+     "target": "Saturn",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Square",
+     "date": "2025-12-31",
+     "direction": null,
+     "orb": 0.0,
+     "planet": "Uranus",
+     "significance": "medium",
+     "target": "Mars",
+     "type": "transit_natal"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2025-12-31",
+     "direction": null,
+     "orb": 1.138,
+     "planet": "Pluto",
+     "significance": "medium",
+     "target": "Venus",
+     "type": "transit_natal"
+    },
+    {
+     "aspect": "Conjunction",
+     "date": "2026-01-01",
+     "direction": null,
+     "orb": 1.281,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Uranus",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-01-01",
+     "direction": null,
+     "orb": 0.257,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Neptune",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-01-01",
+     "direction": null,
+     "orb": 0.098,
+     "planet": "Mercury",
+     "significance": "medium",
+     "target": "Neptune",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-01-01",
+     "direction": null,
+     "orb": 0.252,
+     "planet": "Mars",
+     "significance": "medium",
+     "target": "Moon",
+     "type": "transit_natal"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-01-02",
+     "direction": null,
+     "orb": 0.738,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Saturn",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-01-02",
+     "direction": null,
+     "orb": 0.246,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Neptune",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Conjunction",
+     "date": "2026-01-04",
+     "direction": null,
+     "orb": 0.743,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Jupiter",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-01-04",
+     "direction": null,
+     "orb": 1.099,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Uranus",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Opposition",
+     "date": "2026-01-05",
+     "direction": null,
+     "orb": 0.245,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Pluto",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-01-06",
+     "direction": null,
+     "orb": 0.614,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Uranus",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-01-08",
+     "direction": null,
+     "orb": 0.041,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Jupiter",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Opposition",
+     "date": "2026-01-09",
+     "direction": null,
+     "orb": 0.143,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Saturn",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Opposition",
+     "date": "2026-01-09",
+     "direction": null,
+     "orb": 0.317,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Neptune",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Trine",
+     "date": "2026-01-09",
+     "direction": null,
+     "orb": 0.107,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Pluto",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Opposition",
+     "date": "2026-01-09",
+     "direction": null,
+     "orb": 0.324,
+     "planet": "Venus",
+     "significance": "medium",
+     "target": "Jupiter",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Opposition",
+     "date": "2026-01-10",
+     "direction": null,
+     "orb": 0.158,
+     "planet": "Sun",
+     "significance": "medium",
+     "target": "Jupiter",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Opposition",
+     "date": "2026-01-10",
+     "direction": null,
+     "orb": 0.092,
+     "planet": "Mars",
+     "significance": "medium",
+     "target": "Jupiter",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-01-11",
+     "direction": null,
+     "orb": 1.427,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Jupiter",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-01-11",
+     "direction": null,
+     "orb": 1.477,
+     "planet": "Pluto",
+     "significance": "medium",
+     "target": "Venus",
+     "type": "transit_natal"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-01-12",
+     "direction": null,
+     "orb": 0.483,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Pluto",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Trine",
+     "date": "2026-01-14",
+     "direction": null,
+     "orb": 0.242,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Saturn",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Trine",
+     "date": "2026-01-14",
+     "direction": null,
+     "orb": 0.492,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Neptune",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Opposition",
+     "date": "2026-01-14",
+     "direction": null,
+     "orb": 0.407,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Uranus",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-01-14",
+     "direction": null,
+     "orb": 0.043,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Pluto",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Opposition",
+     "date": "2026-01-14",
+     "direction": null,
+     "orb": 0.271,
+     "planet": "Mercury",
+     "significance": "medium",
+     "target": "Jupiter",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-01-15",
+     "direction": null,
+     "orb": 0.279,
+     "planet": "Venus",
+     "significance": "medium",
+     "target": "Saturn",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Trine",
+     "date": "2026-01-15",
+     "direction": null,
+     "orb": 0.179,
+     "planet": "Venus",
+     "significance": "medium",
+     "target": "Uranus",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-01-16",
+     "direction": null,
+     "orb": 0.162,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Saturn",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-01-16",
+     "direction": null,
+     "orb": 0.344,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Neptune",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-01-16",
+     "direction": null,
+     "orb": 0.378,
+     "planet": "Mars",
+     "significance": "medium",
+     "target": "Ascendant",
+     "type": "transit_natal"
+    },
+    {
+     "aspect": "Conjunction",
+     "date": "2026-01-16",
+     "direction": null,
+     "orb": 0.008,
+     "planet": "Pluto",
+     "significance": "medium",
+     "target": "Neptune",
+     "type": "transit_natal"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-01-17",
+     "direction": null,
+     "orb": 0.051,
+     "planet": "Sun",
+     "significance": "medium",
+     "target": "Saturn",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Trine",
+     "date": "2026-01-17",
+     "direction": null,
+     "orb": 0.214,
+     "planet": "Sun",
+     "significance": "medium",
+     "target": "Uranus",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-01-17",
+     "direction": null,
+     "orb": 0.177,
+     "planet": "Venus",
+     "significance": "medium",
+     "target": "Neptune",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Opposition",
+     "date": "2026-01-18",
+     "direction": null,
+     "orb": 0.573,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Jupiter",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Trine",
+     "date": "2026-01-19",
+     "direction": null,
+     "orb": 0.181,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Uranus",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-01-19",
+     "direction": null,
+     "orb": 1.059,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Neptune",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Conjunction",
+     "date": "2026-01-19",
+     "direction": null,
+     "orb": 0.729,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Pluto",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-01-19",
+     "direction": null,
+     "orb": 0.411,
+     "planet": "Sun",
+     "significance": "medium",
+     "target": "Neptune",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-01-19",
+     "direction": null,
+     "orb": 0.515,
+     "planet": "Mercury",
+     "significance": "medium",
+     "target": "Saturn",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Trine",
+     "date": "2026-01-19",
+     "direction": null,
+     "orb": 0.444,
+     "planet": "Mercury",
+     "significance": "medium",
+     "target": "Uranus",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-01-20",
+     "direction": null,
+     "orb": 0.027,
+     "planet": "Saturn",
+     "significance": "high",
+     "target": "Uranus",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-01-20",
+     "direction": null,
+     "orb": 0.176,
+     "planet": "Mercury",
+     "significance": "medium",
+     "target": "Neptune",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Conjunction",
+     "date": "2026-01-20",
+     "direction": null,
+     "orb": 0.405,
+     "planet": "Venus",
+     "significance": "medium",
+     "target": "Pluto",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-01-20",
+     "direction": null,
+     "orb": 0.172,
+     "planet": "Mars",
+     "significance": "medium",
+     "target": "Saturn",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Trine",
+     "date": "2026-01-20",
+     "direction": null,
+     "orb": 0.2,
+     "planet": "Mars",
+     "significance": "medium",
+     "target": "Uranus",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-01-21",
+     "direction": null,
+     "orb": 1.219,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Uranus",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Conjunction",
+     "date": "2026-01-22",
+     "direction": null,
+     "orb": 0.362,
+     "planet": "Mercury",
+     "significance": "medium",
+     "target": "Pluto",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Trine",
+     "date": "2026-01-23",
+     "direction": null,
+     "orb": 0.703,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Jupiter",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Conjunction",
+     "date": "2026-01-23",
+     "direction": null,
+     "orb": 1.36,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Saturn",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Conjunction",
+     "date": "2026-01-23",
+     "direction": null,
+     "orb": 0.719,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Neptune",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Conjunction",
+     "date": "2026-01-23",
+     "direction": null,
+     "orb": 0.063,
+     "planet": "Sun",
+     "significance": "medium",
+     "target": "Pluto",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-01-23",
+     "direction": null,
+     "orb": 0.168,
+     "planet": "Mars",
+     "significance": "medium",
+     "target": "Neptune",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-01-25",
+     "direction": null,
+     "orb": 1.445,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Jupiter",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-01-26",
+     "direction": null,
+     "orb": 0.084,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Pluto",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-01-27",
+     "direction": null,
+     "orb": 0.344,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Jupiter",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Conjunction",
+     "date": "2026-01-27",
+     "direction": null,
+     "orb": 0.344,
+     "planet": "Mars",
+     "significance": "medium",
+     "target": "Pluto",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Conjunction",
+     "date": "2026-01-27",
+     "direction": null,
+     "orb": 0.36,
+     "planet": "Pluto",
+     "significance": "medium",
+     "target": "Neptune",
+     "type": "transit_natal"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-01-28",
+     "direction": null,
+     "orb": 0.045,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Saturn",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Conjunction",
+     "date": "2026-01-28",
+     "direction": null,
+     "orb": 0.769,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Uranus",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-01-30",
+     "direction": null,
+     "orb": 1.149,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Saturn",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-01-30",
+     "direction": null,
+     "orb": 0.795,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Neptune",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-01-31",
+     "direction": null,
+     "orb": 1.126,
+     "planet": "Saturn",
+     "significance": "high",
+     "target": "Uranus",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Conjunction",
+     "date": "2026-01-31",
+     "direction": null,
+     "orb": 1.67,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Jupiter",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-02-01",
+     "direction": null,
+     "orb": 1.151,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Uranus",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Trine",
+     "date": "2026-02-01",
+     "direction": null,
+     "orb": 0.243,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Neptune",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Opposition",
+     "date": "2026-02-01",
+     "direction": null,
+     "orb": 0.219,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Pluto",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-02-03",
+     "direction": null,
+     "orb": 0.62,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Uranus",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": null,
+     "date": "2026-02-04",
+     "direction": "direct",
+     "orb": 0.0,
+     "planet": "Uranus",
+     "significance": "high",
+     "target": null,
+     "type": "station"
+    },
+    {
+     "aspect": "Opposition",
+     "date": "2026-02-05",
+     "direction": null,
+     "orb": 0.997,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Saturn",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Trine",
+     "date": "2026-02-05",
+     "direction": null,
+     "orb": 0.636,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Uranus",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Opposition",
+     "date": "2026-02-05",
+     "direction": null,
+     "orb": 1.048,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Neptune",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-02-05",
+     "direction": null,
+     "orb": 0.017,
+     "planet": "Mercury",
+     "significance": "medium",
+     "target": "Uranus",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Trine",
+     "date": "2026-02-06",
+     "direction": null,
+     "orb": 0.673,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Pluto",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-02-07",
+     "direction": null,
+     "orb": 0.311,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Jupiter",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Conjunction",
+     "date": "2026-02-07",
+     "direction": null,
+     "orb": 0.708,
+     "planet": "Pluto",
+     "significance": "medium",
+     "target": "Neptune",
+     "type": "transit_natal"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-02-08",
+     "direction": null,
+     "orb": 1.509,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Pluto",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-02-08",
+     "direction": null,
+     "orb": 0.114,
+     "planet": "Venus",
+     "significance": "medium",
+     "target": "Uranus",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-02-09",
+     "direction": null,
+     "orb": 0.069,
+     "planet": "Mars",
+     "significance": "medium",
+     "target": "Moon",
+     "type": "transit_natal"
+    },
+    {
+     "aspect": "Trine",
+     "date": "2026-02-10",
+     "direction": null,
+     "orb": 0.293,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Saturn",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Opposition",
+     "date": "2026-02-10",
+     "direction": null,
+     "orb": 1.12,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Uranus",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-02-11",
+     "direction": null,
+     "orb": 1.264,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Pluto",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-02-13",
+     "direction": null,
+     "orb": 0.708,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Saturn",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-02-13",
+     "direction": null,
+     "orb": 1.356,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Neptune",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Opposition",
+     "date": "2026-02-14",
+     "direction": null,
+     "orb": 1.332,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Jupiter",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-02-15",
+     "direction": null,
+     "orb": 0.31,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Saturn",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-02-15",
+     "direction": null,
+     "orb": 0.724,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Neptune",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Conjunction",
+     "date": "2026-02-15",
+     "direction": null,
+     "orb": 1.14,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Pluto",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-02-16",
+     "direction": null,
+     "orb": 0.29,
+     "planet": "Sun",
+     "significance": "medium",
+     "target": "Uranus",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Trine",
+     "date": "2026-02-16",
+     "direction": null,
+     "orb": 0.552,
+     "planet": "Mercury",
+     "significance": "medium",
+     "target": "Jupiter",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-02-17",
+     "direction": null,
+     "orb": 1.279,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Uranus",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Conjunction",
+     "date": "2026-02-18",
+     "direction": null,
+     "orb": 1.043,
+     "planet": "Pluto",
+     "significance": "medium",
+     "target": "Neptune",
+     "type": "transit_natal"
+    },
+    {
+     "aspect": "Trine",
+     "date": "2026-02-19",
+     "direction": null,
+     "orb": 0.305,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Jupiter",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Conjunction",
+     "date": "2026-02-20",
+     "direction": null,
+     "orb": 0.016,
+     "planet": "Saturn",
+     "significance": "high",
+     "target": "Neptune",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Conjunction",
+     "date": "2026-02-20",
+     "direction": null,
+     "orb": 1.558,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Saturn",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Conjunction",
+     "date": "2026-02-20",
+     "direction": null,
+     "orb": 1.654,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Neptune",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-02-21",
+     "direction": null,
+     "orb": 0.715,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Jupiter",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-02-22",
+     "direction": null,
+     "orb": 0.556,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Pluto",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Trine",
+     "date": "2026-02-22",
+     "direction": null,
+     "orb": 0.436,
+     "planet": "Venus",
+     "significance": "medium",
+     "target": "Jupiter",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-02-23",
+     "direction": null,
+     "orb": 1.116,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Jupiter",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-02-23",
+     "direction": null,
+     "orb": 0.145,
+     "planet": "Mars",
+     "significance": "medium",
+     "target": "Ascendant",
+     "type": "transit_natal"
+    },
+    {
+     "aspect": "Conjunction",
+     "date": "2026-02-24",
+     "direction": null,
+     "orb": 0.889,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Uranus",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Trine",
+     "date": "2026-02-24",
+     "direction": null,
+     "orb": 1.222,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Pluto",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-02-26",
+     "direction": null,
+     "orb": 0.946,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Saturn",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-02-26",
+     "direction": null,
+     "orb": 0.473,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Neptune",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Conjunction",
+     "date": "2026-02-27",
+     "direction": null,
+     "orb": 0.683,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Jupiter",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-02-27",
+     "direction": null,
+     "orb": 0.139,
+     "planet": "Mars",
+     "significance": "medium",
+     "target": "Uranus",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Trine",
+     "date": "2026-02-27",
+     "direction": null,
+     "orb": 0.02,
+     "planet": "Saturn",
+     "significance": "medium",
+     "target": "Venus",
+     "type": "transit_natal"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-02-28",
+     "direction": null,
+     "orb": 0.952,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Uranus",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Trine",
+     "date": "2026-02-28",
+     "direction": null,
+     "orb": 0.5,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Saturn",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Trine",
+     "date": "2026-02-28",
+     "direction": null,
+     "orb": 1.138,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Neptune",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Opposition",
+     "date": "2026-03-01",
+     "direction": null,
+     "orb": 1.126,
+     "planet": "Moon",
+     "significance": "medium",
+     "target": "Pluto",
+     "type": "transit_transit"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-03-01",
+     "direction": null,
+     "orb": 0.106,
+     "planet": "Saturn",
+     "significance": "medium",
+     "target": "Mercury",
+     "type": "transit_natal"
+    },
+    {
+     "aspect": "Sextile",
+     "date": "2026-03-01",
+     "direction": null,
+     "orb": 1.409,
+     "planet": "Saturn",
+     "significance": "medium",
+     "target": "Neptune",
+     "type": "transit_natal"
+    },
+    {
+     "aspect": "Square",
+     "date": "2026-03-01",
+     "direction": null,
+     "orb": 0.827,
+     "planet": "Neptune",
+     "significance": "medium",
+     "target": "Mercury",
+     "type": "transit_natal"
+    },
+    {
+     "aspect": "Trine",
+     "date": "2026-03-01",
+     "direction": null,
+     "orb": 0.504,
+     "planet": "Neptune",
+     "significance": "medium",
+     "target": "Venus",
+     "type": "transit_natal"
+    }
+   ],
+   "id": "greenwich-noon-j2000",
+   "min_sig": "medium",
+   "natal": {
+    "Ascendant": 24.265235,
+    "Jupiter": 25.25303,
+    "Mars": 327.963313,
+    "Mercury": 271.889275,
+    "Midheaven": 279.611088,
+    "Moon": 223.323775,
+    "Neptune": 303.192981,
+    "Pluto": 251.454709,
+    "Saturn": 40.395639,
+    "Sun": 280.36892,
+    "Uranus": 314.809223,
+    "Venus": 241.565798
+   },
+   "request": {
+    "day": 1,
+    "hour": 12,
+    "lat": 51.4769,
+    "lng": 0.0,
+    "minute": 0,
+    "month": 1,
+    "second": 0,
+    "tz_offset": 0.0,
+    "year": 2000
+   },
+   "start": "2026-01-01"
+  }
+ ],
+ "date_tolerance_days": 1,
+ "orb_tolerance_deg": 0.2,
+ "schema": "astra-parity/forecast@1"
+}

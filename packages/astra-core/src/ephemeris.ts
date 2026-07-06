@@ -144,6 +144,24 @@ function calcBody(
   return { lon, lat, speed, dec };
 }
 
+// Name-keyed body table for consumers that work by name (forecast scanner).
+// v0.1 excludes Chiron and the lunar Node (astronomy-engine lacks them).
+const BODY_BY_NAME: Record<string, AstronomyTypes.Body> = Object.fromEntries(
+  PLANET_TABLE.map(([name, body]) => [name, body])
+);
+
+/** Ecliptic-of-date longitude (deg) and longitude speed (deg/day) for a named
+ *  body — the forecast scanner's primitive, sharing the chart's exact frame. */
+export function eclipticLonSpeed(
+  jd: number,
+  name: string
+): { lon: number; speed: number } | null {
+  const body = BODY_BY_NAME[name];
+  if (body === undefined) return null;
+  const { lon, speed } = calcBody(jd, body);
+  return { lon, speed };
+}
+
 // ---------------------------------------------------------------------------
 // Assembly (port of ephemeris.calculate_chart)
 // ---------------------------------------------------------------------------

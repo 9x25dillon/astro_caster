@@ -116,8 +116,16 @@ implementations) into a mechanical gate.
    invisible U+0001 separator (`"\x01".join`), and weights are Python
    round-half-even before feeding the RNG. Deck/weight data generated from the
    Python source (DRY). Prose/lessons/learning-path deferred (static lookups).
-3. `@astra/core/forecast` — transit scan + station finder (the CPU-heavy one;
-   runs in a Web Worker, chunked, cancellable).
+3. ✅ **v0.3 DONE 2026-07-05** — `@astra/core/forecast` (`forecast.ts`):
+   day-by-day transit scan — stations (speed-sign bisection), transit-to-transit
+   and transit-to-natal exactness (Moon at 6h resolution), hysteresis + 10-day
+   dedup — a faithful port of `forecast.py`. Reproduces the backend's ~120-event
+   60-day forecast for both reference natals against `parity/forecast.json`,
+   matched by event identity within a ±1-day / 0.2° cross-engine window (near-
+   midnight stations and flat-minimum aspects can shift a day between
+   astronomy-engine and pyswisseph). Sun–Pluto transits (v0.1 body set). Still
+   synchronous; the Web-Worker chunking/cancellation is a client-integration
+   concern for when it wires into the UI.
 4. `@astra/core/relational` + `predictive` + `advanced` — long tail, gated by
    usage telemetry (which modals people actually open on mobile).
 5. Backend adopts the same vectors as *its* regression suite — the two stacks
