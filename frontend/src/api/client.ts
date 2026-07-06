@@ -1,7 +1,9 @@
 // api/client.ts — thin typed wrapper over the FastAPI backend.
 import {
   calculateChart as coreCalculateChart,
+  buildLocalReading,
   type ChartRequest as CoreChartRequest,
+  type ChartResponse as CoreChartResponse,
 } from "@astra/core";
 import type {
   BirthInput,
@@ -468,6 +470,25 @@ export function fetchTarotReading(
     include_ai: opts.includeAi ?? false,
     entitlement: opts.entitlement ?? null,
   });
+}
+
+/**
+ * On-device tarot reading via @astra/core (MOBILE_ROADMAP §3/H1). The seed and
+ * dealt cards reproduce the backend's OFFLINE reading exactly for the same
+ * chart; AI enrichment and lesson/activity generators are backend-only, so
+ * those fields come back empty. Used as the fallback when the backend is down.
+ */
+export function localTarotReading(
+  chart: ChartResponse,
+  spread: SpreadType,
+  question: string,
+  opts: { source?: SourceSystem; date?: string } = {},
+): TarotReadingResponse {
+  const r = buildLocalReading(chart as unknown as CoreChartResponse, spread, question, {
+    date: opts.date ?? (spread === "daily" ? localToday() : null),
+    source: opts.source ?? "golden_dawn",
+  });
+  return r as unknown as TarotReadingResponse;
 }
 
 export interface LearningStep {

@@ -3,6 +3,28 @@
 Per-phase log for the Production Hardening & Symbolic Intelligence Expansion pass.
 Baseline: `d9afc4b` (36 backend tests, clean frontend build).
 
+## Offline tarot readings on-device (2026-07-05, offline-tarot)
+
+Mobile roadmap H1: the Arcana Draw tab now deals a full spread with the backend
+down — the same cards the server's offline reading gives, computed in the
+browser.
+
+- **`@astra/core` gains the reading assembly** (`tarot.ts` `buildLocalReading`):
+  ports the deterministic half of the backend's `build_reading_core` — the seed
+  string (`defaultSeed`, banker's-rounded body longitudes), the dealt cards,
+  per-card meaning template, and natal-link notes (signature now carries
+  `links` + `HOUSE_THEMES`). Full 78-card display data generated from the Python
+  source into `tarot-cards.json`. AI interpretation and the lesson/activity
+  generators are backend enrichment, left empty offline.
+- **New parity vector `tarot-reading.json`**: proves `buildLocalReading`
+  reproduces the backend's offline reading **exactly** — seed, cards, and
+  meanings (natal-link notes included) — for the reference charts across three
+  spreads. `gen_parity_vectors.py` now emits five files.
+- **Frontend**: `client.localTarotReading()` + an ArcanaModal `draw()` fallback
+  — a network failure deals on-device (AI-gated 402s still surface normally).
+  `e2e/arcana-offline.spec.ts`: backend severed → open Arcana → Draw → three
+  cards with meanings render. 26 e2e pass; 25 core parity tests; build clean.
+
 ## @astra/core tarot goes browser-safe — isomorphic SHA-256 (2026-07-05, tarot-browser)
 
 The last Node-only dependency in the engines. `tarot.ts` seeded its MT19937

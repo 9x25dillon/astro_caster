@@ -1,0 +1,1513 @@
+{
+"ace_of_cups": {
+"arcana": "minor",
+"astrology": [
+"Water"
+],
+"element": "Water",
+"id": "ace_of_cups",
+"keywords": [
+"love",
+"feeling",
+"intuition",
+"openness"
+],
+"name": "Ace of Cups",
+"number": 1,
+"reversed_meaning": "emotional blockage, or love withheld from yourself",
+"suit": "cups",
+"upright": "the heart opening; a wellspring of feeling"
+},
+"ace_of_pentacles": {
+"arcana": "minor",
+"astrology": [
+"Earth"
+],
+"element": "Earth",
+"id": "ace_of_pentacles",
+"keywords": [
+"opportunity",
+"prosperity",
+"seed",
+"manifestation"
+],
+"name": "Ace of Pentacles",
+"number": 1,
+"reversed_meaning": "a missed opportunity or a shaky foundation",
+"suit": "pentacles",
+"upright": "a tangible seed of prosperity and new ground"
+},
+"ace_of_swords": {
+"arcana": "minor",
+"astrology": [
+"Air"
+],
+"element": "Air",
+"id": "ace_of_swords",
+"keywords": [
+"clarity",
+"truth",
+"breakthrough",
+"insight"
+],
+"name": "Ace of Swords",
+"number": 1,
+"reversed_meaning": "confusion, misused intellect, muddled thinking",
+"suit": "swords",
+"upright": "a piercing clarity that cuts to truth"
+},
+"ace_of_wands": {
+"arcana": "minor",
+"astrology": [
+"Fire"
+],
+"element": "Fire",
+"id": "ace_of_wands",
+"keywords": [
+"spark",
+"inspiration",
+"drive",
+"potential"
+],
+"name": "Ace of Wands",
+"number": 1,
+"reversed_meaning": "a false start, or scattered, ungrounded energy",
+"suit": "wands",
+"upright": "a pure surge of creative fire and new will"
+},
+"chariot": {
+"arcana": "major",
+"astrology": [
+"Cancer"
+],
+"element": "Water",
+"id": "chariot",
+"keywords": [
+"will",
+"direction",
+"drive",
+"mastery",
+"momentum"
+],
+"name": "The Chariot",
+"number": 7,
+"reversed_meaning": "scattered force, defensiveness, or losing the reins",
+"suit": null,
+"upright": "victory through directed will and emotional self-command"
+},
+"death": {
+"arcana": "major",
+"astrology": [
+"Scorpio",
+"Pluto"
+],
+"element": "Water",
+"id": "death",
+"keywords": [
+"transformation",
+"ending",
+"release",
+"rebirth",
+"threshold"
+],
+"name": "Death",
+"number": 13,
+"reversed_meaning": "clinging to the dead form; fear of letting go",
+"suit": null,
+"upright": "the necessary ending that clears ground for what is next"
+},
+"devil": {
+"arcana": "major",
+"astrology": [
+"Capricorn"
+],
+"element": "Earth",
+"id": "devil",
+"keywords": [
+"shadow",
+"attachment",
+"desire",
+"bondage",
+"embodiment"
+],
+"name": "The Devil",
+"number": 15,
+"reversed_meaning": "denial of shadow, or breaking free of an old bondage",
+"suit": null,
+"upright": "facing the chains you can in fact loosen; reclaiming desire"
+},
+"eight_of_cups": {
+"arcana": "minor",
+"astrology": [
+"Saturn in Pisces"
+],
+"element": "Water",
+"id": "eight_of_cups",
+"keywords": [
+"departure",
+"seeking",
+"withdrawal",
+"quest"
+],
+"name": "Eight of Cups",
+"number": 8,
+"reversed_meaning": "fear of leaving, or aimless drifting",
+"suit": "cups",
+"upright": "walking away from what no longer fulfills"
+},
+"eight_of_pentacles": {
+"arcana": "minor",
+"astrology": [
+"Sun in Virgo"
+],
+"element": "Earth",
+"id": "eight_of_pentacles",
+"keywords": [
+"diligence",
+"mastery",
+"craft",
+"focus"
+],
+"name": "Eight of Pentacles",
+"number": 8,
+"reversed_meaning": "perfectionism, or careless shortcuts",
+"suit": "pentacles",
+"upright": "devoted practice toward mastery"
+},
+"eight_of_swords": {
+"arcana": "minor",
+"astrology": [
+"Jupiter in Gemini"
+],
+"element": "Air",
+"id": "eight_of_swords",
+"keywords": [
+"restriction",
+"self-limit",
+"stuckness",
+"fear"
+],
+"name": "Eight of Swords",
+"number": 8,
+"reversed_meaning": "stepping free; reclaiming your power",
+"suit": "swords",
+"upright": "a self-made cage; the door is unlocked"
+},
+"eight_of_wands": {
+"arcana": "minor",
+"astrology": [
+"Mercury in Sagittarius"
+],
+"element": "Fire",
+"id": "eight_of_wands",
+"keywords": [
+"speed",
+"movement",
+"news",
+"momentum"
+],
+"name": "Eight of Wands",
+"number": 8,
+"reversed_meaning": "delays, haste, or scattered energy",
+"suit": "wands",
+"upright": "rapid movement, news, and aligned momentum"
+},
+"emperor": {
+"arcana": "major",
+"astrology": [
+"Aries"
+],
+"element": "Fire",
+"id": "emperor",
+"keywords": [
+"structure",
+"authority",
+"boundaries",
+"order",
+"protection"
+],
+"name": "The Emperor",
+"number": 4,
+"reversed_meaning": "rigidity, domination, or authority abdicated",
+"suit": null,
+"upright": "stable structure and protective authority you can stand on"
+},
+"empress": {
+"arcana": "major",
+"astrology": [
+"Venus",
+"Taurus",
+"Libra"
+],
+"element": "Earth",
+"id": "empress",
+"keywords": [
+"abundance",
+"beauty",
+"nurture",
+"creativity",
+"sensuality"
+],
+"name": "The Empress",
+"number": 3,
+"reversed_meaning": "smothering, creative block, or neglect of your own needs",
+"suit": null,
+"upright": "creative fertility, pleasure, and the power to nourish"
+},
+"five_of_cups": {
+"arcana": "minor",
+"astrology": [
+"Mars in Scorpio"
+],
+"element": "Water",
+"id": "five_of_cups",
+"keywords": [
+"grief",
+"loss",
+"regret",
+"mourning"
+],
+"name": "Five of Cups",
+"number": 5,
+"reversed_meaning": "acceptance, recovery, moving forward",
+"suit": "cups",
+"upright": "grief over what spilled; learning to see what remains"
+},
+"five_of_pentacles": {
+"arcana": "minor",
+"astrology": [
+"Mercury in Taurus"
+],
+"element": "Earth",
+"id": "five_of_pentacles",
+"keywords": [
+"hardship",
+"lack",
+"insecurity",
+"exclusion"
+],
+"name": "Five of Pentacles",
+"number": 5,
+"reversed_meaning": "recovery, support found, hardship easing",
+"suit": "pentacles",
+"upright": "hard times; help is nearer than it looks"
+},
+"five_of_swords": {
+"arcana": "minor",
+"astrology": [
+"Venus in Aquarius"
+],
+"element": "Air",
+"id": "five_of_swords",
+"keywords": [
+"conflict",
+"loss",
+"ego",
+"hollow victory"
+],
+"name": "Five of Swords",
+"number": 5,
+"reversed_meaning": "reconciliation, or releasing a grudge",
+"suit": "swords",
+"upright": "a win that costs more than it gives"
+},
+"five_of_wands": {
+"arcana": "minor",
+"astrology": [
+"Saturn in Leo"
+],
+"element": "Fire",
+"id": "five_of_wands",
+"keywords": [
+"competition",
+"friction",
+"tension",
+"conflict"
+],
+"name": "Five of Wands",
+"number": 5,
+"reversed_meaning": "avoidable conflict, exhaustion, ego clashes",
+"suit": "wands",
+"upright": "lively competition and creative friction"
+},
+"fool": {
+"arcana": "major",
+"astrology": [
+"Uranus",
+"Aquarius"
+],
+"element": "Air",
+"id": "fool",
+"keywords": [
+"beginning",
+"risk",
+"innocence",
+"leap",
+"trust"
+],
+"name": "The Fool",
+"number": 0,
+"reversed_meaning": "recklessness, or fear that freezes the first step",
+"suit": null,
+"upright": "the courage to begin before you can see the whole path"
+},
+"four_of_cups": {
+"arcana": "minor",
+"astrology": [
+"Moon in Cancer"
+],
+"element": "Water",
+"id": "four_of_cups",
+"keywords": [
+"apathy",
+"contemplation",
+"reappraisal",
+"boredom"
+],
+"name": "Four of Cups",
+"number": 4,
+"reversed_meaning": "emerging from apathy; renewed interest",
+"suit": "cups",
+"upright": "contemplative withdrawal; an offer not yet seen"
+},
+"four_of_pentacles": {
+"arcana": "minor",
+"astrology": [
+"Sun in Capricorn"
+],
+"element": "Earth",
+"id": "four_of_pentacles",
+"keywords": [
+"security",
+"control",
+"saving",
+"holding"
+],
+"name": "Four of Pentacles",
+"number": 4,
+"reversed_meaning": "clinging, scarcity-thinking, or learning to let go",
+"suit": "pentacles",
+"upright": "stability and security held close"
+},
+"four_of_swords": {
+"arcana": "minor",
+"astrology": [
+"Jupiter in Libra"
+],
+"element": "Air",
+"id": "four_of_swords",
+"keywords": [
+"rest",
+"recovery",
+"retreat",
+"stillness"
+],
+"name": "Four of Swords",
+"number": 4,
+"reversed_meaning": "restlessness, or avoidance of a needed pause",
+"suit": "swords",
+"upright": "necessary rest and quiet recovery"
+},
+"four_of_wands": {
+"arcana": "minor",
+"astrology": [
+"Venus in Aries"
+],
+"element": "Fire",
+"id": "four_of_wands",
+"keywords": [
+"celebration",
+"harmony",
+"home",
+"milestone"
+],
+"name": "Four of Wands",
+"number": 4,
+"reversed_meaning": "a muted celebration or unstable foundations",
+"suit": "wands",
+"upright": "a joyful milestone, harmony, and homecoming"
+},
+"hanged_man": {
+"arcana": "major",
+"astrology": [
+"Neptune",
+"Pisces"
+],
+"element": "Water",
+"id": "hanged_man",
+"keywords": [
+"surrender",
+"reversal",
+"new perspective",
+"pause",
+"release"
+],
+"name": "The Hanged Man",
+"number": 12,
+"reversed_meaning": "stalling, martyrdom, or clinging to control",
+"suit": null,
+"upright": "the wisdom of surrender and seeing the world upside-down"
+},
+"hermit": {
+"arcana": "major",
+"astrology": [
+"Virgo"
+],
+"element": "Earth",
+"id": "hermit",
+"keywords": [
+"solitude",
+"guidance",
+"search",
+"inner light",
+"discernment"
+],
+"name": "The Hermit",
+"number": 9,
+"reversed_meaning": "isolation, lostness, or refusing needed solitude",
+"suit": null,
+"upright": "withdrawal that finds the inner lamp and lights the way back"
+},
+"hierophant": {
+"arcana": "major",
+"astrology": [
+"Taurus"
+],
+"element": "Earth",
+"id": "hierophant",
+"keywords": [
+"tradition",
+"teaching",
+"meaning",
+"belonging",
+"vows"
+],
+"name": "The Hierophant",
+"number": 5,
+"reversed_meaning": "dogma, conformity, or rejecting all inherited wisdom",
+"suit": null,
+"upright": "wisdom carried through tradition, mentorship, and shared meaning"
+},
+"high_priestess": {
+"arcana": "major",
+"astrology": [
+"Moon",
+"Cancer"
+],
+"element": "Water",
+"id": "high_priestess",
+"keywords": [
+"intuition",
+"mystery",
+"inner knowing",
+"stillness"
+],
+"name": "The High Priestess",
+"number": 2,
+"reversed_meaning": "ignored intuition, secrets that isolate, surface noise",
+"suit": null,
+"upright": "trust in the inner voice that knows before it can explain"
+},
+"judgement": {
+"arcana": "major",
+"astrology": [
+"Pluto"
+],
+"element": "Fire",
+"id": "judgement",
+"keywords": [
+"awakening",
+"reckoning",
+"rebirth",
+"calling",
+"absolution"
+],
+"name": "Judgement",
+"number": 20,
+"reversed_meaning": "self-condemnation, or refusing the call to change",
+"suit": null,
+"upright": "the call to rise, answer honestly, and become who you are"
+},
+"justice": {
+"arcana": "major",
+"astrology": [
+"Libra"
+],
+"element": "Air",
+"id": "justice",
+"keywords": [
+"balance",
+"truth",
+"accountability",
+"fairness",
+"cause and effect"
+],
+"name": "Justice",
+"number": 11,
+"reversed_meaning": "bias, avoidance of truth, or harsh self-judgment",
+"suit": null,
+"upright": "clear sight, fair measure, and ownership of consequence"
+},
+"king_of_cups": {
+"arcana": "minor",
+"astrology": [
+"Air of Water"
+],
+"element": "Water",
+"id": "king_of_cups",
+"keywords": [
+"composure",
+"balance",
+"wisdom",
+"diplomacy"
+],
+"name": "King of Cups",
+"number": null,
+"reversed_meaning": "suppressed feeling, or moodiness ruling",
+"suit": "cups",
+"upright": "emotional mastery held with calm"
+},
+"king_of_pentacles": {
+"arcana": "minor",
+"astrology": [
+"Air of Earth"
+],
+"element": "Earth",
+"id": "king_of_pentacles",
+"keywords": [
+"abundance",
+"security",
+"leadership",
+"stewardship"
+],
+"name": "King of Pentacles",
+"number": null,
+"reversed_meaning": "greed, control, status obsession",
+"suit": "pentacles",
+"upright": "abundant, secure, generous stewardship"
+},
+"king_of_swords": {
+"arcana": "minor",
+"astrology": [
+"Air of Air"
+],
+"element": "Air",
+"id": "king_of_swords",
+"keywords": [
+"authority",
+"truth",
+"ethics",
+"intellect"
+],
+"name": "King of Swords",
+"number": null,
+"reversed_meaning": "cold logic, misused power, manipulation",
+"suit": "swords",
+"upright": "principled authority guided by truth"
+},
+"king_of_wands": {
+"arcana": "minor",
+"astrology": [
+"Air of Fire"
+],
+"element": "Fire",
+"id": "king_of_wands",
+"keywords": [
+"leadership",
+"vision",
+"boldness",
+"mastery"
+],
+"name": "King of Wands",
+"number": null,
+"reversed_meaning": "impulsive or tyrannical command",
+"suit": "wands",
+"upright": "visionary leadership that inspires action"
+},
+"knight_of_cups": {
+"arcana": "minor",
+"astrology": [
+"Fire of Water"
+],
+"element": "Water",
+"id": "knight_of_cups",
+"keywords": [
+"romance",
+"idealism",
+"pursuit",
+"charm"
+],
+"name": "Knight of Cups",
+"number": null,
+"reversed_meaning": "moodiness, unrealistic ideals",
+"suit": "cups",
+"upright": "the romantic on a heartfelt quest"
+},
+"knight_of_pentacles": {
+"arcana": "minor",
+"astrology": [
+"Fire of Earth"
+],
+"element": "Earth",
+"id": "knight_of_pentacles",
+"keywords": [
+"reliability",
+"routine",
+"diligence",
+"patience"
+],
+"name": "Knight of Pentacles",
+"number": null,
+"reversed_meaning": "stagnation, dullness, over-caution",
+"suit": "pentacles",
+"upright": "steady, dependable, methodical effort"
+},
+"knight_of_swords": {
+"arcana": "minor",
+"astrology": [
+"Fire of Air"
+],
+"element": "Air",
+"id": "knight_of_swords",
+"keywords": [
+"drive",
+"ambition",
+"directness",
+"force"
+],
+"name": "Knight of Swords",
+"number": null,
+"reversed_meaning": "recklessness, harsh words, no follow-through",
+"suit": "swords",
+"upright": "fast, focused, fearless action on an idea"
+},
+"knight_of_wands": {
+"arcana": "minor",
+"astrology": [
+"Fire of Fire"
+],
+"element": "Fire",
+"id": "knight_of_wands",
+"keywords": [
+"adventure",
+"passion",
+"impulse",
+"momentum"
+],
+"name": "Knight of Wands",
+"number": null,
+"reversed_meaning": "recklessness, burnout, scattered haste",
+"suit": "wands",
+"upright": "bold, passionate pursuit of a vision"
+},
+"lovers": {
+"arcana": "major",
+"astrology": [
+"Gemini"
+],
+"element": "Air",
+"id": "lovers",
+"keywords": [
+"union",
+"choice",
+"values",
+"attraction",
+"alignment"
+],
+"name": "The Lovers",
+"number": 6,
+"reversed_meaning": "discord, values out of alignment, choosing by default",
+"suit": null,
+"upright": "conscious choice and union grounded in your true values"
+},
+"magician": {
+"arcana": "major",
+"astrology": [
+"Mercury",
+"Gemini",
+"Virgo"
+],
+"element": "Air",
+"id": "magician",
+"keywords": [
+"will",
+"language",
+"craft",
+"manifestation",
+"focus"
+],
+"name": "The Magician",
+"number": 1,
+"reversed_meaning": "scattered energy, manipulation, or talent left unused",
+"suit": null,
+"upright": "focused will turning idea into form through skill and word"
+},
+"moon": {
+"arcana": "major",
+"astrology": [
+"Pisces"
+],
+"element": "Water",
+"id": "moon",
+"keywords": [
+"dream",
+"illusion",
+"intuition",
+"the unconscious",
+"tides"
+],
+"name": "The Moon",
+"number": 18,
+"reversed_meaning": "confusion lifting, or being lost in fear and projection",
+"suit": null,
+"upright": "the path through uncertainty lit only by intuition and dream"
+},
+"nine_of_cups": {
+"arcana": "minor",
+"astrology": [
+"Jupiter in Pisces"
+],
+"element": "Water",
+"id": "nine_of_cups",
+"keywords": [
+"contentment",
+"wish",
+"satisfaction",
+"gratitude"
+],
+"name": "Nine of Cups",
+"number": 9,
+"reversed_meaning": "smugness, or a wish that rings hollow",
+"suit": "cups",
+"upright": "emotional contentment; a wish fulfilled"
+},
+"nine_of_pentacles": {
+"arcana": "minor",
+"astrology": [
+"Venus in Virgo"
+],
+"element": "Earth",
+"id": "nine_of_pentacles",
+"keywords": [
+"abundance",
+"self-sufficiency",
+"refinement",
+"reward"
+],
+"name": "Nine of Pentacles",
+"number": 9,
+"reversed_meaning": "over-reliance on status; hollow luxury",
+"suit": "pentacles",
+"upright": "earned abundance and graceful independence"
+},
+"nine_of_swords": {
+"arcana": "minor",
+"astrology": [
+"Mars in Gemini"
+],
+"element": "Air",
+"id": "nine_of_swords",
+"keywords": [
+"anxiety",
+"worry",
+"nightmares",
+"mental anguish"
+],
+"name": "Nine of Swords",
+"number": 9,
+"reversed_meaning": "dawn comes; fears named and shrinking",
+"suit": "swords",
+"upright": "the 3am mind; worry magnified in the dark"
+},
+"nine_of_wands": {
+"arcana": "minor",
+"astrology": [
+"Moon in Sagittarius"
+],
+"element": "Fire",
+"id": "nine_of_wands",
+"keywords": [
+"resilience",
+"boundaries",
+"stamina",
+"last stand"
+],
+"name": "Nine of Wands",
+"number": 9,
+"reversed_meaning": "depletion, paranoia, rigid defensiveness",
+"suit": "wands",
+"upright": "resilience and one more reserve of strength"
+},
+"page_of_cups": {
+"arcana": "minor",
+"astrology": [
+"Earth of Water"
+],
+"element": "Water",
+"id": "page_of_cups",
+"keywords": [
+"intuition",
+"tenderness",
+"creativity",
+"openness"
+],
+"name": "Page of Cups",
+"number": null,
+"reversed_meaning": "emotional immaturity or escapism",
+"suit": "cups",
+"upright": "a tender, intuitive, creative beginning"
+},
+"page_of_pentacles": {
+"arcana": "minor",
+"astrology": [
+"Earth of Earth"
+],
+"element": "Earth",
+"id": "page_of_pentacles",
+"keywords": [
+"study",
+"ambition",
+"opportunity",
+"diligence"
+],
+"name": "Page of Pentacles",
+"number": null,
+"reversed_meaning": "procrastination, unrealistic plans",
+"suit": "pentacles",
+"upright": "a grounded student turning a dream practical"
+},
+"page_of_swords": {
+"arcana": "minor",
+"astrology": [
+"Earth of Air"
+],
+"element": "Air",
+"id": "page_of_swords",
+"keywords": [
+"curiosity",
+"vigilance",
+"ideas",
+"truth-seeking"
+],
+"name": "Page of Swords",
+"number": null,
+"reversed_meaning": "scattered thoughts, gossip, haste",
+"suit": "swords",
+"upright": "a sharp, curious mind hungry for truth"
+},
+"page_of_wands": {
+"arcana": "minor",
+"astrology": [
+"Earth of Fire"
+],
+"element": "Fire",
+"id": "page_of_wands",
+"keywords": [
+"curiosity",
+"enthusiasm",
+"exploration",
+"free spirit"
+],
+"name": "Page of Wands",
+"number": null,
+"reversed_meaning": "restlessness, unfinished starts",
+"suit": "wands",
+"upright": "an eager spark; a free-spirited explorer"
+},
+"queen_of_cups": {
+"arcana": "minor",
+"astrology": [
+"Water of Water"
+],
+"element": "Water",
+"id": "queen_of_cups",
+"keywords": [
+"empathy",
+"compassion",
+"intuition",
+"nurture"
+],
+"name": "Queen of Cups",
+"number": null,
+"reversed_meaning": "over-giving, boundaries dissolved",
+"suit": "cups",
+"upright": "deep empathy and emotional wisdom"
+},
+"queen_of_pentacles": {
+"arcana": "minor",
+"astrology": [
+"Water of Earth"
+],
+"element": "Earth",
+"id": "queen_of_pentacles",
+"keywords": [
+"nurture",
+"abundance",
+"practicality",
+"care"
+],
+"name": "Queen of Pentacles",
+"number": null,
+"reversed_meaning": "self-neglect, or smothering",
+"suit": "pentacles",
+"upright": "nurturing, resourceful, grounded care"
+},
+"queen_of_swords": {
+"arcana": "minor",
+"astrology": [
+"Water of Air"
+],
+"element": "Air",
+"id": "queen_of_swords",
+"keywords": [
+"clarity",
+"honesty",
+"independence",
+"perception"
+],
+"name": "Queen of Swords",
+"number": null,
+"reversed_meaning": "coldness, bitterness, harsh judgment",
+"suit": "swords",
+"upright": "clear-eyed honesty and independent judgment"
+},
+"queen_of_wands": {
+"arcana": "minor",
+"astrology": [
+"Water of Fire"
+],
+"element": "Fire",
+"id": "queen_of_wands",
+"keywords": [
+"warmth",
+"confidence",
+"charisma",
+"vitality"
+],
+"name": "Queen of Wands",
+"number": null,
+"reversed_meaning": "self-doubt, or domineering heat",
+"suit": "wands",
+"upright": "radiant confidence and warm magnetism"
+},
+"seven_of_cups": {
+"arcana": "minor",
+"astrology": [
+"Venus in Scorpio"
+],
+"element": "Water",
+"id": "seven_of_cups",
+"keywords": [
+"fantasy",
+"choices",
+"temptation",
+"wishful thinking"
+],
+"name": "Seven of Cups",
+"number": 7,
+"reversed_meaning": "clarity returns; a real choice is made",
+"suit": "cups",
+"upright": "many tempting visions; discernment needed"
+},
+"seven_of_pentacles": {
+"arcana": "minor",
+"astrology": [
+"Saturn in Taurus"
+],
+"element": "Earth",
+"id": "seven_of_pentacles",
+"keywords": [
+"patience",
+"assessment",
+"waiting",
+"investment"
+],
+"name": "Seven of Pentacles",
+"number": 7,
+"reversed_meaning": "impatience, sunk-cost clinging, poor yield",
+"suit": "pentacles",
+"upright": "pausing to assess a long investment"
+},
+"seven_of_swords": {
+"arcana": "minor",
+"astrology": [
+"Moon in Aquarius"
+],
+"element": "Air",
+"id": "seven_of_swords",
+"keywords": [
+"strategy",
+"stealth",
+"cunning",
+"evasion"
+],
+"name": "Seven of Swords",
+"number": 7,
+"reversed_meaning": "self-deception exposed; coming clean",
+"suit": "swords",
+"upright": "strategy, cunning, acting alone"
+},
+"seven_of_wands": {
+"arcana": "minor",
+"astrology": [
+"Mars in Leo"
+],
+"element": "Fire",
+"id": "seven_of_wands",
+"keywords": [
+"courage",
+"defense",
+"perseverance",
+"conviction"
+],
+"name": "Seven of Wands",
+"number": 7,
+"reversed_meaning": "overwhelm, defensiveness, giving up the high ground",
+"suit": "wands",
+"upright": "holding your ground against the odds"
+},
+"six_of_cups": {
+"arcana": "minor",
+"astrology": [
+"Sun in Scorpio"
+],
+"element": "Water",
+"id": "six_of_cups",
+"keywords": [
+"nostalgia",
+"memory",
+"innocence",
+"reunion"
+],
+"name": "Six of Cups",
+"number": 6,
+"reversed_meaning": "stuck in the past, or idealizing it",
+"suit": "cups",
+"upright": "sweet memory, nostalgia, and reunion"
+},
+"six_of_pentacles": {
+"arcana": "minor",
+"astrology": [
+"Moon in Taurus"
+],
+"element": "Earth",
+"id": "six_of_pentacles",
+"keywords": [
+"generosity",
+"giving",
+"receiving",
+"balance"
+],
+"name": "Six of Pentacles",
+"number": 6,
+"reversed_meaning": "strings attached, imbalance, or debt",
+"suit": "pentacles",
+"upright": "a fair flow of giving and receiving"
+},
+"six_of_swords": {
+"arcana": "minor",
+"astrology": [
+"Mercury in Aquarius"
+],
+"element": "Air",
+"id": "six_of_swords",
+"keywords": [
+"transition",
+"passage",
+"moving on",
+"recovery"
+],
+"name": "Six of Swords",
+"number": 6,
+"reversed_meaning": "resistance to change; baggage carried along",
+"suit": "swords",
+"upright": "a passage toward calmer water"
+},
+"six_of_wands": {
+"arcana": "minor",
+"astrology": [
+"Jupiter in Leo"
+],
+"element": "Fire",
+"id": "six_of_wands",
+"keywords": [
+"triumph",
+"recognition",
+"confidence",
+"success"
+],
+"name": "Six of Wands",
+"number": 6,
+"reversed_meaning": "hollow praise, fear of falling, delayed reward",
+"suit": "wands",
+"upright": "earned recognition and public success"
+},
+"star": {
+"arcana": "major",
+"astrology": [
+"Aquarius"
+],
+"element": "Air",
+"id": "star",
+"keywords": [
+"hope",
+"renewal",
+"faith",
+"healing",
+"inspiration"
+],
+"name": "The Star",
+"number": 17,
+"reversed_meaning": "despair, disconnection, or faith withheld from yourself",
+"suit": null,
+"upright": "quiet hope and renewal after the storm; trust restored"
+},
+"strength": {
+"arcana": "major",
+"astrology": [
+"Leo"
+],
+"element": "Fire",
+"id": "strength",
+"keywords": [
+"courage",
+"gentleness",
+"patience",
+"inner power"
+],
+"name": "Strength",
+"number": 8,
+"reversed_meaning": "self-doubt, force where tenderness was needed",
+"suit": null,
+"upright": "the quiet courage that gentles the lion rather than slaying it"
+},
+"sun": {
+"arcana": "major",
+"astrology": [
+"Sun"
+],
+"element": "Fire",
+"id": "sun",
+"keywords": [
+"vitality",
+"clarity",
+"joy",
+"truth",
+"radiance"
+],
+"name": "The Sun",
+"number": 19,
+"reversed_meaning": "dimmed light, false cheer, or fear of one's own brightness",
+"suit": null,
+"upright": "clear warmth, vitality, and the joy of being fully seen"
+},
+"temperance": {
+"arcana": "major",
+"astrology": [
+"Sagittarius"
+],
+"element": "Fire",
+"id": "temperance",
+"keywords": [
+"balance",
+"alchemy",
+"patience",
+"integration",
+"flow"
+],
+"name": "Temperance",
+"number": 14,
+"reversed_meaning": "imbalance, excess, or impatience with the slow work",
+"suit": null,
+"upright": "patient blending of opposites into a third, finer thing"
+},
+"ten_of_cups": {
+"arcana": "minor",
+"astrology": [
+"Mars in Pisces"
+],
+"element": "Water",
+"id": "ten_of_cups",
+"keywords": [
+"harmony",
+"family",
+"fulfillment",
+"belonging"
+],
+"name": "Ten of Cups",
+"number": 10,
+"reversed_meaning": "discord beneath the surface; idealized harmony",
+"suit": "cups",
+"upright": "lasting emotional fulfillment and belonging"
+},
+"ten_of_pentacles": {
+"arcana": "minor",
+"astrology": [
+"Mercury in Virgo"
+],
+"element": "Earth",
+"id": "ten_of_pentacles",
+"keywords": [
+"legacy",
+"family",
+"stability",
+"completion"
+],
+"name": "Ten of Pentacles",
+"number": 10,
+"reversed_meaning": "financial strain or family friction over resources",
+"suit": "pentacles",
+"upright": "lasting wealth, legacy, and rootedness"
+},
+"ten_of_swords": {
+"arcana": "minor",
+"astrology": [
+"Sun in Gemini"
+],
+"element": "Air",
+"id": "ten_of_swords",
+"keywords": [
+"ending",
+"rock bottom",
+"collapse",
+"release"
+],
+"name": "Ten of Swords",
+"number": 10,
+"reversed_meaning": "recovery; the only way left is up",
+"suit": "swords",
+"upright": "a painful ending that is also completion"
+},
+"ten_of_wands": {
+"arcana": "minor",
+"astrology": [
+"Saturn in Sagittarius"
+],
+"element": "Fire",
+"id": "ten_of_wands",
+"keywords": [
+"burden",
+"responsibility",
+"overload",
+"duty"
+],
+"name": "Ten of Wands",
+"number": 10,
+"reversed_meaning": "burnout, or finally setting the burden down",
+"suit": "wands",
+"upright": "carrying much; near the finish but heavy-laden"
+},
+"three_of_cups": {
+"arcana": "minor",
+"astrology": [
+"Mercury in Cancer"
+],
+"element": "Water",
+"id": "three_of_cups",
+"keywords": [
+"celebration",
+"friendship",
+"community",
+"joy"
+],
+"name": "Three of Cups",
+"number": 3,
+"reversed_meaning": "overindulgence, gossip, or isolation",
+"suit": "cups",
+"upright": "joyful community and shared abundance"
+},
+"three_of_pentacles": {
+"arcana": "minor",
+"astrology": [
+"Mars in Capricorn"
+],
+"element": "Earth",
+"id": "three_of_pentacles",
+"keywords": [
+"craft",
+"collaboration",
+"skill",
+"building"
+],
+"name": "Three of Pentacles",
+"number": 3,
+"reversed_meaning": "discord, sloppy work, misaligned effort",
+"suit": "pentacles",
+"upright": "skilled collaboration and good craft"
+},
+"three_of_swords": {
+"arcana": "minor",
+"astrology": [
+"Saturn in Libra"
+],
+"element": "Air",
+"id": "three_of_swords",
+"keywords": [
+"heartbreak",
+"grief",
+"betrayal",
+"release"
+],
+"name": "Three of Swords",
+"number": 3,
+"reversed_meaning": "healing, or sorrow nursed too long",
+"suit": "swords",
+"upright": "heartbreak that clears the air"
+},
+"three_of_wands": {
+"arcana": "minor",
+"astrology": [
+"Sun in Aries"
+],
+"element": "Fire",
+"id": "three_of_wands",
+"keywords": [
+"foresight",
+"expansion",
+"progress",
+"enterprise"
+],
+"name": "Three of Wands",
+"number": 3,
+"reversed_meaning": "delays, over-reach, or looking back instead of forward",
+"suit": "wands",
+"upright": "foresight rewarded; horizons widening"
+},
+"tower": {
+"arcana": "major",
+"astrology": [
+"Mars"
+],
+"element": "Fire",
+"id": "tower",
+"keywords": [
+"rupture",
+"revelation",
+"breakthrough",
+"upheaval",
+"liberation"
+],
+"name": "The Tower",
+"number": 16,
+"reversed_meaning": "clinging to ruins; a collapse delayed and feared",
+"suit": null,
+"upright": "the lightning that breaks a false structure to free what it caged"
+},
+"two_of_cups": {
+"arcana": "minor",
+"astrology": [
+"Venus in Cancer"
+],
+"element": "Water",
+"id": "two_of_cups",
+"keywords": [
+"union",
+"connection",
+"attraction",
+"mutuality"
+],
+"name": "Two of Cups",
+"number": 2,
+"reversed_meaning": "imbalance, tension, or a connection cooling",
+"suit": "cups",
+"upright": "mutual love and a meeting of hearts"
+},
+"two_of_pentacles": {
+"arcana": "minor",
+"astrology": [
+"Jupiter in Capricorn"
+],
+"element": "Earth",
+"id": "two_of_pentacles",
+"keywords": [
+"balance",
+"juggling",
+"adaptability",
+"flux"
+],
+"name": "Two of Pentacles",
+"number": 2,
+"reversed_meaning": "overwhelm; dropping one ball too many",
+"suit": "pentacles",
+"upright": "juggling demands with nimble grace"
+},
+"two_of_swords": {
+"arcana": "minor",
+"astrology": [
+"Moon in Libra"
+],
+"element": "Air",
+"id": "two_of_swords",
+"keywords": [
+"stalemate",
+"truce",
+"indecision",
+"balance"
+],
+"name": "Two of Swords",
+"number": 2,
+"reversed_meaning": "the stalemate breaks; truth surfaces",
+"suit": "swords",
+"upright": "an uneasy truce; a decision held in balance"
+},
+"two_of_wands": {
+"arcana": "minor",
+"astrology": [
+"Mars in Aries"
+],
+"element": "Fire",
+"id": "two_of_wands",
+"keywords": [
+"vision",
+"planning",
+"boldness",
+"choice"
+],
+"name": "Two of Wands",
+"number": 2,
+"reversed_meaning": "hesitation, fear of the unknown, plans stalling",
+"suit": "wands",
+"upright": "bold vision and the courage to plan a larger life"
+},
+"wheel_of_fortune": {
+"arcana": "major",
+"astrology": [
+"Jupiter",
+"Sagittarius"
+],
+"element": "Fire",
+"id": "wheel_of_fortune",
+"keywords": [
+"cycles",
+"fate",
+"turning point",
+"expansion",
+"luck"
+],
+"name": "Wheel of Fortune",
+"number": 10,
+"reversed_meaning": "resisting the turn, or blaming fate for everything",
+"suit": null,
+"upright": "a turning of the cycle; meeting change as opportunity"
+},
+"world": {
+"arcana": "major",
+"astrology": [
+"Saturn"
+],
+"element": "Earth",
+"id": "world",
+"keywords": [
+"completion",
+"wholeness",
+"integration",
+"fulfillment",
+"mastery"
+],
+"name": "The World",
+"number": 21,
+"reversed_meaning": "loose ends, near-completion, or fear of finishing",
+"suit": null,
+"upright": "wholeness; a cycle completed and danced to its center"
+}
+}
