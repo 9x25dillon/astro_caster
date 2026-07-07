@@ -128,6 +128,14 @@ implementations) into a mechanical gate.
    concern for when it wires into the UI.
 4. `@astra/core/relational` + `predictive` + `advanced` — long tail, gated by
    usage telemetry (which modals people actually open on mobile).
+   - ✅ **relational DONE 2026-07-07** — `@astra/core/synastry` (`synastry.ts`):
+     synastry inter-aspects + house grid (overlays, emphasis, ruler links),
+     composite (midpoint method + derived-MC option), Davison (great-circle
+     geographic + temporal midpoint, real ephemeris), and the chart-weighted
+     synastry-tarot bond. Reproduces `parity/synastry.json` for the
+     Einstein × Greenwich pair — positions within the cross-engine tolerance,
+     the house grid and tarot spread exact. `aspectsBetween` extracted to
+     `ephemeris.ts`. *Predictive + advanced still to come.*
 5. Backend adopts the same vectors as *its* regression suite — the two stacks
    are now pinned to each other symmetrically.
 

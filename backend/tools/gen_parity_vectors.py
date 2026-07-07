@@ -36,6 +36,7 @@ MT_FILE = PARITY_DIR / "mt19937.json"
 TAROT_FILE = PARITY_DIR / "tarot-draw.json"
 READING_FILE = PARITY_DIR / "tarot-reading.json"
 FORECAST_FILE = PARITY_DIR / "forecast.json"
+SYNASTRY_FILE = PARITY_DIR / "synastry.json"
 
 # The two reference charts every backend suite already leans on.
 CASES: list[tuple[str, dict]] = [
@@ -287,6 +288,58 @@ def build_reading_payload() -> dict:
     return {"schema": "astra-parity/tarot-reading@1", "cases": cases}
 
 
+# --------------------------------------------------------------------------- #
+# Relational — synastry inter-aspects + grid, composite (midpoint), Davison, and
+# the synastry-tarot bond (MOBILE_ROADMAP §3.4). Restricted to the supported
+# body set so it's exactly what @astra/core reproduces. Positions are
+# tolerance-based (shared TOLERANCES); the grid + tarot spread are categorical
+# and match exactly.
+# --------------------------------------------------------------------------- #
+
+import synastry as SYN  # noqa: E402
+from models import ChartRequest as _CR  # noqa: E402
+
+# Person A × Person B for the relational vector (the two reference charts).
+SYN_PAIR = (CASES[0], CASES[1])
+
+
+def _chart_dump(obj) -> dict:
+    return obj.model_dump()
+
+
+def build_synastry_payload() -> dict:
+    (id_a, req_a), (id_b, req_b) = SYN_PAIR
+    chart_a = _supported_chart(req_a)
+    chart_b = _supported_chart(req_b)
+
+    inter = SYN.synastry_aspects(chart_a, chart_b)
+    grid = SYN.synastry_grid(chart_a, chart_b)
+    composite = SYN.composite_midpoints(chart_a, chart_b, house_method="midpoint")
+
+    # Davison recomputes a fresh chart (all bodies); restrict planets to the
+    # supported set and recompute aspects among them so it matches @astra/core,
+    # whose davisonChart only ever computes the supported bodies.
+    davison = SYN.davison_chart(_CR(**req_a), _CR(**req_b))
+    davison.planets = [p for p in davison.planets if p.id in SUPPORTED_BODIES]
+    davison.aspects = E.calculate_aspects(davison.planets)
+
+    tarot = SYN.synastry_tarot(chart_a, chart_b)
+
+    payload = {
+        "schema": "astra-parity/synastry@1",
+        "engine": chart_a.meta["ephemeris"],
+        "tolerances": TOLERANCES,
+        "pair": {"a": {"id": id_a, "request": req_a},
+                 "b": {"id": id_b, "request": req_b}},
+        "inter_aspects": [a.model_dump() for a in inter],
+        "grid": grid.model_dump(),
+        "composite": _chart_dump(composite),
+        "davison": _chart_dump(davison),
+        "synastry_tarot": tarot.spread.model_dump(),
+    }
+    return _round_floats(payload)
+
+
 def _render(payload: dict) -> str:
     return json.dumps(payload, indent=1, sort_keys=True) + "\n"
 
@@ -303,6 +356,7 @@ def main() -> None:
         (TAROT_FILE, build_tarot_payload()),
         (FORECAST_FILE, build_forecast_payload()),
         (READING_FILE, build_reading_payload()),
+        (SYNASTRY_FILE, build_synastry_payload()),
     ]
 
     if args.check:

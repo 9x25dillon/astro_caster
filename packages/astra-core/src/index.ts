@@ -22,6 +22,26 @@ export {
   buildLocalSignature,
   SPREAD_POSITIONS,
   pyRound,
+  PLANET_MAJOR,
+  MAJOR_IDS,
   type NatalArcanaSignature,
   type DrawnCard,
 } from "./tarot.js";
+export { aspectsBetween } from "./ephemeris.js";
+export {
+  computeSynastry,
+  synastryAspects,
+  synastryGrid,
+  compositeMidpoints,
+  compositeHouseCusps,
+  derivedCompositeHouses,
+  davisonChart,
+  geographicMidpoint,
+  circularMidpoint,
+  synastryTarot,
+  type SynastryResult,
+  type SynastryGrid,
+  type CompositeChart,
+  type DavisonChart,
+  type SynastryTarotSpread,
+} from "./synastry.js";

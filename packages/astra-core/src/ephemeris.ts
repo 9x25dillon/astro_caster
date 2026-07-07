@@ -271,6 +271,45 @@ export function calculateAspects(planets: PlanetData[], orbFactor = 1.0): Aspect
   return aspects;
 }
 
+/**
+ * Cross-aspects from one body set to another, tagging the first set's ids with
+ * a `t:` prefix (port of backend ephemeris.aspects_between). Major aspects only
+ * (ASPECT_DEFS[0..4]) and tighter default orbs — used for transits and, with a
+ * pre-built pair of natal charts, for synastry inter-aspects.
+ */
+export function aspectsBetween(
+  natal: PlanetData[],
+  transiting: PlanetData[],
+  orbFactor = 0.6
+): Aspect[] {
+  const out: Aspect[] = [];
+  const natalCore = natal.filter((p) => !NON_ASPECTING.has(p.id));
+  for (const t of transiting) {
+    for (const n of natalCore) {
+      const sep = angularSeparation(t.longitude, n.longitude);
+      for (const ad of ASPECT_DEFS.slice(0, 5)) {
+        const orb = Math.abs(sep - ad.angle);
+        if (orb <= ad.defaultOrb * orbFactor) {
+          out.push({
+            p1: `t:${t.id}`,
+            p2: n.id,
+            type: ad.name,
+            angle: ad.angle,
+            orb: Math.round(orb * 100) / 100,
+            separation: Math.round(sep * 100) / 100,
+            harmony: ad.harmony,
+            color: ad.color,
+            applying: isApplying(t, n, ad.angle),
+          });
+          break;
+        }
+      }
+    }
+  }
+  out.sort((x, y) => x.orb - y.orb);
+  return out;
+}
+
 export function calculateChart(req: ChartRequest): ChartResponse {
   if (req.zodiac === "sidereal") {
     throw new Error("@astra/core v0.1 computes the tropical zodiac only");
