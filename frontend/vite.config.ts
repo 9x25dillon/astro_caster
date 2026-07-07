@@ -51,10 +51,13 @@ export default defineConfig({
       output: {
         // Split heavy, stable libraries into their own long-cached chunk so
         // the app chunk stays small and a code change doesn't re-download them.
-        manualChunks: {
-          vendor: ["react", "react-dom", "zustand", "@react-spring/web"],
-          d3: ["d3"],
-          leaflet: ["leaflet"],
+        // vite 8's rolldown bundler requires the FUNCTION form of manualChunks
+        // (the object form throws "Expected Function but received Object").
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return;
+          if (/[\\/](d3|d3-[^\\/]+|internmap|delaunator|robust-predicates)[\\/]/.test(id)) return "d3";
+          if (id.includes("/leaflet/")) return "leaflet";
+          if (/[\\/](react|react-dom|scheduler|zustand|@react-spring)[\\/]/.test(id)) return "vendor";
         },
       },
     },
