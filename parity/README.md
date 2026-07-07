@@ -14,6 +14,8 @@ either side is a red build, not a bug report.
 | `forecast.json` | `astra-parity/forecast@1` | identity + ≤1-day date window + orb tol | Transit scan events (stations, t2t, t2n) over 60 days for each reference natal, Sun–Pluto transits |
 | `tarot-reading.json` | `astra-parity/tarot-reading@1` | **exact** | Offline `build_reading_core` — seed + dealt cards + per-card meaning + natal signature (links/themes/shadows) |
 | `synastry.json` | `astra-parity/synastry@1` | tolerance (positions) + **exact** (grid, tarot) | Relational engine for the Einstein × Greenwich pair: inter-aspects, house grid, composite (midpoint), Davison, synastry-tarot bond (v0.1 supported body set) |
+| `predictive.json` | `astra-parity/predictive@1` | tolerance | Predictive engine: secondary progressions + solar return for each reference natal. The return instant is a Sun-longitude root-find (cross-engine sensitive), so its chart is compared at the shared instant; eclipses are deferred (Swiss eclipse-search) |
+| `advanced.json` | `astra-parity/advanced@1` | tolerance (harmonic ×N) + **exact** (star catalogue) | Advanced engine: harmonic chart (N=5), midpoint tree (90° dial), fixed-star contacts per reference natal |
 
 `natal-chart`, `forecast` and the position fields of `synastry` are
 engine-comparisons (astronomy-engine vs pyswisseph) so they carry tolerances;

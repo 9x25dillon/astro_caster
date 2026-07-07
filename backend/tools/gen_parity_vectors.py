@@ -37,6 +37,8 @@ TAROT_FILE = PARITY_DIR / "tarot-draw.json"
 READING_FILE = PARITY_DIR / "tarot-reading.json"
 FORECAST_FILE = PARITY_DIR / "forecast.json"
 SYNASTRY_FILE = PARITY_DIR / "synastry.json"
+PREDICTIVE_FILE = PARITY_DIR / "predictive.json"
+ADVANCED_FILE = PARITY_DIR / "advanced.json"
 
 # The two reference charts every backend suite already leans on.
 CASES: list[tuple[str, dict]] = [
@@ -340,6 +342,129 @@ def build_synastry_payload() -> dict:
     return _round_floats(payload)
 
 
+# --------------------------------------------------------------------------- #
+# Predictive — secondary progressions + solar return (MOBILE_ROADMAP §3.4).
+# Restricted to the supported body set; positions tolerance-based. Eclipses are
+# NOT vectored (Swiss eclipse-search is the deferred hard-20%).
+# --------------------------------------------------------------------------- #
+
+import predictive as PRED  # noqa: E402
+
+PROG_TARGET_ISO = "2026-01-01T00:00:00+00:00"
+SOLAR_RETURN_YEAR = 2026
+
+
+def _restrict_planets(planets):
+    return [p for p in planets if p.id in SUPPORTED_BODIES]
+
+
+def build_predictive_payload() -> dict:
+    cases = []
+    for case_id, req in CASES:
+        cr = _CR(**req)
+        natal_chart = E.calculate_chart(cr)
+        natal_supported = _restrict_planets(natal_chart.planets)
+
+        prog = PRED.progressed_chart(cr, PROG_TARGET_ISO)
+        prog_planets = _restrict_planets(prog.planets)
+        # Recompute progressed→natal aspects on the supported set (both sides),
+        # so the vector is exactly what @astra/core reproduces.
+        prog_aspects = E.aspects_between(natal_supported, prog_planets)
+
+        sr = PRED.solar_return(cr, SOLAR_RETURN_YEAR)
+        sr_planets = _restrict_planets(sr.planets)
+        sr_aspects = E.calculate_aspects(sr_planets)
+
+        cases.append({
+            "id": case_id,
+            "request": req,
+            "progressed": {
+                "target_iso": PROG_TARGET_ISO,
+                "age_years": prog.age_years,
+                "progressed_iso": prog.progressed_iso,
+                "planets": [p.model_dump() for p in prog_planets],
+                "aspects_to_natal": [a.model_dump() for a in prog_aspects],
+            },
+            "solar_return": {
+                "year": SOLAR_RETURN_YEAR,
+                "return_iso": sr.return_iso,
+                "planets": [p.model_dump() for p in sr_planets],
+                "houses": [h.model_dump() for h in sr.houses],
+                "angles": sr.angles.model_dump(),
+                "aspects": [a.model_dump() for a in sr_aspects],
+                "elements": sr.elements,
+                "modalities": sr.modalities,
+            },
+        })
+    payload = {
+        "schema": "astra-parity/predictive@1",
+        "engine": E.calculate_chart(_CR(**CASES[0][1])).meta["ephemeris"],
+        "tolerances": TOLERANCES,
+        "cases": cases,
+    }
+    return _round_floats(payload)
+
+
+# --------------------------------------------------------------------------- #
+# Advanced — harmonics, midpoint trees, fixed stars (MOBILE_ROADMAP §3.4). Pure
+# arithmetic on natal positions; harmonic longitudes amplify the cross-engine
+# position error ×N, so the consumer scales the tolerance accordingly.
+# --------------------------------------------------------------------------- #
+
+import advanced as ADV  # noqa: E402
+
+HARMONIC_N = 5
+MIDPOINT_ORB = 1.0
+FIXED_STAR_ORB = 1.5
+
+
+def build_advanced_payload() -> dict:
+    cases = []
+    for case_id, req in CASES:
+        cr = _CR(**req)
+        # Restrict the base chart to the supported body set before the technique
+        # runs, so every derived position is one @astra/core reproduces.
+        harm = ADV.harmonic_chart(cr, HARMONIC_N)
+        harm.positions = [p for p in harm.positions if p.id in SUPPORTED_BODIES]
+        harm.aspects = [a for a in harm.aspects
+                        if a["p1"] in SUPPORTED_BODIES and a["p2"] in SUPPORTED_BODIES]
+
+        tree = ADV.midpoint_tree(cr, MIDPOINT_ORB)
+        # Keep entries whose pair + contacts are all supported bodies.
+        tree_entries = []
+        for e in tree.entries:
+            a_id, b_id = e.pair.split("/")
+            if a_id not in SUPPORTED_BODIES or b_id not in SUPPORTED_BODIES:
+                continue
+            contacts = [c for c in e.contacts if c.body in SUPPORTED_BODIES]
+            if contacts:
+                d = e.model_dump()
+                d["contacts"] = [c.model_dump() for c in contacts]
+                tree_entries.append(d)
+
+        stars = ADV.fixed_star_hits(cr, FIXED_STAR_ORB)
+        star_hits = [h.model_dump() for h in stars.hits if h.natal_body in SUPPORTED_BODIES]
+
+        cases.append({
+            "id": case_id,
+            "request": req,
+            "harmonic": {
+                "n": HARMONIC_N,
+                "positions": [p.model_dump() for p in harm.positions],
+                "aspects": harm.aspects,
+            },
+            "midpoint_tree": {"orb": MIDPOINT_ORB, "entries": tree_entries},
+            "fixed_stars": {"orb": FIXED_STAR_ORB, "hits": star_hits},
+        })
+    payload = {
+        "schema": "astra-parity/advanced@1",
+        "engine": E.calculate_chart(_CR(**CASES[0][1])).meta["ephemeris"],
+        "tolerances": TOLERANCES,
+        "cases": cases,
+    }
+    return _round_floats(payload)
+
+
 def _render(payload: dict) -> str:
     return json.dumps(payload, indent=1, sort_keys=True) + "\n"
 
@@ -357,6 +482,8 @@ def main() -> None:
         (FORECAST_FILE, build_forecast_payload()),
         (READING_FILE, build_reading_payload()),
         (SYNASTRY_FILE, build_synastry_payload()),
+        (PREDICTIVE_FILE, build_predictive_payload()),
+        (ADVANCED_FILE, build_advanced_payload()),
     ]
 
     if args.check:

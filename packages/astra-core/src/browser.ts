@@ -43,6 +43,23 @@ export {
   type DavisonChart,
   type SynastryTarotSpread,
 } from "./synastry.js";
+export {
+  progressedChart,
+  solarReturn,
+  solarReturnJd,
+  type ProgressedChart,
+  type SolarReturnChart,
+} from "./predictive.js";
+export {
+  harmonicChart,
+  midpointTree,
+  fixedStarHits,
+  type HarmonicChart,
+  type HarmonicPosition,
+  type MidpointTreeEntry,
+  type MidpointContact,
+  type FixedStarHit,
+} from "./advanced.js";
 export { generateForecast, type ForecastEvent } from "./forecast.js";
 export { MT19937 } from "./mt19937.js";
 export { sha256Hex } from "./sha256.js";
