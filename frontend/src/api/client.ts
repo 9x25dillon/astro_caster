@@ -899,3 +899,69 @@ export function fetchMidpointTree(natal: BirthInput, orb = 1.0): Promise<Midpoin
 export function fetchFixedStars(natal: BirthInput, orb = 1.5): Promise<FixedStarResponse> {
   return post<FixedStarResponse>("/fixed-stars", { natal, orb });
 }
+
+// ── On-device fallbacks (@astra/core §3.4) ──────────────────────────────────────
+// Reduced body set (Sun–Pluto, Asc, MC, Part of Fortune — no Node/Chiron/Lilith),
+// matching the other offline paths. Eclipse timelines have NO offline path (the
+// Swiss eclipse-search isn't ported), so the Predictive → Eclipses tab still
+// needs the backend.
+
+/** True when an error is a lost-connection failure (vs. an HTTP status). */
+export function isOfflineError(msg: string): boolean {
+  return !navigator.onLine || /failed to fetch|networkerror|load failed/i.test(msg);
+}
+
+const PRED_DISCLAIMER =
+  "Progressions, returns, and eclipses are symbolic timing mirrors for reflection, not deterministic predictions of fixed events.";
+const ADV_DISCLAIMER =
+  "Harmonics, midpoints, and fixed-star contacts are symbolic lenses for reflection, not deterministic predictions.";
+
+export async function localSynastry(a: BirthInput, b: BirthInput): Promise<SynastryResponse> {
+  const c = await core();
+  const r = c.computeSynastry(a, b);
+  return { inter_aspects: r.inter_aspects, grid: r.grid, disclaimer: c.DISCLAIMER } as SynastryResponse;
+}
+export async function localComposite(a: BirthInput, b: BirthInput, houseMethod: HouseMethod = "midpoint"): Promise<CompositeChart> {
+  const c = await core();
+  const chartA = c.calculateChart(a);
+  const chartB = c.calculateChart(b);
+  const geoLat = c.geographicMidpoint(a.lat, a.lng, b.lat, b.lng).lat;
+  const comp = c.compositeMidpoints(chartA, chartB, houseMethod, geoLat);
+  return { ...comp, disclaimer: c.DISCLAIMER } as unknown as CompositeChart;
+}
+export async function localDavison(a: BirthInput, b: BirthInput): Promise<DavisonChart> {
+  const c = await core();
+  const dav = c.davisonChart(a, b);
+  return { ...dav, disclaimer: c.DISCLAIMER } as unknown as DavisonChart;
+}
+export async function localSynastryTarot(a: BirthInput, b: BirthInput): Promise<SynastryTarotResponse> {
+  const c = await core();
+  const chartA = c.calculateChart(a);
+  const chartB = c.calculateChart(b);
+  return { spread: c.synastryTarot(chartA, chartB).spread, disclaimer: c.DISCLAIMER };
+}
+
+export async function localProgressed(natal: BirthInput, targetIso: string): Promise<ProgressedChart> {
+  const c = await core();
+  const p = c.progressedChart(natal, targetIso);
+  return { ...p, disclaimer: PRED_DISCLAIMER } as unknown as ProgressedChart;
+}
+export async function localSolarReturn(natal: BirthInput, year: number): Promise<SolarReturnChart> {
+  const c = await core();
+  const sr = c.solarReturn(natal, year);
+  return { ...sr, disclaimer: PRED_DISCLAIMER } as unknown as SolarReturnChart;
+}
+
+export async function localHarmonic(natal: BirthInput, harmonic: number): Promise<HarmonicChart> {
+  const c = await core();
+  const h = c.harmonicChart(natal, harmonic);
+  return { ...h, disclaimer: ADV_DISCLAIMER };
+}
+export async function localMidpointTree(natal: BirthInput, orb = 1.0): Promise<MidpointTree> {
+  const c = await core();
+  return { orb, entries: c.midpointTree(natal, orb), disclaimer: ADV_DISCLAIMER } as unknown as MidpointTree;
+}
+export async function localFixedStars(natal: BirthInput, orb = 1.5): Promise<FixedStarResponse> {
+  const c = await core();
+  return { orb, hits: c.fixedStarHits(natal, orb), disclaimer: ADV_DISCLAIMER };
+}
