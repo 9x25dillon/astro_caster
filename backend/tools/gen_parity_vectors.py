@@ -36,6 +36,9 @@ MT_FILE = PARITY_DIR / "mt19937.json"
 TAROT_FILE = PARITY_DIR / "tarot-draw.json"
 READING_FILE = PARITY_DIR / "tarot-reading.json"
 FORECAST_FILE = PARITY_DIR / "forecast.json"
+SYNASTRY_FILE = PARITY_DIR / "synastry.json"
+PREDICTIVE_FILE = PARITY_DIR / "predictive.json"
+ADVANCED_FILE = PARITY_DIR / "advanced.json"
 
 # The two reference charts every backend suite already leans on.
 CASES: list[tuple[str, dict]] = [
@@ -287,6 +290,181 @@ def build_reading_payload() -> dict:
     return {"schema": "astra-parity/tarot-reading@1", "cases": cases}
 
 
+# --------------------------------------------------------------------------- #
+# Relational — synastry inter-aspects + grid, composite (midpoint), Davison, and
+# the synastry-tarot bond (MOBILE_ROADMAP §3.4). Restricted to the supported
+# body set so it's exactly what @astra/core reproduces. Positions are
+# tolerance-based (shared TOLERANCES); the grid + tarot spread are categorical
+# and match exactly.
+# --------------------------------------------------------------------------- #
+
+import synastry as SYN  # noqa: E402
+from models import ChartRequest as _CR  # noqa: E402
+
+# Person A × Person B for the relational vector (the two reference charts).
+SYN_PAIR = (CASES[0], CASES[1])
+
+
+def _chart_dump(obj) -> dict:
+    return obj.model_dump()
+
+
+def build_synastry_payload() -> dict:
+    (id_a, req_a), (id_b, req_b) = SYN_PAIR
+    chart_a = _supported_chart(req_a)
+    chart_b = _supported_chart(req_b)
+
+    inter = SYN.synastry_aspects(chart_a, chart_b)
+    grid = SYN.synastry_grid(chart_a, chart_b)
+    composite = SYN.composite_midpoints(chart_a, chart_b, house_method="midpoint")
+
+    # Davison recomputes a fresh chart (all bodies); restrict planets to the
+    # supported set and recompute aspects among them so it matches @astra/core,
+    # whose davisonChart only ever computes the supported bodies.
+    davison = SYN.davison_chart(_CR(**req_a), _CR(**req_b))
+    davison.planets = [p for p in davison.planets if p.id in SUPPORTED_BODIES]
+    davison.aspects = E.calculate_aspects(davison.planets)
+
+    tarot = SYN.synastry_tarot(chart_a, chart_b)
+
+    payload = {
+        "schema": "astra-parity/synastry@1",
+        "engine": chart_a.meta["ephemeris"],
+        "tolerances": TOLERANCES,
+        "pair": {"a": {"id": id_a, "request": req_a},
+                 "b": {"id": id_b, "request": req_b}},
+        "inter_aspects": [a.model_dump() for a in inter],
+        "grid": grid.model_dump(),
+        "composite": _chart_dump(composite),
+        "davison": _chart_dump(davison),
+        "synastry_tarot": tarot.spread.model_dump(),
+    }
+    return _round_floats(payload)
+
+
+# --------------------------------------------------------------------------- #
+# Predictive — secondary progressions + solar return (MOBILE_ROADMAP §3.4).
+# Restricted to the supported body set; positions tolerance-based. Eclipses are
+# NOT vectored (Swiss eclipse-search is the deferred hard-20%).
+# --------------------------------------------------------------------------- #
+
+import predictive as PRED  # noqa: E402
+
+PROG_TARGET_ISO = "2026-01-01T00:00:00+00:00"
+SOLAR_RETURN_YEAR = 2026
+
+
+def _restrict_planets(planets):
+    return [p for p in planets if p.id in SUPPORTED_BODIES]
+
+
+def build_predictive_payload() -> dict:
+    cases = []
+    for case_id, req in CASES:
+        cr = _CR(**req)
+        natal_chart = E.calculate_chart(cr)
+        natal_supported = _restrict_planets(natal_chart.planets)
+
+        prog = PRED.progressed_chart(cr, PROG_TARGET_ISO)
+        prog_planets = _restrict_planets(prog.planets)
+        # Recompute progressed→natal aspects on the supported set (both sides),
+        # so the vector is exactly what @astra/core reproduces.
+        prog_aspects = E.aspects_between(natal_supported, prog_planets)
+
+        sr = PRED.solar_return(cr, SOLAR_RETURN_YEAR)
+        sr_planets = _restrict_planets(sr.planets)
+        sr_aspects = E.calculate_aspects(sr_planets)
+
+        cases.append({
+            "id": case_id,
+            "request": req,
+            "progressed": {
+                "target_iso": PROG_TARGET_ISO,
+                "age_years": prog.age_years,
+                "progressed_iso": prog.progressed_iso,
+                "planets": [p.model_dump() for p in prog_planets],
+                "aspects_to_natal": [a.model_dump() for a in prog_aspects],
+            },
+            "solar_return": {
+                "year": SOLAR_RETURN_YEAR,
+                "return_iso": sr.return_iso,
+                "planets": [p.model_dump() for p in sr_planets],
+                "houses": [h.model_dump() for h in sr.houses],
+                "angles": sr.angles.model_dump(),
+                "aspects": [a.model_dump() for a in sr_aspects],
+                "elements": sr.elements,
+                "modalities": sr.modalities,
+            },
+        })
+    payload = {
+        "schema": "astra-parity/predictive@1",
+        "engine": E.calculate_chart(_CR(**CASES[0][1])).meta["ephemeris"],
+        "tolerances": TOLERANCES,
+        "cases": cases,
+    }
+    return _round_floats(payload)
+
+
+# --------------------------------------------------------------------------- #
+# Advanced — harmonics, midpoint trees, fixed stars (MOBILE_ROADMAP §3.4). Pure
+# arithmetic on natal positions; harmonic longitudes amplify the cross-engine
+# position error ×N, so the consumer scales the tolerance accordingly.
+# --------------------------------------------------------------------------- #
+
+import advanced as ADV  # noqa: E402
+
+HARMONIC_N = 5
+MIDPOINT_ORB = 1.0
+FIXED_STAR_ORB = 1.5
+
+
+def build_advanced_payload() -> dict:
+    cases = []
+    for case_id, req in CASES:
+        cr = _CR(**req)
+        # Restrict the base chart to the supported body set before the technique
+        # runs, so every derived position is one @astra/core reproduces.
+        harm = ADV.harmonic_chart(cr, HARMONIC_N)
+        harm.positions = [p for p in harm.positions if p.id in SUPPORTED_BODIES]
+        harm.aspects = [a for a in harm.aspects
+                        if a["p1"] in SUPPORTED_BODIES and a["p2"] in SUPPORTED_BODIES]
+
+        tree = ADV.midpoint_tree(cr, MIDPOINT_ORB)
+        # Keep entries whose pair + contacts are all supported bodies.
+        tree_entries = []
+        for e in tree.entries:
+            a_id, b_id = e.pair.split("/")
+            if a_id not in SUPPORTED_BODIES or b_id not in SUPPORTED_BODIES:
+                continue
+            contacts = [c for c in e.contacts if c.body in SUPPORTED_BODIES]
+            if contacts:
+                d = e.model_dump()
+                d["contacts"] = [c.model_dump() for c in contacts]
+                tree_entries.append(d)
+
+        stars = ADV.fixed_star_hits(cr, FIXED_STAR_ORB)
+        star_hits = [h.model_dump() for h in stars.hits if h.natal_body in SUPPORTED_BODIES]
+
+        cases.append({
+            "id": case_id,
+            "request": req,
+            "harmonic": {
+                "n": HARMONIC_N,
+                "positions": [p.model_dump() for p in harm.positions],
+                "aspects": harm.aspects,
+            },
+            "midpoint_tree": {"orb": MIDPOINT_ORB, "entries": tree_entries},
+            "fixed_stars": {"orb": FIXED_STAR_ORB, "hits": star_hits},
+        })
+    payload = {
+        "schema": "astra-parity/advanced@1",
+        "engine": E.calculate_chart(_CR(**CASES[0][1])).meta["ephemeris"],
+        "tolerances": TOLERANCES,
+        "cases": cases,
+    }
+    return _round_floats(payload)
+
+
 def _render(payload: dict) -> str:
     return json.dumps(payload, indent=1, sort_keys=True) + "\n"
 
@@ -303,6 +481,9 @@ def main() -> None:
         (TAROT_FILE, build_tarot_payload()),
         (FORECAST_FILE, build_forecast_payload()),
         (READING_FILE, build_reading_payload()),
+        (SYNASTRY_FILE, build_synastry_payload()),
+        (PREDICTIVE_FILE, build_predictive_payload()),
+        (ADVANCED_FILE, build_advanced_payload()),
     ]
 
     if args.check:

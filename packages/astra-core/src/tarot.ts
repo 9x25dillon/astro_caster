@@ -42,6 +42,12 @@ interface TarotData {
 const D = DECK as TarotData;
 const FULL_DECK_IDS = [...D.major_ids, ...D.minor.map((c) => c.id)];
 
+/** Planet → its Major Arcana card id (port of tarot_data.PLANET_MAJOR). Exposed
+ *  for the relational engine's bond-card weighting. */
+export const PLANET_MAJOR: Record<string, string> = D.planet_major;
+/** All Major Arcana card ids, in canonical order. */
+export const MAJOR_IDS: string[] = D.major_ids;
+
 const SIGNATURE_ORDER = [
   "Sun", "Moon", "Ascendant", "Mercury", "Venus", "Mars", "Jupiter",
   "Saturn", "Uranus", "Neptune", "Pluto", "North Node", "Midheaven",

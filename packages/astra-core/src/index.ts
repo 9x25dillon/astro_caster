@@ -22,6 +22,43 @@ export {
   buildLocalSignature,
   SPREAD_POSITIONS,
   pyRound,
+  PLANET_MAJOR,
+  MAJOR_IDS,
   type NatalArcanaSignature,
   type DrawnCard,
 } from "./tarot.js";
+export { aspectsBetween } from "./ephemeris.js";
+export {
+  computeSynastry,
+  synastryAspects,
+  synastryGrid,
+  compositeMidpoints,
+  compositeHouseCusps,
+  derivedCompositeHouses,
+  davisonChart,
+  geographicMidpoint,
+  circularMidpoint,
+  synastryTarot,
+  type SynastryResult,
+  type SynastryGrid,
+  type CompositeChart,
+  type DavisonChart,
+  type SynastryTarotSpread,
+} from "./synastry.js";
+export {
+  progressedChart,
+  solarReturn,
+  solarReturnJd,
+  type ProgressedChart,
+  type SolarReturnChart,
+} from "./predictive.js";
+export {
+  harmonicChart,
+  midpointTree,
+  fixedStarHits,
+  type HarmonicChart,
+  type HarmonicPosition,
+  type MidpointTreeEntry,
+  type MidpointContact,
+  type FixedStarHit,
+} from "./advanced.js";

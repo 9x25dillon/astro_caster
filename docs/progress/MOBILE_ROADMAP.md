@@ -128,6 +128,27 @@ implementations) into a mechanical gate.
    concern for when it wires into the UI.
 4. `@astra/core/relational` + `predictive` + `advanced` — long tail, gated by
    usage telemetry (which modals people actually open on mobile).
+   - ✅ **relational DONE 2026-07-07** — `@astra/core/synastry` (`synastry.ts`):
+     synastry inter-aspects + house grid (overlays, emphasis, ruler links),
+     composite (midpoint method + derived-MC option), Davison (great-circle
+     geographic + temporal midpoint, real ephemeris), and the chart-weighted
+     synastry-tarot bond. Reproduces `parity/synastry.json` for the
+     Einstein × Greenwich pair — positions within the cross-engine tolerance,
+     the house grid and tarot spread exact. `aspectsBetween` extracted to
+     `ephemeris.ts`.
+   - ✅ **predictive DONE 2026-07-07** — `@astra/core/predictive`
+     (`predictive.ts`): secondary progressions (day-for-a-year) and solar return
+     (Sun-longitude root-find via `eclipticLonSpeed`). Reproduces
+     `parity/predictive.json`; the return chart is compared at the backend's
+     instant because the root-find amplifies the ~arcsec cross-engine Sun
+     difference into tens of seconds of time. **Eclipse timelines deferred** —
+     Swiss eclipse-search is the hard-20%, bundled with the WASM-Swiss escalation.
+   - ✅ **advanced DONE 2026-07-07** — `@astra/core/advanced` (`advanced.ts`):
+     harmonic charts (positions ×N + conjunctions), midpoint trees (Ebertin 90°
+     dial), and fixed-star contacts (self-contained precession-adjusted
+     catalogue). Reproduces `parity/advanced.json` — harmonic tolerances scaled
+     ×N (the multiply amplifies cross-engine noise), the star catalogue exact.
+     **§3.4 engines complete** (eclipses excepted).
 5. Backend adopts the same vectors as *its* regression suite — the two stacks
    are now pinned to each other symmetrically.
 

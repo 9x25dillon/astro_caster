@@ -21,10 +21,45 @@ export { ascendant, midheaven, placidusCusps, houseOf } from "./houses.js";
 export {
   calculateChart,
   calculateAspects,
+  aspectsBetween,
   eclipticLonSpeed,
   julianDay,
   julianDayUtc,
 } from "./ephemeris.js";
+export {
+  computeSynastry,
+  synastryAspects,
+  synastryGrid,
+  compositeMidpoints,
+  compositeHouseCusps,
+  derivedCompositeHouses,
+  davisonChart,
+  geographicMidpoint,
+  circularMidpoint,
+  synastryTarot,
+  type SynastryResult,
+  type SynastryGrid,
+  type CompositeChart,
+  type DavisonChart,
+  type SynastryTarotSpread,
+} from "./synastry.js";
+export {
+  progressedChart,
+  solarReturn,
+  solarReturnJd,
+  type ProgressedChart,
+  type SolarReturnChart,
+} from "./predictive.js";
+export {
+  harmonicChart,
+  midpointTree,
+  fixedStarHits,
+  type HarmonicChart,
+  type HarmonicPosition,
+  type MidpointTreeEntry,
+  type MidpointContact,
+  type FixedStarHit,
+} from "./advanced.js";
 export { generateForecast, type ForecastEvent } from "./forecast.js";
 export { MT19937 } from "./mt19937.js";
 export { sha256Hex } from "./sha256.js";
