@@ -1,6 +1,7 @@
 // ProfileManager.tsx — localStorage-based saved chart profiles.
 import React, { useState } from "react";
 import { useStore } from "../store/useStore";
+import { shareBirth } from "../lib/shareChart";
 import type { BirthInput } from "../types";
 
 export interface SavedProfile {
@@ -36,6 +37,15 @@ export const ProfileManager: React.FC<{ onLoad?: () => void }> = ({ onLoad }) =>
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
+  const [shareMsg, setShareMsg] = useState("");
+
+  const share = async () => {
+    const result = await shareBirth(birth);
+    if (result === "copied") setShareMsg("Link copied");
+    else if (result === "shared") setShareMsg("Shared");
+    else setShareMsg("Couldn't share");
+    setTimeout(() => setShareMsg(""), 2200);
+  };
 
   const save = () => {
     const name = saveName.trim() || birth.label || `Chart ${profiles.length + 1}`;
@@ -104,13 +114,24 @@ export const ProfileManager: React.FC<{ onLoad?: () => void }> = ({ onLoad }) =>
           </button>
         </div>
       ) : (
-        <button
-          className="ghost"
-          style={{ fontSize: 12, padding: "4px 10px", width: "auto" }}
-          onClick={() => { setSaveName(birth.label || ""); setSaving(true); }}
-        >
-          ↑ Save current chart
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <button
+            className="ghost"
+            style={{ fontSize: 12, padding: "4px 10px", width: "auto" }}
+            onClick={() => { setSaveName(birth.label || ""); setSaving(true); }}
+          >
+            ↑ Save current chart
+          </button>
+          <button
+            className="ghost"
+            style={{ fontSize: 12, padding: "4px 10px", width: "auto" }}
+            title="Share this chart as a self-contained link (no data leaves the link)"
+            onClick={share}
+          >
+            ⇪ Share
+          </button>
+          {shareMsg && <span className="muted" style={{ fontSize: 11 }}>{shareMsg}</span>}
+        </div>
       )}
 
       {profiles.length > 0 && (

@@ -99,7 +99,10 @@ body::before {
     "controls timeline detail";
   gap: 18px;
   height: 100vh;
-  padding: 18px;
+  /* Add the device safe-area insets to the base padding so the notch and
+     home-indicator never clip the shell in iOS standalone (viewport-fit=cover). */
+  padding: calc(18px + env(safe-area-inset-top)) calc(18px + env(safe-area-inset-right))
+           calc(18px + env(safe-area-inset-bottom)) calc(18px + env(safe-area-inset-left));
 }
 
 @media (max-width: 1100px) {
@@ -180,6 +183,12 @@ body::before {
   border-radius: 999px;
   padding: 3px 14px;
   pointer-events: none;
+}
+/* Queued-ask notice sits just below the offline note when both are present. */
+.queued-note {
+  top: 42px;
+  color: var(--gold-soft, var(--gold));
+  border-color: var(--gold);
 }
 .detail { grid-area: detail; }
 .timeline { grid-area: timeline; }
@@ -1385,7 +1394,8 @@ button.ghost:hover {
   z-index: 200;
   background: rgba(18, 16, 12, 0.96);
   border-top: 1px solid rgba(201, 168, 76, 0.18);
-  padding: 10px 20px;
+  /* Pad past the home-indicator so the OK button stays tappable in standalone. */
+  padding: 10px 20px calc(10px + env(safe-area-inset-bottom));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1394,6 +1404,59 @@ button.ghost:hover {
   gap: 8px;
   backdrop-filter: blur(6px);
 }
+
+/* ── Install prompt ───────────────────────────────────────────────────────── */
+.install-prompt {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  /* Float just above the home-indicator (and the privacy banner when present). */
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  z-index: 210;
+  max-width: min(520px, calc(100vw - 24px));
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px 10px 14px;
+  background: linear-gradient(160deg, var(--obsidian-2) 0%, var(--obsidian) 100%);
+  border: 1px solid var(--gold);
+  border-radius: 12px;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.55), 0 0 24px rgba(201, 168, 76, 0.15);
+  font-size: 12.5px;
+  color: var(--ink);
+  animation: install-rise 0.4s var(--ease-out, ease-out) both;
+}
+@keyframes install-rise {
+  from { opacity: 0; transform: translate(-50%, 16px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+.install-glyph { color: var(--gold-bright, var(--gold)); font-size: 18px; }
+.install-copy { flex: 1; line-height: 1.35; }
+.install-btn {
+  flex-shrink: 0;
+  width: auto;
+  padding: 6px 14px;
+  background: var(--gold);
+  color: #14110a;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.install-btn:hover { background: var(--gold-bright, var(--gold)); }
+.install-x {
+  flex-shrink: 0;
+  width: auto;
+  padding: 0 6px;
+  background: none;
+  border: none;
+  color: var(--ink-dim, var(--ink));
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.6;
+}
+.install-x:hover { opacity: 1; }
 
 /* ── Forecast Panel ───────────────────────────────────────────────────────── */
 

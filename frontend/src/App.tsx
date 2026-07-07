@@ -17,6 +17,7 @@ import { RelationshipModal } from "./components/RelationshipModal";
 import { PredictiveModal } from "./components/PredictiveModal";
 import { AdvancedModal } from "./components/AdvancedModal";
 import { AdminPanel } from "./components/AdminPanel";
+import { InstallPrompt } from "./components/InstallPrompt";
 import { deriveSoulProfile } from "./lib/archetypes";
 import { trackEvent } from "./api/client";
 
@@ -28,6 +29,8 @@ export const App: React.FC = () => {
   const isSupporter = useStore((s) => s.isSupporter);
   const openSupport = useStore((s) => s.openSupport);
   const validateEntitlement = useStore((s) => s.validateEntitlement);
+  const flushAskQueue = useStore((s) => s.flushAskQueue);
+  const queuedAsks = useStore((s) => s.queuedAsks);
   const [glossaryOpen, setGlossaryOpen] = useState(false);
   const [soulOpen, setSoulOpen] = useState(false);
   const [oracleOpen, setOracleOpen] = useState(false);
@@ -52,6 +55,11 @@ export const App: React.FC = () => {
     // Deep-link: /#support opens the support panel directly (shareable).
     if (window.location.hash === "#support") openSupport(true);
     if (window.location.hash === "#admin") setAdminOpen(true);
+    // Fire any asks queued while offline, now and whenever the network returns.
+    flushAskQueue();
+    const onOnline = () => flushAskQueue();
+    window.addEventListener("online", onOnline);
+    return () => window.removeEventListener("online", onOnline);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -155,6 +163,11 @@ export const App: React.FC = () => {
               : "☾ offline — showing your last cast"}
           </div>
         )}
+        {queuedAsks > 0 && (
+          <div className="offline-note queued-note" role="status">
+            ✎ {queuedAsks} {queuedAsks === 1 ? "reflection" : "reflections"} queued — will send when you reconnect
+          </div>
+        )}
         <ChartWheel size={720} />
       </div>
 
@@ -162,6 +175,7 @@ export const App: React.FC = () => {
 
       <TransitSlider />
     </div>
+    <InstallPrompt />
     </>
   );
 };

@@ -35,6 +35,14 @@ export default defineConfig({
           // SVG scales to any launcher size; avoids shipping binary PNGs.
           { src: "favicon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" },
         ],
+        // Receive shared chart links: another app (or Astra itself) shares a
+        // `?chart=<token>` URL, the OS opens Astra at "/" with it, and the store
+        // decodes it into a cast. GET keeps it service-worker-free.
+        share_target: {
+          action: "/",
+          method: "GET",
+          params: { title: "title", text: "text", url: "url" },
+        },
       },
     }),
   ],

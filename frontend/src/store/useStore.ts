@@ -16,6 +16,7 @@ import {
 
 const ENT_KEY = "aae.entitlement";
 const LAST_CHART_KEY = "aae.last_chart";
+const ASK_QUEUE_KEY = "aae.ask_queue";
 import type {
   BirthInput,
   ChartResponse,
@@ -26,6 +27,7 @@ import type {
 } from "../types";
 import { trackEvent } from "../api/client";
 import { toDatetimeLocal } from "../lib/datetime";
+import { decodeBirthShare, extractChartToken } from "../lib/shareChart";
 
 // Default chart — an obviously-synthetic sample (Y2K noon, Greenwich) so the
 // observatory is never empty on first visit. Carries no personal data, and is
@@ -101,6 +103,7 @@ interface AstroState {
   aiResult: AIResult | null;
   aiLoading: boolean;
   aiStreaming: boolean;
+  queuedAsks: number; // asks captured while offline, awaiting reconnection
 
   // Monetization / open paywall
   entitlement: string | null; // supporter token (persisted)
@@ -120,6 +123,7 @@ interface AstroState {
   generate: () => Promise<void>;
   loadTransit: (iso: string) => Promise<void>;
   ask: (query: string, depth?: "quick" | "deep") => Promise<void>;
+  flushAskQueue: () => Promise<void>;
   suggest: () => Promise<void>;
 
   openSupport: (open: boolean) => void;
@@ -155,8 +159,52 @@ const EMPTY_RESULT: AIResult = {
   } catch { /* sandboxed storage or no window: ignore */ }
 })();
 
+// Offline ask queue — persisted so a reflection typed with no connection
+// survives reload and fires when the network returns (flushAskQueue).
+interface QueuedAsk {
+  query: string;
+  depth: "quick" | "deep";
+  lens: Lens;
+  selType: Selection["type"] | null;
+  selId: string | null;
+}
+const loadAskQueue = (): QueuedAsk[] => {
+  try { return JSON.parse(localStorage.getItem(ASK_QUEUE_KEY) || "[]"); } catch { return []; }
+};
+const saveAskQueue = (q: QueuedAsk[]) => {
+  try { localStorage.setItem(ASK_QUEUE_KEY, JSON.stringify(q)); } catch { /* best-effort */ }
+};
+// Guards against two 'online'/startup triggers draining the queue concurrently
+// (which would double-send the head entry).
+let flushing = false;
+// A fetch that fails because we're offline throws a TypeError, not an HTTP status.
+const isOfflineError = (msg: string) =>
+  !navigator.onLine || /failed to fetch|networkerror|load failed/i.test(msg);
+
+// Shared-chart import: a `?chart=<token>` link (or a share_target payload whose
+// `text`/`url` embeds one) decodes into a BirthInput used as the initial cast.
+// Scrubbed from the address bar so a reload doesn't re-import stale data.
+const SHARED_BIRTH: BirthInput | null = (() => {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const token = extractChartToken(
+      params.get("chart") ?? params.get("text") ?? params.get("url")
+    );
+    if (!token) return null;
+    const birth = decodeBirthShare(token);
+    for (const k of ["chart", "text", "url", "title"]) params.delete(k);
+    const rest = params.toString();
+    window.history.replaceState(
+      null, "", window.location.pathname + (rest ? `?${rest}` : "") + window.location.hash);
+    if (birth) trackEvent("chart_shared_in");
+    return birth;
+  } catch {
+    return null;
+  }
+})();
+
 export const useStore = create<AstroState>((set, get) => ({
-  birth: DEFAULT_BIRTH,
+  birth: SHARED_BIRTH ?? DEFAULT_BIRTH,
   lens: "psychological",
   layers: {
     zodiac: true,
@@ -182,6 +230,7 @@ export const useStore = create<AstroState>((set, get) => ({
   aiResult: null,
   aiLoading: false,
   aiStreaming: false,
+  queuedAsks: loadAskQueue().length,
 
   entitlement: localStorage.getItem(ENT_KEY),
   isSupporter: !!localStorage.getItem(ENT_KEY),
@@ -299,10 +348,54 @@ export const useStore = create<AstroState>((set, get) => ({
         const msg = (e2 as Error).message;
         if (msg.includes("402")) {
           set({ aiLoading: false, aiStreaming: false, supportOpen: true });
+        } else if (isOfflineError(msg)) {
+          // Offline: capture the ask so it fires when the network returns,
+          // rather than surfacing a dead-end error.
+          const q = loadAskQueue();
+          q.push({ query, depth, lens, selType: selection?.type ?? null, selId: selection?.id ?? null });
+          saveAskQueue(q);
+          set({ aiLoading: false, aiStreaming: false, queuedAsks: q.length });
+          trackEvent("ask_queued_offline");
         } else {
           set({ aiLoading: false, aiStreaming: false, error: msg });
         }
       }
+    }
+  },
+
+  // Drain the offline ask queue oldest-first. Called on the window 'online'
+  // event and at startup. We don't trust navigator.onLine (it tracks a network
+  // interface, not real reachability, and can lag the event) — we just attempt
+  // the send and stop on the first genuine network failure, keeping the queue.
+  flushAskQueue: async () => {
+    if (flushing) return;
+    const { chart, entitlement } = get();
+    if (!chart) return; // need a cast to interpret against
+    if (loadAskQueue().length === 0) return;
+    flushing = true;
+    try {
+      let q = loadAskQueue();
+      while (q.length > 0) {
+        const item = q[0];
+        const selection = item.selType
+          ? ({ type: item.selType, id: item.selId } as Selection)
+          : null;
+        try {
+          const aiResult = await aiAsk(item.query, chart, item.lens, selection, item.depth, entitlement);
+          set({ aiResult });
+        } catch (e) {
+          // Still offline / server down: stop and keep the queue for next time.
+          // A 402 (supporter-gated) falls through and is dropped so a gated ask
+          // can't wedge the queue forever.
+          if (!(e as Error).message.includes("402")) break;
+        }
+        q = loadAskQueue();
+        q.shift();
+        saveAskQueue(q);
+        set({ queuedAsks: q.length });
+      }
+    } finally {
+      flushing = false;
     }
   },
 
