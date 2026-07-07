@@ -1978,6 +1978,15 @@ button.ghost:hover {
 .arcana-body { min-height: 220px; }
 .arc-empty, .arc-error { color: var(--ink); font-size: 13px; padding: 24px 4px; text-align: center; }
 .arc-error { color: #d98a8a; }
+/* On-device fallback badge for the relational/predictive/advanced modals. */
+.arc-ondevice {
+  color: var(--amethyst-soft);
+  font-family: var(--serif);
+  font-size: 12px;
+  font-style: italic;
+  text-align: center;
+  margin: 4px 0 0;
+}
 
 .arc-chip {
   display: inline-block; font-size: 12px; color: var(--amethyst-soft);

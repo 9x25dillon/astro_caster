@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useStore } from "../store/useStore";
 import {
   fetchHarmonic, fetchMidpointTree, fetchFixedStars, trackEvent,
+  localHarmonic, localMidpointTree, localFixedStars, isOfflineError,
   type HarmonicChart, type MidpointTree, type FixedStarResponse,
 } from "../api/client";
 
@@ -14,6 +15,7 @@ export const AdvancedModal: React.FC<{ onClose: () => void }> = ({ onClose }) =>
   const [tab, setTab] = useState<Tab>("harmonics");
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [onDevice, setOnDevice] = useState(false);
 
   const [n, setN] = useState(5);
   const [harm, setHarm] = useState<HarmonicChart | null>(null);
@@ -26,10 +28,16 @@ export const AdvancedModal: React.FC<{ onClose: () => void }> = ({ onClose }) =>
     return () => window.removeEventListener("keydown", h);
   }, [onClose]);
 
-  async function run<T>(fn: () => Promise<T>, set: (v: T) => void, ev: string) {
-    setLoading(true); setErr(null);
+  async function run<T>(fn: () => Promise<T>, set: (v: T) => void, ev: string, local?: () => Promise<T>) {
+    setLoading(true); setErr(null); setOnDevice(false);
     try { set(await fn()); trackEvent(ev); }
-    catch (e) { setErr(String(e)); }
+    catch (e) {
+      // Backend unreachable → compute on-device via @astra/core (reduced body set).
+      if (local && isOfflineError(String(e))) {
+        try { set(await local()); setOnDevice(true); trackEvent(ev + "_local"); }
+        catch (e2) { setErr(String(e2)); }
+      } else setErr(String(e));
+    }
     finally { setLoading(false); }
   }
 
@@ -55,6 +63,7 @@ export const AdvancedModal: React.FC<{ onClose: () => void }> = ({ onClose }) =>
 
         <div className="arcana-body">
           {err && <p className="arc-error">{err}</p>}
+          {onDevice && <p className="arc-ondevice">☾ offline — computed on your device (reduced body set)</p>}
 
           {tab === "harmonics" && (
             <div>
@@ -63,7 +72,7 @@ export const AdvancedModal: React.FC<{ onClose: () => void }> = ({ onClose }) =>
                   <input type="number" min={1} max={64} value={n} onChange={(e) => setN(Number(e.target.value))} />
                 </label>
                 <button className="arc-draw-btn" disabled={loading}
-                        onClick={() => run(() => fetchHarmonic(birth, n), setHarm, "harmonic_run")}>
+                        onClick={() => run(() => fetchHarmonic(birth, n), setHarm, "harmonic_run", () => localHarmonic(birth, n))}>
                   {loading ? "…" : "Compute"}
                 </button>
               </div>
@@ -87,7 +96,7 @@ export const AdvancedModal: React.FC<{ onClose: () => void }> = ({ onClose }) =>
             <div>
               <div className="arc-draw-controls">
                 <button className="arc-draw-btn" disabled={loading}
-                        onClick={() => run(() => fetchMidpointTree(birth, 1.0), setMid, "midpoint_run")}>
+                        onClick={() => run(() => fetchMidpointTree(birth, 1.0), setMid, "midpoint_run", () => localMidpointTree(birth, 1.0))}>
                   {loading ? "…" : "Build tree (orb 1°)"}
                 </button>
               </div>
@@ -110,7 +119,7 @@ export const AdvancedModal: React.FC<{ onClose: () => void }> = ({ onClose }) =>
             <div>
               <div className="arc-draw-controls">
                 <button className="arc-draw-btn" disabled={loading}
-                        onClick={() => run(() => fetchFixedStars(birth, 1.5), setStars, "fixed_stars_run")}>
+                        onClick={() => run(() => fetchFixedStars(birth, 1.5), setStars, "fixed_stars_run", () => localFixedStars(birth, 1.5))}>
                   {loading ? "…" : "Find star contacts (orb 1.5°)"}
                 </button>
               </div>

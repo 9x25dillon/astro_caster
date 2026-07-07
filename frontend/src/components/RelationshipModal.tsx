@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useStore } from "../store/useStore";
 import {
   fetchSynastry, fetchComposite, fetchDavison, fetchSynastryTarot, trackEvent,
+  localSynastry, localComposite, localDavison, localSynastryTarot, isOfflineError,
   type SynastryResponse, type CompositeChart, type DavisonChart, type SynastryTarotResponse,
 } from "../api/client";
 import type { BirthInput } from "../types";
@@ -31,6 +32,7 @@ export const RelationshipModal: React.FC<{ onClose: () => void }> = ({ onClose }
   const [tab, setTab] = useState<Tab>("synastry");
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [onDevice, setOnDevice] = useState(false);
 
   // Person B defaults to a copy of the loaded chart — user edits to compare.
   const [personB, setPersonB] = useState<BirthInput>({ ...birth, label: "Person B" });
@@ -47,10 +49,16 @@ export const RelationshipModal: React.FC<{ onClose: () => void }> = ({ onClose }
     return () => window.removeEventListener("keydown", h);
   }, [onClose]);
 
-  async function run<T>(fn: () => Promise<T>, set: (v: T) => void, ev: string) {
-    setLoading(true); setErr(null);
+  async function run<T>(fn: () => Promise<T>, set: (v: T) => void, ev: string, local?: () => Promise<T>) {
+    setLoading(true); setErr(null); setOnDevice(false);
     try { set(await fn()); trackEvent(ev); }
-    catch (e) { setErr(String(e)); }
+    catch (e) {
+      // Backend unreachable → compute on-device via @astra/core (reduced body set).
+      if (local && isOfflineError(String(e))) {
+        try { set(await local()); setOnDevice(true); trackEvent(ev + "_local"); }
+        catch (e2) { setErr(String(e2)); }
+      } else setErr(String(e));
+    }
     finally { setLoading(false); }
   }
 
@@ -82,12 +90,13 @@ export const RelationshipModal: React.FC<{ onClose: () => void }> = ({ onClose }
 
         <div className="arcana-body">
           {err && <p className="arc-error">{err}</p>}
+          {onDevice && <p className="arc-ondevice">☾ offline — computed on your device (reduced body set)</p>}
 
           {tab === "synastry" && (
             <div>
               <div className="arc-draw-controls">
                 <button className="arc-draw-btn" disabled={loading}
-                        onClick={() => run(() => fetchSynastry(birth, personB), setSyn, "synastry_run")}>
+                        onClick={() => run(() => fetchSynastry(birth, personB), setSyn, "synastry_run", () => localSynastry(birth, personB))}>
                   {loading ? "…" : "Compare charts"}
                 </button>
               </div>
@@ -123,7 +132,7 @@ export const RelationshipModal: React.FC<{ onClose: () => void }> = ({ onClose }
                   derived-MC houses
                 </label>
                 <button className="arc-draw-btn" disabled={loading}
-                        onClick={() => run(() => fetchComposite(birth, personB, houseMethod), setComp, "composite_run")}>
+                        onClick={() => run(() => fetchComposite(birth, personB, houseMethod), setComp, "composite_run", () => localComposite(birth, personB, houseMethod))}>
                   {loading ? "…" : "Build composite"}
                 </button>
               </div>
@@ -149,7 +158,7 @@ export const RelationshipModal: React.FC<{ onClose: () => void }> = ({ onClose }
             <div>
               <div className="arc-draw-controls">
                 <button className="arc-draw-btn" disabled={loading}
-                        onClick={() => run(() => fetchDavison(birth, personB), setDav, "davison_run")}>
+                        onClick={() => run(() => fetchDavison(birth, personB), setDav, "davison_run", () => localDavison(birth, personB))}>
                   {loading ? "…" : "Cast Davison"}
                 </button>
               </div>
@@ -173,7 +182,7 @@ export const RelationshipModal: React.FC<{ onClose: () => void }> = ({ onClose }
             <div>
               <div className="arc-draw-controls">
                 <button className="arc-draw-btn" disabled={loading}
-                        onClick={() => run(() => fetchSynastryTarot(birth, personB), setTarot, "synastry_tarot_run")}>
+                        onClick={() => run(() => fetchSynastryTarot(birth, personB), setTarot, "synastry_tarot_run", () => localSynastryTarot(birth, personB))}>
                   {loading ? "…" : "Draw relationship bond"}
                 </button>
               </div>
