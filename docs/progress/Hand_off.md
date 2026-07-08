@@ -51,6 +51,10 @@ cd backend && .venv/bin/python tools/gen_parity_vectors.py --check  # tripwire
   fixture txs leaked before 2026-07-08; harmless, but don't be surprised by it.
 - Trust mode still OFF by default; `AAE_TRUST_MODE=1 ./run.sh` to exercise the
   purchase rail in the UI.
+- **Backups (B3):** server-side state lives in `backend/.env` (secrets — dev
+  token, AAE_SECRET, the Anthropic key) and `backend/data/*.db` (receipts +
+  telemetry). Copy both when backing up the machine; the browser side is
+  covered by the Vault export (⇓ Vault in the profile bar).
 
 ## Open threads / next candidates
 

@@ -3,6 +3,29 @@
 Per-phase log for the Production Hardening & Symbolic Intelligence Expansion pass.
 Baseline: `d9afc4b` (36 backend tests, clean frontend build).
 
+## The Vault — export/import all local state (2026-07-08, next-arc-vault)
+
+B1 of the ratified next arc (docs/progress/NEXT_ARC.md): the observatory's
+accumulating personal artifacts — profiles, entitlement, per-seed report
+claims, forecast bookmarks, the ask queue — were one browser-data-clear from
+gone. Now they're one file.
+
+- **`lib/vault.ts`**: `astra-vault@1` format — export snapshots every `aae.*`
+  localStorage key to a downloaded JSON (built and saved locally; nothing
+  leaves the browser); restore writes only `aae.*`-prefixed string values
+  back (allowlist — a doctored file can't plant arbitrary keys) and reloads
+  so the store's boot-time IIFEs re-read.
+- **ProfileManager**: ⇓ Vault / ⇑ Restore buttons beside Share, with a
+  confirm before overwrite and a guard-it-like-a-key tooltip (the file
+  carries birth data and tokens).
+- **B3**: Hand_off gains the server-side backup line (`backend/.env` +
+  `data/*.db`).
+- **Blueprint committed**: `docs/progress/NEXT_ARC.md` records the ratified
+  arc (B1→B2→P1→P2 → Track R after B2 → tome Phase 0 → evaluate P3 → PB1)
+  and `docs/design/PHYSICAL_TOME_PRODUCT.md` the phased physical-tome model.
+- e2e (`vault.spec.ts`) proves the done-when verbatim: export → wipe →
+  restore → profiles and bookmarks back, visible in the UI. 48 e2e green.
+
 ## Tome plates — the spread as engraved card plates (2026-07-08, tome-tarot-grid)
 
 The PDF-1 follow-on from the design mock: the printed Personal Report gains a
