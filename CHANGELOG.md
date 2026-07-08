@@ -3,6 +3,29 @@
 Per-phase log for the Production Hardening & Symbolic Intelligence Expansion pass.
 Baseline: `d9afc4b` (36 backend tests, clean frontend build).
 
+## The Journal — the pen half of the loop (2026-07-08, next-arc-journal)
+
+P1 of the next arc: readings shipped journal prompts that were displayed and
+discarded. Now the answers are kept — beside the readings that prompted them.
+
+- **Journal store** (bookshelf DB v2): entries keyed to session seed +
+  card position (card-prompted pads overwrite in place — one reflection per
+  card per session) or freeform (append). CRUD + markdown export in
+  `lib/bookshelf.ts`.
+- **`JournalPad`**: a small local-first composer. Appears under every card
+  that carries a journal prompt in the Draw tab ("✎ Write"), and as
+  "✎ Add a reflection" in each Bookshelf entry.
+- **Bookshelf integration**: an entry's Reflections section lists its
+  card-prompted and freeform entries (with removal); **✎ Journal .md**
+  exports the whole journal as one markdown file, grouped by session with
+  questions and prompts quoted.
+- **Vault `astra-vault@3`** carries the journal (restore accepts @1–@3).
+- e2e: shelf reflection kept → survives reload → exports with question +
+  text; card-prompt pad → answer lands keyed `seed|position`. Also fixed a
+  latent test trap the DB bump exposed: IDB opens with an explicit LOWER
+  version than the live DB fail with VersionError — spec readers are now
+  versionless. 56 e2e green ×2 full runs.
+
 ## The Bookshelf — a permanent local report library (2026-07-08, next-arc-bookshelf)
 
 B2 of the next arc: generated Oracle and Personal reports used to evaporate

@@ -2260,3 +2260,25 @@ h2.section::after {
 .shelf-actions { display: flex; gap: 8px; margin: 10px 0 6px; }
 .shelf-actions .ghost { width: auto; font-size: 12px; padding: 4px 12px; }
 .shelf-burn { color: var(--copper, #b87333); }
+
+/* ── The Journal (P1) — reflections beside their readings ───────────────── */
+.jr-open { width: auto; font-size: 11.5px; padding: 3px 10px; margin-top: 6px;
+           color: var(--gold-soft, #e0c578); }
+.jr-pad { margin-top: 8px; }
+.jr-text { width: 100%; background: rgba(255,255,255,0.03); color: var(--parchment, #efe6d5);
+           border: 1px solid var(--rule); border-radius: 6px; padding: 8px 10px;
+           font-family: var(--serif); font-size: 13px; line-height: 1.5; resize: vertical; }
+.jr-text:focus { outline: none; border-color: rgba(201,168,76,0.6); }
+.jr-row { display: flex; gap: 8px; margin-top: 6px; }
+.jr-save, .jr-cancel { width: auto; font-size: 11.5px; padding: 3px 12px; }
+.jr-del { width: auto; font-size: 10px; padding: 1px 7px; opacity: 0.65; }
+.shelf-journal { margin-top: 14px; border-top: 1px dashed var(--rule); padding-top: 10px; }
+.shelf-journal-head { font-family: var(--display); font-size: 12px; letter-spacing: 0.12em;
+                      text-transform: uppercase; color: var(--gold-soft, #e0c578); margin-bottom: 8px; }
+.shelf-journal-entry { border-left: 2px solid rgba(201,168,76,0.4); padding: 2px 0 2px 12px;
+                       margin: 0 0 10px; }
+.shelf-journal-meta { font-size: 11px; color: var(--sepia, #9a8f78); display: flex;
+                      align-items: center; gap: 8px; }
+.shelf-journal-prompt { font-size: 11.5px; font-style: italic; color: var(--gold-soft, #e0c578);
+                        opacity: 0.85; margin-top: 2px; }
+.shelf-journal-text { margin: 4px 0 0; font-size: 13px; white-space: pre-wrap; }

@@ -34,6 +34,7 @@ import { Interpretation } from "./DetailPanel";
 import { useSpeech, speakableText } from "../lib/speech";
 import { printSessionTome } from "../lib/tomePrint";
 import { shelfAttachPersonal, shelfSaveOracle } from "../lib/bookshelf";
+import { JournalPad } from "./JournalPad";
 import { chaosLetters, wordValue, reduceDigit, planetToKamea } from "../lib/sigil";
 import { deriveSoulProfile } from "../lib/archetypes";
 import { computeLifePath, LIFE_PATH_DATA, getResonance } from "../lib/numerology";
@@ -567,6 +568,15 @@ export const ArcanaModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                         )}
                         {c.activity && <p className="arc-drawn-act">✦ {c.activity}</p>}
                         {c.journal_prompt && <p className="arc-drawn-journal">✎ {c.journal_prompt}</p>}
+                        {c.journal_prompt && reading && (
+                          <JournalPad
+                            seed={reading.seed}
+                            position={c.position}
+                            prompt={c.journal_prompt}
+                            cardName={c.card.name}
+                            question={reading.question}
+                          />
+                        )}
                       </div>
                     ))}
                   </div>
