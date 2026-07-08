@@ -172,12 +172,39 @@ Or mint scoped test tokens for any tier with `backend/tools/mint_test_tokens.py`
 
 ## Developer tools
 
+One CLI wraps the lot — run from `backend/`:
+
+```bash
+.venv/bin/python tools/dev.py <command>
+#   unlock              → your free-access unlock link (wraps unlock.py)
+#   token  --tier oracle  → mint a browser entitlement token
+#   smoke  [--full]     → tier-matrix smoke test vs a live server
+#   parity [--check]    → regenerate / verify the golden vectors
+#   test   [backend|core|frontend|all]  → run the test suites
+#   ai set <key> | ai check | ai status → configure & LIVE-VERIFY the premium key
+```
+
+The individual tools it wraps:
+
 | Tool | What it does |
 |---|---|
-| `backend/tools/mint_test_tokens.py` | Mint browser entitlement tokens for any tier (`--tier oracle`, `--seed <raw>` for report claims). Paste into `localStorage["aae.entitlement"]` or the `?entitlement=` URL. |
-| `backend/tools/smoke_tiers.py` | A tier-matrix smoke test against a live server (26 checks, zero-cost by default; `--full` for the paid E2E paths). |
-| `backend/tools/gen_parity_vectors.py` | Regenerate the golden vectors (`--check` is the CI drift tripwire). |
-| `frontend/e2e/` | Playwright suite (desktop + Pixel-7 emulation) that drives real flows, including every offline fallback with the API severed. |
+| `tools/unlock.py` | Prints your `?entitlement=` free-access link + QR (oracle tier, no expiry). |
+| `tools/mint_test_tokens.py` | Mints browser entitlement tokens for any tier (`--tier oracle`, `--seed <raw>` for report claims). |
+| `tools/smoke_tiers.py` | Tier-matrix smoke test against a live server (26 checks, zero-cost by default; `--full` for the paid E2E paths). |
+| `tools/gen_parity_vectors.py` | Regenerates the 8 golden vectors (`--check` is the CI drift tripwire). |
+| `frontend/e2e/` | Playwright suite (desktop + Pixel-7 emulation) driving real flows, including every offline fallback with the API severed. |
+
+### Enabling the premium AI readings (Fable 5)
+
+The **in-depth Oracle Report** and the **deluxe PDF Personal Report** are long-form Claude **Fable 5** syntheses over the deterministic substrate. With no key they fall back to a deterministic offline report (honest `ai_source`); to serve the real thing, set an Anthropic key and verify it reaches Fable 5 in one command:
+
+```bash
+cd backend
+.venv/bin/python tools/dev.py ai set sk-ant-...     # writes AAE_ANTHROPIC_API_KEY to .env
+.venv/bin/python tools/dev.py ai check              # one cheap real call through the reports' exact path
+```
+
+`ai check` makes a single request via the same beta / server-side-fallback / effort surface the reports use, and tells you which model served — so a green check means the premium readings will actually generate (and it diagnoses the two common blockers: an invalid key, or an org without the 30-day data retention Fable 5 requires). Both reports also honor `AAE_ORACLE_REPORT_*` / `AAE_PERSONAL_REPORT_*` overrides (model, effort, max tokens, fallback) — see [Tiers](#tiers).
 
 See [`TESTING.md`](TESTING.md) for the full walkthrough (minting tokens, trust mode, smoke matrix).
 
