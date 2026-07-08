@@ -137,17 +137,31 @@ def cmd_ai_status(_args) -> int:
 
 
 def cmd_ai_set(args) -> int:
-    key = args.key.strip()
+    import getpass
+
+    key = (args.key or "").strip()
+    if not key:
+        # Hidden prompt — the pasted key never echoes to the screen or shell history.
+        print("Paste your Anthropic API key and press Enter (it won't show as you paste).")
+        try:
+            key = getpass.getpass("key: ")
+        except (EOFError, KeyboardInterrupt):
+            print("\nCancelled — nothing written.")
+            return 2
+    # Tolerate a stray wrapping quote / whitespace from copy-paste.
+    key = key.strip().strip('"').strip("'").strip()
+    if not key:
+        print("No key entered — nothing written.")
+        return 2
     if "..." in key or key in ("sk-ant-", "<key>", "sk-ant-xxx", "your-key"):
-        print("That's the placeholder, not a real key — nothing was written.\n"
-              "Paste your actual key (https://console.anthropic.com → API keys):\n"
-              "  dev.py ai set sk-ant-api03-<the-rest-of-your-key>")
+        print("That's the placeholder, not a real key — nothing written.\n"
+              "Get your key at https://console.anthropic.com → API keys, then run `dev.py ai set`.")
         return 2
     if not key.startswith("sk-ant-"):
-        print(f"⚠ Anthropic keys start with 'sk-ant-' (got '{key[:8]}…'). Storing it anyway.")
+        print(f"⚠ Anthropic keys start with 'sk-ant-' (yours starts '{key[:7]}…'). Storing it anyway.")
     _upsert_env("AAE_ANTHROPIC_API_KEY", key)
-    print(f"→ wrote AAE_ANTHROPIC_API_KEY to {ENV_PATH}")
-    print("  Restart the backend, then run `dev.py ai check`.")
+    print(f"→ stored a {len(key)}-char key in {ENV_PATH}")
+    print("  Now verify it:  dev.py ai check")
     return 0
 
 
@@ -237,8 +251,8 @@ def main() -> None:
     ai = sub.add_parser("ai", help="configure / verify the premium-report API key")
     ai_sub = ai.add_subparsers(dest="ai_cmd", required=True)
     s = ai_sub.add_parser("status", help="show premium-report config"); s.set_defaults(fn=cmd_ai_status)
-    s = ai_sub.add_parser("set", help="store AAE_ANTHROPIC_API_KEY in .env")
-    s.add_argument("key"); s.set_defaults(fn=cmd_ai_set)
+    s = ai_sub.add_parser("set", help="store AAE_ANTHROPIC_API_KEY in .env (prompts if no key given)")
+    s.add_argument("key", nargs="?"); s.set_defaults(fn=cmd_ai_set)
     s = ai_sub.add_parser("check", help="live-verify the Fable 5 premium path")
     s.add_argument("--model"); s.add_argument("--effort", default="low"); s.add_argument("--key")
     s.set_defaults(fn=cmd_ai_check)
