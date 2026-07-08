@@ -2,7 +2,11 @@
 import React, { useState } from "react";
 import { useStore } from "../store/useStore";
 import { ElementModalityRadar } from "./ElementModalityRadar";
-import { LocationPicker } from "./LocationPicker";
+// Lazy: LocationPicker pulls in leaflet (~150 kB chunk) — load it on first
+// "pick on map", not at boot (the map is a rarely-opened affordance).
+const LocationPicker = React.lazy(() =>
+  import("./LocationPicker").then((m) => ({ default: m.LocationPicker }))
+);
 import { ProfileManager } from "./ProfileManager";
 import type { BirthInput, LayerState } from "../types";
 
@@ -93,11 +97,13 @@ export const Controls: React.FC<{
       </div>
       {showMap && (
         <div style={{ marginTop: 8 }}>
-          <LocationPicker
-            lat={birth.lat}
-            lng={birth.lng}
-            onChange={(lat, lng) => setBirth({ lat, lng })}
-          />
+          <React.Suspense fallback={<p className="dim" style={{ fontSize: 12 }}>summoning map…</p>}>
+            <LocationPicker
+              lat={birth.lat}
+              lng={birth.lng}
+              onChange={(lat, lng) => setBirth({ lat, lng })}
+            />
+          </React.Suspense>
         </div>
       )}
       <div style={{ height: 8 }} />

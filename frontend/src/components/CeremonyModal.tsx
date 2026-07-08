@@ -2,7 +2,10 @@
 // Replaces the "tax form" experience with something ceremonial.
 import React, { useEffect, useState } from "react";
 import { useStore } from "../store/useStore";
-import { LocationPicker } from "./LocationPicker";
+// Lazy for the same reason as Controls: leaflet only loads on map open.
+const LocationPicker = React.lazy(() =>
+  import("./LocationPicker").then((m) => ({ default: m.LocationPicker }))
+);
 import type { BirthInput } from "../types";
 
 const STEPS = [
@@ -59,8 +62,12 @@ export const CeremonyModal: React.FC<Props> = ({ onClose }) => {
   const set = (fields: Partial<BirthInput>) =>
     setDraft((d) => ({ ...d, ...fields }));
 
-  // Silently try to geolocate on mount so the location step arrives pre-filled.
+  // Geolocate when the user REACHES the location step — not on mount. The
+  // ceremony auto-opens on first visit, so a mount-time request meant a
+  // permission prompt at first paint (bad first impression for a
+  // privacy-first app, and a Lighthouse best-practices deduction).
   useEffect(() => {
+    if (step !== 2) return;
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
       (pos) => {
@@ -72,7 +79,7 @@ export const CeremonyModal: React.FC<Props> = ({ onClose }) => {
       () => undefined, // silently ignore denial
       { timeout: 5000 }
     );
-  }, []);
+  }, [step]);
 
   const cast = () => {
     setCasting(true);
@@ -203,11 +210,13 @@ export const CeremonyModal: React.FC<Props> = ({ onClose }) => {
               </button>
               {showMap && (
                 <div style={{ marginTop: 10 }}>
-                  <LocationPicker
-                    lat={draft.lat}
-                    lng={draft.lng}
-                    onChange={(lat, lng) => set({ lat, lng })}
-                  />
+                  <React.Suspense fallback={<p className="dim" style={{ fontSize: 12 }}>summoning map…</p>}>
+                    <LocationPicker
+                      lat={draft.lat}
+                      lng={draft.lng}
+                      onChange={(lat, lng) => set({ lat, lng })}
+                    />
+                  </React.Suspense>
                 </div>
               )}
             </div>

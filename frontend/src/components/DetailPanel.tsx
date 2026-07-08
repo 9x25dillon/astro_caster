@@ -388,7 +388,7 @@ export const DetailPanel: React.FC = () => {
 
       <h2 className="section" style={{ marginTop: 18 }}>Astra · Reflection</h2>
       <div style={{ marginBottom: 8 }}>
-        <select value={lens} onChange={(e) => setLens(e.target.value as Lens)}>
+        <select aria-label="Reading lens" value={lens} onChange={(e) => setLens(e.target.value as Lens)}>
           {LENSES.map((l) => (
             <option key={l} value={l}>
               {l[0].toUpperCase() + l.slice(1)} lens

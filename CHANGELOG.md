@@ -3,6 +3,40 @@
 Per-phase log for the Production Hardening & Symbolic Intelligence Expansion pass.
 Baseline: `d9afc4b` (36 backend tests, clean frontend build).
 
+## H1 touch polish — wheel gestures, lazy leaflet, gate recorded (2026-07-08, h1-touch-polish)
+
+The mobile close-out: the wheel becomes a real touch instrument, the last
+boot-path fat is deferred, and the H1 exit gate is formally recorded.
+
+- **Wheel touch pass** (`ChartWheel.tsx`): two-finger **pinch-zoom** (1x–4x,
+  midpoint-stable, single-finger pan while zoomed, double-tap reset);
+  **long-press (450 ms) = hover-popover equivalence** — the influence popover
+  renders off `hovered`, which touch could never reach (interactive elements
+  carry a `data-pop` descriptor; one svg-level handler resolves the target).
+  Planet glyphs gain a generous invisible hit disc; with pinch-zoom any
+  target scales past 44 px. The svg is now responsive
+  (`max-width: min(100%, 720px)` — it used to overflow phones at a fixed
+  720 px) and `touch-action` flips `pan-y` ↔ `none` by zoom state so page
+  scroll stays natural at rest. New `wheel-touch.spec.ts` (synthetic
+  pointer events drive the same React handlers).
+- **Lazy leaflet**: `LocationPicker` is `React.lazy` in Controls +
+  CeremonyModal — the ~149 kB leaflet chunk loads on first "pick on map",
+  not at boot. Locked by `map-lazy.spec.ts` (asserts zero leaflet requests
+  at boot, chunk + `.leaflet-container` on demand).
+- **Lighthouse gate fixes**: accessibility **84 → 100** (viewport
+  `maximum-scale/user-scalable=no` removed — page pinch-zoom is an a11y
+  right, and the wheel's own pinch works independently of it; timeline
+  slider/date + lens select got labels); **geolocation no longer prompts at
+  first paint** — the ceremony requests it when the user reaches the
+  location step; meta description + `robots.txt` (deliberately
+  `Disallow: /` — a personal instrument is not a publication; costs the SEO
+  score, worth it).
+- **H1 exit recorded** in MOBILE_ROADMAP §6: all criteria met in their
+  current form ("Lighthouse PWA ≥ 95" re-based — the PWA category was
+  retired in Lighthouse 12; installability is proven by manifest + SW +
+  the route-severed offline e2e suite). One manual owner checkbox remains:
+  the literal airplane-mode phone test.
+- Tests: 44 e2e (22 × desktop/Pixel-7, +3 new), build clean.
 ## Full on-device body set — WASM Swiss Ephemeris (2026-07-08, wasm-swiss-bodies)
 
 The last parity gap: North/South Node, Chiron and Black Moon Lilith now compute
