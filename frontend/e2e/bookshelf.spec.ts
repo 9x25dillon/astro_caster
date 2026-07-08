@@ -33,10 +33,13 @@ const OLD_ENTRY = {
 async function seedShelf(page: Page) {
   await page.evaluate(async (entry) => {
     await new Promise<void>((resolve, reject) => {
-      const req = indexedDB.open("astra-bookshelf", 1);
+      const req = indexedDB.open("astra-bookshelf", 2);
       req.onupgradeneeded = () => {
-        if (!req.result.objectStoreNames.contains("sessions")) {
-          req.result.createObjectStore("sessions", { keyPath: "seed" });
+        const db = req.result;
+        if (!db.objectStoreNames.contains("sessions")) db.createObjectStore("sessions", { keyPath: "seed" });
+        if (!db.objectStoreNames.contains("journal")) {
+          const j = db.createObjectStore("journal", { keyPath: "id" });
+          j.createIndex("seed", "seed", { unique: false });
         }
       };
       req.onsuccess = () => {
@@ -127,12 +130,7 @@ test("a generated Oracle Report shelves itself", async ({ page }) => {
     page.evaluate(
       () =>
         new Promise((resolve) => {
-          const req = indexedDB.open("astra-bookshelf", 1);
-          req.onupgradeneeded = () => {
-            if (!req.result.objectStoreNames.contains("sessions")) {
-              req.result.createObjectStore("sessions", { keyPath: "seed" });
-            }
-          };
+          const req = indexedDB.open("astra-bookshelf"); // versionless read
           req.onsuccess = () => {
             const t = req.result.transaction("sessions", "readonly");
             const g = t.objectStore("sessions").get("e2e-autosave-seed");

@@ -27,9 +27,9 @@ statuses inline._
 
 ## Track 3 — Deepen the practice
 
-- **P1 The Journal (M)** — capture written responses to the readings'
-  journal prompts, keyed to session seed + date, local-first, markdown
-  export; reflections shelve next to the reading that prompted them.
+- **P1 The Journal (M)** — ✅ 2026-07-08 (`next-arc-journal`): JournalPad
+  under prompted cards + freeform per shelf entry, bookshelf DB v2, markdown
+  export, Vault @3 carries it.
 - **P2 Morning panel (S)** — at-a-glance boot surface: today's card + the
   day's tightest transits (all engines exist; composition only).
 - **P3 Deck-art plates v2 (L, paid, opt-in network)** — render actual card
