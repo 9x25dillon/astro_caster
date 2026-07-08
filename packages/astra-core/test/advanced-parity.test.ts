@@ -47,8 +47,8 @@ for (const kase of payload.cases) {
     const N = kase.harmonic.n;
     const harmTol = POS_TOL * N;
     const harm = harmonicChart(req, N);
-    const expPos = new Map(kase.harmonic.positions.map((p: any) => [p.id, p]));
-    const actPos = new Map(harm.positions.map((p) => [p.id, p]));
+    const expPos = new Map<string, any>(kase.harmonic.positions.map((p: any) => [p.id, p]));
+    const actPos = new Map(harm.positions.map((p) => [p.id, p] as const));
     assert.deepEqual([...actPos.keys()].sort(), [...expPos.keys()].sort(), "harmonic ids");
     for (const [id, ep] of expPos) {
       const ap = actPos.get(id)!;

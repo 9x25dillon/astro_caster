@@ -141,14 +141,18 @@ implementations) into a mechanical gate.
      (Sun-longitude root-find via `eclipticLonSpeed`). Reproduces
      `parity/predictive.json`; the return chart is compared at the backend's
      instant because the root-find amplifies the ~arcsec cross-engine Sun
-     difference into tens of seconds of time. **Eclipse timelines deferred** —
-     Swiss eclipse-search is the hard-20%, bundled with the WASM-Swiss escalation.
+     difference into tens of seconds of time. **Eclipse timelines DONE 2026-07-07**
+     — the feared hard-20% turned out portable: astronomy-engine ships its own
+     eclipse search (`NextGlobalSolarEclipse` / `NextLunarEclipse`), which agrees
+     with the Swiss search on dates, natures, longitudes and natal activations
+     for the 8-eclipse reference window (`parity/predictive.json`).
    - ✅ **advanced DONE 2026-07-07** — `@astra/core/advanced` (`advanced.ts`):
      harmonic charts (positions ×N + conjunctions), midpoint trees (Ebertin 90°
      dial), and fixed-star contacts (self-contained precession-adjusted
      catalogue). Reproduces `parity/advanced.json` — harmonic tolerances scaled
      ×N (the multiply amplifies cross-engine noise), the star catalogue exact.
-     **§3.4 engines complete** (eclipses excepted).
+     **§3.4 engines complete** — every deterministic technique now runs on-device
+     and is wired into its modal's offline fallback.
 5. Backend adopts the same vectors as *its* regression suite — the two stacks
    are now pinned to each other symmetrically.
 

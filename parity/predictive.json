@@ -1,6 +1,113 @@
 {
  "cases": [
   {
+   "eclipses": {
+    "count": 8,
+    "events": [
+     {
+      "activations": [
+       {
+        "aspect": "conjunction",
+        "natal_body": "Jupiter",
+        "orb": 1.35
+       },
+       {
+        "aspect": "opposition",
+        "natal_body": "Uranus",
+        "orb": 2.45
+       }
+      ],
+      "date": "2026-02-17",
+      "degree": 28,
+      "kind": "solar",
+      "longitude": 328.8364,
+      "nature": "annular",
+      "sign": "Aquarius"
+     },
+     {
+      "activations": [
+       {
+        "aspect": "opposition",
+        "natal_body": "Midheaven",
+        "orb": 0.09
+       }
+      ],
+      "date": "2026-03-03",
+      "degree": 12,
+      "kind": "lunar",
+      "longitude": 162.8592,
+      "nature": "total",
+      "sign": "Virgo"
+     },
+     {
+      "activations": [],
+      "date": "2026-08-12",
+      "degree": 20,
+      "kind": "solar",
+      "longitude": 140.0391,
+      "nature": "total",
+      "sign": "Leo"
+     },
+     {
+      "activations": [],
+      "date": "2026-08-28",
+      "degree": 4,
+      "kind": "lunar",
+      "longitude": 334.8525,
+      "nature": "partial",
+      "sign": "Pisces"
+     },
+     {
+      "activations": [],
+      "date": "2027-02-06",
+      "degree": 17,
+      "kind": "solar",
+      "longitude": 317.6296,
+      "nature": "annular",
+      "sign": "Aquarius"
+     },
+     {
+      "activations": [
+       {
+        "aspect": "conjunction",
+        "natal_body": "Uranus",
+        "orb": 0.69
+       }
+      ],
+      "date": "2027-02-20",
+      "degree": 1,
+      "kind": "lunar",
+      "longitude": 151.9829,
+      "nature": "penumbral",
+      "sign": "Virgo"
+     },
+     {
+      "activations": [
+       {
+        "aspect": "conjunction",
+        "natal_body": "Mars",
+        "orb": 0.95
+       }
+      ],
+      "date": "2027-07-18",
+      "degree": 25,
+      "kind": "lunar",
+      "longitude": 295.961,
+      "nature": "penumbral",
+      "sign": "Capricorn"
+     },
+     {
+      "activations": [],
+      "date": "2027-08-02",
+      "degree": 9,
+      "kind": "solar",
+      "longitude": 129.9183,
+      "nature": "total",
+      "sign": "Leo"
+     }
+    ],
+    "start_iso": "2026-01-01T00:00:00+00:00"
+   },
    "id": "einstein-ulm-1879",
    "progressed": {
     "age_years": 146.8,
@@ -1341,6 +1448,96 @@
    }
   },
   {
+   "eclipses": {
+    "count": 8,
+    "events": [
+     {
+      "activations": [
+       {
+        "aspect": "conjunction",
+        "natal_body": "Mars",
+        "orb": 0.87
+       }
+      ],
+      "date": "2026-02-17",
+      "degree": 28,
+      "kind": "solar",
+      "longitude": 328.8364,
+      "nature": "annular",
+      "sign": "Aquarius"
+     },
+     {
+      "activations": [],
+      "date": "2026-03-03",
+      "degree": 12,
+      "kind": "lunar",
+      "longitude": 162.8592,
+      "nature": "total",
+      "sign": "Virgo"
+     },
+     {
+      "activations": [],
+      "date": "2026-08-12",
+      "degree": 20,
+      "kind": "solar",
+      "longitude": 140.0391,
+      "nature": "total",
+      "sign": "Leo"
+     },
+     {
+      "activations": [],
+      "date": "2026-08-28",
+      "degree": 4,
+      "kind": "lunar",
+      "longitude": 334.8525,
+      "nature": "partial",
+      "sign": "Pisces"
+     },
+     {
+      "activations": [
+       {
+        "aspect": "conjunction",
+        "natal_body": "Uranus",
+        "orb": 2.82
+       }
+      ],
+      "date": "2027-02-06",
+      "degree": 17,
+      "kind": "solar",
+      "longitude": 317.6296,
+      "nature": "annular",
+      "sign": "Aquarius"
+     },
+     {
+      "activations": [],
+      "date": "2027-02-20",
+      "degree": 1,
+      "kind": "lunar",
+      "longitude": 151.9829,
+      "nature": "penumbral",
+      "sign": "Virgo"
+     },
+     {
+      "activations": [],
+      "date": "2027-07-18",
+      "degree": 25,
+      "kind": "lunar",
+      "longitude": 295.961,
+      "nature": "penumbral",
+      "sign": "Capricorn"
+     },
+     {
+      "activations": [],
+      "date": "2027-08-02",
+      "degree": 9,
+      "kind": "solar",
+      "longitude": 129.9183,
+      "nature": "total",
+      "sign": "Leo"
+     }
+    ],
+    "start_iso": "2026-01-01T00:00:00+00:00"
+   },
    "id": "greenwich-noon-j2000",
    "progressed": {
     "age_years": 26.0,

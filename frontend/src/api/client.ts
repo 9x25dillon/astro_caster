@@ -902,9 +902,8 @@ export function fetchFixedStars(natal: BirthInput, orb = 1.5): Promise<FixedStar
 
 // ── On-device fallbacks (@astra/core §3.4) ──────────────────────────────────────
 // Reduced body set (Sun–Pluto, Asc, MC, Part of Fortune — no Node/Chiron/Lilith),
-// matching the other offline paths. Eclipse timelines have NO offline path (the
-// Swiss eclipse-search isn't ported), so the Predictive → Eclipses tab still
-// needs the backend.
+// matching the other offline paths. Eclipses now work offline too via
+// astronomy-engine's own eclipse search (localEclipses).
 
 /** True when an error is a lost-connection failure (vs. an HTTP status). */
 export function isOfflineError(msg: string): boolean {
@@ -950,6 +949,10 @@ export async function localSolarReturn(natal: BirthInput, year: number): Promise
   const c = await core();
   const sr = c.solarReturn(natal, year);
   return { ...sr, disclaimer: PRED_DISCLAIMER } as unknown as SolarReturnChart;
+}
+export async function localEclipses(natal: BirthInput, startIso: string, count = 8): Promise<EclipseTimeline> {
+  const c = await core();
+  return c.eclipseTimeline(natal, startIso, count) as unknown as EclipseTimeline;
 }
 
 export async function localHarmonic(natal: BirthInput, harmonic: number): Promise<HarmonicChart> {

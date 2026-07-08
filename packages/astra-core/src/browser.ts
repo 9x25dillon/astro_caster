@@ -47,8 +47,12 @@ export {
   progressedChart,
   solarReturn,
   solarReturnJd,
+  eclipseTimeline,
   type ProgressedChart,
   type SolarReturnChart,
+  type EclipseTimeline,
+  type EclipseEvent,
+  type EclipseContact,
 } from "./predictive.js";
 export {
   harmonicChart,
