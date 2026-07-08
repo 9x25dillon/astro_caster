@@ -25,7 +25,9 @@ const payload = JSON.parse(
   readFileSync(path.join(here, "../../../parity/predictive.json"), "utf8")
 );
 const TOL = payload.tolerances as Record<string, number>;
-const CROSS = 5;
+// Same Swiss C code + data on both stacks now — the ×5 cross-engine widening
+// collapses; the contract tolerances in the vector are the outer bound.
+const CROSS = 1;
 const BOUNDARY_MARGIN = TOL["planet.longitude_deg"] * CROSS * 2;
 
 const MAX_ORB: Record<string, number> = {
@@ -84,7 +86,7 @@ for (const kase of payload.cases) {
     //    root-find, which amplifies the ~arcsec cross-engine Sun difference into
     //    tens of seconds of time (dt = dLon / 0.9856°/day).
     const sr = solarReturn(req, kase.solar_return.year);
-    isoWithin(sr.return_iso, kase.solar_return.return_iso, 600, "return_iso");
+    isoWithin(sr.return_iso, kase.solar_return.return_iso, 2, "return_iso");
 
     // 2. Chart parity: build the return chart at the BACKEND's instant so the
     //    root-find offset doesn't leak into the comparison — otherwise the
@@ -112,18 +114,17 @@ for (const kase of payload.cases) {
     assert.deepEqual(chart.elements, kase.solar_return.elements, "SR elements");
     assert.deepEqual(chart.modalities, kase.solar_return.modalities, "SR modalities");
 
-    // Eclipse timeline — astronomy-engine's eclipse search vs the Swiss one.
-    // Eclipses are precisely timed, so dates align to the day; the luminary's
-    // longitude (and thus sign/degree + activations) matches within tolerance.
+    // Eclipse timeline — the same Swiss search on both stacks: exact dates,
+    // natures, longitudes and activation sets.
     const ecl = eclipseTimeline(req, kase.eclipses.start_iso, kase.eclipses.count);
     assert.equal(ecl.eclipses.length, kase.eclipses.events.length, "eclipse count");
     for (let i = 0; i < kase.eclipses.events.length; i++) {
       const e = kase.eclipses.events[i];
       const a = ecl.eclipses[i]; // both sorted by time; eclipses are weeks apart
-      assert.ok(dayDiff(a.date, e.date) <= 1, `eclipse ${i} date ${a.date} vs ${e.date}`);
+      assert.equal(a.date, e.date, `eclipse ${i} date`);
       assert.equal(a.kind, e.kind, `eclipse ${i} kind`);
       assert.equal(a.nature, e.nature, `eclipse ${i} nature`);
-      assert.ok(angularSeparation(a.longitude, e.longitude) <= 0.2, `eclipse ${i} lon ${a.longitude} vs ${e.longitude}`);
+      assert.ok(angularSeparation(a.longitude, e.longitude) <= 1e-4, `eclipse ${i} lon ${a.longitude} vs ${e.longitude}`);
       // Activations by identity; membership can flip only for orbs at the 3° cutoff.
       const key = (c: any) => `${c.natal_body}|${c.aspect}`;
       const expA = new Map<string, number>(e.activations.map((c: any) => [key(c), c.orb]));

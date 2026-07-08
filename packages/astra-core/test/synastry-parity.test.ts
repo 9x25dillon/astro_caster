@@ -31,7 +31,9 @@ const payload = JSON.parse(
   readFileSync(path.join(here, "../../../parity/synastry.json"), "utf8")
 );
 const TOL = payload.tolerances as Record<string, number>;
-const CROSS = 5; // cross-engine widening for angular fields (parity/README.md)
+// Same Swiss C code + data on both stacks now — the ×5 cross-engine widening
+// collapses; the contract tolerances in the vector are the outer bound.
+const CROSS = 1;
 const BOUNDARY_MARGIN = TOL["planet.longitude_deg"] * CROSS * 2;
 
 const MAX_ORB: Record<string, number> = {

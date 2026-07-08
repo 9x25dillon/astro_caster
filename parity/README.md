@@ -14,7 +14,7 @@ either side is a red build, not a bug report.
 | `forecast.json` | `astra-parity/forecast@1` | identity + ≤1-day date window + orb tol | Transit scan events (stations, t2t, t2n) over 60 days for each reference natal, Sun–Pluto transits |
 | `tarot-reading.json` | `astra-parity/tarot-reading@1` | **exact** | Offline `build_reading_core` — seed + dealt cards + per-card meaning + natal signature (links/themes/shadows) |
 | `synastry.json` | `astra-parity/synastry@1` | tolerance (positions) + **exact** (grid, tarot) | Relational engine for the Einstein × Greenwich pair: inter-aspects, house grid, composite (midpoint), Davison, synastry-tarot bond (v0.1 supported body set) |
-| `predictive.json` | `astra-parity/predictive@1` | tolerance | Predictive engine: secondary progressions, solar return, and an 8-eclipse timeline per reference natal. The return instant is a Sun-longitude root-find (cross-engine sensitive), so its chart is compared at the shared instant; eclipses use astronomy-engine's own search and match the Swiss one on date/nature/longitude/activations |
+| `predictive.json` | `astra-parity/predictive@1` | tolerance | Predictive engine: secondary progressions, solar return, and an 8-eclipse timeline per reference natal. The return instant is a Sun-longitude root-find (cross-engine sensitive), so its chart is compared at the shared instant; eclipses use the same Swiss search on both stacks — exact dates/natures/longitudes/activations |
 | `advanced.json` | `astra-parity/advanced@1` | tolerance (harmonic ×N) + **exact** (star catalogue) | Advanced engine: harmonic chart (N=5), midpoint tree (90° dial), fixed-star contacts per reference natal |
 
 `natal-chart`, `forecast` and the position fields of `synastry` are
@@ -32,8 +32,12 @@ cd backend
 
 Regeneration must be **reviewed, not routine**: the vectors only change when
 the engine intentionally changes. Each file records the ephemeris source
-(`engine`); consumers apply the strict tolerances same-engine and may widen
-them (×5) across engines (moshier ↔ swiss-files differ by up to ~1 arcmin).
+(`engine`). Since 2026-07-08 **both stacks run the same Swiss Ephemeris C**
+(pyswisseph on the backend, the vendored wasm build in @astra/core) against
+the same committed seas-only data — so the TS suite compares near-exactly
+(~1e-6, the vectors' 6-dp float rounding) and the ×5 cross-engine widening
+that the astronomy-engine era needed is retired. The tolerances stored in
+the files remain the contractual outer bound.
 
 ## Comparison rules (mirror these in any consumer)
 

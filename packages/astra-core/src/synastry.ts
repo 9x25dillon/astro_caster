@@ -5,7 +5,7 @@
 //
 // Drift-locked to the backend by parity/synastry.json. Restricted to the
 // @astra/core supported body set (Sun–Pluto, Asc, MC, Part of Fortune) — the
-// same restriction the tarot/forecast vectors use — since astronomy-engine
+// same restriction the tarot/forecast vectors use — since the engine
 // lacks the lunar Node / Chiron / Lilith.
 
 import {

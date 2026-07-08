@@ -241,7 +241,7 @@ def build_forecast_payload() -> dict:
                 "min_sig": FORECAST_MIN_SIG, "events": slim,
             })
         return {"schema": "astra-parity/forecast@1",
-                "date_tolerance_days": 1, "orb_tolerance_deg": 0.2,
+                "date_tolerance_days": 0, "orb_tolerance_deg": 1e-6,
                 "cases": cases}
     finally:
         FC._TRANSIT_BODIES = saved

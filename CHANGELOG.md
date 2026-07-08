@@ -3,6 +3,33 @@
 Per-phase log for the Production Hardening & Symbolic Intelligence Expansion pass.
 Baseline: `d9afc4b` (36 backend tests, clean frontend build).
 
+## All bodies on WASM Swiss — astronomy-engine retired (2026-07-08, wasm-swiss-all-bodies)
+
+The parity story's final form: Sun–Pluto, houses, angles and the eclipse
+search all moved onto the vendored WASM Swiss Ephemeris. Both stacks now run
+the **same C code against the same committed seas-only data**, so the
+cross-engine tolerance machinery collapses to float-rounding noise.
+
+- **`ephemeris.ts` is Swiss end-to-end**: one 13-body table in backend order
+  (South Node still derived inline), speed from `xx[3]` instead of a central
+  difference, houses/angles via `swe_houses_wrap` (every pyswisseph house
+  system now works on-device, and the **Vertex is real** instead of null),
+  eclipse search via `swe_sol_eclipse_when_glob` / `swe_lun_eclipse_when`
+  with the backend's flag set and retflag→nature decoding (annular_total is
+  now representable). `calculateChart` throws a clear error if
+  `initSwisseph()` never ran. Tropical-only remains (the wasm build exports
+  no sidereal mode).
+- **astronomy-engine removed** from both package.jsons — the lazy engine
+  chunk drops 161→67 kB, precache 1758→1657 KiB. `no-external` holds.
+- **Tolerances collapsed**: chart parity now asserts ≤1e-6 (observed 0.0);
+  the ×5 cross-engine widening is retired in every suite; forecast vector
+  contract tightened to **exact dates** + 1e-6 orbs; solar-return instant
+  ±600 s → **±2 s**; eclipses exact dates/natures + 1e-4 longitudes.
+  Vectors themselves unchanged except the two forecast tolerance fields
+  (the backend side was already the drift-lock config).
+- Tests: 30 core at the collapsed tolerances, 173 backend, 46 e2e, `--check`
+  tripwire green.
+
 ## Track D housekeeping — observability close-out + docs reconciled (2026-07-08, track-d-housekeeping)
 
 The last two open observability items closed, and the progress docs brought

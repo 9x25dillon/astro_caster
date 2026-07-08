@@ -22,7 +22,9 @@ const payload = JSON.parse(
   readFileSync(path.join(here, "../../../parity/advanced.json"), "utf8")
 );
 const TOL = payload.tolerances as Record<string, number>;
-const CROSS = 5;
+// Same Swiss C code + data on both stacks now — the ×5 cross-engine widening
+// collapses; the contract tolerances in the vector are the outer bound.
+const CROSS = 1;
 const POS_TOL = TOL["planet.longitude_deg"] * CROSS; // 0.05°
 
 /** Compare two sets of {key, orb, cutoff-membership} tuples: matched orbs within
