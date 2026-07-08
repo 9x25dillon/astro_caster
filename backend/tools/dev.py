@@ -137,7 +137,15 @@ def cmd_ai_status(_args) -> int:
 
 
 def cmd_ai_set(args) -> int:
-    _upsert_env("AAE_ANTHROPIC_API_KEY", args.key)
+    key = args.key.strip()
+    if "..." in key or key in ("sk-ant-", "<key>", "sk-ant-xxx", "your-key"):
+        print("That's the placeholder, not a real key — nothing was written.\n"
+              "Paste your actual key (https://console.anthropic.com → API keys):\n"
+              "  dev.py ai set sk-ant-api03-<the-rest-of-your-key>")
+        return 2
+    if not key.startswith("sk-ant-"):
+        print(f"⚠ Anthropic keys start with 'sk-ant-' (got '{key[:8]}…'). Storing it anyway.")
+    _upsert_env("AAE_ANTHROPIC_API_KEY", key)
     print(f"→ wrote AAE_ANTHROPIC_API_KEY to {ENV_PATH}")
     print("  Restart the backend, then run `dev.py ai check`.")
     return 0
