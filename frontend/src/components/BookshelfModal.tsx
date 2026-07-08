@@ -1,0 +1,114 @@
+// BookshelfModal.tsx — B2: the local report library. Every Oracle session
+// (and its deluxe edition) shelves itself; here they reopen, reprint (fully
+// offline — chart re-cast + plates re-dealt on-device), or burn.
+import React, { useEffect, useState } from "react";
+import { shelfDelete, shelfList, type ShelfEntry } from "../lib/bookshelf";
+import { printSessionTome } from "../lib/tomePrint";
+import { Interpretation } from "./DetailPanel";
+import { trackEvent } from "../api/client";
+
+const SPREAD_LABEL: Record<string, string> = {
+  daily: "Daily", three_card: "Three-Card", elemental_balance: "Elemental",
+  planetary_seven: "Planetary Seven", twelve_house: "Twelve Houses",
+  relationship: "Relationship", transit_pressure: "Transit Pressure",
+  shadow_integration: "Shadow", creative_expression: "Creative",
+};
+
+export const BookshelfModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+  const [entries, setEntries] = useState<ShelfEntry[] | null>(null);
+  const [openSeed, setOpenSeed] = useState<string | null>(null);
+  const [msg, setMsg] = useState("");
+
+  const load = () => shelfList().then(setEntries).catch(() => setEntries([]));
+  useEffect(() => { load(); }, []);
+
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [onClose]);
+
+  async function reprint(e: ShelfEntry) {
+    if (!e.personal) return;
+    const ok = await printSessionTome({
+      reportMarkdown: e.personal.report_markdown,
+      seed: e.seed,
+      spread: e.personal.spread || e.spread,
+      source: e.source,
+      question: e.question,
+      lineage: e.lineage,
+      date: e.date,
+      oracleDate: e.personal.oracle_date,
+      birth: e.birth,
+      chart: null, // re-cast on-device from the saved birth
+    });
+    setMsg(ok ? "" : "Popup blocked — allow popups for this site.");
+    if (ok) trackEvent("bookshelf_reprint", { spread: e.spread });
+  }
+
+  async function burn(e: ShelfEntry) {
+    if (!window.confirm("Remove this session from the shelf? The reading cannot be re-generated for free.")) return;
+    await shelfDelete(e.seed);
+    if (openSeed === e.seed) setOpenSeed(null);
+    load();
+  }
+
+  const dateOf = (e: ShelfEntry) => e.updatedAt.slice(0, 10);
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="shelf-modal" onClick={(ev) => ev.stopPropagation()}>
+        <div className="shelf-header">
+          <h2>❖ The Bookshelf</h2>
+          <button className="modal-close" onClick={onClose}>✕</button>
+        </div>
+        <p className="shelf-sub">
+          Every Oracle session shelves itself here — reopen a reading, reprint
+          its tome (computed on your device, works offline), or burn it.
+          Vault exports carry the shelf.
+        </p>
+        {msg && <p className="shelf-msg">{msg}</p>}
+
+        {entries === null && <p className="muted">Opening the shelf…</p>}
+        {entries?.length === 0 && (
+          <p className="muted" style={{ fontStyle: "italic" }}>
+            The shelf is empty — generate an Oracle Report and it will appear here.
+          </p>
+        )}
+
+        <div className="shelf-list">
+          {entries?.map((e) => (
+            <div key={e.seed} className={`shelf-item ${openSeed === e.seed ? "open" : ""}`}>
+              <div className="shelf-row" onClick={() => setOpenSeed(openSeed === e.seed ? null : e.seed)}>
+                <span className="shelf-date">{dateOf(e)}</span>
+                <span className="shelf-q">{e.question}</span>
+                <span className="shelf-chips">
+                  <span className="chip">{SPREAD_LABEL[e.spread] ?? e.spread}</span>
+                  {e.personal && <span className="chip gilt">✶ deluxe</span>}
+                  <span className={`chip ${e.ai_source === "llm" ? "" : "dim"}`}>
+                    {e.ai_source === "llm" ? (e.model?.split("-").slice(1, 3).join(" ") || "live") : "offline"}
+                  </span>
+                </span>
+              </div>
+              {openSeed === e.seed && (
+                <div className="shelf-body">
+                  <div className="shelf-actions">
+                    {e.personal && (
+                      <button className="ghost" onClick={() => reprint(e)}>
+                        ⎙ Reprint tome
+                      </button>
+                    )}
+                    <button className="ghost shelf-burn" onClick={() => burn(e)}>
+                      🜂 Burn
+                    </button>
+                  </div>
+                  <Interpretation text={e.report} />
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};

@@ -32,7 +32,8 @@ import {
 import { CLASSROOM, EXPRESSION_KINDS, generateArtifact, type Artifact } from "../lib/tarotCopy";
 import { Interpretation } from "./DetailPanel";
 import { useSpeech, speakableText } from "../lib/speech";
-import { printReport } from "../lib/printReport";
+import { printSessionTome } from "../lib/tomePrint";
+import { shelfAttachPersonal, shelfSaveOracle } from "../lib/bookshelf";
 import { chaosLetters, wordValue, reduceDigit, planetToKamea } from "../lib/sigil";
 import { deriveSoulProfile } from "../lib/archetypes";
 import { computeLifePath, LIFE_PATH_DATA, getResonance } from "../lib/numerology";
@@ -245,6 +246,13 @@ export const ArcanaModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       setOracleCtx({ date, generatedAt: localToday() });
       setPersonal(null);   // a deluxe edition compiles ONE session — clear stale
       setReportToken(loadReportToken(r.seed));   // restore this session's claim
+      // Bookshelf (B2): every Oracle session shelves itself — paid readings
+      // become a permanent local library. Fire-and-forget.
+      shelfSaveOracle({
+        seed: r.seed, question: r.question, spread: r.spread, source: r.source,
+        lineage: r.lineage, date, ai_source: r.ai_source, model: r.model ?? null,
+        report: r.report, birth: birth ?? null,
+      }).catch(() => undefined);
       trackEvent("oracle_report", {
         spread, source, ai: r.ai_source, model: r.model ?? "offline",
       });
@@ -315,6 +323,12 @@ export const ArcanaModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         reportToken,
       });
       setPersonal(p);
+      // Bookshelf: the deluxe edition attaches to its session's shelf entry.
+      shelfAttachPersonal(p.seed, {
+        report_markdown: p.report_markdown, short_seed: p.short_seed,
+        oracle_date: p.oracle_date, ai_source: p.ai_source,
+        model: p.model ?? null, spread: p.spread,
+      }).catch(() => undefined);
       trackEvent("personal_report", {
         spread: p.spread, source: p.source, ai: p.ai_source, model: p.model ?? "offline",
       });
@@ -391,43 +405,19 @@ export const ArcanaModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
   async function printPersonalReport() {
     if (!personal) return;
-    // {{BIRTH_INFO}} is filled HERE, locally — birth details never leave the
-    // browser (the server/AI only ever saw the placeholder).
-    const pad = (n: number) => `${n}`.padStart(2, "0");
-    const birthInfo = birth
-      ? `${birth.label ? birth.label + " · " : ""}${birth.year}-${pad(birth.month)}-${pad(birth.day)}` +
-        ` ${pad(birth.hour)}:${pad(birth.minute)} · ${birth.lat.toFixed(2)}°, ${birth.lng.toFixed(2)}°`
-      : "";
-    // Plates page: re-deal the SESSION's spread deterministically on-device —
-    // same chart + spread + question + date + lineage ⇒ the same cards the
-    // report reads (parity-locked), not a new shuffle. Optional on failure.
-    let spreadCards;
-    try {
-      if (chart && oracle) {
-        const redeal = await localTarotReading(chart, oracle.spread, oracle.question, {
-          source: oracle.source, date: oracleCtx?.date ?? undefined,
-        });
-        spreadCards = redeal.cards.map((c) => ({
-          position: c.position, name: c.card.name, arcana: c.card.arcana,
-          number: c.card.number, element: c.card.element, reversed: c.reversed,
-          natalLink: c.natal_link, meaning: c.meaning, keywords: c.card.keywords,
-        }));
-      }
-    } catch { /* the tome still prints without plates */ }
-    const ok = printReport(personal.report_markdown, {
-      spreadCards,
-      spreadName: personal.spread,
-      lineage: oracle?.lineage,
-      birthInfo,
-      sigilPhrase: oracle?.question || "astra arcana",
-      title: `Astra Arcana — Personal Report · ${personal.oracle_date}`,
-      // Tome frontispiece: the user's own constellation + session star field.
-      chartPlanets: chart?.planets.map((p) => ({ id: p.id, longitude: p.longitude })),
+    // Shared with the Bookshelf's reprint path (lib/tomePrint.ts) — the live
+    // chart is reused here; a shelved session re-casts it on-device.
+    const ok = await printSessionTome({
+      reportMarkdown: personal.report_markdown,
       seed: personal.seed,
-      // Appendix page: each body's metal, opus stage, element, and principle.
-      alchemyPlanets: chart?.planets.map((p) => ({
-        id: p.id, element: p.element, modality: p.modality, sign: p.sign,
-      })),
+      spread: personal.spread,
+      source: oracle?.source ?? source,
+      question: oracle?.question || "astra arcana",
+      lineage: oracle?.lineage,
+      date: oracleCtx?.date ?? null,
+      oracleDate: personal.oracle_date,
+      birth: birth ?? null,
+      chart,
     });
     if (!ok) setErr("Popup blocked — allow popups for this site to print the report.");
     else trackEvent("personal_report_print", { spread: personal.spread });

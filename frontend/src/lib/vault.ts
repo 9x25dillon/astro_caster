@@ -7,17 +7,21 @@
 // nothing leaves the browser. It contains birth data and entitlement tokens,
 // so it is the user's to guard (the UI says so).
 
+import { shelfImport, shelfList, type ShelfEntry } from "./bookshelf";
+
 const PREFIX = "aae.";
-const FORMAT = "astra-vault@1";
+const FORMAT_V1 = "astra-vault@1";
+const FORMAT = "astra-vault@2"; // @2 adds the Bookshelf (IndexedDB library)
 
 export interface VaultFile {
   format: string;
   exported_at: string;
   localStorage: Record<string, string>;
+  bookshelf?: ShelfEntry[];
 }
 
-/** Snapshot every aae.* localStorage key. */
-export function buildVault(): VaultFile {
+/** Snapshot every aae.* localStorage key + the Bookshelf library. */
+export async function buildVault(): Promise<VaultFile> {
   const state: Record<string, string> = {};
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
@@ -26,12 +30,18 @@ export function buildVault(): VaultFile {
       if (v !== null) state[key] = v;
     }
   }
-  return { format: FORMAT, exported_at: new Date().toISOString(), localStorage: state };
+  const bookshelf = await shelfList().catch(() => [] as ShelfEntry[]);
+  return {
+    format: FORMAT,
+    exported_at: new Date().toISOString(),
+    localStorage: state,
+    bookshelf,
+  };
 }
 
-/** Download the vault as astra-vault-YYYY-MM-DD.json. Returns the key count. */
-export function downloadVault(): number {
-  const vault = buildVault();
+/** Download the vault as astra-vault-YYYY-MM-DD.json. Returns entry count. */
+export async function downloadVault(): Promise<number> {
+  const vault = await buildVault();
   const blob = new Blob([JSON.stringify(vault, null, 2)], {
     type: "application/json;charset=utf-8",
   });
@@ -41,14 +51,15 @@ export function downloadVault(): number {
   a.download = `astra-vault-${vault.exported_at.slice(0, 10)}.json`;
   a.click();
   URL.revokeObjectURL(url);
-  return Object.keys(vault.localStorage).length;
+  return Object.keys(vault.localStorage).length + (vault.bookshelf?.length ?? 0);
 }
 
-/** Restore a vault file's contents. Only aae.*-prefixed keys are written
- *  (allowlist — a doctored file can't plant arbitrary keys). Existing aae.*
- *  keys the file doesn't carry are left alone. Returns the count written;
- *  throws on an unrecognized file. */
-export function restoreVault(text: string): number {
+/** Restore a vault file's contents (accepts @1 and @2). Only aae.*-prefixed
+ *  keys are written (allowlist — a doctored file can't plant arbitrary keys);
+ *  existing aae.* keys the file doesn't carry are left alone. Bookshelf
+ *  entries import by seed (overwrite). Returns the count restored; throws on
+ *  an unrecognized file. */
+export async function restoreVault(text: string): Promise<number> {
   let parsed: unknown;
   try {
     parsed = JSON.parse(text);
@@ -56,7 +67,8 @@ export function restoreVault(text: string): number {
     throw new Error("not a vault file (invalid JSON)");
   }
   const v = parsed as Partial<VaultFile>;
-  if (v.format !== FORMAT || typeof v.localStorage !== "object" || v.localStorage === null) {
+  const knownFormat = v.format === FORMAT || v.format === FORMAT_V1;
+  if (!knownFormat || typeof v.localStorage !== "object" || v.localStorage === null) {
     throw new Error("not a vault file (unrecognized format)");
   }
   let written = 0;
@@ -64,6 +76,9 @@ export function restoreVault(text: string): number {
     if (!key.startsWith(PREFIX) || typeof value !== "string") continue;
     localStorage.setItem(key, value);
     written += 1;
+  }
+  if (Array.isArray(v.bookshelf)) {
+    written += await shelfImport(v.bookshelf);
   }
   return written;
 }
