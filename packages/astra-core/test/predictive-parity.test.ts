@@ -13,6 +13,11 @@ import { fileURLToPath } from "node:url";
 import { angularSeparation, calculateChart, eclipseTimeline, progressedChart, solarReturn } from "../src/index.js";
 import type { ChartRequest } from "../src/index.js";
 
+import { initSwisseph } from "../src/swisseph.js";
+
+// The extended bodies (Node/Chiron/Lilith) ride the WASM Swiss engine.
+await initSwisseph();
+
 const dayDiff = (a: string, b: string) => Math.abs(Date.parse(a) - Date.parse(b)) / 86_400_000;
 
 const here = path.dirname(fileURLToPath(import.meta.url));

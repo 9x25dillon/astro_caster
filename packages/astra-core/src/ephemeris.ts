@@ -3,10 +3,11 @@
 // backend's defaults: apparent geocentric positions on the TRUE ecliptic of
 // date; houses from apparent sidereal time (GAST) and true obliquity.
 //
-// v0.1 body coverage: Sun..Pluto + Ascendant/Midheaven + Part of Fortune.
-// North/South Node, Chiron and Lilith need an ephemeris source astronomy-
-// engine doesn't provide — tracked as the WASM-escalation decision in
-// MOBILE_ROADMAP §3.
+// Body coverage: Sun..Pluto via astronomy-engine, plus North/South Node,
+// Chiron and Lilith via the vendored WASM Swiss Ephemeris (swisseph.ts —
+// the MOBILE_ROADMAP §3 escalation, landed). The Swiss engine needs one
+// `await initSwisseph()` before the extended bodies appear; without it a
+// chart simply carries the astronomy-engine set.
 
 // Isomorphic astronomy-engine load — no top-level await (the browser build
 // target forbids it), no `node:module` (absent in browsers). The package ships
@@ -55,6 +56,7 @@ import {
   signFor,
 } from "./astrology.js";
 import { ascendant, houseOf, midheaven, placidusCusps } from "./houses.js";
+import { SE_CHIRON, SE_MEAN_APOG, SE_TRUE_NODE, calcSwissBody } from "./swisseph.js";
 import { detectPatterns } from "./patterns.js";
 import type {
   Angles,
@@ -76,6 +78,15 @@ const PLANET_TABLE: [string, AstronomyTypes.Body, string][] = [
   ["Uranus", Body.Uranus, "♅"],
   ["Neptune", Body.Neptune, "♆"],
   ["Pluto", Body.Pluto, "♇"],
+];
+
+// Bodies astronomy-engine lacks, served by the WASM Swiss engine. Same ids,
+// glyphs and order as the backend's _PLANET_TABLE tail (South Node is derived
+// from the North inline, exactly like the backend).
+const EXTENDED_TABLE: [string, number, string][] = [
+  ["North Node", SE_TRUE_NODE, "☊"],
+  ["Chiron", SE_CHIRON, "⚷"],
+  ["Lilith", SE_MEAN_APOG, "⚸"],
 ];
 
 // ---------------------------------------------------------------------------
@@ -158,10 +169,17 @@ function calcBody(
 }
 
 // Name-keyed body table for consumers that work by name (forecast scanner).
-// v0.1 excludes Chiron and the lunar Node (astronomy-engine lacks them).
 const BODY_BY_NAME: Record<string, AstronomyTypes.Body> = Object.fromEntries(
   PLANET_TABLE.map(([name, body]) => [name, body])
 );
+
+// Names served by the WASM Swiss engine instead (backend transit movers
+// include Chiron and the true Node).
+const SWISS_BY_NAME: Record<string, number> = {
+  "North Node": SE_TRUE_NODE,
+  Chiron: SE_CHIRON,
+  Lilith: SE_MEAN_APOG,
+};
 
 /** Ecliptic-of-date longitude (deg) and longitude speed (deg/day) for a named
  *  body — the forecast scanner's primitive, sharing the chart's exact frame. */
@@ -170,9 +188,16 @@ export function eclipticLonSpeed(
   name: string
 ): { lon: number; speed: number } | null {
   const body = BODY_BY_NAME[name];
-  if (body === undefined) return null;
-  const { lon, speed } = calcBody(jd, body);
-  return { lon, speed };
+  if (body !== undefined) {
+    const { lon, speed } = calcBody(jd, body);
+    return { lon, speed };
+  }
+  const sweId = SWISS_BY_NAME[name];
+  if (sweId !== undefined) {
+    const r = calcSwissBody(jd, sweId);
+    if (r) return { lon: r.lon, speed: r.speed };
+  }
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -387,6 +412,21 @@ export function calculateChart(req: ChartRequest): ChartResponse {
     planets.push(buildPlanet(name, glyph, lon, lat, speed, dec, cusps));
     if (name === "Sun") sunLon = lon;
     if (name === "Moon") moonLon = lon;
+  }
+
+  // Extended bodies via WASM Swiss (skipped when uninitialized/unavailable —
+  // the backend skips a body on swe.Error the same way).
+  for (const [name, sweId, glyph] of EXTENDED_TABLE) {
+    const r = calcSwissBody(jd, sweId);
+    if (!r) continue;
+    planets.push(buildPlanet(name, glyph, r.lon, r.lat, r.speed, r.dec, cusps));
+    if (name === "North Node") {
+      // Derive the South Node opposite the North (backend parity: same speed,
+      // mirrored latitude and declination).
+      planets.push(
+        buildPlanet("South Node", "☋", norm360(r.lon + 180), -r.lat, r.speed, -r.dec, cusps)
+      );
+    }
   }
 
   if (sunLon !== null && moonLon !== null) {

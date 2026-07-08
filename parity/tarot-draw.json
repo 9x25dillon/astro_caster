@@ -32,12 +32,12 @@
        "reversed": false
       },
       {
-       "card": "moon",
+       "card": "star",
        "position": "Mirror",
        "reversed": false
       },
       {
-       "card": "world",
+       "card": "judgement",
        "position": "Shadow",
        "reversed": false
       }
@@ -74,7 +74,7 @@
        "reversed": false
       },
       {
-       "card": "eight_of_cups",
+       "card": "seven_of_cups",
        "position": "Water",
        "reversed": true
       },
@@ -84,7 +84,7 @@
        "reversed": false
       },
       {
-       "card": "king_of_cups",
+       "card": "queen_of_cups",
        "position": "Earth",
        "reversed": false
       },
@@ -100,7 +100,7 @@
     {
      "cards": [
       {
-       "card": "page_of_pentacles",
+       "card": "ten_of_pentacles",
        "position": "Fire",
        "reversed": true
       },
@@ -120,7 +120,7 @@
        "reversed": false
       },
       {
-       "card": "ten_of_pentacles",
+       "card": "page_of_pentacles",
        "position": "Spirit",
        "reversed": false
       }
@@ -146,7 +146,7 @@
        "reversed": false
       },
       {
-       "card": "two_of_wands",
+       "card": "ace_of_wands",
        "position": "Venus",
        "reversed": false
       },
@@ -156,7 +156,7 @@
        "reversed": true
       },
       {
-       "card": "two_of_cups",
+       "card": "ace_of_cups",
        "position": "Jupiter",
        "reversed": true
       },
@@ -197,7 +197,7 @@
        "reversed": true
       },
       {
-       "card": "knight_of_wands",
+       "card": "page_of_wands",
        "position": "Jupiter",
        "reversed": false
       },
@@ -218,7 +218,7 @@
        "reversed": false
       },
       {
-       "card": "queen_of_wands",
+       "card": "knight_of_wands",
        "position": "House 2",
        "reversed": true
       },
@@ -279,7 +279,7 @@
     {
      "cards": [
       {
-       "card": "seven_of_wands",
+       "card": "six_of_wands",
        "position": "House 1",
        "reversed": false
       },
@@ -345,7 +345,7 @@
     {
      "cards": [
       {
-       "card": "five_of_wands",
+       "card": "four_of_wands",
        "position": "You",
        "reversed": false
       },
@@ -365,7 +365,7 @@
        "reversed": false
       },
       {
-       "card": "ace_of_swords",
+       "card": "king_of_cups",
        "position": "The Becoming",
        "reversed": true
       }
@@ -376,7 +376,7 @@
     {
      "cards": [
       {
-       "card": "ace_of_cups",
+       "card": "king_of_wands",
        "position": "You",
        "reversed": false
       },
@@ -433,7 +433,7 @@
      "judgement": 1.0,
      "magician": 1.5,
      "moon": 2.7,
-     "star": 0.48,
+     "star": 1.48,
      "sun": 3.0,
      "temperance": 1.2,
      "tower": 1.5,
@@ -496,7 +496,7 @@
     {
      "cards": [
       {
-       "card": "eight_of_cups",
+       "card": "seven_of_cups",
        "position": "Self",
        "reversed": false
       },
@@ -517,7 +517,7 @@
     {
      "cards": [
       {
-       "card": "king_of_swords",
+       "card": "queen_of_swords",
        "position": "Fire",
        "reversed": false
       },
@@ -563,7 +563,7 @@
        "reversed": false
       },
       {
-       "card": "ten_of_swords",
+       "card": "eight_of_swords",
        "position": "Earth",
        "reversed": false
       },
@@ -609,7 +609,7 @@
        "reversed": true
       },
       {
-       "card": "four_of_cups",
+       "card": "three_of_cups",
        "position": "Saturn",
        "reversed": true
       }
@@ -625,7 +625,7 @@
        "reversed": false
       },
       {
-       "card": "five_of_swords",
+       "card": "four_of_swords",
        "position": "Moon",
        "reversed": false
       },
@@ -681,7 +681,7 @@
        "reversed": false
       },
       {
-       "card": "moon",
+       "card": "star",
        "position": "House 5",
        "reversed": false
       },
@@ -727,17 +727,17 @@
     {
      "cards": [
       {
-       "card": "seven_of_wands",
+       "card": "six_of_wands",
        "position": "House 1",
        "reversed": false
       },
       {
-       "card": "king_of_cups",
+       "card": "queen_of_cups",
        "position": "House 2",
        "reversed": false
       },
       {
-       "card": "ace_of_swords",
+       "card": "king_of_cups",
        "position": "House 3",
        "reversed": false
       },
@@ -757,7 +757,7 @@
        "reversed": false
       },
       {
-       "card": "eight_of_wands",
+       "card": "seven_of_wands",
        "position": "House 7",
        "reversed": false
       },
@@ -793,7 +793,7 @@
     {
      "cards": [
       {
-       "card": "five_of_wands",
+       "card": "four_of_wands",
        "position": "You",
        "reversed": false
       },
@@ -808,12 +808,12 @@
        "reversed": false
       },
       {
-       "card": "six_of_cups",
+       "card": "five_of_cups",
        "position": "The Lesson",
        "reversed": false
       },
       {
-       "card": "eight_of_swords",
+       "card": "seven_of_swords",
        "position": "The Becoming",
        "reversed": true
       }
@@ -824,7 +824,7 @@
     {
      "cards": [
       {
-       "card": "ace_of_cups",
+       "card": "king_of_wands",
        "position": "You",
        "reversed": false
       },
@@ -879,7 +879,8 @@
      "high_priestess": 3.0,
      "judgement": 1.0,
      "magician": 1.5,
-     "star": 1.4,
+     "star": 2.4,
+     "strength": 0.4,
      "sun": 3.0,
      "temperance": 1.0,
      "tower": 1.5,

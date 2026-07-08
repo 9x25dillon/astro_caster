@@ -2,7 +2,7 @@ import { test, expect } from "./helpers";
 
 // Offline relational/predictive/advanced (MOBILE_ROADMAP §3.4): with the backend
 // unreachable, the Relationship / Timing / Advanced modals fall back to
-// @astra/core's on-device engines (reduced body set) and flag it.
+// @astra/core's on-device engines (full body set) and flag it.
 
 const isApiCall = (url: URL) => url.pathname.startsWith("/api/");
 

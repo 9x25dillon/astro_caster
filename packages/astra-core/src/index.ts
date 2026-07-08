@@ -13,6 +13,7 @@ export {
   julianDayUtc,
 } from "./ephemeris.js";
 export { eclipticLonSpeed } from "./ephemeris.js";
+export { initSwisseph, swissReady } from "./swisseph.js";
 export { generateForecast, type ForecastEvent } from "./forecast.js";
 export { MT19937 } from "./mt19937.js";
 export { sha256Hex } from "./sha256.js";

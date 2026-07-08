@@ -111,6 +111,14 @@
       "sign": "Leo"
      },
      {
+      "element": "Earth",
+      "house": 11,
+      "id": "Chiron",
+      "longitude": 35.544685,
+      "modality": "Fixed",
+      "sign": "Taurus"
+     },
+     {
       "element": "Fire",
       "house": 11,
       "id": "Lilith",
@@ -149,81 +157,81 @@
     {
      "cards": [
       {
-       "card": "seven_of_cups",
-       "meaning": "**Seven of Cups** (upright) in the *Self* position speaks of many tempting visions; discernment needed. Its keywords \u2014 fantasy, choices, temptation, wishful thinking \u2014 color how this card is moving for you now.",
+       "card": "queen_of_pentacles",
+       "meaning": "**Queen of Pentacles** (upright) in the *Self* position speaks of nurturing, resourceful, grounded care. Its keywords \u2014 nurture, abundance, practicality, care \u2014 color how this card is moving for you now.",
        "position": "Self",
        "reversed": false
       },
       {
-       "card": "chariot",
-       "meaning": "**The Chariot** (upright) in the *Mirror* position speaks of victory through directed will and emotional self-command. Its keywords \u2014 will, direction, drive, mastery \u2014 color how this archetype is moving for you now. In your chart, this trump already lives here: Ascendant in Cancer (house 1) \u2014 The Chariot working through identity and embodiment.",
+       "card": "five_of_wands",
+       "meaning": "**Five of Wands** (reversed) in the *Mirror* position speaks of avoidable conflict, exhaustion, ego clashes. Its keywords \u2014 competition, friction, tension, conflict \u2014 color how this card is moving for you now.",
        "position": "Mirror",
-       "reversed": false
+       "reversed": true
       },
       {
-       "card": "ace_of_wands",
-       "meaning": "**Ace of Wands** (reversed) in the *Shadow* position speaks of a false start, or scattered, ungrounded energy. Its keywords \u2014 spark, inspiration, drive, potential \u2014 color how this card is moving for you now.",
+       "card": "king_of_cups",
+       "meaning": "**King of Cups** (upright) in the *Shadow* position speaks of emotional mastery held with calm. Its keywords \u2014 composure, balance, wisdom, diplomacy \u2014 color how this card is moving for you now.",
        "position": "Shadow",
-       "reversed": true
+       "reversed": false
       }
      ],
      "date": null,
      "question": "what should I focus on",
-     "seed": "Ascendant:101.6|Jupiter:327.48|Lilith:27.98|Mars:296.91|Mercury:3.14|Midheaven:342.77|Moon:254.52|Neptune:37.87|North Node:302.73|Part of Fortune:2.61|Pluto:54.73|Saturn:4.19|South Node:122.73|Sun:353.51|Uranus:151.29|Venus:16.98#three_card#what should i focus on",
+     "seed": "Ascendant:101.6|Chiron:35.54|Jupiter:327.48|Lilith:27.98|Mars:296.91|Mercury:3.14|Midheaven:342.77|Moon:254.52|Neptune:37.87|North Node:302.73|Part of Fortune:2.61|Pluto:54.73|Saturn:4.19|South Node:122.73|Sun:353.51|Uranus:151.29|Venus:16.98#three_card#what should i focus on",
      "source": "golden_dawn",
      "spread": "three_card"
     },
     {
      "cards": [
       {
-       "card": "page_of_wands",
-       "meaning": "**Page of Wands** (reversed) in the *Today* position speaks of restlessness, unfinished starts. Its keywords \u2014 curiosity, enthusiasm, exploration, free spirit \u2014 color how this card is moving for you now.",
+       "card": "queen_of_pentacles",
+       "meaning": "**Queen of Pentacles** (reversed) in the *Today* position speaks of self-neglect, or smothering. Its keywords \u2014 nurture, abundance, practicality, care \u2014 color how this card is moving for you now.",
        "position": "Today",
        "reversed": true
       }
      ],
      "date": "2026-07-05",
      "question": "guidance for today",
-     "seed": "Ascendant:101.6|Jupiter:327.48|Lilith:27.98|Mars:296.91|Mercury:3.14|Midheaven:342.77|Moon:254.52|Neptune:37.87|North Node:302.73|Part of Fortune:2.61|Pluto:54.73|Saturn:4.19|South Node:122.73|Sun:353.51|Uranus:151.29|Venus:16.98#daily#guidance for today#2026-07-05",
+     "seed": "Ascendant:101.6|Chiron:35.54|Jupiter:327.48|Lilith:27.98|Mars:296.91|Mercury:3.14|Midheaven:342.77|Moon:254.52|Neptune:37.87|North Node:302.73|Part of Fortune:2.61|Pluto:54.73|Saturn:4.19|South Node:122.73|Sun:353.51|Uranus:151.29|Venus:16.98#daily#guidance for today#2026-07-05",
      "source": "golden_dawn",
      "spread": "daily"
     },
     {
      "cards": [
       {
-       "card": "queen_of_pentacles",
-       "meaning": "**Queen of Pentacles** (upright) in the *You* position speaks of nurturing, resourceful, grounded care. Its keywords \u2014 nurture, abundance, practicality, care \u2014 color how this card is moving for you now.",
+       "card": "page_of_wands",
+       "meaning": "**Page of Wands** (upright) in the *You* position speaks of an eager spark; a free-spirited explorer. Its keywords \u2014 curiosity, enthusiasm, exploration, free spirit \u2014 color how this card is moving for you now.",
        "position": "You",
        "reversed": false
       },
       {
-       "card": "sun",
-       "meaning": "**The Sun** (upright) in the *The Other* position speaks of clear warmth, vitality, and the joy of being fully seen. Its keywords \u2014 vitality, clarity, joy, truth \u2014 color how this archetype is moving for you now. In your chart, this trump already lives here: Sun in Pisces (house 10) \u2014 The Sun working through calling, visibility, and public role.",
+       "card": "three_of_wands",
+       "meaning": "**Three of Wands** (upright) in the *The Other* position speaks of foresight rewarded; horizons widening. Its keywords \u2014 foresight, expansion, progress, enterprise \u2014 color how this card is moving for you now.",
        "position": "The Other",
        "reversed": false
       },
       {
-       "card": "ten_of_pentacles",
-       "meaning": "**Ten of Pentacles** (upright) in the *The Bond* position speaks of lasting wealth, legacy, and rootedness. Its keywords \u2014 legacy, family, stability, completion \u2014 color how this card is moving for you now.",
+       "card": "chariot",
+       "meaning": "**The Chariot** (upright) in the *The Bond* position speaks of victory through directed will and emotional self-command. Its keywords \u2014 will, direction, drive, mastery \u2014 color how this archetype is moving for you now. In your chart, this trump already lives here: Ascendant in Cancer (house 1) \u2014 The Chariot working through identity and embodiment.",
        "position": "The Bond",
        "reversed": false
       },
       {
-       "card": "hanged_man",
-       "meaning": "**The Hanged Man** (upright) in the *The Lesson* position speaks of the wisdom of surrender and seeing the world upside-down. Its keywords \u2014 surrender, reversal, new perspective, pause \u2014 color how this archetype is moving for you now. In your chart, this trump already lives here: Neptune in Taurus (house 11) \u2014 The Hanged Man working through community, future, and networks.",
+       "card": "high_priestess",
+       "meaning": "**The High Priestess** (upright) in the *The Lesson* position speaks of trust in the inner voice that knows before it can explain. Its keywords \u2014 intuition, mystery, inner knowing, stillness \u2014 color how this archetype is moving for you now. In your chart, this trump already lives here: Moon in Sagittarius (house 6) \u2014 The High Priestess working through health, craft, devotion, and service.",
        "position": "The Lesson",
        "reversed": false
       },
       {
-       "card": "ace_of_swords",
-       "meaning": "**Ace of Swords** (upright) in the *The Becoming* position speaks of a piercing clarity that cuts to truth. Its keywords \u2014 clarity, truth, breakthrough, insight \u2014 color how this card is moving for you now.",
+       "card": "ten_of_cups",
+       "meaning": "**Ten of Cups** (upright) in the *The Becoming* position speaks of lasting emotional fulfillment and belonging. Its keywords \u2014 harmony, family, fulfillment, belonging \u2014 color how this card is moving for you now.",
        "position": "The Becoming",
        "reversed": false
       }
      ],
      "date": null,
      "question": "where is this bond going",
-     "seed": "Ascendant:101.6|Jupiter:327.48|Lilith:27.98|Mars:296.91|Mercury:3.14|Midheaven:342.77|Moon:254.52|Neptune:37.87|North Node:302.73|Part of Fortune:2.61|Pluto:54.73|Saturn:4.19|South Node:122.73|Sun:353.51|Uranus:151.29|Venus:16.98#relationship#where is this bond going#src:thoth",
+     "seed": "Ascendant:101.6|Chiron:35.54|Jupiter:327.48|Lilith:27.98|Mars:296.91|Mercury:3.14|Midheaven:342.77|Moon:254.52|Neptune:37.87|North Node:302.73|Part of Fortune:2.61|Pluto:54.73|Saturn:4.19|South Node:122.73|Sun:353.51|Uranus:151.29|Venus:16.98#relationship#where is this bond going#src:thoth",
      "source": "thoth",
      "spread": "relationship"
     }
@@ -424,6 +432,14 @@
      },
      {
       "element": "Fire",
+      "house": 8,
+      "id": "Chiron",
+      "longitude": 251.617626,
+      "modality": "Mutable",
+      "sign": "Sagittarius"
+     },
+     {
+      "element": "Fire",
       "house": 9,
       "id": "Lilith",
       "longitude": 263.464333,
@@ -461,81 +477,81 @@
     {
      "cards": [
       {
-       "card": "two_of_cups",
-       "meaning": "**Two of Cups** (reversed) in the *Self* position speaks of imbalance, tension, or a connection cooling. Its keywords \u2014 union, connection, attraction, mutuality \u2014 color how this card is moving for you now.",
+       "card": "world",
+       "meaning": "**The World** (upright) in the *Self* position speaks of wholeness; a cycle completed and danced to its center. Its keywords \u2014 completion, wholeness, integration, fulfillment \u2014 color how this archetype is moving for you now. In your chart, this trump already lives here: Saturn in Taurus (house 1) \u2014 The World working through identity and embodiment.",
        "position": "Self",
-       "reversed": true
-      },
-      {
-       "card": "ten_of_cups",
-       "meaning": "**Ten of Cups** (upright) in the *Mirror* position speaks of lasting emotional fulfillment and belonging. Its keywords \u2014 harmony, family, fulfillment, belonging \u2014 color how this card is moving for you now.",
-       "position": "Mirror",
        "reversed": false
       },
       {
-       "card": "emperor",
-       "meaning": "**The Emperor** (upright) in the *Shadow* position speaks of stable structure and protective authority you can stand on. Its keywords \u2014 structure, authority, boundaries, order \u2014 color how this archetype is moving for you now. In your chart, this trump already lives here: Ascendant in Aries (house 1) \u2014 The Emperor working through identity and embodiment.",
+       "card": "wheel_of_fortune",
+       "meaning": "**Wheel of Fortune** (reversed) in the *Mirror* position speaks of resisting the turn, or blaming fate for everything. Its keywords \u2014 cycles, fate, turning point, expansion \u2014 color how this archetype is moving for you now. In your chart, this trump already lives here: Jupiter in Aries (house 1) \u2014 Wheel of Fortune working through identity and embodiment.",
+       "position": "Mirror",
+       "reversed": true
+      },
+      {
+       "card": "ten_of_pentacles",
+       "meaning": "**Ten of Pentacles** (upright) in the *Shadow* position speaks of lasting wealth, legacy, and rootedness. Its keywords \u2014 legacy, family, stability, completion \u2014 color how this card is moving for you now.",
        "position": "Shadow",
        "reversed": false
       }
      ],
      "date": null,
      "question": "what should I focus on",
-     "seed": "Ascendant:24.27|Jupiter:25.25|Lilith:263.46|Mars:327.96|Mercury:271.89|Midheaven:279.61|Moon:223.32|Neptune:303.19|North Node:123.95|Part of Fortune:327.22|Pluto:251.45|Saturn:40.4|South Node:303.95|Sun:280.37|Uranus:314.81|Venus:241.57#three_card#what should i focus on",
+     "seed": "Ascendant:24.27|Chiron:251.62|Jupiter:25.25|Lilith:263.46|Mars:327.96|Mercury:271.89|Midheaven:279.61|Moon:223.32|Neptune:303.19|North Node:123.95|Part of Fortune:327.22|Pluto:251.45|Saturn:40.4|South Node:303.95|Sun:280.37|Uranus:314.81|Venus:241.57#three_card#what should i focus on",
      "source": "golden_dawn",
      "spread": "three_card"
     },
     {
      "cards": [
       {
-       "card": "sun",
-       "meaning": "**The Sun** (upright) in the *Today* position speaks of clear warmth, vitality, and the joy of being fully seen. Its keywords \u2014 vitality, clarity, joy, truth \u2014 color how this archetype is moving for you now. In your chart, this trump already lives here: Sun in Capricorn (house 10) \u2014 The Sun working through calling, visibility, and public role.",
+       "card": "four_of_wands",
+       "meaning": "**Four of Wands** (reversed) in the *Today* position speaks of a muted celebration or unstable foundations. Its keywords \u2014 celebration, harmony, home, milestone \u2014 color how this card is moving for you now.",
        "position": "Today",
-       "reversed": false
+       "reversed": true
       }
      ],
      "date": "2026-07-05",
      "question": "guidance for today",
-     "seed": "Ascendant:24.27|Jupiter:25.25|Lilith:263.46|Mars:327.96|Mercury:271.89|Midheaven:279.61|Moon:223.32|Neptune:303.19|North Node:123.95|Part of Fortune:327.22|Pluto:251.45|Saturn:40.4|South Node:303.95|Sun:280.37|Uranus:314.81|Venus:241.57#daily#guidance for today#2026-07-05",
+     "seed": "Ascendant:24.27|Chiron:251.62|Jupiter:25.25|Lilith:263.46|Mars:327.96|Mercury:271.89|Midheaven:279.61|Moon:223.32|Neptune:303.19|North Node:123.95|Part of Fortune:327.22|Pluto:251.45|Saturn:40.4|South Node:303.95|Sun:280.37|Uranus:314.81|Venus:241.57#daily#guidance for today#2026-07-05",
      "source": "golden_dawn",
      "spread": "daily"
     },
     {
      "cards": [
       {
-       "card": "six_of_swords",
-       "meaning": "**Six of Swords** (upright) in the *You* position speaks of a passage toward calmer water. Its keywords \u2014 transition, passage, moving on, recovery \u2014 color how this card is moving for you now.",
+       "card": "ten_of_pentacles",
+       "meaning": "**Ten of Pentacles** (upright) in the *You* position speaks of lasting wealth, legacy, and rootedness. Its keywords \u2014 legacy, family, stability, completion \u2014 color how this card is moving for you now.",
        "position": "You",
        "reversed": false
       },
       {
-       "card": "four_of_swords",
-       "meaning": "**Four of Swords** (upright) in the *The Other* position speaks of necessary rest and quiet recovery. Its keywords \u2014 rest, recovery, retreat, stillness \u2014 color how this card is moving for you now.",
+       "card": "magician",
+       "meaning": "**The Magician** (reversed) in the *The Other* position speaks of scattered energy, manipulation, or talent left unused. Its keywords \u2014 will, language, craft, manifestation \u2014 color how this archetype is moving for you now. In your chart, this trump already lives here: Mercury in Capricorn (house 9) \u2014 The Magician working through belief, travel, and philosophy.",
        "position": "The Other",
-       "reversed": false
+       "reversed": true
       },
       {
-       "card": "king_of_pentacles",
-       "meaning": "**King of Pentacles** (upright) in the *The Bond* position speaks of abundant, secure, generous stewardship. Its keywords \u2014 abundance, security, leadership, stewardship \u2014 color how this card is moving for you now.",
+       "card": "king_of_wands",
+       "meaning": "**King of Wands** (upright) in the *The Bond* position speaks of visionary leadership that inspires action. Its keywords \u2014 leadership, vision, boldness, mastery \u2014 color how this card is moving for you now.",
        "position": "The Bond",
        "reversed": false
       },
       {
-       "card": "five_of_wands",
-       "meaning": "**Five of Wands** (upright) in the *The Lesson* position speaks of lively competition and creative friction. Its keywords \u2014 competition, friction, tension, conflict \u2014 color how this card is moving for you now.",
+       "card": "four_of_pentacles",
+       "meaning": "**Four of Pentacles** (upright) in the *The Lesson* position speaks of stability and security held close. Its keywords \u2014 security, control, saving, holding \u2014 color how this card is moving for you now.",
        "position": "The Lesson",
        "reversed": false
       },
       {
-       "card": "king_of_cups",
-       "meaning": "**King of Cups** (upright) in the *The Becoming* position speaks of emotional mastery held with calm. Its keywords \u2014 composure, balance, wisdom, diplomacy \u2014 color how this card is moving for you now.",
+       "card": "seven_of_swords",
+       "meaning": "**Seven of Swords** (upright) in the *The Becoming* position speaks of strategy, cunning, acting alone. Its keywords \u2014 strategy, stealth, cunning, evasion \u2014 color how this card is moving for you now.",
        "position": "The Becoming",
        "reversed": false
       }
      ],
      "date": null,
      "question": "where is this bond going",
-     "seed": "Ascendant:24.27|Jupiter:25.25|Lilith:263.46|Mars:327.96|Mercury:271.89|Midheaven:279.61|Moon:223.32|Neptune:303.19|North Node:123.95|Part of Fortune:327.22|Pluto:251.45|Saturn:40.4|South Node:303.95|Sun:280.37|Uranus:314.81|Venus:241.57#relationship#where is this bond going#src:thoth",
+     "seed": "Ascendant:24.27|Chiron:251.62|Jupiter:25.25|Lilith:263.46|Mars:327.96|Mercury:271.89|Midheaven:279.61|Moon:223.32|Neptune:303.19|North Node:123.95|Part of Fortune:327.22|Pluto:251.45|Saturn:40.4|South Node:303.95|Sun:280.37|Uranus:314.81|Venus:241.57#relationship#where is this bond going#src:thoth",
      "source": "thoth",
      "spread": "relationship"
     }

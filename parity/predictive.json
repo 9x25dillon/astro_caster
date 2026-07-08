@@ -113,6 +113,28 @@
     "age_years": 146.8,
     "aspects_to_natal": [
      {
+      "angle": 120.0,
+      "applying": false,
+      "color": "#2e86c1",
+      "harmony": "harmonious",
+      "orb": 0.12,
+      "p1": "t:North Node",
+      "p2": "Pluto",
+      "separation": 120.12,
+      "type": "Trine"
+     },
+     {
+      "angle": 60.0,
+      "applying": false,
+      "color": "#48a999",
+      "harmony": "harmonious",
+      "orb": 0.12,
+      "p1": "t:South Node",
+      "p2": "Pluto",
+      "separation": 59.88,
+      "type": "Sextile"
+     },
+     {
       "angle": 90.0,
       "applying": false,
       "color": "#b03a2e",
@@ -122,6 +144,17 @@
       "p2": "Jupiter",
       "separation": 89.87,
       "type": "Square"
+     },
+     {
+      "angle": 60.0,
+      "applying": false,
+      "color": "#48a999",
+      "harmony": "harmonious",
+      "orb": 0.29,
+      "p1": "t:Chiron",
+      "p2": "Midheaven",
+      "separation": 60.29,
+      "type": "Sextile"
      },
      {
       "angle": 120.0,
@@ -180,6 +213,17 @@
      },
      {
       "angle": 120.0,
+      "applying": true,
+      "color": "#2e86c1",
+      "harmony": "harmonious",
+      "orb": 0.94,
+      "p1": "t:Ascendant",
+      "p2": "Chiron",
+      "separation": 120.94,
+      "type": "Trine"
+     },
+     {
+      "angle": 120.0,
       "applying": false,
       "color": "#2e86c1",
       "harmony": "harmonious",
@@ -187,6 +231,28 @@
       "p1": "t:Jupiter",
       "p2": "Ascendant",
       "separation": 120.98,
+      "type": "Trine"
+     },
+     {
+      "angle": 60.0,
+      "applying": true,
+      "color": "#48a999",
+      "harmony": "harmonious",
+      "orb": 1.1,
+      "p1": "t:North Node",
+      "p2": "Sun",
+      "separation": 58.9,
+      "type": "Sextile"
+     },
+     {
+      "angle": 120.0,
+      "applying": true,
+      "color": "#2e86c1",
+      "harmony": "harmonious",
+      "orb": 1.1,
+      "p1": "t:South Node",
+      "p2": "Sun",
+      "separation": 121.1,
       "type": "Trine"
      },
      {
@@ -256,6 +322,28 @@
       "type": "Trine"
      },
      {
+      "angle": 60.0,
+      "applying": false,
+      "color": "#48a999",
+      "harmony": "harmonious",
+      "orb": 1.46,
+      "p1": "t:Chiron",
+      "p2": "Ascendant",
+      "separation": 58.54,
+      "type": "Sextile"
+     },
+     {
+      "angle": 60.0,
+      "applying": false,
+      "color": "#48a999",
+      "harmony": "harmonious",
+      "orb": 1.65,
+      "p1": "t:Lilith",
+      "p2": "Midheaven",
+      "separation": 61.65,
+      "type": "Sextile"
+     },
+     {
       "angle": 120.0,
       "applying": false,
       "color": "#2e86c1",
@@ -300,6 +388,17 @@
       "type": "Conjunction"
      },
      {
+      "angle": 120.0,
+      "applying": true,
+      "color": "#2e86c1",
+      "harmony": "harmonious",
+      "orb": 2.18,
+      "p1": "t:Uranus",
+      "p2": "Chiron",
+      "separation": 117.82,
+      "type": "Trine"
+     },
+     {
       "angle": 60.0,
       "applying": true,
       "color": "#48a999",
@@ -309,6 +408,28 @@
       "p2": "Jupiter",
       "separation": 57.69,
       "type": "Sextile"
+     },
+     {
+      "angle": 0.0,
+      "applying": false,
+      "color": "#c9a84c",
+      "harmony": "neutral",
+      "orb": 2.31,
+      "p1": "t:North Node",
+      "p2": "Mars",
+      "separation": 2.31,
+      "type": "Conjunction"
+     },
+     {
+      "angle": 180.0,
+      "applying": false,
+      "color": "#b03a2e",
+      "harmony": "challenging",
+      "orb": 2.31,
+      "p1": "t:South Node",
+      "p2": "Mars",
+      "separation": 177.69,
+      "type": "Opposition"
      },
      {
       "angle": 60.0,
@@ -355,6 +476,17 @@
       "type": "Sextile"
      },
      {
+      "angle": 120.0,
+      "applying": false,
+      "color": "#2e86c1",
+      "harmony": "harmonious",
+      "orb": 2.65,
+      "p1": "t:Mercury",
+      "p2": "Chiron",
+      "separation": 122.65,
+      "type": "Trine"
+     },
+     {
       "angle": 60.0,
       "applying": true,
       "color": "#48a999",
@@ -370,11 +502,66 @@
       "applying": true,
       "color": "#2e86c1",
       "harmony": "harmonious",
+      "orb": 2.74,
+      "p1": "t:Midheaven",
+      "p2": "North Node",
+      "separation": 117.26,
+      "type": "Trine"
+     },
+     {
+      "angle": 0.0,
+      "applying": true,
+      "color": "#c9a84c",
+      "harmony": "neutral",
+      "orb": 2.81,
+      "p1": "t:Moon",
+      "p2": "Lilith",
+      "separation": 2.81,
+      "type": "Conjunction"
+     },
+     {
+      "angle": 60.0,
+      "applying": false,
+      "color": "#48a999",
+      "harmony": "harmonious",
+      "orb": 2.83,
+      "p1": "t:Lilith",
+      "p2": "Ascendant",
+      "separation": 57.17,
+      "type": "Sextile"
+     },
+     {
+      "angle": 120.0,
+      "applying": true,
+      "color": "#2e86c1",
+      "harmony": "harmonious",
       "orb": 3.07,
       "p1": "t:Midheaven",
       "p2": "Mars",
       "separation": 123.07,
       "type": "Trine"
+     },
+     {
+      "angle": 90.0,
+      "applying": false,
+      "color": "#b03a2e",
+      "harmony": "challenging",
+      "orb": 3.37,
+      "p1": "t:North Node",
+      "p2": "Lilith",
+      "separation": 93.37,
+      "type": "Square"
+     },
+     {
+      "angle": 90.0,
+      "applying": false,
+      "color": "#b03a2e",
+      "harmony": "challenging",
+      "orb": 3.37,
+      "p1": "t:South Node",
+      "p2": "Lilith",
+      "separation": 86.63,
+      "type": "Square"
      },
      {
       "angle": 120.0,
@@ -386,6 +573,17 @@
       "p2": "Pluto",
       "separation": 123.54,
       "type": "Trine"
+     },
+     {
+      "angle": 0.0,
+      "applying": false,
+      "color": "#c9a84c",
+      "harmony": "neutral",
+      "orb": 3.55,
+      "p1": "t:Mars",
+      "p2": "Chiron",
+      "separation": 3.55,
+      "type": "Conjunction"
      },
      {
       "angle": 0.0,
@@ -614,6 +812,78 @@
       "speed": 0.00672
      },
      {
+      "declination": -21.216798,
+      "degree": 24,
+      "dignity": "Neutral",
+      "element": "Earth",
+      "glyph": "\u260a",
+      "house": 5,
+      "id": "North Node",
+      "latitude": 0.0,
+      "longitude": 294.606476,
+      "minute": 36,
+      "modality": "Cardinal",
+      "retrograde": true,
+      "second": 23.3,
+      "sign": "Capricorn",
+      "sign_glyph": "\u2651",
+      "speed": -0.029268
+     },
+     {
+      "declination": 21.216798,
+      "degree": 24,
+      "dignity": "Neutral",
+      "element": "Water",
+      "glyph": "\u260b",
+      "house": 11,
+      "id": "South Node",
+      "latitude": -0.0,
+      "longitude": 114.606476,
+      "minute": 36,
+      "modality": "Cardinal",
+      "retrograde": true,
+      "second": 23.3,
+      "sign": "Cancer",
+      "sign_glyph": "\u264b",
+      "speed": -0.029268
+     },
+     {
+      "declination": 14.517592,
+      "degree": 13,
+      "dignity": "Neutral",
+      "element": "Earth",
+      "glyph": "\u26b7",
+      "house": 9,
+      "id": "Chiron",
+      "latitude": -1.312587,
+      "longitude": 43.058442,
+      "minute": 3,
+      "modality": "Fixed",
+      "retrograde": false,
+      "second": 30.4,
+      "sign": "Taurus",
+      "sign_glyph": "\u2649",
+      "speed": 0.009541
+     },
+     {
+      "declination": 20.769951,
+      "degree": 14,
+      "dignity": "Neutral",
+      "element": "Earth",
+      "glyph": "\u26b8",
+      "house": 9,
+      "id": "Lilith",
+      "latitude": 4.814369,
+      "longitude": 44.422136,
+      "minute": 25,
+      "modality": "Fixed",
+      "retrograde": false,
+      "second": 19.7,
+      "sign": "Taurus",
+      "sign_glyph": "\u2649",
+      "speed": 0.111886
+     },
+     {
       "declination": 0.0,
       "degree": 16,
       "dignity": "Neutral",
@@ -703,6 +973,28 @@
       "type": "Sesquiquadrate"
      },
      {
+      "angle": 0.0,
+      "applying": false,
+      "color": "#c9a84c",
+      "harmony": "neutral",
+      "orb": 0.14,
+      "p1": "Mars",
+      "p2": "North Node",
+      "separation": 0.14,
+      "type": "Conjunction"
+     },
+     {
+      "angle": 120.0,
+      "applying": false,
+      "color": "#2e86c1",
+      "harmony": "harmonious",
+      "orb": 0.17,
+      "p1": "Venus",
+      "p2": "Lilith",
+      "separation": 120.17,
+      "type": "Trine"
+     },
+     {
       "angle": 60.0,
       "applying": true,
       "color": "#48a999",
@@ -725,6 +1017,39 @@
       "type": "Sextile"
      },
      {
+      "angle": 90.0,
+      "applying": true,
+      "color": "#b03a2e",
+      "harmony": "challenging",
+      "orb": 0.27,
+      "p1": "Mars",
+      "p2": "Lilith",
+      "separation": 89.73,
+      "type": "Square"
+     },
+     {
+      "angle": 135.0,
+      "applying": true,
+      "color": "#a04000",
+      "harmony": "challenging",
+      "orb": 0.37,
+      "p1": "Chiron",
+      "p2": "Lilith",
+      "separation": 135.37,
+      "type": "Sesquiquadrate"
+     },
+     {
+      "angle": 90.0,
+      "applying": false,
+      "color": "#b03a2e",
+      "harmony": "challenging",
+      "orb": 0.42,
+      "p1": "North Node",
+      "p2": "Lilith",
+      "separation": 89.58,
+      "type": "Square"
+     },
+     {
       "angle": 30.0,
       "applying": false,
       "color": "#7d6608",
@@ -734,6 +1059,50 @@
       "p2": "Mars",
       "separation": 30.44,
       "type": "Semisextile"
+     },
+     {
+      "angle": 120.0,
+      "applying": false,
+      "color": "#2e86c1",
+      "harmony": "harmonious",
+      "orb": 0.53,
+      "p1": "North Node",
+      "p2": "Midheaven",
+      "separation": 120.53,
+      "type": "Trine"
+     },
+     {
+      "angle": 30.0,
+      "applying": false,
+      "color": "#7d6608",
+      "harmony": "neutral",
+      "orb": 0.59,
+      "p1": "Venus",
+      "p2": "North Node",
+      "separation": 30.59,
+      "type": "Semisextile"
+     },
+     {
+      "angle": 45.0,
+      "applying": true,
+      "color": "#a04000",
+      "harmony": "challenging",
+      "orb": 0.6,
+      "p1": "Moon",
+      "p2": "North Node",
+      "separation": 45.6,
+      "type": "Semisquare"
+     },
+     {
+      "angle": 45.0,
+      "applying": true,
+      "color": "#a04000",
+      "harmony": "challenging",
+      "orb": 0.64,
+      "p1": "Mars",
+      "p2": "Chiron",
+      "separation": 45.64,
+      "type": "Semisquare"
      },
      {
       "angle": 120.0,
@@ -758,6 +1127,39 @@
       "type": "Semisquare"
      },
      {
+      "angle": 45.0,
+      "applying": false,
+      "color": "#a04000",
+      "harmony": "challenging",
+      "orb": 0.78,
+      "p1": "North Node",
+      "p2": "Chiron",
+      "separation": 45.78,
+      "type": "Semisquare"
+     },
+     {
+      "angle": 30.0,
+      "applying": false,
+      "color": "#7d6608",
+      "harmony": "neutral",
+      "orb": 0.94,
+      "p1": "Lilith",
+      "p2": "Midheaven",
+      "separation": 30.94,
+      "type": "Semisextile"
+     },
+     {
+      "angle": 45.0,
+      "applying": true,
+      "color": "#a04000",
+      "harmony": "challenging",
+      "orb": 1.02,
+      "p1": "Moon",
+      "p2": "Lilith",
+      "separation": 43.98,
+      "type": "Semisquare"
+     },
+     {
       "angle": 150.0,
       "applying": false,
       "color": "#8e7cc3",
@@ -769,6 +1171,28 @@
       "type": "Quincunx"
      },
      {
+      "angle": 45.0,
+      "applying": true,
+      "color": "#a04000",
+      "harmony": "challenging",
+      "orb": 1.12,
+      "p1": "Mercury",
+      "p2": "Chiron",
+      "separation": 43.88,
+      "type": "Semisquare"
+     },
+     {
+      "angle": 30.0,
+      "applying": true,
+      "color": "#7d6608",
+      "harmony": "neutral",
+      "orb": 1.19,
+      "p1": "Sun",
+      "p2": "Chiron",
+      "separation": 31.19,
+      "type": "Semisextile"
+     },
+     {
       "angle": 30.0,
       "applying": true,
       "color": "#7d6608",
@@ -778,6 +1202,28 @@
       "p2": "Venus",
       "separation": 28.68,
       "type": "Semisextile"
+     },
+     {
+      "angle": 90.0,
+      "applying": true,
+      "color": "#b03a2e",
+      "harmony": "challenging",
+      "orb": 1.38,
+      "p1": "Moon",
+      "p2": "Chiron",
+      "separation": 91.38,
+      "type": "Square"
+     },
+     {
+      "angle": 90.0,
+      "applying": true,
+      "color": "#b03a2e",
+      "harmony": "challenging",
+      "orb": 1.49,
+      "p1": "Mercury",
+      "p2": "Lilith",
+      "separation": 91.49,
+      "type": "Square"
      },
      {
       "angle": 60.0,
@@ -857,6 +1303,17 @@
       "type": "Conjunction"
      },
      {
+      "angle": 0.0,
+      "applying": true,
+      "color": "#c9a84c",
+      "harmony": "neutral",
+      "orb": 1.91,
+      "p1": "Mercury",
+      "p2": "North Node",
+      "separation": 1.91,
+      "type": "Conjunction"
+     },
+     {
       "angle": 60.0,
       "applying": false,
       "color": "#48a999",
@@ -877,6 +1334,17 @@
       "p2": "Saturn",
       "separation": 70.0,
       "type": "Quintile"
+     },
+     {
+      "angle": 0.0,
+      "applying": false,
+      "color": "#c9a84c",
+      "harmony": "neutral",
+      "orb": 2.28,
+      "p1": "North Node",
+      "p2": "Part of Fortune",
+      "separation": 2.28,
+      "type": "Conjunction"
      },
      {
       "angle": 0.0,
@@ -905,11 +1373,33 @@
       "applying": false,
       "color": "#48a999",
       "harmony": "harmonious",
+      "orb": 2.47,
+      "p1": "North Node",
+      "p2": "Ascendant",
+      "separation": 62.47,
+      "type": "Sextile"
+     },
+     {
+      "angle": 60.0,
+      "applying": false,
+      "color": "#48a999",
+      "harmony": "harmonious",
       "orb": 2.61,
       "p1": "Mars",
       "p2": "Ascendant",
       "separation": 62.61,
       "type": "Sextile"
+     },
+     {
+      "angle": 90.0,
+      "applying": false,
+      "color": "#b03a2e",
+      "harmony": "challenging",
+      "orb": 2.69,
+      "p1": "Lilith",
+      "p2": "Part of Fortune",
+      "separation": 87.31,
+      "type": "Square"
      },
      {
       "angle": 90.0,
@@ -1001,6 +1491,17 @@
      },
      {
       "angle": 60.0,
+      "applying": false,
+      "color": "#48a999",
+      "harmony": "harmonious",
+      "orb": 4.47,
+      "p1": "Pluto",
+      "p2": "Lilith",
+      "separation": 55.53,
+      "type": "Sextile"
+     },
+     {
+      "angle": 60.0,
       "applying": true,
       "color": "#48a999",
       "harmony": "harmonious",
@@ -1059,10 +1560,32 @@
       "applying": true,
       "color": "#2e86c1",
       "harmony": "harmonious",
+      "orb": 6.02,
+      "p1": "Saturn",
+      "p2": "Lilith",
+      "separation": 113.98,
+      "type": "Trine"
+     },
+     {
+      "angle": 120.0,
+      "applying": true,
+      "color": "#2e86c1",
+      "harmony": "harmonious",
       "orb": 6.04,
       "p1": "Mars",
       "p2": "Jupiter",
       "separation": 126.04,
+      "type": "Trine"
+     },
+     {
+      "angle": 120.0,
+      "applying": true,
+      "color": "#2e86c1",
+      "harmony": "harmonious",
+      "orb": 6.18,
+      "p1": "Jupiter",
+      "p2": "North Node",
+      "separation": 126.18,
       "type": "Trine"
      },
      {
@@ -1389,6 +1912,78 @@
       "speed": 0.023094
      },
      {
+      "declination": -8.226335,
+      "degree": 8,
+      "dignity": "Neutral",
+      "element": "Water",
+      "glyph": "\u260a",
+      "house": 2,
+      "id": "North Node",
+      "latitude": 0.0,
+      "longitude": 338.916879,
+      "minute": 55,
+      "modality": "Mutable",
+      "retrograde": false,
+      "second": 0.8,
+      "sign": "Pisces",
+      "sign_glyph": "\u2653",
+      "speed": 0.025909
+     },
+     {
+      "declination": 8.226335,
+      "degree": 8,
+      "dignity": "Neutral",
+      "element": "Earth",
+      "glyph": "\u260b",
+      "house": 8,
+      "id": "South Node",
+      "latitude": -0.0,
+      "longitude": 158.916879,
+      "minute": 55,
+      "modality": "Mutable",
+      "retrograde": false,
+      "second": 0.8,
+      "sign": "Virgo",
+      "sign_glyph": "\u264d",
+      "speed": 0.025909
+     },
+     {
+      "declination": 9.931499,
+      "degree": 24,
+      "dignity": "Neutral",
+      "element": "Fire",
+      "glyph": "\u26b7",
+      "house": 3,
+      "id": "Chiron",
+      "latitude": 0.391189,
+      "longitude": 24.699778,
+      "minute": 41,
+      "modality": "Cardinal",
+      "retrograde": false,
+      "second": 59.2,
+      "sign": "Aries",
+      "sign_glyph": "\u2648",
+      "speed": 0.053158
+     },
+     {
+      "declination": -26.932421,
+      "degree": 9,
+      "dignity": "Neutral",
+      "element": "Fire",
+      "glyph": "\u26b8",
+      "house": 11,
+      "id": "Lilith",
+      "latitude": -5.144647,
+      "longitude": 249.333661,
+      "minute": 20,
+      "modality": "Mutable",
+      "retrograde": false,
+      "second": 1.2,
+      "sign": "Sagittarius",
+      "sign_glyph": "\u2650",
+      "speed": 0.112077
+     },
+     {
       "declination": 0.0,
       "degree": 6,
       "dignity": "Neutral",
@@ -1543,6 +2138,17 @@
     "age_years": 26.0,
     "aspects_to_natal": [
      {
+      "angle": 180.0,
+      "applying": false,
+      "color": "#b03a2e",
+      "harmony": "challenging",
+      "orb": 0.01,
+      "p1": "t:Midheaven",
+      "p2": "North Node",
+      "separation": 179.99,
+      "type": "Opposition"
+     },
+     {
       "angle": 0.0,
       "applying": false,
       "color": "#c9a84c",
@@ -1598,6 +2204,72 @@
       "type": "Trine"
      },
      {
+      "angle": 180.0,
+      "applying": false,
+      "color": "#b03a2e",
+      "harmony": "challenging",
+      "orb": 0.21,
+      "p1": "t:Neptune",
+      "p2": "North Node",
+      "separation": 179.79,
+      "type": "Opposition"
+     },
+     {
+      "angle": 0.0,
+      "applying": true,
+      "color": "#c9a84c",
+      "harmony": "neutral",
+      "orb": 0.27,
+      "p1": "t:North Node",
+      "p2": "North Node",
+      "separation": 0.27,
+      "type": "Conjunction"
+     },
+     {
+      "angle": 180.0,
+      "applying": true,
+      "color": "#b03a2e",
+      "harmony": "challenging",
+      "orb": 0.27,
+      "p1": "t:South Node",
+      "p2": "North Node",
+      "separation": 179.73,
+      "type": "Opposition"
+     },
+     {
+      "angle": 180.0,
+      "applying": true,
+      "color": "#b03a2e",
+      "harmony": "challenging",
+      "orb": 0.49,
+      "p1": "t:North Node",
+      "p2": "Neptune",
+      "separation": 179.51,
+      "type": "Opposition"
+     },
+     {
+      "angle": 0.0,
+      "applying": true,
+      "color": "#c9a84c",
+      "harmony": "neutral",
+      "orb": 0.49,
+      "p1": "t:South Node",
+      "p2": "Neptune",
+      "separation": 0.49,
+      "type": "Conjunction"
+     },
+     {
+      "angle": 60.0,
+      "applying": true,
+      "color": "#48a999",
+      "harmony": "harmonious",
+      "orb": 0.5,
+      "p1": "t:Chiron",
+      "p2": "Uranus",
+      "separation": 60.5,
+      "type": "Sextile"
+     },
+     {
       "angle": 0.0,
       "applying": true,
       "color": "#c9a84c",
@@ -1635,6 +2307,17 @@
       "applying": true,
       "color": "#c9a84c",
       "harmony": "neutral",
+      "orb": 0.64,
+      "p1": "t:Pluto",
+      "p2": "Chiron",
+      "separation": 0.64,
+      "type": "Conjunction"
+     },
+     {
+      "angle": 0.0,
+      "applying": true,
+      "color": "#c9a84c",
+      "harmony": "neutral",
       "orb": 0.77,
       "p1": "t:Midheaven",
       "p2": "Neptune",
@@ -1651,6 +2334,17 @@
       "p2": "Pluto",
       "separation": 0.8,
       "type": "Conjunction"
+     },
+     {
+      "angle": 60.0,
+      "applying": true,
+      "color": "#48a999",
+      "harmony": "harmonious",
+      "orb": 0.86,
+      "p1": "t:Lilith",
+      "p2": "Part of Fortune",
+      "separation": 60.86,
+      "type": "Sextile"
      },
      {
       "angle": 120.0,
@@ -1673,6 +2367,17 @@
       "p2": "Neptune",
       "separation": 0.97,
       "type": "Conjunction"
+     },
+     {
+      "angle": 120.0,
+      "applying": false,
+      "color": "#2e86c1",
+      "harmony": "harmonious",
+      "orb": 1.1,
+      "p1": "t:Lilith",
+      "p2": "Jupiter",
+      "separation": 118.9,
+      "type": "Trine"
      },
      {
       "angle": 0.0,
@@ -1717,6 +2422,50 @@
       "p2": "Uranus",
       "separation": 1.42,
       "type": "Conjunction"
+     },
+     {
+      "angle": 60.0,
+      "applying": false,
+      "color": "#48a999",
+      "harmony": "harmonious",
+      "orb": 1.61,
+      "p1": "t:Lilith",
+      "p2": "Mars",
+      "separation": 61.61,
+      "type": "Sextile"
+     },
+     {
+      "angle": 120.0,
+      "applying": false,
+      "color": "#2e86c1",
+      "harmony": "harmonious",
+      "orb": 2.09,
+      "p1": "t:Lilith",
+      "p2": "Ascendant",
+      "separation": 117.91,
+      "type": "Trine"
+     },
+     {
+      "angle": 120.0,
+      "applying": true,
+      "color": "#2e86c1",
+      "harmony": "harmonious",
+      "orb": 2.11,
+      "p1": "t:North Node",
+      "p2": "Venus",
+      "separation": 117.89,
+      "type": "Trine"
+     },
+     {
+      "angle": 60.0,
+      "applying": true,
+      "color": "#48a999",
+      "harmony": "harmonious",
+      "orb": 2.11,
+      "p1": "t:South Node",
+      "p2": "Venus",
+      "separation": 62.11,
+      "type": "Sextile"
      },
      {
       "angle": 0.0,
@@ -1774,6 +2523,17 @@
       "type": "Sextile"
      },
      {
+      "angle": 0.0,
+      "applying": true,
+      "color": "#c9a84c",
+      "harmony": "neutral",
+      "orb": 2.7,
+      "p1": "t:Chiron",
+      "p2": "Chiron",
+      "separation": 2.7,
+      "type": "Conjunction"
+     },
+     {
       "angle": 180.0,
       "applying": false,
       "color": "#b03a2e",
@@ -1782,6 +2542,39 @@
       "p1": "t:Saturn",
       "p2": "Moon",
       "separation": 177.18,
+      "type": "Opposition"
+     },
+     {
+      "angle": 0.0,
+      "applying": false,
+      "color": "#c9a84c",
+      "harmony": "neutral",
+      "orb": 2.86,
+      "p1": "t:Chiron",
+      "p2": "Pluto",
+      "separation": 2.86,
+      "type": "Conjunction"
+     },
+     {
+      "angle": 0.0,
+      "applying": true,
+      "color": "#c9a84c",
+      "harmony": "neutral",
+      "orb": 2.89,
+      "p1": "t:Lilith",
+      "p2": "Lilith",
+      "separation": 2.89,
+      "type": "Conjunction"
+     },
+     {
+      "angle": 180.0,
+      "applying": false,
+      "color": "#b03a2e",
+      "harmony": "challenging",
+      "orb": 2.9,
+      "p1": "t:Sun",
+      "p2": "North Node",
+      "separation": 177.1,
       "type": "Opposition"
      },
      {
@@ -1860,6 +2653,28 @@
       "p2": "Neptune",
       "separation": 3.65,
       "type": "Conjunction"
+     },
+     {
+      "angle": 180.0,
+      "applying": false,
+      "color": "#b03a2e",
+      "harmony": "challenging",
+      "orb": 3.69,
+      "p1": "t:Ascendant",
+      "p2": "Chiron",
+      "separation": 176.31,
+      "type": "Opposition"
+     },
+     {
+      "angle": 120.0,
+      "applying": false,
+      "color": "#2e86c1",
+      "harmony": "harmonious",
+      "orb": 3.92,
+      "p1": "t:Jupiter",
+      "p2": "Lilith",
+      "separation": 123.92,
+      "type": "Trine"
      }
     ],
     "planets": [
@@ -2044,6 +2859,78 @@
       "speed": 0.025834
      },
      {
+      "declination": 19.3292,
+      "degree": 3,
+      "dignity": "Neutral",
+      "element": "Fire",
+      "glyph": "\u260a",
+      "house": 3,
+      "id": "North Node",
+      "latitude": 0.0,
+      "longitude": 123.678617,
+      "minute": 40,
+      "modality": "Fixed",
+      "retrograde": true,
+      "second": 43.0,
+      "sign": "Leo",
+      "sign_glyph": "\u264c",
+      "speed": -0.005049
+     },
+     {
+      "declination": -19.3292,
+      "degree": 3,
+      "dignity": "Neutral",
+      "element": "Air",
+      "glyph": "\u260b",
+      "house": 9,
+      "id": "South Node",
+      "latitude": -0.0,
+      "longitude": 303.678617,
+      "minute": 40,
+      "modality": "Fixed",
+      "retrograde": true,
+      "second": 43.0,
+      "sign": "Aquarius",
+      "sign_glyph": "\u2652",
+      "speed": -0.005049
+     },
+     {
+      "declination": -18.281439,
+      "degree": 14,
+      "dignity": "Neutral",
+      "element": "Fire",
+      "glyph": "\u26b7",
+      "house": 7,
+      "id": "Chiron",
+      "latitude": 4.262665,
+      "longitude": 254.313838,
+      "minute": 18,
+      "modality": "Mutable",
+      "retrograde": false,
+      "second": 49.8,
+      "sign": "Sagittarius",
+      "sign_glyph": "\u2650",
+      "speed": 0.091044
+     },
+     {
+      "declination": -20.26503,
+      "degree": 26,
+      "dignity": "Neutral",
+      "element": "Fire",
+      "glyph": "\u26b8",
+      "house": 7,
+      "id": "Lilith",
+      "latitude": 3.123807,
+      "longitude": 266.357795,
+      "minute": 21,
+      "modality": "Mutable",
+      "retrograde": false,
+      "second": 28.1,
+      "sign": "Sagittarius",
+      "sign_glyph": "\u2650",
+      "speed": 0.111211
+     },
+     {
       "declination": 0.0,
       "degree": 28,
       "dignity": "Neutral",
@@ -2155,6 +3042,17 @@
       "type": "Sesquiquadrate"
      },
      {
+      "angle": 60.0,
+      "applying": true,
+      "color": "#48a999",
+      "harmony": "harmonious",
+      "orb": 0.61,
+      "p1": "Sun",
+      "p2": "North Node",
+      "separation": 60.61,
+      "type": "Sextile"
+     },
+     {
       "angle": 90.0,
       "applying": false,
       "color": "#b03a2e",
@@ -2164,6 +3062,28 @@
       "p2": "Midheaven",
       "separation": 89.38,
       "type": "Square"
+     },
+     {
+      "angle": 72.0,
+      "applying": true,
+      "color": "#117864",
+      "harmony": "harmonious",
+      "orb": 0.63,
+      "p1": "Mercury",
+      "p2": "North Node",
+      "separation": 72.63,
+      "type": "Quintile"
+     },
+     {
+      "angle": 150.0,
+      "applying": true,
+      "color": "#8e7cc3",
+      "harmony": "neutral",
+      "orb": 0.86,
+      "p1": "Lilith",
+      "p2": "Midheaven",
+      "separation": 150.86,
+      "type": "Quincunx"
      },
      {
       "angle": 120.0,
@@ -2188,6 +3108,17 @@
       "type": "Square"
      },
      {
+      "angle": 90.0,
+      "applying": false,
+      "color": "#b03a2e",
+      "harmony": "challenging",
+      "orb": 1.22,
+      "p1": "Jupiter",
+      "p2": "Chiron",
+      "separation": 88.78,
+      "type": "Square"
+     },
+     {
       "angle": 0.0,
       "applying": true,
       "color": "#c9a84c",
@@ -2200,6 +3131,17 @@
      },
      {
       "angle": 60.0,
+      "applying": true,
+      "color": "#48a999",
+      "harmony": "harmonious",
+      "orb": 1.48,
+      "p1": "Pluto",
+      "p2": "Lilith",
+      "separation": 61.48,
+      "type": "Sextile"
+     },
+     {
+      "angle": 60.0,
       "applying": false,
       "color": "#48a999",
       "harmony": "harmonious",
@@ -2207,6 +3149,17 @@
       "p1": "Uranus",
       "p2": "Neptune",
       "separation": 58.45,
+      "type": "Sextile"
+     },
+     {
+      "angle": 60.0,
+      "applying": false,
+      "color": "#48a999",
+      "harmony": "harmonious",
+      "orb": 1.56,
+      "p1": "Mars",
+      "p2": "North Node",
+      "separation": 58.44,
       "type": "Sextile"
      },
      {
@@ -2243,6 +3196,17 @@
       "type": "Conjunction"
      },
      {
+      "angle": 120.0,
+      "applying": false,
+      "color": "#2e86c1",
+      "harmony": "harmonious",
+      "orb": 1.73,
+      "p1": "Neptune",
+      "p2": "Lilith",
+      "separation": 118.27,
+      "type": "Trine"
+     },
+     {
       "angle": 60.0,
       "applying": true,
       "color": "#48a999",
@@ -2251,6 +3215,28 @@
       "p1": "Saturn",
       "p2": "Uranus",
       "separation": 61.8,
+      "type": "Sextile"
+     },
+     {
+      "angle": 30.0,
+      "applying": false,
+      "color": "#7d6608",
+      "harmony": "neutral",
+      "orb": 1.83,
+      "p1": "Chiron",
+      "p2": "Part of Fortune",
+      "separation": 28.17,
+      "type": "Semisextile"
+     },
+     {
+      "angle": 60.0,
+      "applying": true,
+      "color": "#48a999",
+      "harmony": "harmonious",
+      "orb": 2.02,
+      "p1": "Venus",
+      "p2": "North Node",
+      "separation": 62.02,
       "type": "Sextile"
      },
      {
@@ -2276,6 +3262,17 @@
       "type": "Square"
      },
      {
+      "angle": 180.0,
+      "applying": false,
+      "color": "#b03a2e",
+      "harmony": "challenging",
+      "orb": 2.55,
+      "p1": "Moon",
+      "p2": "Lilith",
+      "separation": 177.45,
+      "type": "Opposition"
+     },
+     {
       "angle": 120.0,
       "applying": false,
       "color": "#2e86c1",
@@ -2296,6 +3293,17 @@
       "p2": "Pluto",
       "separation": 56.79,
       "type": "Sextile"
+     },
+     {
+      "angle": 180.0,
+      "applying": false,
+      "color": "#b03a2e",
+      "harmony": "challenging",
+      "orb": 3.28,
+      "p1": "Uranus",
+      "p2": "Lilith",
+      "separation": 176.72,
+      "type": "Opposition"
      },
      {
       "angle": 0.0,
@@ -2376,6 +3384,17 @@
      },
      {
       "angle": 120.0,
+      "applying": true,
+      "color": "#2e86c1",
+      "harmony": "harmonious",
+      "orb": 4.76,
+      "p1": "Chiron",
+      "p2": "Ascendant",
+      "separation": 115.24,
+      "type": "Trine"
+     },
+     {
+      "angle": 120.0,
       "applying": false,
       "color": "#2e86c1",
       "harmony": "harmonious",
@@ -2383,6 +3402,17 @@
       "p1": "Jupiter",
       "p2": "Saturn",
       "separation": 115.23,
+      "type": "Trine"
+     },
+     {
+      "angle": 120.0,
+      "applying": false,
+      "color": "#2e86c1",
+      "harmony": "harmonious",
+      "orb": 5.08,
+      "p1": "Saturn",
+      "p2": "Lilith",
+      "separation": 114.92,
       "type": "Trine"
      },
      {
@@ -2397,6 +3427,17 @@
       "type": "Conjunction"
      },
      {
+      "angle": 120.0,
+      "applying": false,
+      "color": "#2e86c1",
+      "harmony": "harmonious",
+      "orb": 5.75,
+      "p1": "Mercury",
+      "p2": "Chiron",
+      "separation": 114.25,
+      "type": "Trine"
+     },
+     {
       "angle": 0.0,
       "applying": false,
       "color": "#c9a84c",
@@ -2406,6 +3447,17 @@
       "p2": "Uranus",
       "separation": 5.83,
       "type": "Conjunction"
+     },
+     {
+      "angle": 120.0,
+      "applying": false,
+      "color": "#2e86c1",
+      "harmony": "harmonious",
+      "orb": 6.8,
+      "p1": "Lilith",
+      "p2": "Part of Fortune",
+      "separation": 113.2,
+      "type": "Trine"
      },
      {
       "angle": 120.0,
@@ -2698,6 +3750,78 @@
       "speed": 0.030102
      },
      {
+      "declination": -7.44754,
+      "degree": 10,
+      "dignity": "Neutral",
+      "element": "Water",
+      "glyph": "\u260a",
+      "house": 8,
+      "id": "North Node",
+      "latitude": 0.0,
+      "longitude": 340.981596,
+      "minute": 58,
+      "modality": "Mutable",
+      "retrograde": true,
+      "second": 53.7,
+      "sign": "Pisces",
+      "sign_glyph": "\u2653",
+      "speed": -0.140895
+     },
+     {
+      "declination": 7.44754,
+      "degree": 10,
+      "dignity": "Neutral",
+      "element": "Earth",
+      "glyph": "\u260b",
+      "house": 2,
+      "id": "South Node",
+      "latitude": -0.0,
+      "longitude": 160.981596,
+      "minute": 58,
+      "modality": "Mutable",
+      "retrograde": true,
+      "second": 53.7,
+      "sign": "Virgo",
+      "sign_glyph": "\u264d",
+      "speed": -0.140895
+     },
+     {
+      "declination": 9.258979,
+      "degree": 22,
+      "dignity": "Neutral",
+      "element": "Fire",
+      "glyph": "\u26b7",
+      "house": 9,
+      "id": "Chiron",
+      "latitude": 0.502306,
+      "longitude": 22.600448,
+      "minute": 36,
+      "modality": "Cardinal",
+      "retrograde": true,
+      "second": 1.6,
+      "sign": "Aries",
+      "sign_glyph": "\u2648",
+      "speed": -0.001714
+     },
+     {
+      "declination": -25.347756,
+      "degree": 1,
+      "dignity": "Neutral",
+      "element": "Fire",
+      "glyph": "\u26b8",
+      "house": 4,
+      "id": "Lilith",
+      "latitude": -5.052234,
+      "longitude": 241.232771,
+      "minute": 13,
+      "modality": "Mutable",
+      "retrograde": false,
+      "second": 58.0,
+      "sign": "Sagittarius",
+      "sign_glyph": "\u2650",
+      "speed": 0.112071
+     },
+     {
       "declination": 0.0,
       "degree": 24,
       "dignity": "Neutral",
@@ -2757,7 +3881,7 @@
    }
   }
  ],
- "engine": "moshier",
+ "engine": "swiss-files",
  "schema": "astra-parity/predictive@1",
  "tolerances": {
   "angle_deg": 0.02,

@@ -88,7 +88,7 @@ interface AstroState {
   // Data
   chart: ChartResponse | null;
   chartFromCache: boolean; // chart from offline fallback (cache or on-device), not the API
-  chartFromLocal: boolean; // chart computed on-device by @astra/core (reduced body set)
+  chartFromLocal: boolean; // chart computed on-device by @astra/core
   transit: TransitResponse | null;
   transitIso: string; // ISO datetime for the slider
 
@@ -270,7 +270,7 @@ export const useStore = create<AstroState>((set, get) => ({
         return;
       }
       // 2) No cache for this birth — cast it on-device with @astra/core
-      // (reduced body set). Genuinely offline-capable, any birth data.
+      // (full body set via the bundled WASM Swiss engine). Genuinely offline-capable, any birth data.
       try {
         const chart = await localChart(get().birth);
         set({ chart, loading: false, error: null, selection: null,
