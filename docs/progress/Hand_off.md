@@ -1,8 +1,35 @@
 # Hand_off.md
 
-_Last updated: 2026-07-08 (track-d-housekeeping)_
+_Last updated: 2026-07-08 end-of-day (session 12 close)_
 
 ## TL;DR for next session
+
+**Pick up at P2 — the Morning panel** (NEXT_ARC Track 3): an at-a-glance
+boot surface with today's daily card + the day's tightest transits. All
+engines exist and run offline (`arcana-forecast` daily card; the forecast
+scanner); this is composition, not engineering. After P2: Track R redesign
+(wireframes FIRST, per the ratified blueprint).
+
+**Merge first:** PR **#57** (P1 Journal) may still be open — all checks were
+green at session close.
+
+**New since the blueprint:** the operator has **acquired an image-generation
+API key** for P3 (deck-art plates). Provider/model unknown to the repo —
+ASK which service it is before wiring anything. The ratified sequence still
+defers the P3 build decision until after tome Phase 0 + Track R, but the
+key being in hand removes its main blocker; treat P3 as "awaiting sequencing,"
+not "awaiting decision." Key handling: backend/.env var (never frontend),
+posture identical to the Anthropic key (network-optional, honest provenance).
+
+**Session-12 arc scoreboard:** Track 2 complete (B1 Vault @1→@3, B2 Bookshelf,
+B3 backup notes) · P1 Journal complete (PR #57) · P2 next · earlier the same
+day: premium Fable 5 live end-to-end, WASM Swiss all-bodies + sidereal
+(astronomy-engine retired, near-bit-exact parity), tome plates page, H1
+exited on the phone, Track D observability closed.
+
+---
+
+### (previous TL;DR, still accurate below)
 
 **Direction: personal instrument** (operator decision — build what the owner
 wants, close gaps; no store/ship pressure). Everything through **PR #44 is
@@ -78,6 +105,18 @@ cd backend && .venv/bin/python tools/gen_parity_vectors.py --check  # tripwire
   tarot plate grid (PDF-1 follow-on) all landed the same day.
 
 ## Known gotchas (carried forward)
+
+- **After the operator merges dependabot PRs: `npm ci` BEFORE trusting local
+  tsc/build** — stale node_modules masked the TypeScript 7 breakage (TS7
+  hard-errors TS2882 on side-effect CSS imports; fixed by the once-missing
+  `frontend/src/vite-env.d.ts`).
+- **IndexedDB in e2e: readers open versionless** (`indexedDB.open(name)`) —
+  an explicit lower version than the live DB throws VersionError and reads
+  resolve null forever (bit the B2 spec when the journal bumped the DB to v2).
+  Writers/seeders pin the current schema version.
+- The bookshelf DB is `astra-bookshelf` v2: `sessions` (keyed by seed) +
+  `journal` (keyed by id, seed-indexed). Vault format `astra-vault@3`
+  (localStorage + bookshelf + journal); restore accepts @1–@3.
 
 - **Base-URL bug:** `AAE_AI_BASE_URL` must NOT include `/v1` (code appends it).
 - **Oracle token budget:** 2500+ tokens or readings truncate mid-sentence.
