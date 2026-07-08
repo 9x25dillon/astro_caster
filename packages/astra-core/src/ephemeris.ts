@@ -23,8 +23,12 @@ const {
   EquatorFromVector,
   GeoVector,
   MakeTime,
+  NextGlobalSolarEclipse,
+  NextLunarEclipse,
   RotateVector,
   Rotation_EQJ_EQD,
+  SearchGlobalSolarEclipse,
+  SearchLunarEclipse,
   SiderealTime,
   e_tilt,
 } = pickAstronomy(_AEns);
@@ -169,6 +173,45 @@ export function eclipticLonSpeed(
   if (body === undefined) return null;
   const { lon, speed } = calcBody(jd, body);
   return { lon, speed };
+}
+
+// ---------------------------------------------------------------------------
+// Eclipses — astronomy-engine's own search (independent of the Swiss one the
+// backend uses via sol_eclipse_when_glob / lun_eclipse_when).
+// ---------------------------------------------------------------------------
+
+export interface RawEclipse {
+  is_solar: boolean;
+  kind: string; // "penumbral" | "partial" | "annular" | "total"
+  jd: number; // peak instant, for computing the luminary's longitude
+  date: string; // UTC calendar date of the peak (YYYY-MM-DD)
+}
+
+function eclipseRecord(kind: string, peak: AstroTime, isSolar: boolean): RawEclipse {
+  return {
+    is_solar: isSolar,
+    kind: String(kind),
+    jd: peak.ut + 2451545.0,
+    date: peak.date.toISOString().slice(0, 10),
+  };
+}
+
+/** The soonest `count` eclipses (solar + lunar merged) at/after `start`, sorted
+ *  by time — mirrors backend eclipse_timeline's global search. */
+export function searchEclipses(start: Date, count: number): RawEclipse[] {
+  const found: RawEclipse[] = [];
+  let solar = SearchGlobalSolarEclipse(start);
+  for (let i = 0; i < count; i++) {
+    found.push(eclipseRecord(solar.kind, solar.peak, true));
+    solar = NextGlobalSolarEclipse(solar.peak);
+  }
+  let lunar = SearchLunarEclipse(start);
+  for (let i = 0; i < count; i++) {
+    found.push(eclipseRecord(lunar.kind, lunar.peak, false));
+    lunar = NextLunarEclipse(lunar.peak);
+  }
+  found.sort((a, b) => a.jd - b.jd);
+  return found.slice(0, count);
 }
 
 // ---------------------------------------------------------------------------

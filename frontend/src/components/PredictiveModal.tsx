@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useStore } from "../store/useStore";
 import {
   fetchProgressed, fetchSolarReturn, fetchEclipses, trackEvent, localToday,
-  localProgressed, localSolarReturn, isOfflineError,
+  localProgressed, localSolarReturn, localEclipses, isOfflineError,
   type ProgressedChart, type SolarReturnChart, type EclipseTimeline,
 } from "../api/client";
 
@@ -37,7 +37,6 @@ export const PredictiveModal: React.FC<{ onClose: () => void }> = ({ onClose }) 
     try { set(await fn()); trackEvent(ev); }
     catch (e) {
       // Backend unreachable → compute on-device via @astra/core (reduced body set).
-      // Eclipses have no local path (Swiss eclipse-search isn't ported).
       if (local && isOfflineError(String(e))) {
         try { set(await local()); setOnDevice(true); trackEvent(ev + "_local"); }
         catch (e2) { setErr(String(e2)); }
@@ -132,7 +131,7 @@ export const PredictiveModal: React.FC<{ onClose: () => void }> = ({ onClose }) 
             <div>
               <div className="arc-draw-controls">
                 <button className="arc-draw-btn" disabled={loading}
-                        onClick={() => run(() => fetchEclipses(birth, today(), 8), setEcl, "eclipses_run")}>
+                        onClick={() => run(() => fetchEclipses(birth, today(), 8), setEcl, "eclipses_run", () => localEclipses(birth, today(), 8))}>
                   {loading ? "…" : "Next 8 eclipses"}
                 </button>
               </div>

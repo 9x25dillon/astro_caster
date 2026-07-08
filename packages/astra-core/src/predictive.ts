@@ -11,8 +11,12 @@
 //
 // Drift-locked to the backend by parity/predictive.json.
 
-import { calculateChart, aspectsBetween, eclipticLonSpeed, julianDay } from "./ephemeris.js";
+import { angularSeparation, degreeInSign, signFor } from "./astrology.js";
+import { calculateChart, aspectsBetween, eclipticLonSpeed, julianDay, searchEclipses } from "./ephemeris.js";
 import type { Angles, Aspect, ChartRequest, HouseCusp, PlanetData } from "./types.js";
+
+export const PREDICTIVE_DISCLAIMER =
+  "Progressions, returns, and eclipses are symbolic timing mirrors for reflection, not deterministic predictions of fixed events.";
 
 const TROPICAL_YEAR = 365.24219; // mean tropical year, days
 const SUN_DEG_PER_DAY = 0.9856473;
@@ -138,6 +142,74 @@ export function solarReturnJd(
 function jdToUtcDate(jd: number): Date {
   // Round to the nearest whole second (backend _jd_to_utc rounds, not floors).
   return new Date(Math.round((jd - JD_UNIX_EPOCH) * MS_PER_DAY / 1000) * 1000);
+}
+
+// --------------------------------------------------------------------------- //
+// Eclipse timeline
+// --------------------------------------------------------------------------- //
+
+const ECLIPSE_ORB = 3.0;
+// Derived / non-physical points excluded from eclipse activations (backend _SKIP).
+const ECLIPSE_SKIP = new Set(["Descendant", "Imum Coeli", "Part of Fortune", "Lilith", "South Node"]);
+
+export interface EclipseContact {
+  natal_body: string;
+  aspect: string; // "conjunction" | "opposition"
+  orb: number;
+}
+export interface EclipseEvent {
+  date: string;
+  kind: string; // "solar" | "lunar"
+  nature: string; // "total" | "annular" | "partial" | "penumbral"
+  longitude: number;
+  sign: string;
+  degree: number;
+  activations: EclipseContact[];
+}
+export interface EclipseTimeline {
+  start: string;
+  eclipses: EclipseEvent[];
+  disclaimer: string;
+}
+
+function eclipseActivations(eclipseLon: number, natalPlanets: PlanetData[]): EclipseContact[] {
+  const out: EclipseContact[] = [];
+  for (const p of natalPlanets) {
+    if (ECLIPSE_SKIP.has(p.id)) continue;
+    const sep = angularSeparation(p.longitude, eclipseLon);
+    if (sep <= ECLIPSE_ORB) {
+      out.push({ natal_body: p.id, aspect: "conjunction", orb: round2(sep) });
+    } else if (Math.abs(sep - 180) <= ECLIPSE_ORB) {
+      out.push({ natal_body: p.id, aspect: "opposition", orb: round2(Math.abs(sep - 180)) });
+    }
+  }
+  out.sort((a, b) => a.orb - b.orb);
+  return out;
+}
+
+/**
+ * Upcoming eclipses and which natal points they activate — a port of backend
+ * eclipse_timeline using astronomy-engine's own eclipse search (an independent
+ * implementation of the Swiss one). The eclipse's ecliptic longitude is the
+ * luminary's: the Sun for a solar eclipse, the Moon for a lunar one.
+ */
+export function eclipseTimeline(natal: ChartRequest, startIso?: string, count = 8): EclipseTimeline {
+  const natalChart = calculateChart(natal);
+  const start = startIso ? new Date(parseIsoUtc(startIso)) : new Date();
+  const eclipses: EclipseEvent[] = searchEclipses(start, count).map((e) => {
+    const lon = eclipticLonSpeed(e.jd, e.is_solar ? "Sun" : "Moon")!.lon;
+    const [degree] = degreeInSign(lon);
+    return {
+      date: e.date,
+      kind: e.is_solar ? "solar" : "lunar",
+      nature: e.kind,
+      longitude: Math.round(lon * 1e4) / 1e4,
+      sign: signFor(lon),
+      degree,
+      activations: eclipseActivations(lon, natalChart.planets),
+    };
+  });
+  return { start: start.toISOString().slice(0, 10), eclipses, disclaimer: PREDICTIVE_DISCLAIMER };
 }
 
 export function solarReturn(

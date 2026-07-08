@@ -10,8 +10,10 @@ import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { angularSeparation, calculateChart, progressedChart, solarReturn } from "../src/index.js";
+import { angularSeparation, calculateChart, eclipseTimeline, progressedChart, solarReturn } from "../src/index.js";
 import type { ChartRequest } from "../src/index.js";
+
+const dayDiff = (a: string, b: string) => Math.abs(Date.parse(a) - Date.parse(b)) / 86_400_000;
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const payload = JSON.parse(
@@ -104,5 +106,30 @@ for (const kase of payload.cases) {
     compareAspects(chart.aspects, kase.solar_return.aspects, 1.0, "solar_return.aspects");
     assert.deepEqual(chart.elements, kase.solar_return.elements, "SR elements");
     assert.deepEqual(chart.modalities, kase.solar_return.modalities, "SR modalities");
+
+    // Eclipse timeline — astronomy-engine's eclipse search vs the Swiss one.
+    // Eclipses are precisely timed, so dates align to the day; the luminary's
+    // longitude (and thus sign/degree + activations) matches within tolerance.
+    const ecl = eclipseTimeline(req, kase.eclipses.start_iso, kase.eclipses.count);
+    assert.equal(ecl.eclipses.length, kase.eclipses.events.length, "eclipse count");
+    for (let i = 0; i < kase.eclipses.events.length; i++) {
+      const e = kase.eclipses.events[i];
+      const a = ecl.eclipses[i]; // both sorted by time; eclipses are weeks apart
+      assert.ok(dayDiff(a.date, e.date) <= 1, `eclipse ${i} date ${a.date} vs ${e.date}`);
+      assert.equal(a.kind, e.kind, `eclipse ${i} kind`);
+      assert.equal(a.nature, e.nature, `eclipse ${i} nature`);
+      assert.ok(angularSeparation(a.longitude, e.longitude) <= 0.2, `eclipse ${i} lon ${a.longitude} vs ${e.longitude}`);
+      // Activations by identity; membership can flip only for orbs at the 3° cutoff.
+      const key = (c: any) => `${c.natal_body}|${c.aspect}`;
+      const expA = new Map<string, number>(e.activations.map((c: any) => [key(c), c.orb]));
+      const actA = new Map(a.activations.map((c) => [key(c), c.orb] as const));
+      for (const [k, orb] of expA) {
+        if (actA.has(k)) assert.ok(Math.abs(actA.get(k)! - orb) <= 0.1, `eclipse ${i} ${k} orb`);
+        else assert.ok(3 - orb <= 0.1, `eclipse ${i} missing ${k} not at cutoff (orb ${orb})`);
+      }
+      for (const [k, orb] of actA) {
+        if (!expA.has(k)) assert.ok(3 - orb <= 0.1, `eclipse ${i} extra ${k} not at cutoff (orb ${orb})`);
+      }
+    }
   });
 }

@@ -352,6 +352,8 @@ import predictive as PRED  # noqa: E402
 
 PROG_TARGET_ISO = "2026-01-01T00:00:00+00:00"
 SOLAR_RETURN_YEAR = 2026
+ECLIPSE_START_ISO = "2026-01-01T00:00:00+00:00"
+ECLIPSE_COUNT = 8
 
 
 def _restrict_planets(planets):
@@ -394,6 +396,12 @@ def build_predictive_payload() -> dict:
                 "aspects": [a.model_dump() for a in sr_aspects],
                 "elements": sr.elements,
                 "modalities": sr.modalities,
+            },
+            "eclipses": {
+                "start_iso": ECLIPSE_START_ISO,
+                "count": ECLIPSE_COUNT,
+                "events": [e.model_dump() for e in
+                           PRED.eclipse_timeline(cr, ECLIPSE_START_ISO, ECLIPSE_COUNT).eclipses],
             },
         })
     payload = {

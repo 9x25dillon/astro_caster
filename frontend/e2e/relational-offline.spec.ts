@@ -26,6 +26,10 @@ test("relationship, predictive and advanced degrade to on-device compute", async
   await page.getByRole("button", { name: /Timing/ }).click();
   await page.getByRole("button", { name: "Progress", exact: true }).click();
   await expect(page.locator(".arc-ondevice")).toBeVisible({ timeout: 15_000 });
+  // Eclipses on-device (astronomy-engine's own eclipse search).
+  await page.getByRole("button", { name: "Eclipses", exact: true }).click();
+  await page.getByRole("button", { name: /Next 8 eclipses/ }).click();
+  await expect(page.locator(".arc-ondevice")).toBeVisible({ timeout: 15_000 });
   await page.keyboard.press("Escape");
 
   // Advanced → harmonics on-device.
