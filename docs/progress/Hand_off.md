@@ -1,159 +1,102 @@
 # Hand_off.md
 
-_Last updated: 2026-07-04 (e2e-foundation + fonts session)_
+_Last updated: 2026-07-08 (track-d-housekeeping)_
 
 ## TL;DR for next session
 
-PR #21 (URL unlock + mobile roadmap) is **merged**; PR #22 (`e2e-foundation`)
-carries roadmap §7 items 1–2: the **Playwright e2e harness in `frontend/e2e/`**
-(desktop + Pixel 7, 20 checks ≈ 21 s, real minted tokens) with a **CI e2e job**,
-and **self-hosted EB Garamond/Cormorant** (zero external requests, guarded by
-`no-external.spec.ts`). 146 backend + 38 resonarium tests green; build green.
-§7.3 landed too (branch `parity-vectors`): golden vectors in `parity/` +
-backend drift-lock test + CI tripwire, plus a real determinism/Kite-detection
-fix in `patterns.py` it flushed out. Next: §7 items 4–5 (offline app shell,
-Ed25519 spike), receipt ledger.
+**Direction: personal instrument** (operator decision — build what the owner
+wants, close gaps; no store/ship pressure). Everything through **PR #44 is
+merged**. The three big 2026-07-08 landings:
 
-## Session notes (2026-07-04, e2e + fonts)
-
-- The scratchpad Playwright suites referenced by roadmap §7.1 **did not survive
-  /tmp** — rebuilt fresh in-repo. Lesson recorded: anything a plan depends on
-  must be committed, not left in a session scratchpad.
-- Playwright `webServer` + `run.sh` gotcha: run.sh setsids its children, so
-  Playwright's default SIGKILL orphans uvicorn/vite and teardown hangs forever
-  on their inherited stdio pipes. Fix: `gracefulShutdown: { signal: "SIGTERM" }`
-  so run.sh's trap reaps both process groups.
-- Google serves **byte-identical variable-font files per requested weight** —
-  dedupe and declare `font-weight: 400 600` ranges instead of per-weight files.
-- The outer `/home/kill/astro-aae` checkout is a **stale clone of this same
-  GitHub repo** (astro_caster nests inside it). It's synced to main and its
-  `.git/info/exclude` hides the nested clone; do day-to-day work here.
-
-## What shipped the session before (PR #20/#21)
-
-1. **Resonarium × Biosentinel** (`resonarium/`, merged to `main`) — standalone,
-   local-only natal-seeded audiovisual instrument. Bit-exact seed across Python and
-   JS (`natal_seed.{py,js}`), Sentinel Mode browser app over an immutable natal
-   bedrock, headless CLI + `state_schema.json`, and a 38-test parity + safety suite.
-   Photosensitivity/audio clamps; CSP-locked, no network. **Not a medical device.**
-   Full detail in `resonarium/README.md` and `CHANGELOG.md`.
-2. **Alchemical UI layer** (merged) — metals seal, correspondence card, sigil marks,
-   transmutation cast flare, alchemy print appendix; plus transit datetime fixes.
-3. **Mobile URL entitlement unlock** (`useStore.ts`, this branch) — `?entitlement=
-   <token>` stores the tier token like the console snippet would (phone browsers have
-   no devtools); `?entitlement=clear` → free. Param scrubbed from the address bar.
-   Documented in `TESTING.md` §2. Verified headless.
-4. **`docs/progress/MOBILE_ROADMAP.md`** (this branch) — three-horizon compute-gradient
-   plan (H1 PWA → H2 Capacitor → H3 on-device ASTRA-CORE). Its §7 immediate next
-   actions are the strongest candidates for the next session (see below).
-
-## What shipped the prior session (now on `main`)
-
-1. **PDF-2 — separate purchase rail for the deluxe Personal Report.**
-   Operator decision recorded: off-chain receipt/token (no payment rebuild).
-   `POST /api/personal-report/purchase` verifies a treasury tx against
-   `AAE_REPORT_MIN_WEI` (unset ⇒ purchases disabled, fail closed) and mints an
-   HMAC **report token bound to ONE oracle session seed**
-   (`AAE_REPORT_TOKEN_DAYS`, default 30). `/api/personal-report` 402s without
-   the claim — detail contains the word `purchase`, which the frontend branches
-   on; the dev token is exempt. UI purchase rail lives in the deluxe block;
-   claims persist per-seed in `localStorage["aae.report_tokens"]`.
-2. **PDF-3/PDF-4** — audio companion (narrates Synthesis + Practices) and
-   deterministic sigil-notes pipeline, landed with PDF-2.
-3. **Testing tooling** — see `TESTING.md`:
-   - `backend/tools/smoke_tiers.py` — 26-check tier × endpoint gate matrix
-     against a running server; default run costs nothing; `--full` compiles
-     end-to-end (free offline without an Anthropic key).
-   - `backend/tools/mint_test_tokens.py` — mints supporter/oracle tokens and
-     seed-bound report claims; prints browser localStorage snippets.
-4. **Glossary fix** — `.gloss-entry` needed `flex-shrink: 0`; `overflow:hidden`
-   zeroes a flex item's min-size, so the fixed-height list crushed all 40
-   entries to ~4px ("all" tab looked empty). Verified by headless screenshot.
-5. **Deluxe report enrichment** — the compile now weaves in the other Astra
-   modules (all client-derived, optional request fields):
-   `reflection_summary` (Detail-panel reading → quoted inside the Oracle
-   synthesis), `soul_profile` and `life_path` (subsections of the deep-dive),
-   extended `sigil_notes` (chaos + gematria word-value + dominant-planet
-   kamea). Both provenances carry them: Fable prompt AND offline compiler.
-6. **Esoteric-tome cover art** — `coverArtSvg()` in
-   `frontend/src/lib/printReport.ts`: deterministic frontispiece (natal
-   planets at true longitudes joined into a constellation, engraved-gold
-   zodiac ring — U+FE0E text presentation, session-seeded star field, chaos
-   sigil in a gold annulus, tome frame). Injected on the print cover page.
-7. **short_seed** — display seed is now a sha256 digest fragment on
-   `PersonalReportResponse` and the printed cover. The RAW seed's tail is the
-   user's question (it printed "Seed: d right now?"). The raw seed is still
-   what binds claims — `mint_test_tokens.py --seed` takes the RAW seed.
+1. **Premium AI is live.** `AAE_ANTHROPIC_API_KEY` is set and verified
+   (`dev.py ai check`); the in-depth Oracle Report and deluxe Personal Report
+   compile on **Claude Fable 5** (with the Opus 4.8 server-side fallback), not
+   the offline compiler. First real run produced a 13k-char Oracle report and
+   a 47k-char Personal Report against the owner's chart.
+2. **Full on-device body set** (PR #43): North/South Node, Chiron and Lilith
+   compute in the browser via a vendored WASM Swiss Ephemeris
+   (`packages/astra-core/src/vendor/swisseph/`). Parity vectors are pinned to
+   the same committed seas-only ephemeris config on both stacks; the drift
+   lock now spans all 17 bodies. No remaining §3 gaps — the on-device engine
+   is body-for-body identical to the backend.
+3. **H1 exit gate recorded** (PR #44): wheel touch pass (pinch-zoom,
+   long-press popover, responsive svg), lazy leaflet, Lighthouse
+   accessibility 100. **One manual item remains: the owner's literal
+   airplane-mode phone test** (roadmap §6 checkbox).
 
 ## How to run / test
 
 ```bash
-./run.sh                                   # backend :8787 + frontend :5173
-AAE_TRUST_MODE=1 ./run.sh                  # ...with the purchase rail mintable
-cd backend && .venv/bin/pytest -q          # 146 tests
-cd frontend && npm run build               # typecheck + build
-.venv/bin/python tools/smoke_tiers.py      # tier gate matrix vs live server
-.venv/bin/python tools/mint_test_tokens.py # browser tokens for any tier
-python3 -m unittest discover -s resonarium/tests -v   # 38 resonarium tests (parity needs node)
-python3 resonarium/resonarium_biosentinel_cli.py verify
+./run.sh                                    # backend :8787 + frontend :5173
+backend/.venv/bin/python backend/tools/dev.py   # unified dev CLI:
+#   unlock | token | smoke | parity | test | ai set/check/status
+cd backend && .venv/bin/pytest -q           # 173 tests
+cd packages/astra-core && npm test          # 30 parity/unit tests
+cd frontend && npm run build                # typecheck + build
+cd frontend && npx playwright test          # 46 e2e (23 × desktop/Pixel-7)
+cd backend && .venv/bin/python tools/gen_parity_vectors.py --check  # tripwire
 ```
 
-## Environment reality (shapes what "working" looks like locally)
+## Environment reality
 
-- `run.sh` exports `AAE_ENV=development`; **trust mode is OFF** by default, so
-  donate/purchase rails correctly reject everything until `AAE_TRUST_MODE=1`.
-- **No `AAE_ANTHROPIC_API_KEY`** in `backend/.env` → Oracle/Personal reports
-  compile in the deterministic offline mode (free to test end-to-end, honest
-  `ai_source: "offline"` badges). OpenRouter/ollama serve the lens readings.
-- `AAE_DEV_TOKEN` (in `.env`) grants oracle tier AND bypasses the purchase
-  gate — use a minted plain-oracle token to test the rail itself.
-- Tokens copied from a wrapped terminal line break silently: startup
-  validation clears the mangled token and the UI quietly shows free tier.
-  `mint_test_tokens.py` output + the `.replace(/\s+/g,"")` console snippet
-  pattern avoids this.
-- `*.pdf` is now gitignored — user print artifacts carry birth data; never
-  commit them (one was caught and amended out this session).
+- **Premium key is SET** in `backend/.env` — Oracle/Personal reports bill real
+  Fable 5 tokens (~$0.80/$1.60 worst-case per report). `dev.py ai status` to
+  confirm; `ai check` live-verifies (also catches the ZDR-retention 400).
+- Parity vectors and the backend **test session** run against the *vendored*
+  seas-only ephemeris (`SE_EPHE_PATH` forced in `tools/gen_parity_vectors.py`
+  and `tests/conftest.py`) — committed, so CI reproduces byte-identically.
+  Production (`run.sh`/.env) still uses the full `backend/ephe/` file set.
+- Tests isolate their receipts ledger (`AAE_RECEIPTS_DB` → temp dir in
+  conftest). The real ledger at `backend/data/receipts.db` contains whatever
+  fixture txs leaked before 2026-07-08; harmless, but don't be surprised by it.
+- Trust mode still OFF by default; `AAE_TRUST_MODE=1 ./run.sh` to exercise the
+  purchase rail in the UI.
 
 ## Open threads / next candidates
 
-- **Mobile roadmap §7 (highest-leverage next steps):** promote the scratchpad
-  Playwright suites into `frontend/e2e/`; self-host EB Garamond/Cormorant (closes
-  the app's last external request); `backend/tools/gen_parity_vectors.py` + first
-  vector file to make ASTRA-CORE concrete; offline app-shell pass on the service
-  worker; Ed25519 dual-issue spike in `entitlements.py`. Detail + acceptance
-  criteria in `docs/progress/MOBILE_ROADMAP.md`.
-- **Receipt ledger (R2-adjacent):** report claims are stateless, so one paid
-  tx can be replayed across different session seeds. When a shared store
-  lands (Redis/SQLite), record redeemed tx hashes and reject reuse. Recorded
-  in `docs/audits/AUDIT_REGRESSION.md` §6.
-- **PDF-1 follow-on (optional):** richer tarot-card grid + two-column layouts
-  from the design mock in the print renderer.
-- **AdminPanel:** surface `report_purchase` tier-events explicitly in the UI
-  (they're in `/api/admin/stats` → `tier_events` already).
-- ~~**Frontend chunk-size warning** (>500 kB)~~ — ✅ resolved 2026-07-05
-  (lazy `@astra/core` + vendor `manualChunks`; app chunk 635→237 kB).
-- **CI:** confirm the workflow's three jobs pass on GitHub now that
-  everything is on `main` (defined during production-hardening; first runs
-  happen on push).
-- Before any public deploy: set `AAE_ETH_RPC`, `AAE_ORACLE_MIN_WEI`,
-  `AAE_REPORT_MIN_WEI`; revisit the git-history birth-data decision
-  (`docs/audits/AUDIT_REGRESSION.md` §5.1, operator chose LEAVE on 2026-07-01).
+- **☐ Airplane-mode phone test** (the last H1 checkbox, owner-only): install
+  the PWA, toggle airplane mode, open → last cast renders, tarot draw +
+  forecast work.
+- **H2 (Capacitor wrapper / store distribution): parked** under the
+  personal-instrument direction. The roadmap keeps the plan if the direction
+  ever changes.
+- **Hardening backlog parked** (same reason): Docker (R5), Prometheus (R4),
+  prompt-injection hardening (R3), API versioning (F1), structured logging
+  (F2), tarot-data externalization (old F5), aspect/ephemeris caching (F3/F4).
+  R6 (client error telemetry) and the R2 remainder (deluxe purchases in admin
+  stats) closed 2026-07-08.
+- Before any public deploy (not currently planned): set `AAE_ETH_RPC`,
+  `AAE_ORACLE_MIN_WEI`, `AAE_REPORT_MIN_WEI`; revisit the git-history
+  birth-data decision (`docs/audits/AUDIT_REGRESSION.md` §5.1, operator chose
+  LEAVE 2026-07-01).
+- Ideas shelf: WASM-Swiss for *all* bodies (would collapse the cross-engine
+  tolerances to zero and retire astronomy-engine); sidereal zodiac on-device;
+  richer tarot-card grid in the print renderer (PDF-1 follow-on).
 
 ## Known gotchas (carried forward)
 
 - **Base-URL bug:** `AAE_AI_BASE_URL` must NOT include `/v1` (code appends it).
 - **Oracle token budget:** 2500+ tokens or readings truncate mid-sentence.
 - Shell here is **fish** — use `bash -c '...'` for loops/conditionals.
-- The raw oracle seed is a signature STRING (ends with the question), not a
-  hash. Display uses `short_seed`; binding/minting uses the raw value.
+- The raw oracle seed is a signature STRING (ends with the question); display
+  uses `short_seed`, binding/minting uses the raw value.
+- `npx playwright test` MUST run from `frontend/` (repo root has no config and
+  collides with the astra-core node:test files).
+- **New e2e specs import `test`/`expect` from `./helpers`**, not
+  `@playwright/test` — helpers skips the first-run ceremony overlay, which
+  otherwise intercepts real clicks (synthetic `dispatchEvent`s bypass
+  hit-testing and mask the problem).
+- Tokens copied from a wrapped terminal line break silently — use the
+  `.replace(/\s+/g,"")` console snippet or `dev.py token`.
+- `*.pdf` and `oracle_report_*.txt` are gitignored (print/report artifacts
+  carry personal data; never commit them).
 
-## Working-style notes (what sped this session up / would speed the next)
+## Working-style notes
 
-- Acceptance criteria up front ("done = gate 402s for oracle tier without a
-  claim, tests green, committed") let work land in one pass.
-- Bug reports travel fastest as a **minimal reproduction**: the exact click
-  path or console/error text, verbatim. "Token doesn't work" took a full
-  server-side chain-walk to localize to a copy-paste line-wrap.
-- Multi-part asks are welcome — a short list ("1. glossary scroll fix,
-  2. weave soul profile into the report, 3. tome cover art") lands cleaner
-  than a run-on sentence, and each item can be verified independently.
+- Acceptance criteria up front ("done = tests green, committed, PR open") let
+  work land in one pass.
+- Bug reports travel fastest as a minimal reproduction: exact click path or
+  verbatim console/error text.
+- Multi-part asks are welcome as short numbered lists; each item gets verified
+  independently.
+- Merges are the operator's: open the PR, leave the button alone.

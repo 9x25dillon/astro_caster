@@ -1875,6 +1875,10 @@ button.ghost:hover {
   text-align: center;
 }
 
+/* The deluxe-purchase KPI wears the product's gilt. */
+.adm-kpi-gilt .adm-kpi-val { color: var(--gold-bright); }
+.adm-kpi-gilt { border-color: rgba(201, 168, 76, 0.45); }
+
 .adm-kpi-val {
   font-family: var(--display);
   font-size: 26px;

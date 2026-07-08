@@ -217,6 +217,17 @@ def _summary() -> Dict[str, Any]:
         tier_actions = {r[0]: r[1] for r in q(
             "SELECT action, COUNT(*) FROM tier_events GROUP BY action")}
 
+        # Deluxe-report purchases, split by rail: verified = a real treasury
+        # tx passed the chain check; trust = dev/trust-mode mint.
+        rp = {bool(r[0]): r[1] for r in q(
+            "SELECT verified, COUNT(*) FROM tier_events "
+            "WHERE action='report_purchase' GROUP BY verified")}
+        report_purchases = {
+            "total": sum(rp.values()),
+            "verified": rp.get(True, 0),
+            "trust": rp.get(False, 0),
+        }
+
         return {
             "charts": {"total": chart_total, "last_24h": chart_day, "last_7d": chart_week},
             "ai": {
@@ -226,6 +237,7 @@ def _summary() -> Dict[str, Any]:
             },
             "features": [{"name": r[0], "count": r[1]} for r in top_features],
             "tier_events": tier_actions,
+            "report_purchases": report_purchases,
         }
     finally:
         conn.close()

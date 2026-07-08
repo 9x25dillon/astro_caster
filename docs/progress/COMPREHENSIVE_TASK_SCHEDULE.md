@@ -66,23 +66,27 @@ Use this as the ongoing cadence. Triage old IMPLEMENTATION_SCHEDULE items into t
 ### 1.2 Reliability & Cost Protection (R1–R6 from old schedule)
 Prioritize before exposing more paid oracle usage widely.
 
+**Sweep 2026-07-08 (operator direction = PERSONAL INSTRUMENT, chosen over
+ship/store/harden):** items whose payoff is public-deploy hardening are
+**PARKED**, not open — revisit only if the direction changes.
+
 | ID | Task (from IMPLEMENTATION_SCHEDULE + review recs) | Size | AC / Done When | Status |
 |----|--------------------------------------------------|------|----------------|--------|
-| R1 | Rate limiting on AI + oracle paths (`slowapi` or equivalent) | M | 429 on abuse for `/api/ai-ask*`, `/api/tarot-reading`, `/api/oracle-report`; configurable via env; tests for limits | Open |
-| R2 | Observability for new paid path | S | `log_ai` already called for oracle_report; ensure admin stats surfaces "oracle_report" lens + model + cost proxy (tokens or duration) | Partial (telemetry exists) |
-| R3 | Prompt injection hardening (user question) | M | Common attack strings neutralized in oracle + ai paths; unit tests | Open |
-| R4 | Prometheus `/metrics` (or enhance admin) | M | Key series for charts, AI calls by tier/lens (incl. oracle_report), latency, errors | Open |
-| R5 | Containerization basics | L | Dockerfile + compose that runs full app (frontend build + backend); documented | Open |
-| R6 | Client error tracking | S | Frontend errors posted to telemetry | Open |
+| R1 | Rate limiting on AI + oracle paths (`slowapi` or equivalent) | M | 429 on abuse for `/api/ai-ask*`, `/api/tarot-reading`, `/api/oracle-report`; configurable via env; tests for limits | ✅ Done 2026-07-01 (`ratelimit.py`, sliding window, prod-on/dev-off) |
+| R2 | Observability for new paid path | S | `log_ai` already called for oracle_report; ensure admin stats surfaces "oracle_report" lens + model + cost proxy (tokens or duration) | ✅ Done 2026-07-08 — oracle_report lens/model in AI-by-lens/model; deluxe purchases split (verified/trust) in summary + AdminPanel KPI |
+| R3 | Prompt injection hardening (user question) | M | Common attack strings neutralized in oracle + ai paths; unit tests | ⏸ Parked (personal instrument — the only user is the operator) |
+| R4 | Prometheus `/metrics` (or enhance admin) | M | Key series for charts, AI calls by tier/lens (incl. oracle_report), latency, errors | ⏸ Parked (AdminPanel covers the single-operator need) |
+| R5 | Containerization basics | L | Dockerfile + compose that runs full app (frontend build + backend); documented | ⏸ Parked (no deploy target; `run.sh` is the runtime) |
+| R6 | Client error tracking | S | Frontend errors posted to telemetry | ✅ Done 2026-07-08 (`lib/errorTelemetry.ts` → feature_events, trimmed + deduped, e2e-locked) |
 
 ### 1.3 Foundations & Quick Wins (F1–F6 + related)
 | ID | Task | Size | AC | Status |
 |----|------|------|----|--------|
-| F1 | API versioning (`/api/v1/...` + legacy redirects) | S | All routes under v1; frontend updated; 308s for old paths | Open |
-| F2 | Structured logging (`structlog` etc.) | M | request_id, tier, model, duration; no raw keys in logs | Open |
-| F5 (old) | Externalize tarot meanings to data file | M | `tarot.py` loads JSON/YAML; tests unchanged; i18n-ready | Open (note in schedule) |
+| F1 | API versioning (`/api/v1/...` + legacy redirects) | S | All routes under v1; frontend updated; 308s for old paths | ⏸ Parked 2026-07-08 (single first-party client; churn without payoff) |
+| F2 | Structured logging (`structlog` etc.) | M | request_id, tier, model, duration; no raw keys in logs | ⏸ Parked 2026-07-08 (telemetry.db covers the single-operator need) |
+| F5 (old) | Externalize tarot meanings to data file | M | `tarot.py` loads JSON/YAML; tests unchanged; i18n-ready | ⏸ Parked 2026-07-08 (card data already generated to JSON for @astra/core; i18n not planned) |
 | F6 | CI already landed | — | `.github/workflows/ci.yml` + Dependabot present and passing | **Done** (Phase 5) |
-| F3/F4 | Precomputed aspects + ephemeris cache | M | Measurable reuse; no perf regression | Open |
+| F3/F4 | Precomputed aspects + ephemeris cache | M | Measurable reuse; no perf regression | ⏸ Parked 2026-07-08 (chart compute is ~30 ms; no observed need) |
 
 ### 1.4 Feature Velocity (P1–P6)
 Ride existing backends:
