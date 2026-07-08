@@ -69,6 +69,7 @@ export const TransitSlider: React.FC = () => {
         <button className="ghost" style={{ width: "auto" }} onClick={() => step(-30)}>‹ mo</button>
         <input
           type="range"
+          aria-label="Transit date"
           min={min}
           max={max}
           step={DAY}
@@ -80,6 +81,7 @@ export const TransitSlider: React.FC = () => {
         <button className="ghost" style={{ width: "auto" }} onClick={() => step(365)}>yr ›</button>
         <input
           type="datetime-local"
+          aria-label="Transit date and time"
           value={transitIso}
           onChange={(e) => setTransitIso(e.target.value)}
           style={{ width: 210 }}

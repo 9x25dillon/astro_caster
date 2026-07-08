@@ -9,7 +9,7 @@
 //   5. Aspect layer  (chords inside the inner circle, coloured by aspect family)
 //
 // Orientation: Ascendant fixed at 9 o'clock (left), longitude increasing CCW.
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "../store/useStore";
 import {
   lonToAngle, polar, SIGN_GLYPHS, SIGN_NAMES, ELEMENT_OF_SIGN_INDEX, ELEMENT_COLORS,
@@ -17,7 +17,7 @@ import {
   HOUSE_INFLUENCE, ASPECT_INFLUENCE, ASPECT_SYMBOL, formatPos, ORDINAL,
 } from "../lib/astro";
 import { PLANET_METAL, SEAL_ORDER } from "../lib/alchemy";
-import type { Aspect, PlanetData } from "../types";
+import type { Aspect, PlanetData, Selection } from "../types";
 
 interface Props {
   size?: number;
@@ -91,6 +91,126 @@ export const ChartWheel: React.FC<Props> = ({ size = 720 }) => {
     return () => window.clearTimeout(t);
   }, [chart]);
 
+  // --- Touch pass (roadmap §4.1): pinch-zoom + pan, long-press = hover ------
+  // The wheel is dense; instead of impossible 44px static targets we give
+  // every interactive element a generous hit area AND let two fingers zoom
+  // the whole instrument (1x–4x), which scales targets arbitrarily large.
+  // Long-press (450ms) is the touch equivalence of the hover popover — the
+  // popover renders off `hovered`, which touch otherwise can't reach.
+  const svgRef = useRef<SVGSVGElement | null>(null);
+  const [view, setView] = useState({ k: 1, tx: 0, ty: 0 });
+  const ptsRef = useRef(new Map<number, { x: number; y: number }>());
+  const pinchRef = useRef<{ dist: number; k: number; mx: number; my: number; tx: number; ty: number } | null>(null);
+  const panRef = useRef<{ x: number; y: number; tx: number; ty: number } | null>(null);
+  const pressRef = useRef<{ timer: number; cx: number; cy: number } | null>(null);
+  const lastTapRef = useRef(0);
+
+  // Client point → viewBox coordinates (independent of the zoom transform).
+  const toSvg = (e: { clientX: number; clientY: number }) => {
+    const rect = svgRef.current!.getBoundingClientRect();
+    return {
+      x: ((e.clientX - rect.left) / rect.width) * size - size / 2,
+      y: ((e.clientY - rect.top) / rect.height) * size - size / 2,
+    };
+  };
+
+  const clearPress = () => {
+    if (pressRef.current) {
+      window.clearTimeout(pressRef.current.timer);
+      pressRef.current = null;
+    }
+  };
+
+  const onPointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
+    const pt = toSvg(e);
+    ptsRef.current.set(e.pointerId, pt);
+    const pts = [...ptsRef.current.values()];
+    if (pts.length === 2) {
+      clearPress();
+      panRef.current = null;
+      const [a, b] = pts;
+      pinchRef.current = {
+        dist: Math.hypot(a.x - b.x, a.y - b.y), k: view.k,
+        mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2, tx: view.tx, ty: view.ty,
+      };
+      return;
+    }
+    if (view.k > 1) panRef.current = { x: pt.x, y: pt.y, tx: view.tx, ty: view.ty };
+    if (e.pointerType !== "touch") return;
+    // Double-tap resets the zoom.
+    const now = performance.now();
+    if (now - lastTapRef.current < 300) {
+      setView({ k: 1, tx: 0, ty: 0 });
+      lastTapRef.current = 0;
+    } else {
+      lastTapRef.current = now;
+    }
+    // Long-press: peek the popover for whatever interactive element is under
+    // the finger (data-pop carries the same descriptor hover() takes).
+    hover(null);
+    const target = (e.target as Element).closest("[data-pop]");
+    if (target) {
+      const raw = target.getAttribute("data-pop")!;
+      const cut = raw.indexOf(":");
+      const sel = { type: raw.slice(0, cut), id: raw.slice(cut + 1) } as Selection;
+      pressRef.current = {
+        cx: e.clientX, cy: e.clientY,
+        timer: window.setTimeout(() => {
+          pressRef.current = null;
+          hover(sel);
+        }, 450),
+      };
+    }
+  };
+
+  const onPointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
+    if (!ptsRef.current.has(e.pointerId)) return;
+    const pt = toSvg(e);
+    ptsRef.current.set(e.pointerId, pt);
+    if (pressRef.current && Math.hypot(e.clientX - pressRef.current.cx, e.clientY - pressRef.current.cy) > 8) {
+      clearPress();
+    }
+    if (pinchRef.current && ptsRef.current.size === 2) {
+      const [a, b] = [...ptsRef.current.values()];
+      const g = pinchRef.current;
+      const k = Math.min(4, Math.max(1, (g.k * Math.hypot(a.x - b.x, a.y - b.y)) / g.dist));
+      // Keep the pinch midpoint stationary: t' = m − (m − t)·k'/k.
+      setView(k === 1 ? { k: 1, tx: 0, ty: 0 } : {
+        k,
+        tx: g.mx - ((g.mx - g.tx) * k) / g.k,
+        ty: g.my - ((g.my - g.ty) * k) / g.k,
+      });
+    } else if (panRef.current && ptsRef.current.size === 1) {
+      const p = panRef.current;
+      setView((v) => ({ ...v, tx: p.tx + (pt.x - p.x), ty: p.ty + (pt.y - p.y) }));
+    }
+  };
+
+  const onPointerEnd = (e: React.PointerEvent<SVGSVGElement>) => {
+    ptsRef.current.delete(e.pointerId);
+    clearPress();
+    if (ptsRef.current.size < 2) pinchRef.current = null;
+    if (ptsRef.current.size === 1 && view.k > 1) {
+      // A pinch finger lifted — reseed the pan from the finger that stayed.
+      const [pt] = [...ptsRef.current.values()];
+      panRef.current = { x: pt.x, y: pt.y, tx: view.tx, ty: view.ty };
+    } else if (ptsRef.current.size === 0) {
+      panRef.current = null;
+    }
+  };
+
+  // Two-finger gestures must not become a page zoom: preventDefault needs a
+  // non-passive listener (React's synthetic handlers are passive here).
+  useEffect(() => {
+    const el = svgRef.current;
+    if (!el) return;
+    const onTouchMove = (ev: TouchEvent) => {
+      if (ev.touches.length >= 2) ev.preventDefault();
+    };
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    return () => el.removeEventListener("touchmove", onTouchMove);
+  }, [chart]);
+
   const planetAngles = useMemo(() => {
     if (!chart) return {};
     const drawable = chart.planets.filter(
@@ -139,13 +259,25 @@ export const ChartWheel: React.FC<Props> = ({ size = 720 }) => {
 
   return (
     <svg
+      ref={svgRef}
       width={size}
       height={size}
       viewBox={`${-R} ${-R} ${size} ${size}`}
-      style={{ overflow: "visible" }}
+      style={{
+        // Zoomed: capture every touch (pan the wheel, not the page). At rest:
+        // one finger scrolls the page normally; two fingers pinch the wheel
+        // (the non-passive touchmove listener stops the page-zoom default).
+        touchAction: view.k > 1 ? "none" : "pan-y",
+        overflow: view.k > 1 ? "hidden" : "visible",
+      }}
       role="img"
       aria-label="Natal chart wheel"
       onClick={() => select(null)}
+      onContextMenu={(e) => e.preventDefault()}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerEnd}
+      onPointerCancel={onPointerEnd}
     >
       <defs>
         <radialGradient id="discGrad" cx="50%" cy="45%" r="65%">
@@ -197,6 +329,9 @@ export const ChartWheel: React.FC<Props> = ({ size = 720 }) => {
         </filter>
       </defs>
 
+      {/* Everything visual lives under the zoom/pan transform. */}
+      <g transform={`translate(${view.tx} ${view.ty}) scale(${view.k})`}>
+
       {/* Backdrop disc */}
       <circle r={rZodiacOuter} fill="url(#discGrad)" stroke="var(--rule)" strokeWidth={0.5} />
 
@@ -247,6 +382,7 @@ export const ChartWheel: React.FC<Props> = ({ size = 720 }) => {
           return (
             <g
               key={`sign-${i}`}
+              data-pop={`sign:${i}`}
               onMouseEnter={() => hover({ type: "sign", id: String(i) })}
               onMouseLeave={() => hover(null)}
               style={{ cursor: "help" }}
@@ -318,6 +454,7 @@ export const ChartWheel: React.FC<Props> = ({ size = 720 }) => {
               <g key={`house-${i}`}>
                 <path
                   className="house-wedge"
+                  data-pop={`house:${h.index}`}
                   d={`M ${wx0} ${wy0} A ${rHouseOuter} ${rHouseOuter} 0 ${laf} 0 ${wx1} ${wy1} L ${wxi1} ${wyi1} A ${rHouseInner} ${rHouseInner} 0 ${laf} 1 ${wxi0} ${wyi0} Z`}
                   fill="transparent"
                   onMouseEnter={() => hover({ type: "house", id: String(h.index) })}
@@ -403,6 +540,7 @@ export const ChartWheel: React.FC<Props> = ({ size = 720 }) => {
           return (
             <g
               key={key}
+              data-pop={`aspect:${key}`}
               className={`aspect-chord ${active ? "is-active" : ""} ${dim ? "is-dim" : ""}`}
               onClick={(e) => {
                 e.stopPropagation();
@@ -449,6 +587,7 @@ export const ChartWheel: React.FC<Props> = ({ size = 720 }) => {
           return (
             <g
               key={`ta-${a.p1}-${a.p2}-${a.type}`}
+              data-pop={`transit_aspect:${taKey}`}
               onMouseEnter={() => hover({ type: "transit_aspect", id: taKey })}
               onMouseLeave={() => hover(null)}
               style={{ cursor: "pointer" }}
@@ -484,6 +623,7 @@ export const ChartWheel: React.FC<Props> = ({ size = 720 }) => {
               <g
                 key={p.id}
                 className="planet-node"
+                data-pop={`planet:${p.id}`}
                 onClick={(e) => {
                   e.stopPropagation();
                   select({ type: "planet", id: p.id });
@@ -492,6 +632,9 @@ export const ChartWheel: React.FC<Props> = ({ size = 720 }) => {
                 onMouseLeave={() => hover(null)}
               >
                 <line x1={tx} y1={ty} x2={gx} y2={gy} stroke="var(--rule)" strokeWidth={0.6} />
+                {/* Generous invisible hit disc — the glyph alone is a tiny
+                    touch target; with pinch-zoom this reaches 44px fast. */}
+                <circle cx={gx} cy={gy} r={16} fill="transparent" />
                 {sel && (
                   <circle cx={gx} cy={gy} r={22} fill="var(--gold)" fillOpacity={0.22} filter="url(#glow)" />
                 )}
@@ -741,6 +884,7 @@ export const ChartWheel: React.FC<Props> = ({ size = 720 }) => {
       >
         ☤
       </text>
+      </g>
     </svg>
   );
 };

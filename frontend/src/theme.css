@@ -165,6 +165,15 @@ body::before {
 
 .controls { grid-area: controls; }
 .wheel-area { grid-area: wheel; display: flex; align-items: center; justify-content: center; position: relative; }
+/* Touch pass: the wheel scales to the viewport (its viewBox keeps geometry),
+   and long-press must read as a gesture, not a text-selection/callout. */
+.wheel-area svg {
+  max-width: min(100%, 720px);
+  height: auto;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
 
 /* Offline app shell: the wheel is a restored last cast, not a live compute. */
 .offline-note {

@@ -249,6 +249,34 @@ carries over unchanged.
   reconnect. Zero external requests (fonts self-hosted). Lighthouse PWA ≥ 95.
 - `frontend/e2e/` mobile-viewport suite green in CI.
 
+  **GATE RECORDED 2026-07-08 (`h1-touch-polish`): H1 exit criteria met**, with
+  one criterion re-based and one manual check outstanding:
+  - ✅ Offline compute: chart / tarot / forecast / natal-arcana / relational /
+    predictive / advanced all degrade to on-device engines, proven by the
+    route-severed e2e specs (the in-CI equivalent of airplane mode); AI asks
+    queue offline and flush on reconnect (`queued-ask.spec.ts`).
+  - ✅ Zero external requests (`no-external.spec.ts`, fonts + all assets
+    self-hosted and SW-precached).
+  - ✅ Mobile-viewport e2e suite (Pixel 7 project) green in CI, including the
+    touch pass (pinch-zoom, long-press popover, responsive wheel).
+  - ⚠️ *"Lighthouse PWA ≥ 95" is unmeasurable as written* — Lighthouse
+    retired the PWA category in v12 (2024). Re-based on the current
+    categories, prod build, mobile emulation, loaded dev machine:
+    **accessibility 100, best-practices 96, performance 70–84 (TBT-noisy),
+    SEO 63**. The SEO deduction is intentional (`robots.txt` disallows
+    indexing — a personal instrument is not a publication); the
+    best-practices deduction is an audit artifact (backend absent → boot
+    fetch errors in console; the offline fallback is the feature).
+    Installability is proven structurally: manifest + SW precache
+    (~1.1 MiB, ~1.75 MiB once the WASM Swiss engine of PR #43 merges) +
+    the offline e2e suite. Gate fixes made: a11y 84→100 (viewport
+    `user-scalable=no` removed — pinch-zooming the page is allowed again;
+    timeline/lens controls labelled), geolocation no longer prompts at
+    first paint (requested at the ceremony's location step instead),
+    meta description + robots.txt added.
+  - ☐ **Manual, owner:** literal airplane-mode check on the phone (install,
+    toggle airplane mode, open → last cast renders, draw + forecast work).
+
 **H2 exit (store-ready shell):**
 - Capacitor builds (APK + IPA) from `main` in CI; share-sheet PDF export;
   signed-token verification working with Ed25519 dual-issue live.
