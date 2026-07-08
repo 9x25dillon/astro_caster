@@ -3,6 +3,30 @@
 Per-phase log for the Production Hardening & Symbolic Intelligence Expansion pass.
 Baseline: `d9afc4b` (36 backend tests, clean frontend build).
 
+## Track D housekeeping — observability close-out + docs reconciled (2026-07-08, track-d-housekeeping)
+
+The last two open observability items closed, and the progress docs brought
+back in line with reality under the personal-instrument direction.
+
+- **Deluxe purchases surfaced (R2 close-out)**: `telemetry.summary()` gains a
+  `report_purchases` split — total / verified-tx / trust-mode — and the
+  AdminPanel shows it as a gilt KPI ("✶ Deluxe reports", rail split in the
+  tooltip) instead of one anonymous bar among the tier events. 2 new backend
+  tests.
+- **Client error telemetry (R6)**: `lib/errorTelemetry.ts` registers
+  window `error` / `unhandledrejection` handlers before first render —
+  trimmed payloads (200-char message, `file:line:col` source, never a stack
+  or form contents), per-session dedup, 10-event cap against error loops,
+  riding the existing fire-and-forget feature-event rail. Locked by
+  `error-telemetry.spec.ts`.
+- **Docs reconciled**: `Hand_off.md` rewritten to the current state (premium
+  AI live, 17-body on-device parity, H1 gate recorded — the airplane-mode
+  phone check is the one open box); `COMPREHENSIVE_TASK_SCHEDULE.md` swept —
+  R1/R2/R6 marked done with dates, R3/R4/R5 + F1/F2/F3/F4/old-F5 explicitly
+  **parked** under the personal-instrument decision rather than left "Open".
+- Merged local branches pruned. Tests: 173 backend (+2), 46 e2e (+2), build
+  clean.
+
 ## H1 touch polish — wheel gestures, lazy leaflet, gate recorded (2026-07-08, h1-touch-polish)
 
 The mobile close-out: the wheel becomes a real touch instrument, the last

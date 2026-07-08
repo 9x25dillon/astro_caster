@@ -15,6 +15,8 @@ interface AdminStats {
   };
   features: { name: string; count: number }[];
   tier_events: Record<string, number>;
+  // Deluxe-report purchases, split by rail (verified tx vs trust-mode mint).
+  report_purchases?: { total: number; verified: number; trust: number };
 }
 
 function Bar({ label, value, max }: { label: string; value: number; max: number }) {
@@ -110,6 +112,14 @@ export const AdminPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
               <div className="adm-kpi">
                 <div className="adm-kpi-val">{stats.ai.last_24h}</div>
                 <div className="adm-kpi-label">Queries 24h</div>
+              </div>
+              <div className="adm-kpi adm-kpi-gilt" title={
+                stats.report_purchases
+                  ? `${stats.report_purchases.verified} verified · ${stats.report_purchases.trust} trust-mode`
+                  : undefined
+              }>
+                <div className="adm-kpi-val">{stats.report_purchases?.total ?? 0}</div>
+                <div className="adm-kpi-label">✶ Deluxe reports</div>
               </div>
             </div>
 
