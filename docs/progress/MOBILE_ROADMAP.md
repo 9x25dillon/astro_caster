@@ -278,8 +278,11 @@ carries over unchanged.
     timeline/lens controls labelled), geolocation no longer prompts at
     first paint (requested at the ceremony's location step instead),
     meta description + robots.txt added.
-  - ☐ **Manual, owner:** literal airplane-mode check on the phone (install,
-    toggle airplane mode, open → last cast renders, draw + forecast work).
+  - ✅ **Manual, owner (2026-07-08):** literal airplane-mode check passed on
+    the phone — installed PWA opens offline, last cast renders, draws and
+    forecast work. **H1 IS FULLY EXITED.** H2 (Capacitor/store) stays parked
+    under the personal-instrument direction; H3's substance (on-device
+    deterministic core, full body set) landed ahead of schedule via §3.
 
 **H2 exit (store-ready shell):**
 - Capacitor builds (APK + IPA) from `main` in CI; share-sheet PDF export;
