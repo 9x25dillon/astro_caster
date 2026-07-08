@@ -5,8 +5,8 @@
 //
 // Eclipse timelines are NOT ported here: the backend uses Swiss Ephemeris'
 // eclipse-search (sol_eclipse_when_glob / lun_eclipse_when) and its total/
-// annular/partial classification, which astronomy-engine reproduces by a
-// different algorithm — matching dates + nature cross-engine is the "hard 20%"
+// annular/partial classification — served by the same Swiss search the
+// backend runs, so dates and natures match exactly.
 // deferred with the Node/Chiron gap (WASM-Swiss escalation, roadmap §3).
 //
 // Drift-locked to the backend by parity/predictive.json.
@@ -189,7 +189,7 @@ function eclipseActivations(eclipseLon: number, natalPlanets: PlanetData[]): Ecl
 
 /**
  * Upcoming eclipses and which natal points they activate — a port of backend
- * eclipse_timeline using astronomy-engine's own eclipse search (an independent
+ * eclipse_timeline using the WASM Swiss eclipse search (the same C search the
  * implementation of the Swiss one). The eclipse's ecliptic longitude is the
  * luminary's: the Sun for a solar eclipse, the Moon for a lunar one.
  */

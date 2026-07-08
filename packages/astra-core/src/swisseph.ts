@@ -106,3 +106,78 @@ export function calcSwissBody(
   if (!eq) return null;
   return { lon: ecl[0], lat: ecl[1], speed: ecl[3], dec: eq[1] };
 }
+
+/** Houses + angles via swe_houses — the same C the backend's houses_ex runs
+ *  (tropical; the wasm build has no sidereal export). cusps[0..11] = houses
+ *  1..12; ascmc: 0=Asc, 1=MC, 2=ARMC, 3=Vertex. */
+export function calcSwissHouses(
+  jd: number,
+  lat: number,
+  lon: number,
+  hsys: string
+): { cusps: number[]; asc: number; mc: number; vertex: number } | null {
+  const m = instance;
+  if (!m) return null;
+  const cuspsPtr = m._malloc(13 * 8);
+  const ascmcPtr = m._malloc(10 * 8);
+  try {
+    m.ccall(
+      "swe_houses_wrap",
+      "number",
+      ["number", "number", "number", "number", "number", "number"],
+      [jd, lat, lon, hsys.charCodeAt(0), cuspsPtr, ascmcPtr]
+    );
+    const cusps: number[] = [];
+    for (let i = 1; i <= 12; i++) cusps.push(m.getValue(cuspsPtr + i * 8, "double"));
+    return {
+      cusps,
+      asc: m.getValue(ascmcPtr + 0 * 8, "double"),
+      mc: m.getValue(ascmcPtr + 1 * 8, "double"),
+      vertex: m.getValue(ascmcPtr + 3 * 8, "double"),
+    };
+  } finally {
+    m._free(cuspsPtr);
+    m._free(ascmcPtr);
+  }
+}
+
+// Eclipse search — the same swe_*_when functions the backend's
+// eclipse_timeline calls, with its flag set (SWIEPH|MOSEPH) and its
+// retflag→nature decoding (checked in this exact order).
+const SEFLG_ECL = SEFLG_SWIEPH | 4; // FLG_SWIEPH | FLG_MOSEPH
+const ECLIPSE_NATURE: [string, number][] = [
+  ["total", 4],
+  ["annular_total", 32],
+  ["annular", 8],
+  ["partial", 16],
+  ["penumbral", 64],
+];
+
+function eclipseNature(retflag: number): string {
+  for (const [name, bit] of ECLIPSE_NATURE) if (retflag & bit) return name;
+  return "unknown";
+}
+
+/** Next solar/lunar eclipse at/after jd: peak instant + decoded nature. */
+export function nextSwissEclipse(
+  jd: number,
+  solar: boolean
+): { jd: number; nature: string } | null {
+  const m = instance;
+  if (!m) return null;
+  const tretPtr = m._malloc(10 * 8);
+  const serrPtr = m._malloc(256);
+  try {
+    const retflag = m.ccall(
+      solar ? "swe_sol_eclipse_when_glob_wrap" : "swe_lun_eclipse_when_wrap",
+      "number",
+      ["number", "number", "number", "number", "number", "number"],
+      [jd, SEFLG_ECL, 0, tretPtr, 0, serrPtr]
+    ) as number;
+    if (retflag < 0) return null;
+    return { jd: m.getValue(tretPtr + 0 * 8, "double"), nature: eclipseNature(retflag) };
+  } finally {
+    m._free(tretPtr);
+    m._free(serrPtr);
+  }
+}

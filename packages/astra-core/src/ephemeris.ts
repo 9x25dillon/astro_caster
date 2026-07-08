@@ -1,48 +1,13 @@
-// The astronomical core — port of backend/ephemeris.py with astronomy-engine
-// (pure TS, Moshier-class) standing in for pyswisseph. Frames match the
-// backend's defaults: apparent geocentric positions on the TRUE ecliptic of
-// date; houses from apparent sidereal time (GAST) and true obliquity.
+// The astronomical core — port of backend/ephemeris.py running the SAME
+// engine: the vendored WASM Swiss Ephemeris (swisseph.ts), seas-only config,
+// identical to the drift-lock configuration the parity vectors are generated
+// against. Every body, house cusp, angle and eclipse comes from the same C
+// code and data on both stacks, so cross-engine tolerances collapse to
+// float/rounding noise. astronomy-engine is fully retired.
 //
-// Body coverage: Sun..Pluto via astronomy-engine, plus North/South Node,
-// Chiron and Lilith via the vendored WASM Swiss Ephemeris (swisseph.ts —
-// the MOBILE_ROADMAP §3 escalation, landed). The Swiss engine needs one
-// `await initSwisseph()` before the extended bodies appear; without it a
-// chart simply carries the astronomy-engine set.
-
-// Isomorphic astronomy-engine load — no top-level await (the browser build
-// target forbids it), no `node:module` (absent in browsers). The package ships
-// esm/astronomy.js with real ESM `export` syntax but no "type":"module", so
-// Node < 24 mis-detects its NAMED exports when imported statically. A static
-// NAMESPACE import dodges that: under Node the CJS module object arrives as
-// `.default`; under a bundler the namespace itself carries the bindings.
-import * as _AEns from "astronomy-engine";
-import type * as AstronomyTypes from "astronomy-engine";
-
-const {
-  Body,
-  Ecliptic,
-  EquatorFromVector,
-  GeoVector,
-  MakeTime,
-  NextGlobalSolarEclipse,
-  NextLunarEclipse,
-  RotateVector,
-  Rotation_EQJ_EQD,
-  SearchGlobalSolarEclipse,
-  SearchLunarEclipse,
-  SiderealTime,
-  e_tilt,
-} = pickAstronomy(_AEns);
-type AstroTime = AstronomyTypes.AstroTime;
-
-// Under a bundler the ESM build's named exports live on the namespace; under
-// Node the CJS module object arrives as `.default`. Computed access keeps the
-// bundler from statically flagging a missing `default` on the ESM build.
-function pickAstronomy(ns: unknown): typeof import("astronomy-engine") {
-  const anyNs = ns as Record<string, unknown>;
-  const key = "default";
-  return (anyNs[key] ?? anyNs) as typeof import("astronomy-engine");
-}
+// `await initSwisseph()` once before casting; calculateChart throws a clear
+// error if the engine never came up (the assets are same-origin and
+// service-worker precached, so this is corrupt-cache territory).
 
 import {
   ASPECT_DEFS,
@@ -55,8 +20,16 @@ import {
   norm360,
   signFor,
 } from "./astrology.js";
-import { ascendant, houseOf, midheaven, placidusCusps } from "./houses.js";
-import { SE_CHIRON, SE_MEAN_APOG, SE_TRUE_NODE, calcSwissBody } from "./swisseph.js";
+import { houseOf } from "./houses.js";
+import {
+  SE_CHIRON,
+  SE_MEAN_APOG,
+  SE_TRUE_NODE,
+  calcSwissBody,
+  calcSwissHouses,
+  nextSwissEclipse,
+  swissReady,
+} from "./swisseph.js";
 import { detectPatterns } from "./patterns.js";
 import type {
   Angles,
@@ -67,23 +40,19 @@ import type {
   PlanetData,
 } from "./types.js";
 
-const PLANET_TABLE: [string, AstronomyTypes.Body, string][] = [
-  ["Sun", Body.Sun, "☉"],
-  ["Moon", Body.Moon, "☽"],
-  ["Mercury", Body.Mercury, "☿"],
-  ["Venus", Body.Venus, "♀"],
-  ["Mars", Body.Mars, "♂"],
-  ["Jupiter", Body.Jupiter, "♃"],
-  ["Saturn", Body.Saturn, "♄"],
-  ["Uranus", Body.Uranus, "♅"],
-  ["Neptune", Body.Neptune, "♆"],
-  ["Pluto", Body.Pluto, "♇"],
-];
-
-// Bodies astronomy-engine lacks, served by the WASM Swiss engine. Same ids,
-// glyphs and order as the backend's _PLANET_TABLE tail (South Node is derived
-// from the North inline, exactly like the backend).
-const EXTENDED_TABLE: [string, number, string][] = [
+// Swiss body ids (swephexp.h), same order as the backend's _PLANET_TABLE.
+// South Node is derived from the North inline, exactly like the backend.
+const PLANET_TABLE: [string, number, string][] = [
+  ["Sun", 0, "☉"],
+  ["Moon", 1, "☽"],
+  ["Mercury", 2, "☿"],
+  ["Venus", 3, "♀"],
+  ["Mars", 4, "♂"],
+  ["Jupiter", 5, "♃"],
+  ["Saturn", 6, "♄"],
+  ["Uranus", 7, "♅"],
+  ["Neptune", 8, "♆"],
+  ["Pluto", 9, "♇"],
   ["North Node", SE_TRUE_NODE, "☊"],
   ["Chiron", SE_CHIRON, "⚷"],
   ["Lilith", SE_MEAN_APOG, "⚸"],
@@ -129,57 +98,13 @@ export function julianDayUtc(req: ChartRequest): number {
   return julianDay(d.getUTCFullYear(), d.getUTCMonth() + 1, d.getUTCDate(), utHours);
 }
 
-function timeFromJd(jd: number): AstroTime {
-  // AstroTime's numeric form is UT days since J2000.0 (JD 2451545.0).
-  return MakeTime(jd - 2451545.0);
-}
-
 // ---------------------------------------------------------------------------
-// Bodies
+// Bodies — all served by the WASM Swiss engine.
 // ---------------------------------------------------------------------------
 
-function eclipticOfDate(body: AstronomyTypes.Body, time: AstroTime): { lon: number; lat: number } {
-  // GeoVector: geocentric J2000 equatorial, corrected for light travel and
-  // aberration; Ecliptic() rotates to the TRUE ecliptic and equinox of date.
-  const ecl = Ecliptic(GeoVector(body, time, true));
-  return { lon: norm360(ecl.elon), lat: ecl.elat };
-}
-
-function calcBody(
-  jd: number,
-  body: AstronomyTypes.Body
-): { lon: number; lat: number; speed: number; dec: number } {
-  const time = timeFromJd(jd);
-  const { lon, lat } = eclipticOfDate(body, time);
-
-  // Geocentric declination of date (equator-of-date frame, like swe FLG_EQUATORIAL).
-  const eqd = RotateVector(Rotation_EQJ_EQD(time), GeoVector(body, time, true));
-  const dec = EquatorFromVector(eqd).dec;
-
-  // Longitude speed via central difference (swe reports the instantaneous rate).
-  const h = 0.5 / 24; // ±30 minutes
-  const before = eclipticOfDate(body, timeFromJd(jd - h)).lon;
-  const after = eclipticOfDate(body, timeFromJd(jd + h)).lon;
-  let delta = after - before;
-  if (delta > 180) delta -= 360;
-  if (delta < -180) delta += 360;
-  const speed = delta / (2 * h);
-
-  return { lon, lat, speed, dec };
-}
-
-// Name-keyed body table for consumers that work by name (forecast scanner).
-const BODY_BY_NAME: Record<string, AstronomyTypes.Body> = Object.fromEntries(
-  PLANET_TABLE.map(([name, body]) => [name, body])
+const SWISS_BY_NAME: Record<string, number> = Object.fromEntries(
+  PLANET_TABLE.map(([name, id]) => [name, id])
 );
-
-// Names served by the WASM Swiss engine instead (backend transit movers
-// include Chiron and the true Node).
-const SWISS_BY_NAME: Record<string, number> = {
-  "North Node": SE_TRUE_NODE,
-  Chiron: SE_CHIRON,
-  Lilith: SE_MEAN_APOG,
-};
 
 /** Ecliptic-of-date longitude (deg) and longitude speed (deg/day) for a named
  *  body — the forecast scanner's primitive, sharing the chart's exact frame. */
@@ -187,53 +112,59 @@ export function eclipticLonSpeed(
   jd: number,
   name: string
 ): { lon: number; speed: number } | null {
-  const body = BODY_BY_NAME[name];
-  if (body !== undefined) {
-    const { lon, speed } = calcBody(jd, body);
-    return { lon, speed };
-  }
   const sweId = SWISS_BY_NAME[name];
-  if (sweId !== undefined) {
-    const r = calcSwissBody(jd, sweId);
-    if (r) return { lon: r.lon, speed: r.speed };
-  }
-  return null;
+  if (sweId === undefined) return null;
+  const r = calcSwissBody(jd, sweId);
+  return r ? { lon: r.lon, speed: r.speed } : null;
 }
 
 // ---------------------------------------------------------------------------
-// Eclipses — astronomy-engine's own search (independent of the Swiss one the
-// backend uses via sol_eclipse_when_glob / lun_eclipse_when).
+// Eclipses — the same Swiss search the backend's eclipse_timeline runs
+// (sol_eclipse_when_glob / lun_eclipse_when, stepping peak+1 day).
 // ---------------------------------------------------------------------------
 
 export interface RawEclipse {
   is_solar: boolean;
-  kind: string; // "penumbral" | "partial" | "annular" | "total"
+  kind: string; // nature: "total" | "annular_total" | "annular" | "partial" | "penumbral"
   jd: number; // peak instant, for computing the luminary's longitude
   date: string; // UTC calendar date of the peak (YYYY-MM-DD)
 }
 
-function eclipseRecord(kind: string, peak: AstroTime, isSolar: boolean): RawEclipse {
-  return {
-    is_solar: isSolar,
-    kind: String(kind),
-    jd: peak.ut + 2451545.0,
-    date: peak.date.toISOString().slice(0, 10),
-  };
+/** Gregorian calendar date from a Julian Day (Meeus; matches swe.revjul). */
+function jdToIsoDate(jd: number): string {
+  const z = Math.floor(jd + 0.5);
+  let a = z;
+  if (z >= 2299161) {
+    const alpha = Math.floor((z - 1867216.25) / 36524.25);
+    a = z + 1 + alpha - Math.floor(alpha / 4);
+  }
+  const b = a + 1524;
+  const c = Math.floor((b - 122.1) / 365.25);
+  const dd = Math.floor(365.25 * c);
+  const e = Math.floor((b - dd) / 30.6001);
+  const day = Math.floor(b - dd - Math.floor(30.6001 * e));
+  const month = e < 14 ? e - 1 : e - 13;
+  const year = month > 2 ? c - 4716 : c - 4715;
+  return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
 /** The soonest `count` eclipses (solar + lunar merged) at/after `start`, sorted
- *  by time — mirrors backend eclipse_timeline's global search. */
+ *  by time — the backend eclipse_timeline's search, verbatim. */
 export function searchEclipses(start: Date, count: number): RawEclipse[] {
+  const ut =
+    start.getUTCHours() + start.getUTCMinutes() / 60 + start.getUTCSeconds() / 3600;
+  const jd0 = julianDay(
+    start.getUTCFullYear(), start.getUTCMonth() + 1, start.getUTCDate(), ut
+  );
   const found: RawEclipse[] = [];
-  let solar = SearchGlobalSolarEclipse(start);
-  for (let i = 0; i < count; i++) {
-    found.push(eclipseRecord(solar.kind, solar.peak, true));
-    solar = NextGlobalSolarEclipse(solar.peak);
-  }
-  let lunar = SearchLunarEclipse(start);
-  for (let i = 0; i < count; i++) {
-    found.push(eclipseRecord(lunar.kind, lunar.peak, false));
-    lunar = NextLunarEclipse(lunar.peak);
+  for (const solar of [true, false]) {
+    let cur = jd0;
+    for (let i = 0; i < count; i++) {
+      const e = nextSwissEclipse(cur, solar);
+      if (!e) break;
+      found.push({ is_solar: solar, kind: e.nature, jd: e.jd, date: jdToIsoDate(e.jd) });
+      cur = e.jd + 1.0;
+    }
   }
   found.sort((a, b) => a.jd - b.jd);
   return found.slice(0, count);
@@ -380,46 +311,39 @@ export function aspectsBetween(
 
 export function calculateChart(req: ChartRequest): ChartResponse {
   if (req.zodiac === "sidereal") {
-    throw new Error("@astra/core v0.1 computes the tropical zodiac only");
+    throw new Error("@astra/core computes the tropical zodiac only (the wasm build exports no sidereal mode)");
   }
-  if ((req.house_system ?? "P") !== "P") {
-    throw new Error("@astra/core v0.1 implements Placidus houses only");
+  if (!swissReady()) {
+    throw new Error("@astra/core: await initSwisseph() before casting a chart");
   }
 
   const jd = julianDayUtc(req);
-  const time = timeFromJd(jd);
 
-  // GAST (hours) → degrees, + east longitude = ARMC; true obliquity of date.
-  const armc = norm360(SiderealTime(time) * 15 + req.lng);
-  const eps = e_tilt(time).tobl;
-
-  const cusps = placidusCusps(armc, req.lat, eps);
-  const asc = ascendant(armc, eps, req.lat);
-  const mc = midheaven(armc, eps);
+  // Houses + angles from the same swe_houses C the backend runs — every house
+  // system pyswisseph accepts works here too, and the Vertex is real now.
+  const h = calcSwissHouses(jd, req.lat, req.lng, req.house_system ?? "P")!;
+  const cusps = h.cusps.map((c) => norm360(c));
+  const asc = norm360(h.asc);
+  const mc = norm360(h.mc);
   const angles: Angles = {
     ascendant: round6(asc),
     midheaven: round6(mc),
     descendant: round6(norm360(asc + 180)),
     imum_coeli: round6(norm360(mc + 180)),
-    vertex: null,
+    vertex: round6(norm360(h.vertex)),
   };
 
   const planets: PlanetData[] = [];
   let sunLon: number | null = null;
   let moonLon: number | null = null;
-  for (const [name, body, glyph] of PLANET_TABLE) {
-    const { lon, lat, speed, dec } = calcBody(jd, body);
-    planets.push(buildPlanet(name, glyph, lon, lat, speed, dec, cusps));
-    if (name === "Sun") sunLon = lon;
-    if (name === "Moon") moonLon = lon;
-  }
-
-  // Extended bodies via WASM Swiss (skipped when uninitialized/unavailable —
-  // the backend skips a body on swe.Error the same way).
-  for (const [name, sweId, glyph] of EXTENDED_TABLE) {
+  for (const [name, sweId, glyph] of PLANET_TABLE) {
+    // A body can be unavailable (e.g. Chiron outside the seas file's range) —
+    // the backend skips it on swe.Error, we skip on null.
     const r = calcSwissBody(jd, sweId);
     if (!r) continue;
     planets.push(buildPlanet(name, glyph, r.lon, r.lat, r.speed, r.dec, cusps));
+    if (name === "Sun") sunLon = r.lon;
+    if (name === "Moon") moonLon = r.lon;
     if (name === "North Node") {
       // Derive the South Node opposite the North (backend parity: same speed,
       // mirrored latitude and declination).
@@ -457,7 +381,7 @@ export function calculateChart(req: ChartRequest): ChartResponse {
     elements,
     modalities,
     meta: {
-      ephemeris: "astronomy-engine",
+      ephemeris: "swiss-wasm",
       zodiac: req.zodiac ?? "tropical",
       house_system: req.house_system ?? "P",
       julian_day: jd.toFixed(6),

@@ -1,14 +1,11 @@
 // Transit forecast scanner — port of backend/forecast.py. Steps day-by-day
 // finding stations, transit-to-transit and transit-to-natal aspect exactness
 // (Moon at 6h resolution), then dedups. Deterministic; no RNG. Parity is
-// tolerance-based like the chart — astronomy-engine and pyswisseph differ by
-// ~arcseconds, which can nudge a near-midnight station or a flat-minimum
-// aspect by a day, so the vector matches event IDENTITY with a ±1-day date
-// window (see parity/README + forecast.test.ts).
+// exact now that both stacks run the same WASM/pyswisseph Swiss code on the
+// same seas-only data (the ±1-day cross-engine window is history).
 //
-// Body coverage: the full backend mover list — Sun–Pluto via astronomy-engine
-// plus Chiron and the true Node via the WASM Swiss engine (await
-// initSwisseph() first; uninitialized, those movers silently drop out).
+// Body coverage: the full backend mover list, all via the WASM Swiss engine
+// (await initSwisseph() first).
 
 import { angularSeparation, degreeInSign, signFor } from "./astrology.js";
 import { eclipticLonSpeed, julianDay } from "./ephemeris.js";

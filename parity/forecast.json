@@ -3071,7 +3071,7 @@
    "start": "2026-01-01"
   }
  ],
- "date_tolerance_days": 1,
- "orb_tolerance_deg": 0.2,
+ "date_tolerance_days": 0,
+ "orb_tolerance_deg": 1e-06,
  "schema": "astra-parity/forecast@1"
 }

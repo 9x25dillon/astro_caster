@@ -28,7 +28,11 @@ const payload = JSON.parse(
 );
 
 const TOL = payload.tolerances as Record<string, number>;
-const CROSS = 5; // cross-engine widening for angular fields (parity/README.md)
+// Both stacks now run the SAME Swiss C code on the same seas-only data — the
+// old ×5 cross-engine widening collapses. 1e-6 covers the vector's 6-dp float
+// rounding; the contract tolerances in the file stay as the outer bound.
+const CROSS = 1;
+const EXACTISH = 1e-6;
 
 const SUPPORTED = new Set([
   "Sun", "Moon", "Mercury", "Venus", "Mars", "Jupiter", "Saturn",
@@ -69,17 +73,17 @@ for (const kase of payload.cases) {
       const ap = actPlanets.get(pid)!;
       const dLon = angularSeparation(ap.longitude, ep.longitude);
       deltas.push(`${pid} Δlon=${dLon.toFixed(5)}`);
-      assert.ok(dLon <= TOL["planet.longitude_deg"] * CROSS, `${pid} lon Δ${dLon}`);
+      assert.ok(dLon <= EXACTISH, `${pid} lon Δ${dLon}`);
       assert.ok(
-        Math.abs(ap.latitude - ep.latitude) <= TOL["planet.latitude_deg"] * CROSS,
+        Math.abs(ap.latitude - ep.latitude) <= EXACTISH,
         `${pid} lat ${ap.latitude} vs ${ep.latitude}`
       );
       assert.ok(
-        Math.abs(ap.declination - ep.declination) <= TOL["planet.declination_deg"] * CROSS,
+        Math.abs(ap.declination - ep.declination) <= EXACTISH,
         `${pid} dec ${ap.declination} vs ${ep.declination}`
       );
       assert.ok(
-        Math.abs(ap.speed - ep.speed) <= TOL["planet.speed_deg_per_day"] * CROSS,
+        Math.abs(ap.speed - ep.speed) <= EXACTISH,
         `${pid} speed ${ap.speed} vs ${ep.speed}`
       );
       for (const f of ["sign", "house", "retrograde", "dignity", "element", "modality"] as const) {
@@ -97,11 +101,11 @@ for (const kase of payload.cases) {
     for (let i = 0; i < 12; i++) {
       const d = angularSeparation(actual.houses[i].longitude, expected.houses[i].longitude);
       deltas.push(`H${i + 1} Δ=${d.toFixed(5)}`);
-      assert.ok(d <= TOL["house.cusp_deg"] * CROSS, `house ${i + 1} Δ${d}`);
+      assert.ok(d <= EXACTISH, `house ${i + 1} Δ${d}`);
     }
     for (const name of ["ascendant", "midheaven", "descendant", "imum_coeli"] as const) {
       const d = angularSeparation(actual.angles[name], expected.angles[name]);
-      assert.ok(d <= TOL["angle_deg"] * CROSS, `${name} Δ${d}`);
+      assert.ok(d <= EXACTISH, `${name} Δ${d}`);
     }
 
     // Aspects among supported bodies: sets must match modulo boundary flips.

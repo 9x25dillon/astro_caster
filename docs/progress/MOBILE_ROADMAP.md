@@ -93,6 +93,14 @@ implementations) into a mechanical gate.
   to WASM** behind the same interface (adds ~600 KB; decision deferred until
   vectors say we need it). ✅ **Taken 2026-07-08** for the missing bodies
   (Node/Chiron/Lilith) — ~700 KB raw / ~430 KB wire, lazy + SW-precached.
+  ✅ **Completed 2026-07-08 (same day, `wasm-swiss-all-bodies`): ALL bodies,
+  houses, angles and eclipse search moved onto the wasm Swiss engine;
+  astronomy-engine retired entirely** (engine chunk 161→67 kB). Both stacks
+  now run the same C on the same committed seas-only data — parity compares
+  near-exactly (1e-6 positions, exact forecast dates, ±2 s solar returns,
+  exact eclipse dates/natures) and the Vertex is real on-device. The
+  tropical-only restriction remains (the wasm build exports no sidereal
+  mode); every pyswisseph house system now works on-device.
 - Tolerance contract per body class, versioned in the parity manifest:
   longitudes ±0.01°, house cusps ±0.02°, aspect orbs ±0.01°, event dates
   exact-day. Tarot/forecast/numerology: exact equality (they're arithmetic).
