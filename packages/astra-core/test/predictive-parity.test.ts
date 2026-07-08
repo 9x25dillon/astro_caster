@@ -18,7 +18,6 @@ import { initSwisseph } from "../src/swisseph.js";
 // The extended bodies (Node/Chiron/Lilith) ride the WASM Swiss engine.
 await initSwisseph();
 
-const dayDiff = (a: string, b: string) => Math.abs(Date.parse(a) - Date.parse(b)) / 86_400_000;
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const payload = JSON.parse(
