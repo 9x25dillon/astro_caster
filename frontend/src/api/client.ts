@@ -10,7 +10,13 @@ import type {
 
 let _corePromise: Promise<typeof import("@astra/core")> | null = null;
 function core(): Promise<typeof import("@astra/core")> {
-  return (_corePromise ??= import("@astra/core"));
+  // initSwisseph brings up the WASM Swiss engine for the extended bodies
+  // (Node/Chiron/Lilith). It never throws — on failure charts simply carry
+  // the astronomy-engine set. Assets are same-origin and SW-precached.
+  return (_corePromise ??= import("@astra/core").then(async (m) => {
+    await m.initSwisseph();
+    return m;
+  }));
 }
 import type {
   BirthInput,
@@ -64,8 +70,8 @@ export function generateChart(birth: BirthInput): Promise<ChartResponse> {
 /**
  * On-device chart cast via @astra/core (MOBILE_ROADMAP §3/H1). Used as the
  * last-resort fallback when the backend is unreachable and there's no cached
- * chart for this birth data. Reduced body set vs the server (no lunar Node /
- * Chiron / Lilith — the TS ephemeris lacks them), so the UI flags it.
+ * chart for this birth data. Full backend body set — Sun–Pluto plus Node /
+ * Chiron / Lilith via the bundled WASM Swiss engine.
  */
 export async function localChart(birth: BirthInput): Promise<ChartResponse> {
   // @astra/core mirrors models.py; BirthInput is a structural superset of
@@ -340,7 +346,8 @@ export function fetchForecast(
 // offline we add them to the structural events @astra/core produces).
 const FC_GLYPHS: Record<string, string> = {
   Sun: "☉", Moon: "☽", Mercury: "☿", Venus: "♀", Mars: "♂", Jupiter: "♃",
-  Saturn: "♄", Uranus: "♅", Neptune: "♆", Pluto: "♇", Ascendant: "Asc", Midheaven: "MC",
+  Saturn: "♄", Uranus: "♅", Neptune: "♆", Pluto: "♇", Chiron: "⚷",
+  "North Node": "☊", Ascendant: "Asc", Midheaven: "MC",
 };
 const FC_ASPECT_COLOR: Record<string, string> = {
   Conjunction: "#c9a84c", Opposition: "#b03a2e", Square: "#b03a2e",
@@ -350,7 +357,7 @@ const FC_ASPECT_COLOR: Record<string, string> = {
 /**
  * On-device transit forecast via @astra/core (MOBILE_ROADMAP §3/H1). Computes
  * the natal chart locally, then scans transits in the browser — the same events
- * the backend's offline scan gives (Sun–Pluto transits; no Chiron/Node). Used
+ * the backend gives (full mover list incl. Chiron and the true Node). Used
  * as the fallback when the backend is unreachable.
  */
 export async function localForecast(
@@ -360,8 +367,10 @@ export async function localForecast(
 ): Promise<ForecastResponse> {
   const { calculateChart, generateForecast } = await core();
   const chart = calculateChart(natal as unknown as CoreChartRequest);
+  // Mirrors main.py's _NATAL_EXCLUDE complement (no South Node / Lilith / PoF).
   const targets = ["Sun", "Moon", "Mercury", "Venus", "Mars", "Jupiter",
-    "Saturn", "Uranus", "Neptune", "Pluto", "Ascendant", "Midheaven"];
+    "Saturn", "Uranus", "Neptune", "Pluto", "North Node", "Chiron",
+    "Ascendant", "Midheaven"];
   const natalMap: Record<string, number> = {};
   for (const p of chart.planets) if (targets.includes(p.id)) natalMap[p.id] = p.longitude;
 
@@ -901,9 +910,9 @@ export function fetchFixedStars(natal: BirthInput, orb = 1.5): Promise<FixedStar
 }
 
 // ── On-device fallbacks (@astra/core §3.4) ──────────────────────────────────────
-// Reduced body set (Sun–Pluto, Asc, MC, Part of Fortune — no Node/Chiron/Lilith),
-// matching the other offline paths. Eclipses now work offline too via
-// astronomy-engine's own eclipse search (localEclipses).
+// Full backend body set (Sun–Pluto, Node/Chiron/Lilith via WASM Swiss, Asc, MC,
+// Part of Fortune). Eclipses work offline too via astronomy-engine's own
+// eclipse search (localEclipses).
 
 /** True when an error is a lost-connection failure (vs. an HTTP status). */
 export function isOfflineError(msg: string): boolean {

@@ -6,17 +6,20 @@
 // aspect by a day, so the vector matches event IDENTITY with a ±1-day date
 // window (see parity/README + forecast.test.ts).
 //
-// v0.3 body coverage: Sun–Pluto. Chiron and the lunar Node (backend transit
-// bodies) need an ephemeris source astronomy-engine lacks — excluded here and
-// in the vector; WASM-Swiss escalation per MOBILE_ROADMAP §3.
+// Body coverage: the full backend mover list — Sun–Pluto via astronomy-engine
+// plus Chiron and the true Node via the WASM Swiss engine (await
+// initSwisseph() first; uninitialized, those movers silently drop out).
 
 import { angularSeparation, degreeInSign, signFor } from "./astrology.js";
 import { eclipticLonSpeed, julianDay } from "./ephemeris.js";
 
-// name → swe order preserved; Moon handled specially, Chiron/Node omitted.
+// name → swe order preserved; Moon handled specially. Chiron and the true
+// Node ride the WASM Swiss engine (initSwisseph) via eclipticLonSpeed —
+// same mover list as the backend's _TRANSIT_BODIES.
 const TRANSIT_BODIES = [
   "Sun", "Moon", "Mercury", "Venus", "Mars",
   "Jupiter", "Saturn", "Uranus", "Neptune", "Pluto",
+  "Chiron", "North Node",
 ];
 
 // [name, angle, threshold]

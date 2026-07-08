@@ -21,8 +21,10 @@ export default defineConfig({
       includeAssets: ["favicon.svg"],
       // Precache the self-hosted fonts too (workbox default is js/css/html
       // only) — the offline app shell must not fall back to system serifs.
+      // wasm + se1 are the on-device Swiss Ephemeris (extended chart bodies);
+      // precaching them keeps the full body set available offline.
       workbox: {
-        globPatterns: ["**/*.{js,css,html,svg,woff2}"],
+        globPatterns: ["**/*.{js,css,html,svg,woff2,wasm,se1}"],
       },
       manifest: {
         name: "Astra — Natal Observatory",
@@ -65,6 +67,12 @@ export default defineConfig({
   server: {
     port: 5173,
     host: '127.0.0.1', // force IPv4; avoids ::1-only binding that breaks curl/fetch on some Linux systems
+    fs: {
+      // @astra/core's vendored assets (WASM Swiss Ephemeris + seas_18.se1)
+      // resolve to /@fs/ URLs outside the frontend root in dev — allow the
+      // monorepo package dir alongside the default frontend root.
+      allow: [".", "../packages"],
+    },
     // Proxy API calls to the FastAPI backend so the frontend talks to /api/* same-origin.
     proxy: {
       "/api": {

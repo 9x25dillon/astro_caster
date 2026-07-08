@@ -126,6 +126,24 @@
       "sign_glyph": "\u2651"
      },
      {
+      "degree": 13,
+      "glyph": "\u260a",
+      "id": "North Node",
+      "longitude": 73.6294,
+      "minute": 37,
+      "sign": "Gemini",
+      "sign_glyph": "\u264a"
+     },
+     {
+      "degree": 27,
+      "glyph": "\u26b7",
+      "id": "Chiron",
+      "longitude": 177.7234,
+      "minute": 43,
+      "sign": "Virgo",
+      "sign_glyph": "\u264d"
+     },
+     {
       "degree": 27,
       "glyph": "Asc",
       "id": "Ascendant",
@@ -160,6 +178,88 @@
       "degree": 23,
       "midpoint": 353.481,
       "pair": "Saturn/Midheaven",
+      "sign": "Pisces"
+     },
+     {
+      "contacts": [
+       {
+        "angle": 90,
+        "aspect": "square",
+        "body": "North Node",
+        "orb": 0.2
+       },
+       {
+        "angle": 90,
+        "aspect": "square",
+        "body": "South Node",
+        "orb": 0.2
+       }
+      ],
+      "degree": 2,
+      "midpoint": 32.924,
+      "pair": "Neptune/Lilith",
+      "sign": "Taurus"
+     },
+     {
+      "contacts": [
+       {
+        "angle": 90,
+        "aspect": "square",
+        "body": "Mercury",
+        "orb": 0.27
+       },
+       {
+        "angle": 90,
+        "aspect": "square",
+        "body": "Saturn",
+        "orb": 0.77
+       }
+      ],
+      "degree": 3,
+      "midpoint": 93.417,
+      "pair": "Uranus/Chiron",
+      "sign": "Cancer"
+     },
+     {
+      "contacts": [
+       {
+        "angle": 90,
+        "aspect": "square",
+        "body": "Pluto",
+        "orb": 0.31
+       }
+      ],
+      "degree": 25,
+      "midpoint": 325.034,
+      "pair": "Moon/Chiron",
+      "sign": "Aquarius"
+     },
+     {
+      "contacts": [
+       {
+        "angle": 0,
+        "aspect": "conjunction",
+        "body": "Chiron",
+        "orb": 0.31
+       }
+      ],
+      "degree": 5,
+      "midpoint": 35.855,
+      "pair": "Venus/Pluto",
+      "sign": "Taurus"
+     },
+     {
+      "contacts": [
+       {
+        "angle": 0,
+        "aspect": "conjunction",
+        "body": "Midheaven",
+        "orb": 0.33
+       }
+      ],
+      "degree": 12,
+      "midpoint": 342.445,
+      "pair": "Mars/Lilith",
       "sign": "Pisces"
      },
      {
@@ -239,6 +339,12 @@
         "aspect": "square",
         "body": "Mars",
         "orb": 0.51
+       },
+       {
+        "angle": 0,
+        "aspect": "conjunction",
+        "body": "Lilith",
+        "orb": 0.55
        }
       ],
       "degree": 27,
@@ -263,6 +369,34 @@
      {
       "contacts": [
        {
+        "angle": 0,
+        "aspect": "conjunction",
+        "body": "Jupiter",
+        "orb": 0.63
+       }
+      ],
+      "degree": 28,
+      "midpoint": 328.117,
+      "pair": "Sun/North Node",
+      "sign": "Aquarius"
+     },
+     {
+      "contacts": [
+       {
+        "angle": 90,
+        "aspect": "square",
+        "body": "Jupiter",
+        "orb": 0.63
+       }
+      ],
+      "degree": 28,
+      "midpoint": 58.117,
+      "pair": "Sun/South Node",
+      "sign": "Taurus"
+     },
+     {
+      "contacts": [
+       {
         "angle": 90,
         "aspect": "square",
         "body": "Sun",
@@ -273,6 +407,34 @@
       "midpoint": 84.137,
       "pair": "Venus/Uranus",
       "sign": "Gemini"
+     },
+     {
+      "contacts": [
+       {
+        "angle": 90,
+        "aspect": "square",
+        "body": "Mars",
+        "orb": 0.65
+       }
+      ],
+      "degree": 26,
+      "midpoint": 26.265,
+      "pair": "Venus/Chiron",
+      "sign": "Aries"
+     },
+     {
+      "contacts": [
+       {
+        "angle": 90,
+        "aspect": "square",
+        "body": "Lilith",
+        "orb": 0.67
+       }
+      ],
+      "degree": 28,
+      "midpoint": 298.648,
+      "pair": "Moon/Midheaven",
+      "sign": "Capricorn"
      },
      {
       "contacts": [
@@ -307,6 +469,76 @@
        {
         "angle": 90,
         "aspect": "square",
+        "body": "Moon",
+        "orb": 0.83
+       }
+      ],
+      "degree": 15,
+      "midpoint": 345.351,
+      "pair": "North Node/Lilith",
+      "sign": "Pisces"
+     },
+     {
+      "contacts": [
+       {
+        "angle": 180,
+        "aspect": "opposition",
+        "body": "Moon",
+        "orb": 0.83
+       }
+      ],
+      "degree": 15,
+      "midpoint": 75.351,
+      "pair": "South Node/Lilith",
+      "sign": "Gemini"
+     },
+     {
+      "contacts": [
+       {
+        "angle": 90,
+        "aspect": "square",
+        "body": "Ascendant",
+        "orb": 0.85
+       }
+      ],
+      "degree": 10,
+      "midpoint": 10.742,
+      "pair": "Sun/Lilith",
+      "sign": "Aries"
+     },
+     {
+      "contacts": [
+       {
+        "angle": 0,
+        "aspect": "conjunction",
+        "body": "Venus",
+        "orb": 0.9
+       }
+      ],
+      "degree": 16,
+      "midpoint": 16.083,
+      "pair": "Saturn/Lilith",
+      "sign": "Aries"
+     },
+     {
+      "contacts": [
+       {
+        "angle": 90,
+        "aspect": "square",
+        "body": "Chiron",
+        "orb": 0.9
+       }
+      ],
+      "degree": 6,
+      "midpoint": 126.442,
+      "pair": "Uranus/Ascendant",
+      "sign": "Leo"
+     },
+     {
+      "contacts": [
+       {
+        "angle": 90,
+        "aspect": "square",
         "body": "Neptune",
         "orb": 0.96
        }
@@ -315,6 +547,40 @@
       "midpoint": 308.834,
       "pair": "Moon/Mercury",
       "sign": "Aquarius"
+     },
+     {
+      "contacts": [
+       {
+        "angle": 0,
+        "aspect": "conjunction",
+        "body": "Lilith",
+        "orb": 0.96
+       }
+      ],
+      "degree": 28,
+      "midpoint": 28.934,
+      "pair": "Mercury/Pluto",
+      "sign": "Aries"
+     },
+     {
+      "contacts": [
+       {
+        "angle": 90,
+        "aspect": "square",
+        "body": "North Node",
+        "orb": 0.97
+       },
+       {
+        "angle": 90,
+        "aspect": "square",
+        "body": "South Node",
+        "orb": 0.97
+       }
+      ],
+      "degree": 1,
+      "midpoint": 31.761,
+      "pair": "Chiron/Lilith",
+      "sign": "Taurus"
      }
     ],
     "orb": 1.0
@@ -342,6 +608,12 @@
       "orb": 1.56,
       "p1": "Venus",
       "p2": "Jupiter",
+      "type": "Conjunction"
+     },
+     {
+      "orb": 0.81,
+      "p1": "Pluto",
+      "p2": "Chiron",
       "type": "Conjunction"
      }
     ],
@@ -438,6 +710,24 @@
       "sign_glyph": "\u264d"
      },
      {
+      "degree": 19,
+      "glyph": "\u260a",
+      "id": "North Node",
+      "longitude": 259.7645,
+      "minute": 45,
+      "sign": "Sagittarius",
+      "sign_glyph": "\u2650"
+     },
+     {
+      "degree": 28,
+      "glyph": "\u26b7",
+      "id": "Chiron",
+      "longitude": 178.0881,
+      "minute": 5,
+      "sign": "Virgo",
+      "sign_glyph": "\u264d"
+     },
+     {
       "degree": 1,
       "glyph": "Asc",
       "id": "Ascendant",
@@ -467,12 +757,32 @@
         "aspect": "conjunction",
         "body": "Pluto",
         "orb": 0.01
+       },
+       {
+        "angle": 0,
+        "aspect": "conjunction",
+        "body": "Chiron",
+        "orb": 0.15
        }
       ],
       "degree": 11,
       "midpoint": 251.467,
       "pair": "Moon/Midheaven",
       "sign": "Sagittarius"
+     },
+     {
+      "contacts": [
+       {
+        "angle": 0,
+        "aspect": "conjunction",
+        "body": "Mercury",
+        "orb": 0.03
+       }
+      ],
+      "degree": 1,
+      "midpoint": 271.917,
+      "pair": "Sun/Lilith",
+      "sign": "Capricorn"
      },
      {
       "contacts": [
@@ -505,6 +815,18 @@
      {
       "contacts": [
        {
+        "angle": 180,
+        "aspect": "opposition",
+        "body": "North Node",
+        "orb": 0.16
+       },
+       {
+        "angle": 0,
+        "aspect": "conjunction",
+        "body": "South Node",
+        "orb": 0.16
+       },
+       {
         "angle": 0,
         "aspect": "conjunction",
         "body": "Neptune",
@@ -518,6 +840,46 @@
      },
      {
       "contacts": [
+       {
+        "angle": 90,
+        "aspect": "square",
+        "body": "Lilith",
+        "orb": 0.17
+       }
+      ],
+      "degree": 23,
+      "midpoint": 173.638,
+      "pair": "Moon/North Node",
+      "sign": "Virgo"
+     },
+     {
+      "contacts": [
+       {
+        "angle": 0,
+        "aspect": "conjunction",
+        "body": "Lilith",
+        "orb": 0.17
+       }
+      ],
+      "degree": 23,
+      "midpoint": 263.638,
+      "pair": "Moon/South Node",
+      "sign": "Sagittarius"
+     },
+     {
+      "contacts": [
+       {
+        "angle": 180,
+        "aspect": "opposition",
+        "body": "North Node",
+        "orb": 0.17
+       },
+       {
+        "angle": 0,
+        "aspect": "conjunction",
+        "body": "South Node",
+        "orb": 0.17
+       },
        {
         "angle": 0,
         "aspect": "conjunction",
@@ -533,6 +895,18 @@
      {
       "contacts": [
        {
+        "angle": 180,
+        "aspect": "opposition",
+        "body": "North Node",
+        "orb": 0.21
+       },
+       {
+        "angle": 0,
+        "aspect": "conjunction",
+        "body": "South Node",
+        "orb": 0.21
+       },
+       {
         "angle": 0,
         "aspect": "conjunction",
         "body": "Neptune",
@@ -543,6 +917,88 @@
       "midpoint": 304.166,
       "pair": "Sun/Mars",
       "sign": "Aquarius"
+     },
+     {
+      "contacts": [
+       {
+        "angle": 0,
+        "aspect": "conjunction",
+        "body": "Lilith",
+        "orb": 0.21
+       }
+      ],
+      "degree": 23,
+      "midpoint": 263.258,
+      "pair": "Moon/Neptune",
+      "sign": "Sagittarius"
+     },
+     {
+      "contacts": [
+       {
+        "angle": 0,
+        "aspect": "conjunction",
+        "body": "Chiron",
+        "orb": 0.23
+       },
+       {
+        "angle": 0,
+        "aspect": "conjunction",
+        "body": "Pluto",
+        "orb": 0.39
+       }
+      ],
+      "degree": 11,
+      "midpoint": 251.846,
+      "pair": "Sun/Moon",
+      "sign": "Sagittarius"
+     },
+     {
+      "contacts": [
+       {
+        "angle": 180,
+        "aspect": "opposition",
+        "body": "North Node",
+        "orb": 0.34
+       },
+       {
+        "angle": 0,
+        "aspect": "conjunction",
+        "body": "South Node",
+        "orb": 0.34
+       }
+      ],
+      "degree": 4,
+      "midpoint": 304.288,
+      "pair": "Moon/Jupiter",
+      "sign": "Aquarius"
+     },
+     {
+      "contacts": [
+       {
+        "angle": 0,
+        "aspect": "conjunction",
+        "body": "Mercury",
+        "orb": 0.35
+       }
+      ],
+      "degree": 1,
+      "midpoint": 271.538,
+      "pair": "Lilith/Midheaven",
+      "sign": "Capricorn"
+     },
+     {
+      "contacts": [
+       {
+        "angle": 90,
+        "aspect": "square",
+        "body": "Venus",
+        "orb": 0.36
+       }
+      ],
+      "degree": 1,
+      "midpoint": 331.93,
+      "pair": "Saturn/Lilith",
+      "sign": "Pisces"
      },
      {
       "contacts": [
@@ -575,16 +1031,30 @@
      {
       "contacts": [
        {
-        "angle": 0,
-        "aspect": "conjunction",
-        "body": "Pluto",
-        "orb": 0.39
+        "angle": 90,
+        "aspect": "square",
+        "body": "South Node",
+        "orb": 0.38
        }
       ],
-      "degree": 11,
-      "midpoint": 251.846,
-      "pair": "Sun/Moon",
-      "sign": "Sagittarius"
+      "degree": 3,
+      "midpoint": 213.573,
+      "pair": "Neptune/North Node",
+      "sign": "Scorpio"
+     },
+     {
+      "contacts": [
+       {
+        "angle": 180,
+        "aspect": "opposition",
+        "body": "North Node",
+        "orb": 0.38
+       }
+      ],
+      "degree": 3,
+      "midpoint": 303.573,
+      "pair": "Neptune/South Node",
+      "sign": "Aquarius"
      },
      {
       "contacts": [
@@ -599,6 +1069,34 @@
       "midpoint": 312.916,
       "pair": "Venus/Ascendant",
       "sign": "Aquarius"
+     },
+     {
+      "contacts": [
+       {
+        "angle": 90,
+        "aspect": "square",
+        "body": "Jupiter",
+        "orb": 0.46
+       }
+      ],
+      "degree": 25,
+      "midpoint": 295.714,
+      "pair": "Mars/Lilith",
+      "sign": "Capricorn"
+     },
+     {
+      "contacts": [
+       {
+        "angle": 90,
+        "aspect": "square",
+        "body": "Mars",
+        "orb": 0.49
+       }
+      ],
+      "degree": 27,
+      "midpoint": 237.471,
+      "pair": "Moon/Chiron",
+      "sign": "Scorpio"
      },
      {
       "contacts": [
@@ -659,6 +1157,20 @@
      {
       "contacts": [
        {
+        "angle": 90,
+        "aspect": "square",
+        "body": "Neptune",
+        "orb": 0.76
+       }
+      ],
+      "degree": 3,
+      "midpoint": 33.953,
+      "pair": "North Node/South Node",
+      "sign": "Taurus"
+     },
+     {
+      "contacts": [
+       {
         "angle": 0,
         "aspect": "conjunction",
         "body": "Uranus",
@@ -689,6 +1201,34 @@
        {
         "angle": 90,
         "aspect": "square",
+        "body": "Mercury",
+        "orb": 0.87
+       }
+      ],
+      "degree": 2,
+      "midpoint": 182.759,
+      "pair": "Venus/North Node",
+      "sign": "Libra"
+     },
+     {
+      "contacts": [
+       {
+        "angle": 0,
+        "aspect": "conjunction",
+        "body": "Mercury",
+        "orb": 0.87
+       }
+      ],
+      "degree": 2,
+      "midpoint": 272.759,
+      "pair": "Venus/South Node",
+      "sign": "Capricorn"
+     },
+     {
+      "contacts": [
+       {
+        "angle": 90,
+        "aspect": "square",
         "body": "Venus",
         "orb": 0.87
        }
@@ -697,6 +1237,20 @@
       "midpoint": 332.432,
       "pair": "Jupiter/Midheaven",
       "sign": "Pisces"
+     },
+     {
+      "contacts": [
+       {
+        "angle": 0,
+        "aspect": "conjunction",
+        "body": "Chiron",
+        "orb": 0.9
+       }
+      ],
+      "degree": 12,
+      "midpoint": 252.515,
+      "pair": "Venus/Lilith",
+      "sign": "Sagittarius"
      },
      {
       "contacts": [
@@ -728,7 +1282,7 @@
    }
   }
  ],
- "engine": "moshier",
+ "engine": "swiss-files",
  "schema": "astra-parity/advanced@1",
  "tolerances": {
   "angle_deg": 0.02,

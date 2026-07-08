@@ -91,7 +91,8 @@ implementations) into a mechanical gate.
   "moshier"` in `/api/health`).
 - Escalation path if parity tolerances demand it: **Swiss Ephemeris compiled
   to WASM** behind the same interface (adds ~600 KB; decision deferred until
-  vectors say we need it).
+  vectors say we need it). ✅ **Taken 2026-07-08** for the missing bodies
+  (Node/Chiron/Lilith) — ~700 KB raw / ~430 KB wire, lazy + SW-precached.
 - Tolerance contract per body class, versioned in the parity manifest:
   longitudes ±0.01°, house cusps ±0.02°, aspect orbs ±0.01°, event dates
   exact-day. Tarot/forecast/numerology: exact equality (they're arithmetic).
@@ -102,9 +103,12 @@ implementations) into a mechanical gate.
    elements/modalities, patterns — reproduces `parity/natal-chart.json` within
    the cross-engine tolerance (worst longitude Δ ~0.003°, cusps ~0.001°) using
    `astronomy-engine`, an *independent* Moshier implementation. CI job
-   `astra-core` gates every commit. **Known gap:** Node/Chiron/Lilith need an
-   ephemeris source astronomy-engine lacks — comparison restricts to the
-   supported body set; closing it is the WASM-Swiss escalation below.
+   `astra-core` gates every commit. ~~Known gap: Node/Chiron/Lilith~~ —
+   ✅ **CLOSED 2026-07-08** (`wasm-swiss-bodies`): the WASM-Swiss escalation
+   landed — vendored Swiss Ephemeris 2.10.03 wasm + `seas_18.se1` in
+   `packages/astra-core/src/vendor/swisseph/`, `initSwisseph()` singleton,
+   full 17-body parity (Chiron/Lilith bit-exact, Node ≤0.006°), vectors
+   regenerated against the same seas-only config on both stacks.
    *Unblocks offline chart casting.*
 2. ✅ **v0.2 DONE 2026-07-05** — `@astra/core/tarot`: natal signature + weighted
    spread draws, **bit-exact** to the backend. The "mechanical port" framing

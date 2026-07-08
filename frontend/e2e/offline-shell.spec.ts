@@ -56,4 +56,8 @@ test("offline with no cache casts on-device via @astra/core", async ({ page, con
     .toBeGreaterThan(10);
   // The on-device badge distinguishes a local cast from a cached view.
   await expect(page.locator(".offline-note")).toHaveText(/cast on your device/);
+  // Full body set: the WASM Swiss engine supplies the bodies astronomy-engine
+  // lacks — the wheel must show the true Node and Chiron glyphs.
+  await expect(wheel.locator("text", { hasText: "☊" }).first()).toBeVisible();
+  await expect(wheel.locator("text", { hasText: "⚷" }).first()).toBeVisible();
 });
