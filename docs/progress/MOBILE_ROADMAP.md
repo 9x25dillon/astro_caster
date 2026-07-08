@@ -98,9 +98,14 @@ implementations) into a mechanical gate.
   astronomy-engine retired entirely** (engine chunk 161→67 kB). Both stacks
   now run the same C on the same committed seas-only data — parity compares
   near-exactly (1e-6 positions, exact forecast dates, ±2 s solar returns,
-  exact eclipse dates/natures) and the Vertex is real on-device. The
-  tropical-only restriction remains (the wasm build exports no sidereal
-  mode); every pyswisseph house system now works on-device.
+  exact eclipse dates/natures) and the Vertex is real on-device. Every
+  pyswisseph house system works on-device. ✅ **Sidereal too (2026-07-08,
+  `sidereal-on-device`)**: no sid-mode export needed — the wasm's default
+  Fagan/Bradley mode plus a J2000-calibrated Lahiri shift (body-independent
+  to ~1e-13, drift ≤3e-8° across 1800s–2100s) reproduces the backend
+  bit-identically in the drift-lock config; locked by a sidereal chart
+  vector case. Ayanamshas beyond FB/Lahiri throw offline (the UI only
+  offers Lahiri).
 - Tolerance contract per body class, versioned in the parity manifest:
   longitudes ±0.01°, house cusps ±0.02°, aspect orbs ±0.01°, event dates
   exact-day. Tarot/forecast/numerology: exact equality (they're arithmetic).

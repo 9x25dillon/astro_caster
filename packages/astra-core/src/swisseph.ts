@@ -18,6 +18,11 @@ import type { SwissEphModuleInstance } from "./vendor/swisseph/swisseph.js";
 const SEFLG_SWIEPH = 2; // auto-falls back to Moshier per body when files are absent
 const SEFLG_SPEED = 256;
 const SEFLG_EQUATORIAL = 2048;
+// Sidereal positions in the wasm's DEFAULT sid mode — Fagan/Bradley (mode 0),
+// since the build exports no swe_set_sid_mode. Other ayanamshas are derived
+// arithmetically in ephemeris.ts (they differ from FB by a body-independent
+// longitude shift; verified against pyswisseph to ~1e-13).
+const SEFLG_SIDEREAL = 65536;
 
 // Swiss body ids (swephexp.h)
 export const SE_TRUE_NODE = 11;
@@ -96,12 +101,16 @@ function calcRaw(m: SwissEphModuleInstance, jd: number, body: number, flags: num
  *  skip so the chart simply omits the body. */
 export function calcSwissBody(
   jd: number,
-  body: number
+  body: number,
+  sidereal = false
 ): { lon: number; lat: number; speed: number; dec: number } | null {
   const m = instance;
   if (!m) return null;
-  const ecl = calcRaw(m, jd, body, SEFLG_SWIEPH | SEFLG_SPEED);
+  const sidFlag = sidereal ? SEFLG_SIDEREAL : 0;
+  const ecl = calcRaw(m, jd, body, SEFLG_SWIEPH | SEFLG_SPEED | sidFlag);
   if (!ecl) return null;
+  // Declination stays in the tropical equatorial frame — the backend's
+  // equatorial call carries no sidereal flag either.
   const eq = calcRaw(m, jd, body, SEFLG_SWIEPH | SEFLG_SPEED | SEFLG_EQUATORIAL);
   if (!eq) return null;
   return { lon: ecl[0], lat: ecl[1], speed: ecl[3], dec: eq[1] };

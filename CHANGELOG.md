@@ -3,6 +3,28 @@
 Per-phase log for the Production Hardening & Symbolic Intelligence Expansion pass.
 Baseline: `d9afc4b` (36 backend tests, clean frontend build).
 
+## Sidereal on-device — no wasm rebuild needed (2026-07-08, sidereal-on-device)
+
+The UI's Sidereal toggle now works offline. The wasm exports no
+`swe_set_sid_mode`, but measurement beat rebuilding: Swiss's sidereal modes
+differ by a **body-independent longitude shift** (Lahiri−FB identical across
+all bodies to ~1e-13), and the effective tropical→sidereal offset is
+object-independent to ~1e-11 — so Lahiri = the wasm's built-in Fagan/Bradley
+default + a J2000-calibrated constant (0.883207640726°, drift ≤3e-8° across
+1800s–2100s, ~40× inside the 1e-6 parity assert).
+
+- `calcSwissBody` gains a sidereal flag (`FLG_SIDEREAL`, default FB mode);
+  declination stays tropical-frame like the backend's equatorial call.
+- `calculateChart`: sidereal longitudes = FB + shift; cusps/angles/Vertex =
+  tropical − effective offset (what `swe_houses_ex` does internally);
+  lat/speed are mode-independent (~1e-12). Part of Fortune and the day-chart
+  test are difference-based, so they're consistent automatically.
+- Ayanamsha 0 (FB) and 1 (Lahiri — the UI's value) supported; anything else
+  throws a clear offline error.
+- New chart vector case `einstein-ulm-1879-sidereal-lahiri` drift-locks the
+  arithmetic on both stacks (backend 174 tests, core 31). Verified
+  bit-identical (Δ = 0.0 at 6 dp) on a real chart in the drift-lock config.
+
 ## All bodies on WASM Swiss — astronomy-engine retired (2026-07-08, wasm-swiss-all-bodies)
 
 The parity story's final form: Sun–Pluto, houses, angles and the eclipse

@@ -96,9 +96,16 @@ def _round_floats(obj, ndigits: int = 6):
 
 
 def build_payload() -> dict:
+    # The chart vector additionally carries a SIDEREAL case (Lahiri, the UI's
+    # ayanamsha) — @astra/core derives it from the wasm's Fagan/Bradley mode
+    # plus a J2000-calibrated shift, so the vector locks that arithmetic.
+    chart_cases = CASES + [(
+        "einstein-ulm-1879-sidereal-lahiri",
+        dict(CASES[0][1], zodiac="sidereal", ayanamsha=1),
+    )]
     cases = []
     engine = None
-    for case_id, req in CASES:
+    for case_id, req in chart_cases:
         chart = E.calculate_chart(ChartRequest(**req)).model_dump()
         engine = chart["meta"]["ephemeris"]
         cases.append({"id": case_id, "request": req, "expected": _round_floats(chart)})
