@@ -50,6 +50,27 @@ const CSS = `
   .sigil-caption { text-align: center; font-size: 0.7rem; letter-spacing: 3px;
                    color: #C9A84C; margin-top: -0.6rem; }
   .disclaimer { font-size: 0.72rem; opacity: 0.8; font-style: italic; }
+  /* Plates — the session's dealt spread as engraved card plates (mock: .card-grid) */
+  .card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.55rem; margin: 0.9rem 0 0.4rem; }
+  .tarot-card { border: 1px solid #C9A84C; background: #F8F4E9; border-radius: 3px;
+                padding: 0.5rem 0.45rem 0.55rem; text-align: center; font-size: 0.75rem;
+                line-height: 1.35; break-inside: avoid;
+                box-shadow: inset 0 0 0 3px #FAF6EE, inset 0 0 0 4px rgba(201,168,76,0.45); }
+  .tarot-card .plate-glyph { font-family: "Cinzel", Georgia, serif; font-size: 1.35rem;
+                             color: #2C1654; line-height: 1.2; min-height: 1.7rem; }
+  .tarot-card .plate-glyph.rev { display: inline-block; transform: rotate(180deg); }
+  .tarot-card .pos { font-family: "Cinzel", Georgia, serif; font-size: 0.64rem;
+                     letter-spacing: 1.6px; text-transform: uppercase; color: #2C1654;
+                     margin-top: 0.25rem; }
+  .tarot-card .label { font-size: 0.68rem; color: #4A5A4A; font-style: italic; margin-top: 0.1rem; }
+  .tarot-card .label .rev-tag { color: #7A2F2F; }
+  .tarot-card .echo { font-size: 0.62rem; color: #6B5B2E; margin-top: 0.28rem; }
+  .tarot-card .kw { font-size: 0.6rem; letter-spacing: 0.5px; color: #2C1654;
+                    opacity: 0.75; margin-top: 0.26rem; font-style: italic; }
+  /* Two-column research layout (mock page 3) — used for the plate readings */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 0 1.1rem; margin: 0.7rem 0; }
+  .two-col p { break-inside: avoid; font-size: 0.78rem; margin: 0.3rem 0 0.55rem; }
+  .plates-note { font-size: 0.72rem; font-style: italic; color: #4A5A4A; margin: 0.2rem 0 0; }
   /* Alchemical correspondences appendix */
   .alch-table { width: 100%; border-collapse: collapse; margin: 0.8rem 0 0.4rem; font-size: 0.86rem; }
   .alch-table th { font-family: "Cinzel", Georgia, serif; font-size: 0.72rem; letter-spacing: 2px;
@@ -289,6 +310,24 @@ export interface PrintOptions {
   /** When provided, an "Alchemical Correspondences" appendix page is added:
    *  each classical body's metal, opus stage, element, and principle. */
   alchemyPlanets?: { id: string; element: string; modality: string; sign: string }[];
+  /** When provided, a "Plates — The Spread" page follows the cover: the
+   *  session's dealt cards as engraved plates. The caller re-deals them
+   *  deterministically client-side from the same seed the report reads. */
+  spreadCards?: PrintSpreadCard[];
+  spreadName?: string;  // e.g. "planetary_seven"
+  lineage?: string;     // e.g. "Golden Dawn / Hermetic"
+}
+
+export interface PrintSpreadCard {
+  position: string;
+  name: string;
+  arcana: "major" | "minor";
+  number: number | null;
+  element: string | null;
+  reversed: boolean;
+  natalLink?: string | null;
+  meaning?: string;
+  keywords?: string[];
 }
 
 /** Tiny inline-SVG element triangle for print (fonts can't be trusted with
@@ -339,6 +378,66 @@ function alchemyPageHtml(
   </section>`;
 }
 
+const ROMAN = ["0", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X",
+  "XI", "XII", "XIII", "XIV", "XV", "XVI", "XVII", "XVIII", "XIX", "XX", "XXI"];
+
+/** Plate ordinal: trump numeral for majors, pip count + element mark for minors. */
+function plateGlyph(c: PrintSpreadCard): string {
+  if (c.arcana === "major") {
+    return escapeHtml(c.number !== null && ROMAN[c.number] ? ROMAN[c.number] : "✶");
+  }
+  const mark = c.element ? elementMarkSvg(c.element) : "";
+  return `${c.number ?? ""} ${mark}`;
+}
+
+const SPREAD_TITLES: Record<string, string> = {
+  daily: "Daily Draw", three_card: "Three-Card Spread",
+  elemental_balance: "Elemental Balance", planetary_seven: "The Planetary Seven",
+  twelve_house: "The Twelve Houses", relationship: "Relationship Spread",
+  transit_pressure: "Transit Pressure", shadow_integration: "Shadow Integration",
+  creative_expression: "Creative Expression",
+};
+
+/** "Plates — The Spread": engraved card plates + two-column readings, per the
+ *  design mock's card-grid page. Everything shown is escaped. */
+function spreadPageHtml(
+  cards: PrintSpreadCard[],
+  spreadName?: string,
+  lineage?: string,
+): string {
+  const plates = cards.map((c) => {
+    const kw = (c.keywords ?? []).slice(0, 3).join(" · ");
+    return `<div class="tarot-card">
+      <div class="plate-glyph${c.reversed && c.arcana === "major" ? " rev" : ""}">${plateGlyph(c)}</div>
+      <div class="pos">${escapeHtml(c.position)}</div>
+      <div class="label">[${escapeHtml(c.name)} · ${
+        c.reversed ? `<span class="rev-tag">Reversed</span>` : "Upright"
+      }]</div>
+      ${c.natalLink ? `<div class="echo">echoes natal ${escapeHtml(c.natalLink)}</div>` : ""}
+      ${kw ? `<div class="kw">${escapeHtml(kw)}</div>` : ""}
+    </div>`;
+  }).join("\n");
+
+  const readings = cards
+    .filter((c) => c.meaning)
+    .map((c) => `<p><b>${escapeHtml(c.position)} — ${escapeHtml(c.name)}${
+      c.reversed ? " (rev.)" : ""
+    }.</b> ${inline(escapeHtml(c.meaning!))}</p>`)
+    .join("\n");
+
+  const spreadTitle = spreadName ? SPREAD_TITLES[spreadName] ?? spreadName : "";
+  const sub = [spreadTitle, lineage].filter((x): x is string => Boolean(x)).map(escapeHtml).join(" · ");
+  return `<section class="page">
+    <h1>Plates — The Spread</h1>
+    ${sub ? `<p class="plates-note" style="text-align:center">${sub}</p>` : ""}
+    <div class="card-grid">${plates}</div>
+    <p class="plates-note">These plates are the session's own cards, re-dealt in
+    your browser from the same deterministic seed the report reads — not a new
+    shuffle. Reversed trumps print their numeral inverted, as they fell.</p>
+    ${readings ? `<h2>Readings of the Plates</h2><div class="two-col">${readings}</div>` : ""}
+  </section>`;
+}
+
 /** Markdown → full standalone print document (HTML string). */
 export function reportToPrintHtml(markdown: string, opts: PrintOptions = {}): string {
   const sigil = sigilSvg(opts.sigilPhrase ?? "astra arcana");
@@ -368,6 +467,10 @@ export function reportToPrintHtml(markdown: string, opts: PrintOptions = {}): st
       : renderBlocks(body, sigil);
     return `<section class="${cls}">${art}${h}${bodyHtml}</section>`;
   });
+  // Plates: the dealt spread as a visual break right after the cover.
+  if (opts.spreadCards?.length) {
+    pages.splice(1, 0, spreadPageHtml(opts.spreadCards, opts.spreadName, opts.lineage));
+  }
   // Appendix: the metals of the reader's sky (only when placements provided).
   if (opts.alchemyPlanets?.length) {
     pages.push(alchemyPageHtml(opts.alchemyPlanets));
