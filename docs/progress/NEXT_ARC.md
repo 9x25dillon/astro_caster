@@ -16,16 +16,14 @@ statuses inline._
 
 ## Track 2 — Own your data (first)
 
-- **B1 Vault export/import (S)** — ⏳ in progress (`next-arc-vault`): one file
+- **B1 Vault export/import (S)** — ✅ merged 2026-07-08 (PR #55): one file
   of all `aae.*` local state; import restores. *Done when: clear browser
   data → import → everything back.*
-- **B2 The Bookshelf (M)** — persist every generated Oracle + Personal report
-  (IndexedDB), shelf UI to reopen / reprint (plates re-deal deterministically)
-  / delete. Turns paid reports into a permanent library, and becomes the
-  **data source for the physical tome's compiler**. *Done when: a report from
-  last month reopens and reprints offline.*
-- **B3 Server-side note (XS)** — Hand_off backup line for `backend/.env` +
-  `data/*.db`. ⏳ riding with B1.
+- **B2 The Bookshelf (M)** — ✅ 2026-07-08 (`next-arc-bookshelf`): IndexedDB
+  library keyed by session seed, auto-save on generation, ❖ Shelf modal
+  (reread / offline reprint via shared tomePrint / burn), Vault @2 carries
+  it. Done-when proven verbatim in e2e.
+- **B3 Server-side note (XS)** — ✅ merged with B1.
 
 ## Track 3 — Deepen the practice
 

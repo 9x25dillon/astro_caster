@@ -136,8 +136,8 @@ export const ProfileManager: React.FC<{ onLoad?: () => void }> = ({ onLoad }) =>
             className="ghost vault-export"
             style={{ fontSize: 12, padding: "4px 10px", width: "auto" }}
             title="Download ALL local observatory data (profiles, entitlement, report claims, bookmarks) as one file. It contains your birth data — guard it like a key."
-            onClick={() => {
-              const n = downloadVault();
+            onClick={async () => {
+              const n = await downloadVault();
               setShareMsg(`vault saved · ${n} entries`);
               setTimeout(() => setShareMsg(""), 2500);
             }}
@@ -163,7 +163,7 @@ export const ProfileManager: React.FC<{ onLoad?: () => void }> = ({ onLoad }) =>
               if (!f) return;
               if (!window.confirm("Restore this vault? Matching local data will be overwritten, then the observatory reloads.")) return;
               try {
-                const n = restoreVault(await f.text());
+                const n = await restoreVault(await f.text());
                 setShareMsg(`restored ${n} entries — reloading…`);
                 setTimeout(() => window.location.reload(), 700);
               } catch (err) {

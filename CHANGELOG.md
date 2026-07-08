@@ -3,6 +3,30 @@
 Per-phase log for the Production Hardening & Symbolic Intelligence Expansion pass.
 Baseline: `d9afc4b` (36 backend tests, clean frontend build).
 
+## The Bookshelf — a permanent local report library (2026-07-08, next-arc-bookshelf)
+
+B2 of the next arc: generated Oracle and Personal reports used to evaporate
+with the session unless printed. Now every session shelves itself.
+
+- **`lib/bookshelf.ts`**: IndexedDB library (`astra-bookshelf`), one record
+  per Oracle SESSION keyed by the deterministic seed — regenerating a session
+  overwrites idempotently; compiling the deluxe edition attaches to the same
+  entry. Auto-saved from ArcanaModal on both success paths, fire-and-forget.
+- **`BookshelfModal`** (❖ Shelf in the masthead): sessions listed newest-
+  first with question, date, spread/deluxe/provenance chips; expand to reread
+  (the Interpretation accordion), **⎙ Reprint tome**, or **🜂 Burn** (with
+  confirm — a paid reading can't be regenerated for free).
+- **Offline reprint, months later**: shared `lib/tomePrint.ts` (extracted
+  from ArcanaModal, now used by both paths) re-casts the chart on-device
+  from the saved birth data and re-deals the session's plates from the same
+  deterministic seed — cover constellation, plates page, and alchemy
+  appendix all reconstruct with zero network.
+- **Vault `astra-vault@2`**: exports now carry the shelf; restore accepts
+  @1 and @2, importing entries by seed.
+- e2e: the done-when verbatim — a month-old seeded session reopens offline
+  and reprints with its plates page; plus an auto-save capture test driving
+  a canned Oracle generation. 52 e2e green (×2 consecutive full runs).
+
 ## The Vault — export/import all local state (2026-07-08, next-arc-vault)
 
 B1 of the ratified next arc (docs/progress/NEXT_ARC.md): the observatory's

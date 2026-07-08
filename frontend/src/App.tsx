@@ -13,6 +13,7 @@ import { Starfield } from "./components/Starfield";
 import { CeremonyModal } from "./components/CeremonyModal";
 import { ForecastPanel } from "./components/ForecastPanel";
 import { ArcanaModal } from "./components/ArcanaModal";
+import { BookshelfModal } from "./components/BookshelfModal";
 import { RelationshipModal } from "./components/RelationshipModal";
 import { PredictiveModal } from "./components/PredictiveModal";
 import { AdvancedModal } from "./components/AdvancedModal";
@@ -36,6 +37,7 @@ export const App: React.FC = () => {
   const [oracleOpen, setOracleOpen] = useState(false);
   const [forecastOpen, setForecastOpen] = useState(false);
   const [arcanaOpen, setArcanaOpen] = useState(false);
+  const [shelfOpen, setShelfOpen] = useState(false);
   const [relOpen, setRelOpen] = useState(false);
   const [predOpen, setPredOpen] = useState(false);
   const [advOpen, setAdvOpen] = useState(false);
@@ -90,6 +92,8 @@ export const App: React.FC = () => {
           </button>
           <button className="arcana-pill" title="Relationship astrology"
             onClick={() => { setRelOpen(true); trackEvent("relationship_opened"); }}>⚭ Relate</button>
+          <button className="ghost masthead-btn"
+            onClick={() => { setShelfOpen(true); trackEvent("bookshelf_opened"); }}>❖ Shelf</button>
           <button className="arcana-pill" title="Predictive timing"
             onClick={() => { setPredOpen(true); trackEvent("predictive_opened"); }}>◷ Timing</button>
           <button className="arcana-pill" title="Advanced techniques"
@@ -119,6 +123,7 @@ export const App: React.FC = () => {
       {oracleOpen && <OracleModal onClose={() => setOracleOpen(false)} profile={soulProfile} />}
       {forecastOpen && <ForecastPanel onClose={() => setForecastOpen(false)} />}
       {arcanaOpen && <ArcanaModal onClose={() => setArcanaOpen(false)} />}
+      {shelfOpen && <BookshelfModal onClose={() => setShelfOpen(false)} />}
       {relOpen && <RelationshipModal onClose={() => setRelOpen(false)} />}
       {predOpen && <PredictiveModal onClose={() => setPredOpen(false)} />}
       {advOpen && <AdvancedModal onClose={() => setAdvOpen(false)} />}

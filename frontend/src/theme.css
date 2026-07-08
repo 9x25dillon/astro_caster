@@ -2233,3 +2233,30 @@ h2.section::after {
   stroke: rgba(224, 197, 120, 0.55);
   transition: stroke 0.4s var(--ease-out);
 }
+
+/* ── Bookshelf (B2) — the local report library ──────────────────────────── */
+.shelf-modal {
+  background: var(--panel, #14141c); border: 1px solid var(--gold, #c9a84c);
+  border-radius: 10px; width: min(880px, 94vw); max-height: 88vh;
+  overflow-y: auto; padding: 18px 22px 22px;
+}
+.shelf-header { display: flex; align-items: center; justify-content: space-between; }
+.shelf-header h2 { font-family: var(--display); color: var(--gold-soft, #e0c578); margin: 0; }
+.shelf-sub { font-size: 12.5px; color: var(--ink); max-width: 62ch; margin: 6px 0 12px; }
+.shelf-msg { color: var(--copper, #b87333); font-size: 12px; }
+.shelf-list { display: flex; flex-direction: column; gap: 8px; }
+.shelf-item { border: 1px solid var(--rule); border-radius: 8px; background: rgba(255,255,255,0.02); }
+.shelf-item.open { border-color: rgba(201,168,76,0.55); }
+.shelf-row { display: flex; align-items: center; gap: 10px; padding: 9px 12px; cursor: pointer; flex-wrap: wrap; }
+.shelf-row:hover { background: rgba(201,168,76,0.06); }
+.shelf-date { font-size: 11px; color: var(--sepia, #9a8f78); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+.shelf-q { flex: 1 1 220px; font-style: italic; font-size: 13px; color: var(--parchment, #efe6d5);
+           overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.shelf-chips { display: flex; gap: 6px; flex-shrink: 0; }
+.shelf-chips .chip { font-size: 10px; padding: 2px 8px; }
+.shelf-chips .chip.gilt { border-color: var(--gold); color: var(--gold-bright, #e8cf8a); }
+.shelf-chips .chip.dim { opacity: 0.6; }
+.shelf-body { padding: 4px 14px 14px; border-top: 1px dashed var(--rule); }
+.shelf-actions { display: flex; gap: 8px; margin: 10px 0 6px; }
+.shelf-actions .ghost { width: auto; font-size: 12px; padding: 4px 12px; }
+.shelf-burn { color: var(--copper, #b87333); }
