@@ -309,9 +309,34 @@ export function aspectsBetween(
   return out;
 }
 
+// Sidereal support without a sid-mode export: the wasm computes Fagan/Bradley
+// (its default mode), and standard ayanamshas differ from FB by a
+// body-independent longitude shift (verified vs pyswisseph: identical across
+// bodies to ~1e-13). Lahiri−FB drifts by only ~3e-8° across 1800s–2100s, so a
+// J2000-calibrated constant stays ~40× inside the 1e-6 parity assert.
+const AYANAMSHA_SHIFT: Record<number, number> = {
+  0: 0, // Fagan/Bradley — the wasm's native mode
+  1: 0.883207640726, // Lahiri (swe.get_ayanamsa_ut Δ at J2000)
+};
+
+/** Effective tropical→sidereal longitude offset at jd for an ayanamsha.
+ *  Derived from the wasm itself (tropical Sun − FB-sidereal Sun), which
+ *  carries Swiss's frame correction; the mode shift rides on top. The same
+ *  offset applies to every longitude — bodies, cusps and angles alike
+ *  (object-independence verified to ~1e-11). */
+function siderealOffset(jd: number, shift: number): number {
+  const trop = calcSwissBody(jd, 0)!;
+  const sid = calcSwissBody(jd, 0, true)!;
+  return norm360(trop.lon - sid.lon - shift);
+}
+
 export function calculateChart(req: ChartRequest): ChartResponse {
-  if (req.zodiac === "sidereal") {
-    throw new Error("@astra/core computes the tropical zodiac only (the wasm build exports no sidereal mode)");
+  const sidereal = req.zodiac === "sidereal";
+  const shift = AYANAMSHA_SHIFT[req.ayanamsha ?? 1];
+  if (sidereal && shift === undefined) {
+    throw new Error(
+      `@astra/core: unsupported ayanamsha ${req.ayanamsha} offline (Fagan/Bradley 0 and Lahiri 1 are available)`
+    );
   }
   if (!swissReady()) {
     throw new Error("@astra/core: await initSwisseph() before casting a chart");
@@ -321,16 +346,19 @@ export function calculateChart(req: ChartRequest): ChartResponse {
 
   // Houses + angles from the same swe_houses C the backend runs — every house
   // system pyswisseph accepts works here too, and the Vertex is real now.
+  // Sidereal cusps/angles are the tropical ones minus the effective offset —
+  // exactly what swe_houses_ex does internally (residual ~1e-11).
+  const off = sidereal ? siderealOffset(jd, shift!) : 0;
   const h = calcSwissHouses(jd, req.lat, req.lng, req.house_system ?? "P")!;
-  const cusps = h.cusps.map((c) => norm360(c));
-  const asc = norm360(h.asc);
-  const mc = norm360(h.mc);
+  const cusps = h.cusps.map((c) => norm360(c - off));
+  const asc = norm360(h.asc - off);
+  const mc = norm360(h.mc - off);
   const angles: Angles = {
     ascendant: round6(asc),
     midheaven: round6(mc),
     descendant: round6(norm360(asc + 180)),
     imum_coeli: round6(norm360(mc + 180)),
-    vertex: round6(norm360(h.vertex)),
+    vertex: round6(norm360(h.vertex - off)),
   };
 
   const planets: PlanetData[] = [];
@@ -339,16 +367,19 @@ export function calculateChart(req: ChartRequest): ChartResponse {
   for (const [name, sweId, glyph] of PLANET_TABLE) {
     // A body can be unavailable (e.g. Chiron outside the seas file's range) —
     // the backend skips it on swe.Error, we skip on null.
-    const r = calcSwissBody(jd, sweId);
+    const r = calcSwissBody(jd, sweId, sidereal);
     if (!r) continue;
-    planets.push(buildPlanet(name, glyph, r.lon, r.lat, r.speed, r.dec, cusps));
-    if (name === "Sun") sunLon = r.lon;
-    if (name === "Moon") moonLon = r.lon;
+    // Sidereal: FB longitude + the mode shift; lat/speed/decl are
+    // mode-independent (verified to ~1e-12).
+    const lon = sidereal ? norm360(r.lon + shift!) : r.lon;
+    planets.push(buildPlanet(name, glyph, lon, r.lat, r.speed, r.dec, cusps));
+    if (name === "Sun") sunLon = lon;
+    if (name === "Moon") moonLon = lon;
     if (name === "North Node") {
       // Derive the South Node opposite the North (backend parity: same speed,
       // mirrored latitude and declination).
       planets.push(
-        buildPlanet("South Node", "☋", norm360(r.lon + 180), -r.lat, r.speed, -r.dec, cusps)
+        buildPlanet("South Node", "☋", norm360(lon + 180), -r.lat, r.speed, -r.dec, cusps)
       );
     }
   }
