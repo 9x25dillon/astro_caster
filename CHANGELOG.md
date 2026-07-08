@@ -3,6 +3,27 @@
 Per-phase log for the Production Hardening & Symbolic Intelligence Expansion pass.
 Baseline: `d9afc4b` (36 backend tests, clean frontend build).
 
+## Tome plates — the spread as engraved card plates (2026-07-08, tome-tarot-grid)
+
+The PDF-1 follow-on from the design mock: the printed Personal Report gains a
+"Plates — The Spread" page right after the cover, plus the mock's two-column
+research layout.
+
+- **Card plates** (`printReport.ts`): each dealt card as an engraved plate —
+  trump numeral (Roman) or pip count + element mark, position name in Cinzel
+  caps, `[Card · Upright/Reversed]` per the mock, natal echo line, top-three
+  keywords. Reversed trumps print their numeral inverted; reversed tags in
+  oxblood. Double gold inset border on cream, break-inside-avoid for print.
+- **Two-column readings**: the full per-card meanings flow beneath the grid
+  in the mock's `.two-col` research layout, with inline markdown rendered
+  (escaped first — the injection posture is unchanged).
+- **Deterministic plates, honestly labeled**: `printPersonalReport` re-deals
+  the SESSION's spread on-device via the parity-locked engine (same chart +
+  spread + question + date + lineage ⇒ the same cards the report reads — not
+  a new shuffle), and the page says so. Plates degrade gracefully: if the
+  re-deal fails the tome still prints without them.
+- Visually verified by headless screenshot against the design mock's tokens.
+
 ## Sidereal on-device — no wasm rebuild needed (2026-07-08, sidereal-on-device)
 
 The UI's Sidereal toggle now works offline. The wasm exports no

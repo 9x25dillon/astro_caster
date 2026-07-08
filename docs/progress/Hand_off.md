@@ -69,9 +69,9 @@ cd backend && .venv/bin/python tools/gen_parity_vectors.py --check  # tripwire
   `AAE_ORACLE_MIN_WEI`, `AAE_REPORT_MIN_WEI`; revisit the git-history
   birth-data decision (`docs/audits/AUDIT_REGRESSION.md` §5.1, operator chose
   LEAVE 2026-07-01).
-- Ideas shelf: WASM-Swiss for *all* bodies (would collapse the cross-engine
-  tolerances to zero and retire astronomy-engine); sidereal zodiac on-device;
-  richer tarot-card grid in the print renderer (PDF-1 follow-on).
+- Ideas shelf: **EMPTY as of 2026-07-08** — all-bodies WASM Swiss (tolerances
+  collapsed, astronomy-engine retired), sidereal on-device, and the tome's
+  tarot plate grid (PDF-1 follow-on) all landed the same day.
 
 ## Known gotchas (carried forward)
 

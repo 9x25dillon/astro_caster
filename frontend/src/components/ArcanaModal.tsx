@@ -389,7 +389,7 @@ export const ArcanaModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     trackEvent("personal_report_narrate", { engine: speech.engine });
   }
 
-  function printPersonalReport() {
+  async function printPersonalReport() {
     if (!personal) return;
     // {{BIRTH_INFO}} is filled HERE, locally — birth details never leave the
     // browser (the server/AI only ever saw the placeholder).
@@ -398,7 +398,26 @@ export const ArcanaModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       ? `${birth.label ? birth.label + " · " : ""}${birth.year}-${pad(birth.month)}-${pad(birth.day)}` +
         ` ${pad(birth.hour)}:${pad(birth.minute)} · ${birth.lat.toFixed(2)}°, ${birth.lng.toFixed(2)}°`
       : "";
+    // Plates page: re-deal the SESSION's spread deterministically on-device —
+    // same chart + spread + question + date + lineage ⇒ the same cards the
+    // report reads (parity-locked), not a new shuffle. Optional on failure.
+    let spreadCards;
+    try {
+      if (chart && oracle) {
+        const redeal = await localTarotReading(chart, oracle.spread, oracle.question, {
+          source: oracle.source, date: oracleCtx?.date ?? undefined,
+        });
+        spreadCards = redeal.cards.map((c) => ({
+          position: c.position, name: c.card.name, arcana: c.card.arcana,
+          number: c.card.number, element: c.card.element, reversed: c.reversed,
+          natalLink: c.natal_link, meaning: c.meaning, keywords: c.card.keywords,
+        }));
+      }
+    } catch { /* the tome still prints without plates */ }
     const ok = printReport(personal.report_markdown, {
+      spreadCards,
+      spreadName: personal.spread,
+      lineage: oracle?.lineage,
       birthInfo,
       sigilPhrase: oracle?.question || "astra arcana",
       title: `Astra Arcana — Personal Report · ${personal.oracle_date}`,
