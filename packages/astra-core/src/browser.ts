@@ -26,6 +26,7 @@ export {
   julianDay,
   julianDayUtc,
 } from "./ephemeris.js";
+export { initSwisseph, swissReady } from "./swisseph.js";
 export {
   computeSynastry,
   synastryAspects,

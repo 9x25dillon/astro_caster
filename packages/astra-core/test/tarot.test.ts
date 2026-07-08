@@ -13,6 +13,11 @@ import { buildNatalArcanaSignature } from "../src/tarot.js";
 import { weightedDraw } from "../src/tarot.js";
 import { calculateChart } from "../src/index.js";
 
+import { initSwisseph } from "../src/swisseph.js";
+
+// The extended bodies (Node/Chiron/Lilith) ride the WASM Swiss engine.
+await initSwisseph();
+
 const here = path.dirname(fileURLToPath(import.meta.url));
 const payload = JSON.parse(
   readFileSync(path.join(here, "../../../parity/tarot-draw.json"), "utf8")

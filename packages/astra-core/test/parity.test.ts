@@ -4,10 +4,10 @@
 // DIFFERENT Moshier-class implementation, so angular fields use the parity
 // README's cross-engine widening (×5). Exact fields stay exact.
 //
-// v0.1 coverage: North/South Node, Chiron and Lilith are not computable with
-// astronomy-engine — the comparison restricts to SUPPORTED and the aspect and
-// pattern sets are filtered accordingly (WASM escalation tracked in the
-// roadmap).
+// Full body coverage: North/South Node, Chiron and Lilith ride the vendored
+// WASM Swiss engine (initSwisseph below) — the SUPPORTED filter now spans the
+// whole backend body set and is kept only so a future body addition can start
+// restricted until its TS engine lands.
 
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -16,6 +16,11 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { angularSeparation, calculateChart } from "../src/index.js";
+
+import { initSwisseph } from "../src/swisseph.js";
+
+// The extended bodies (Node/Chiron/Lilith) ride the WASM Swiss engine.
+await initSwisseph();
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const payload = JSON.parse(
@@ -27,7 +32,8 @@ const CROSS = 5; // cross-engine widening for angular fields (parity/README.md)
 
 const SUPPORTED = new Set([
   "Sun", "Moon", "Mercury", "Venus", "Mars", "Jupiter", "Saturn",
-  "Uranus", "Neptune", "Pluto", "Part of Fortune", "Ascendant", "Midheaven",
+  "Uranus", "Neptune", "Pluto", "North Node", "South Node", "Chiron",
+  "Lilith", "Part of Fortune", "Ascendant", "Midheaven",
 ]);
 
 // Aspect-set membership flips when an orb sits within the cross-engine noise

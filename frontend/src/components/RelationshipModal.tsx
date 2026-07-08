@@ -53,7 +53,7 @@ export const RelationshipModal: React.FC<{ onClose: () => void }> = ({ onClose }
     setLoading(true); setErr(null); setOnDevice(false);
     try { set(await fn()); trackEvent(ev); }
     catch (e) {
-      // Backend unreachable → compute on-device via @astra/core (reduced body set).
+      // Backend unreachable → compute on-device via @astra/core (full body set).
       if (local && isOfflineError(String(e))) {
         try { set(await local()); setOnDevice(true); trackEvent(ev + "_local"); }
         catch (e2) { setErr(String(e2)); }
@@ -90,7 +90,7 @@ export const RelationshipModal: React.FC<{ onClose: () => void }> = ({ onClose }
 
         <div className="arcana-body">
           {err && <p className="arc-error">{err}</p>}
-          {onDevice && <p className="arc-ondevice">☾ offline — computed on your device (reduced body set)</p>}
+          {onDevice && <p className="arc-ondevice">☾ offline — computed on your device</p>}
 
           {tab === "synastry" && (
             <div>

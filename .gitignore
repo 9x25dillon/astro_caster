@@ -14,6 +14,8 @@ frontend/dev-dist/
 # Ephemeris data (large binary files, fetched separately)
 backend/ephe/
 *.se1
+# ...except the small asteroid file vendored for the on-device WASM Swiss engine
+!packages/astra-core/src/vendor/swisseph/seas_18.se1
 
 # Telemetry database (local instance data, not committed)
 backend/data/*.db

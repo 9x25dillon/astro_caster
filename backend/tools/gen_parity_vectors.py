@@ -25,6 +25,16 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# Vectors are generated against the VENDORED seas-only ephemeris dir — the
+# exact configuration the on-device TS engine ships (Chiron from seas_18.se1,
+# everything else Moshier fallback). The file is committed, so `--check`
+# reproduces byte-identically in CI regardless of whether backend/ephe (the
+# full production file set, gitignored) is present. Must run before the
+# ephemeris import — flags are resolved at import time.
+_VENDORED_EPHE = str(Path(__file__).resolve().parents[2]
+                     / "packages" / "astra-core" / "src" / "vendor" / "swisseph")
+os.environ["SE_EPHE_PATH"] = _VENDORED_EPHE
+
 import ephemeris as E  # noqa: E402
 import tarot as TAROT  # noqa: E402
 from models import ChartRequest  # noqa: E402
@@ -131,16 +141,15 @@ TAROT_SPREADS = ["daily", "three_card", "elemental_balance", "planetary_seven",
                  "twelve_house", "relationship"]
 TAROT_SEEDS = ["natal-seed-1", "2026-07-05|oracle"]
 
-# @astra/core v0.1 computes Sun–Pluto, Asc, MC, Part of Fortune but not the
-# lunar Node / Chiron / Lilith (astronomy-engine lacks them). So the tarot
-# vector targets a chart restricted to that supported body set — the signature
-# and draws it represents are exactly what the TS engine can reproduce. The
-# backend drift-lock test applies the same restriction. Full-body tarot follows
-# the WASM-Swiss escalation (roadmap §3); the chart vector still carries every
-# body so the astronomical target never drifts.
+# @astra/core computes the FULL backend body set: Sun–Pluto via
+# astronomy-engine, plus North/South Node, Chiron and Lilith via the vendored
+# WASM Swiss Ephemeris (the roadmap-§3 escalation, landed 2026-07-08). The
+# supported set therefore equals the backend's — the restriction machinery is
+# kept so any future body addition starts restricted until its TS engine lands.
 SUPPORTED_BODIES = {
     "Sun", "Moon", "Mercury", "Venus", "Mars", "Jupiter", "Saturn",
-    "Uranus", "Neptune", "Pluto", "Ascendant", "Midheaven", "Part of Fortune",
+    "Uranus", "Neptune", "Pluto", "North Node", "South Node", "Chiron",
+    "Lilith", "Ascendant", "Midheaven", "Part of Fortune",
 }
 
 
@@ -191,10 +200,14 @@ import forecast as FC  # noqa: E402
 FORECAST_START = "2026-01-01"
 FORECAST_DAYS = 60
 FORECAST_MIN_SIG = "medium"
+# Mirrors main.py's production natal map (all chart planets minus
+# _NATAL_EXCLUDE = Descendant/IC/South Node/PoF/Vertex/Lilith).
 NATAL_TARGETS = ["Sun", "Moon", "Mercury", "Venus", "Mars", "Jupiter",
-                 "Saturn", "Uranus", "Neptune", "Pluto", "Ascendant", "Midheaven"]
-_SUPPORTED_TRANSITS = [(n, i) for n, i in FC._TRANSIT_BODIES
-                       if n not in ("Chiron", "North Node")]
+                 "Saturn", "Uranus", "Neptune", "Pluto", "North Node",
+                 "Chiron", "Ascendant", "Midheaven"]
+# Full backend mover list — Chiron and the true Node now ride the WASM Swiss
+# engine on the TS side.
+_SUPPORTED_TRANSITS = list(FC._TRANSIT_BODIES)
 
 
 def _natal_map(req: dict) -> dict:

@@ -3,6 +3,47 @@
 Per-phase log for the Production Hardening & Symbolic Intelligence Expansion pass.
 Baseline: `d9afc4b` (36 backend tests, clean frontend build).
 
+## Full on-device body set — WASM Swiss Ephemeris (2026-07-08, wasm-swiss-bodies)
+
+The last parity gap: North/South Node, Chiron and Black Moon Lilith now compute
+on-device, closing the roadmap-§3 "WASM-Swiss escalation". Every body the
+backend serves is reproduced in the browser, drift-locked by the same vectors.
+
+- **Vendored `@swisseph/browser` 1.1.1 artifacts** (Swiss Ephemeris 2.10.03
+  compiled to wasm, AGPL like this repo) into
+  `packages/astra-core/src/vendor/swisseph/` — the published npm package is
+  broken (mangled wrapper, unexportable glue), so we pin the two working
+  files plus `seas_18.se1` (223 kB, the Chiron asteroid ephemeris; gitignore
+  gains a negation for it). `src/swisseph.ts` wraps them in a lazy singleton:
+  async `initSwisseph()` (isomorphic asset loading — fs under Node, fetch in
+  the browser; wasm bytes handed to the factory since the glue's Node read
+  path is compiled out), then synchronous `calcSwissBody()`.
+- **`ephemeris.ts`** appends the extended bodies after Pluto in backend order
+  (South Node derived from the North exactly like the backend: +180°, same
+  speed, mirrored latitude/declination). Uninitialized, charts gracefully
+  carry the astronomy-engine set. `eclipticLonSpeed` serves the new names
+  too, so **`forecast.ts` now runs the full backend mover list** (Chiron +
+  true Node transits and Chiron stations).
+- **Parity vectors regenerated against a pinned ephemeris config**: the
+  generator and backend test session now force `SE_EPHE_PATH` to the vendored
+  seas-only dir — the exact file set the TS engine ships — so vectors carry
+  Chiron, are byte-reproducible in CI (the file is committed; `--check`
+  tripwire holds), and the drift lock spans all 17 bodies. Measured deltas:
+  Chiron/Lilith bit-exact, true Node ≤0.006° (Moshier-vs-Swiss lunar theory,
+  inside the ±0.01° contract). `SUPPORTED_BODIES` machinery kept for future
+  additions. Also fixed a latent test-isolation bug this surfaced:
+  purchase-rail tests were redeeming fixture txs into the developer's real
+  receipts ledger (`conftest.py` now points `AAE_RECEIPTS_DB` at a temp dir).
+- **Frontend**: `core()` awaits `initSwisseph()` once; the "reduced body set"
+  badge copy is gone; local forecast targets mirror production
+  (`_NATAL_EXCLUDE` complement, now with Node + Chiron) and the glyph map
+  gained ⚷/☊; PWA precache includes `wasm`+`se1` (~1.75 MiB total); vite dev
+  `server.fs.allow` opened to `../packages` (the vendored assets 403'd as
+  `/@fs/` URLs — a dev-only failure the offline e2e caught).
+- **Tests**: 171 backend, 30 core (all vectors green at full body set),
+  38 e2e — `offline-shell` now asserts the ☊/⚷ glyphs render in an
+  offline-cast wheel, locking the payoff end-to-end. `no-external` holds.
+
 ## Lazy-load @astra/core + chunk split — smaller initial bundle (2026-07-05, lazy-astra-core)
 
 The offline engines were shipping in the main bundle even though they're only

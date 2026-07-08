@@ -12,6 +12,11 @@ import { fileURLToPath } from "node:url";
 
 import { angularSeparation, fixedStarHits, harmonicChart, midpointTree } from "../src/index.js";
 
+import { initSwisseph } from "../src/swisseph.js";
+
+// The extended bodies (Node/Chiron/Lilith) ride the WASM Swiss engine.
+await initSwisseph();
+
 const here = path.dirname(fileURLToPath(import.meta.url));
 const payload = JSON.parse(
   readFileSync(path.join(here, "../../../parity/advanced.json"), "utf8")
