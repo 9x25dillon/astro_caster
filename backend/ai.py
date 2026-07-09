@@ -26,8 +26,10 @@ Configure via environment (all optional):
     AAE_OLLAMA_MODEL_DEEP  default kwangsuklee/Qwen3.5-9B-Claude-4.6-Opus-Reasoning-Distilled-GGUF:latest
     AAE_AI_BASE_URL        default https://openrouter.ai/api/v1
     AAE_AI_API_KEY         cloud key (enables the openai provider)
-    AAE_AI_MODEL           default anthropic/claude-3.5-sonnet
-    AAE_AI_MODEL_DEEP      default anthropic/claude-3-opus
+    AAE_AI_MODEL           default anthropic/claude-haiku-4-5
+    AAE_AI_MODEL_DEEP      default anthropic/claude-sonnet-4-6
+    AAE_AI_MODEL_SUPPORTER default anthropic/claude-sonnet-4-6
+    AAE_AI_MODEL_ORACLE    default anthropic/claude-opus-4-8
 """
 
 from __future__ import annotations

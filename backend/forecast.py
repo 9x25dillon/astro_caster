@@ -170,6 +170,8 @@ def _sig_station(planet: str) -> str:
 
 
 def _sig_t2t(p1: str, p2: str) -> str:
+    if {p1, p2} == {"Sun", "Moon"}:
+        return "medium"   # lunations — new/full/quarter Moons carry the month
     if p1 in _OUTER and p2 in _OUTER:
         return "high"
     if p1 in _OUTER or p2 in _OUTER:
@@ -301,29 +303,57 @@ def generate_forecast(
     # Bootstrap: positions from the day before the range starts
     prev_pos = _positions(_jd_noon(start_date - dt.timedelta(days=1)))
 
-    # Per-pair orb tracking: (p1, p2_or_natal_name, aspect_name) → prev_orb
-    tt_orbs: Dict[tuple, float] = {}
-    tn_orbs: Dict[tuple, float] = {}
+    # Per-pair orb tracking: (p1, p2_or_natal_name, aspect_name) →
+    # (prev_orb, was_decreasing). The trend bit is what detects an exactness
+    # pass: the orb was shrinking and has now started to grow — a sign change
+    # of the orb's derivative. (The old fixed +0.03°/day hysteresis could
+    # never fire for slow outer-planet pairs, whose orb changes ≪ 0.03°/day
+    # near the minimum, so the most significant transits were dropped.)
+    tt_orbs: Dict[tuple, Tuple[float, bool]] = {}
+    tn_orbs: Dict[tuple, Tuple[float, bool]] = {}
     tt_fired: set = set()   # keys that already fired — prevents final-pass duplicates
     tn_fired: set = set()
     _BIG = 999.0
 
-    # Initialise orb tables from the pre-range day
+    def _minimum_step(state: Dict[tuple, Tuple[float, bool]], key: tuple,
+                      curr: float, threshold: float):
+        """Advance one pair's orb state; return the minimum orb when the orb
+        just passed a local minimum inside `threshold`, else None."""
+        prev, decreasing = state.get(key, (_BIG, True))
+        fired = prev if (decreasing and prev < threshold and curr > prev) else None
+        if curr < prev:
+            decreasing = True
+        elif curr > prev:
+            decreasing = False
+        state[key] = (curr, decreasing)
+        return fired
+
+    # Initialise orb tables from the pre-range day. Moon pairs always key as
+    # ("Moon", other) — the 6-hour Moon block is their only tracker, and a
+    # symmetric ("Sun", "Moon") entry would sit stale until the final pass
+    # emitted it as a phantom last-day event.
     body_names = [n for n, _ in _TRANSIT_BODIES]
     for i, n1 in enumerate(body_names):
         if n1 not in prev_pos:
             continue
         lon1, _ = prev_pos[n1]
         for j, n2 in enumerate(body_names):
-            if j <= i or n2 not in prev_pos:
+            if j <= i or n2 not in prev_pos or "Moon" in (n1, n2):
                 continue
             lon2, _ = prev_pos[n2]
             for asp, ang, _ in _ASPECTS:
-                tt_orbs[(n1, n2, asp)] = _orb(lon1, lon2, ang)
+                tt_orbs[(n1, n2, asp)] = (_orb(lon1, lon2, ang), True)
         if natal:
             for nn, nlon in natal.items():
                 for asp, ang, _ in _ASPECTS:
-                    tn_orbs[(n1, nn, asp)] = _orb(lon1, nlon, ang)
+                    tn_orbs[(n1, nn, asp)] = (_orb(lon1, nlon, ang), True)
+    if "Moon" in prev_pos:
+        mlon, _ = prev_pos["Moon"]
+        for n2 in body_names:
+            if n2 == "Moon" or n2 not in prev_pos:
+                continue
+            for asp, ang, _ in _ASPECTS:
+                tt_orbs[("Moon", n2, asp)] = (_orb(mlon, prev_pos[n2][0], ang), True)
 
     # Step forward one day at a time
     for offset in range(days):
@@ -365,17 +395,13 @@ def generate_forecast(
                 for asp, ang, threshold in _ASPECTS:
                     key = (n1, n2, asp)
                     curr = _orb(lon1, lon2, ang)
-                    prev = tt_orbs.get(key, _BIG)
-                    # Minimum detected: was within threshold, now clearly increasing.
-                    # The 0.03° hysteresis prevents false triggers from outer planet
-                    # near-stationary wobble (where daily orb change is ~0.001°).
-                    if prev < threshold and curr > prev + 0.03:
+                    min_orb = _minimum_step(tt_orbs, key, curr, threshold)
+                    if min_orb is not None:
                         yesterday = today - dt.timedelta(days=1)
-                        ev = _event_t2t(n1, n2, asp, yesterday, prev)
+                        ev = _event_t2t(n1, n2, asp, yesterday, min_orb)
                         if _SIG_RANK.get(ev["significance"], 1) >= min_rank:
                             events.append(ev)
                         tt_fired.add(key)
-                    tt_orbs[key] = curr
 
         # ── Transit-to-natal aspects (skip Moon — handled at 6h below) ──────────
         if natal:
@@ -389,14 +415,13 @@ def generate_forecast(
                     for asp, ang, _ in _ASPECTS:
                         key = (tname, nname, asp)
                         curr = _orb(tlon, nlon, ang)
-                        prev = tn_orbs.get(key, _BIG)
-                        if prev < t_threshold and curr > prev + 0.02:
+                        min_orb = _minimum_step(tn_orbs, key, curr, t_threshold)
+                        if min_orb is not None:
                             yesterday = today - dt.timedelta(days=1)
-                            ev = _event_t2n(tname, nname, asp, yesterday, prev)
+                            ev = _event_t2n(tname, nname, asp, yesterday, min_orb)
                             if _SIG_RANK.get(ev["significance"], 1) >= min_rank:
                                 events.append(ev)
                             tn_fired.add(key)
-                        tn_orbs[key] = curr
 
         # ── Moon at 6-hour resolution (moves ~13°/day; daily step misses brief aspects)
         # Use daily positions of other planets (slow-movers: acceptable approximation).
@@ -404,37 +429,35 @@ def generate_forecast(
         for sub_frac in (0.0, 0.25, 0.5, 0.75):   # 0h, 6h, 12h, 18h
             jd_sub = jd_midnight + sub_frac
             moon_lon = _moon_lon(jd_sub)
-            # Moon–planet transit-transit aspects
-            for j, n2 in enumerate(body_names):
+            # Moon–planet transit-transit aspects. Every OTHER body pairs with
+            # the Moon here — including the Sun, whose Moon aspects are the
+            # lunations (new/full Moons and quarters). An index guard copied
+            # from the symmetric daily loop used to skip the Sun entirely.
+            for n2 in body_names:
                 if n2 == "Moon" or n2 not in pos:
                     continue
                 lon2, _ = pos[n2]
-                n1_idx = body_names.index("Moon")
-                if body_names.index(n2) <= n1_idx:
-                    continue
                 for asp, ang, threshold in _ASPECTS:
                     key = ("Moon", n2, asp)
                     curr = _orb(moon_lon, lon2, ang)
-                    prev = tt_orbs.get(key, _BIG)
-                    if prev < threshold and curr > prev + 0.03:
-                        ev = _event_t2t("Moon", n2, asp, today, prev)
+                    min_orb = _minimum_step(tt_orbs, key, curr, threshold)
+                    if min_orb is not None:
+                        ev = _event_t2t("Moon", n2, asp, today, min_orb)
                         if _SIG_RANK.get(ev["significance"], 1) >= min_rank:
                             events.append(ev)
                         tt_fired.add(key)
-                    tt_orbs[key] = curr
             # Moon–natal transit-to-natal aspects
             if natal:
                 for nname, nlon in natal.items():
                     for asp, ang, _ in _ASPECTS:
                         key = ("Moon", nname, asp)
                         curr = _orb(moon_lon, nlon, ang)
-                        prev = tn_orbs.get(key, _BIG)
-                        if prev < 1.0 and curr > prev + 0.02:
-                            ev = _event_t2n("Moon", nname, asp, today, prev)
+                        min_orb = _minimum_step(tn_orbs, key, curr, 1.0)
+                        if min_orb is not None:
+                            ev = _event_t2n("Moon", nname, asp, today, min_orb)
                             if _SIG_RANK.get(ev["significance"], 1) >= min_rank:
                                 events.append(ev)
                             tn_fired.add(key)
-                        tn_orbs[key] = curr
 
         prev_pos = pos
 
@@ -444,8 +467,8 @@ def generate_forecast(
     asp_thresholds = {asp: thr for asp, _, thr in _ASPECTS}
     last_day = start_date + dt.timedelta(days=days - 1)
 
-    for key, final_orb in tt_orbs.items():
-        if key in tt_fired:
+    for key, (final_orb, decreasing) in tt_orbs.items():
+        if key in tt_fired or not decreasing:
             continue
         n1, n2, asp = key
         if final_orb < asp_thresholds.get(asp, 2.0):
@@ -454,8 +477,8 @@ def generate_forecast(
                 events.append(ev)
 
     if natal:
-        for key, final_orb in tn_orbs.items():
-            if key in tn_fired:
+        for key, (final_orb, decreasing) in tn_orbs.items():
+            if key in tn_fired or not decreasing:
                 continue
             tname, nname, asp = key
             t_threshold = 1.0 if tname in _INNER else 1.5
@@ -467,9 +490,9 @@ def generate_forecast(
     # Sort by date, high-significance first within each day
     events.sort(key=lambda e: (e["date"], -_SIG_RANK.get(e["significance"], 1)))
 
-    # Deduplicate: same (planet, aspect, target) within a 5-day window → keep
+    # Deduplicate: same (planet, aspect, target) within a 10-day window → keep
     # the one with the smallest orb.  This handles flat-minimum cases where the
-    # same aspect fires on two consecutive daily steps.
+    # same aspect passes several shallow minima on consecutive daily steps.
     deduped: List[dict] = []
     # (planet, aspect, target, direction) → index into deduped
     last_seen: dict = {}

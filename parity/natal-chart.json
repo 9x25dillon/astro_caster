@@ -166,7 +166,7 @@
      },
      {
       "angle": 120.0,
-      "applying": false,
+      "applying": null,
       "color": "#2e86c1",
       "harmony": "harmonious",
       "orb": 1.18,
@@ -1354,7 +1354,7 @@
      },
      {
       "angle": 60.0,
-      "applying": false,
+      "applying": null,
       "color": "#48a999",
       "harmony": "harmonious",
       "orb": 2.95,
@@ -2148,7 +2148,7 @@
      },
      {
       "angle": 120.0,
-      "applying": false,
+      "applying": null,
       "color": "#2e86c1",
       "harmony": "harmonious",
       "orb": 1.18,

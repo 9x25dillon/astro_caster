@@ -15,13 +15,14 @@ All symbolic, never deterministic prediction.
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional
+from typing import Dict, List
 
+import swisseph as swe
 from pydantic import BaseModel, Field
 
 import astrology as A
 import ephemeris as E
-from models import ChartRequest, PlanetData
+from models import ChartRequest
 
 # Bodies excluded from these techniques (derived / non-physical points).
 _SKIP = {"Descendant", "Imum Coeli", "Part of Fortune", "Lilith", "South Node"}
@@ -146,7 +147,9 @@ def harmonic_chart(natal: ChartRequest, harmonic: int) -> HarmonicChart:
 # Midpoint trees (90° dial)
 # --------------------------------------------------------------------------- #
 
-_DIAL_ANGLES = [(0, "conjunction"), (90, "square"), (180, "opposition"), (270, "square")]
+# 0/90/180 cover the whole 90° dial: angular_separation lives in [0, 180], so a
+# 270° contact is indistinguishable from 90° and needs no entry of its own.
+_DIAL_ANGLES = [(0, "conjunction"), (90, "square"), (180, "opposition")]
 
 
 def midpoint_tree(natal: ChartRequest, orb: float = 1.0) -> MidpointTreeResponse:
@@ -163,11 +166,10 @@ def midpoint_tree(natal: ChartRequest, orb: float = 1.0) -> MidpointTreeResponse
                 if c.id in (a.id, b.id):
                     continue
                 sep = A.angular_separation(c.longitude, mid)   # 0..180
-                for ang, name in _DIAL_ANGLES:
-                    target = ang if ang <= 180 else 360 - ang  # 270 -> 90 in 0..180 space
+                for target, name in _DIAL_ANGLES:
                     if abs(sep - target) <= orb:
                         contacts.append(MidpointContact(
-                            body=c.id, angle=ang, aspect=name,
+                            body=c.id, angle=target, aspect=name,
                             orb=round(abs(sep - target), 2),
                         ))
                         break
@@ -219,9 +221,17 @@ def _star_longitude(lon2000: float, year: int) -> float:
 def fixed_star_hits(natal: ChartRequest, orb: float = 1.5) -> FixedStarResponse:
     chart = E.calculate_chart(natal)
     year = natal.year
+    # The catalogue precesses in the TROPICAL frame; a sidereal chart's planet
+    # longitudes sit an ayanamsha (~24°) away. Shift each star into the chart's
+    # frame before comparing (and report it there, beside the chart).
+    ayanamsha = 0.0
+    if natal.zodiac == "sidereal":
+        with E.swe_lock:
+            E._apply_zodiac(natal)
+            ayanamsha = float(swe.get_ayanamsa_ut(E._julian_day_utc(natal)))
     hits: List[FixedStarHit] = []
     for star, (lon2000, nature) in _FIXED_STARS.items():
-        star_lon = _star_longitude(lon2000, year)
+        star_lon = (_star_longitude(lon2000, year) - ayanamsha) % 360.0
         deg, _m, _s = A.degree_in_sign(star_lon)
         sign = A.sign_for(star_lon)
         for p in chart.planets:
