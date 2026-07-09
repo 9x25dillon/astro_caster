@@ -124,18 +124,25 @@ export function calcSwissHouses(
   lat: number,
   lon: number,
   hsys: string
-): { cusps: number[]; asc: number; mc: number; vertex: number } | null {
+): { cusps: number[]; asc: number; mc: number; vertex: number; fellBack?: boolean } | null {
   const m = instance;
   if (!m) return null;
   const cuspsPtr = m._malloc(13 * 8);
   const ascmcPtr = m._malloc(10 * 8);
   try {
-    m.ccall(
+    const ret = m.ccall(
       "swe_houses_wrap",
       "number",
       ["number", "number", "number", "number", "number", "number"],
       [jd, lat, lon, hsys.charCodeAt(0), cuspsPtr, ascmcPtr]
-    );
+    ) as number;
+    if (ret < 0 && hsys !== "W") {
+      // Placidus/Koch cusps don't exist at/beyond the polar circles — the C
+      // code returns ERR (after silently computing Porphyry). Match the
+      // backend: fall back to whole-sign and flag it.
+      const w = calcSwissHouses(jd, lat, lon, "W");
+      return w ? { ...w, fellBack: true } : null;
+    }
     const cusps: number[] = [];
     for (let i = 1; i <= 12; i++) cusps.push(m.getValue(cuspsPtr + i * 8, "double"));
     return {

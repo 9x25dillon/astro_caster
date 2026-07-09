@@ -106,14 +106,29 @@ const SWISS_BY_NAME: Record<string, number> = Object.fromEntries(
   PLANET_TABLE.map(([name, id]) => [name, id])
 );
 
+/** Zodiac frame selector: any object carrying the ChartRequest frame fields
+ *  (a ChartRequest itself qualifies). Omitted/`tropical` = tropical. */
+export interface ZodiacFrame {
+  zodiac?: string;
+  ayanamsha?: number;
+}
+
 /** Ecliptic-of-date longitude (deg) and longitude speed (deg/day) for a named
- *  body — the forecast scanner's primitive, sharing the chart's exact frame. */
+ *  body. Pass `frame` to get the longitude in a chart's zodiac frame — a
+ *  sidereal chart's positions must never be compared against tropical ones
+ *  (the ~24° ayanamsha offset corrupts every aspect/root-find; issue #54). */
 export function eclipticLonSpeed(
   jd: number,
-  name: string
+  name: string,
+  frame?: ZodiacFrame
 ): { lon: number; speed: number } | null {
   const sweId = SWISS_BY_NAME[name];
   if (sweId === undefined) return null;
+  if (frame?.zodiac === "sidereal") {
+    const shift = ayanamshaShift(frame.ayanamsha);
+    const r = calcSwissBody(jd, sweId, true);
+    return r ? { lon: norm360(r.lon + shift), speed: r.speed } : null;
+  }
   const r = calcSwissBody(jd, sweId);
   return r ? { lon: r.lon, speed: r.speed } : null;
 }
@@ -230,11 +245,22 @@ function tallyElements(planets: PlanetData[]) {
 
 const NON_ASPECTING = new Set(["Descendant", "Imum Coeli", "South Node"]);
 
-function isApplying(a: PlanetData, b: PlanetData, targetAngle: number): boolean {
+/** Port of backend _is_applying. freezeB treats b as a fixed point (a natal
+ *  position in a transit cross-aspect — its birth-epoch speed must not move
+ *  it). Returns null when neither point moves (angles / Part of Fortune):
+ *  applying is undefined. */
+function isApplying(
+  a: PlanetData,
+  b: PlanetData,
+  targetAngle: number,
+  freezeB = false
+): boolean | null {
+  const speedB = freezeB ? 0 : b.speed;
+  if (a.speed === 0 && speedB === 0) return null;
   const sepNow = angularSeparation(a.longitude, b.longitude);
   const sepNext = angularSeparation(
     a.longitude + a.speed * 0.01,
-    b.longitude + b.speed * 0.01
+    b.longitude + speedB * 0.01
   );
   return Math.abs(sepNext - targetAngle) < Math.abs(sepNow - targetAngle);
 }
@@ -298,7 +324,8 @@ export function aspectsBetween(
             separation: Math.round(sep * 100) / 100,
             harmony: ad.harmony,
             color: ad.color,
-            applying: isApplying(t, n, ad.angle),
+            // The natal side is a fixed birth point — freeze it.
+            applying: isApplying(t, n, ad.angle, true),
           });
           break;
         }
@@ -328,6 +355,26 @@ function siderealOffset(jd: number, shift: number): number {
   const trop = calcSwissBody(jd, 0)!;
   const sid = calcSwissBody(jd, 0, true)!;
   return norm360(trop.lon - sid.lon - shift);
+}
+
+/** The FB→mode shift for an ayanamsha, throwing the standard error for
+ *  unsupported modes. */
+function ayanamshaShift(ayanamsha: number | undefined): number {
+  const shift = AYANAMSHA_SHIFT[ayanamsha ?? 1];
+  if (shift === undefined) {
+    throw new Error(
+      `@astra/core: unsupported ayanamsha ${ayanamsha} offline (Fagan/Bradley 0 and Lahiri 1 are available)`
+    );
+  }
+  return shift;
+}
+
+/** Effective tropical→chart-frame longitude offset at the chart's own JD
+ *  (0 for a tropical chart). Subtract it from any tropical-frame longitude
+ *  (fixed-star catalogue positions, …) before comparing against the chart. */
+export function chartFrameOffset(req: ChartRequest): number {
+  if (req.zodiac !== "sidereal") return 0;
+  return siderealOffset(julianDayUtc(req), ayanamshaShift(req.ayanamsha));
 }
 
 export function calculateChart(req: ChartRequest): ChartResponse {
@@ -403,6 +450,17 @@ export function calculateChart(req: ChartRequest): ChartResponse {
   const patterns = detectPatterns(planets, aspects);
   const { elements, modalities } = tallyElements(planets);
 
+  const meta: Record<string, string> = {
+    ephemeris: "swiss-wasm",
+    zodiac: req.zodiac ?? "tropical",
+    house_system: h.fellBack ? "W" : req.house_system ?? "P",
+    julian_day: jd.toFixed(6),
+  };
+  if (h.fellBack) {
+    // Same wording as the backend's polar fallback note.
+    meta.house_fallback = `${req.house_system ?? "P"} undefined at this latitude; whole-sign used`;
+  }
+
   return {
     planets,
     houses,
@@ -411,11 +469,6 @@ export function calculateChart(req: ChartRequest): ChartResponse {
     patterns,
     elements,
     modalities,
-    meta: {
-      ephemeris: "swiss-wasm",
-      zodiac: req.zodiac ?? "tropical",
-      house_system: req.house_system ?? "P",
-      julian_day: jd.toFixed(6),
-    },
+    meta,
   };
 }

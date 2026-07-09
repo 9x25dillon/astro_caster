@@ -365,14 +365,26 @@ export async function localForecast(
   days = 90,
   minSig: "high" | "medium" | "low" = "medium",
 ): Promise<ForecastResponse> {
-  const { calculateChart, generateForecast } = await core();
+  const { calculateChart, generateForecast, eclipticLonSpeed, norm360 } = await core();
   const chart = calculateChart(natal as unknown as CoreChartRequest);
   // Mirrors main.py's _NATAL_EXCLUDE complement (no South Node / Lilith / PoF).
   const targets = ["Sun", "Moon", "Mercury", "Venus", "Mars", "Jupiter",
     "Saturn", "Uranus", "Neptune", "Pluto", "North Node", "Chiron",
     "Ascendant", "Midheaven"];
+  // The scanner's transiting positions are tropical — a sidereal chart's
+  // longitudes must be shifted back into that frame or every aspect sits an
+  // ayanamsha (~24°) off (mirrors main.py _tropical_natal_map: the offset is
+  // the tropical Sun at the chart's JD minus the chart's Sun).
+  let shift = 0;
+  if (chart.meta.zodiac === "sidereal") {
+    const sun = chart.planets.find((p) => p.id === "Sun");
+    const trop = eclipticLonSpeed(parseFloat(chart.meta.julian_day), "Sun");
+    if (sun && trop) shift = norm360(trop.lon - sun.longitude);
+  }
   const natalMap: Record<string, number> = {};
-  for (const p of chart.planets) if (targets.includes(p.id)) natalMap[p.id] = p.longitude;
+  for (const p of chart.planets) {
+    if (targets.includes(p.id)) natalMap[p.id] = norm360(p.longitude + shift);
+  }
 
   const start = localToday();
   const coreEvents = generateForecast(natalMap, start, days, minSig);
