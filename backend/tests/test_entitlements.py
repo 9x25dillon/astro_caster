@@ -21,7 +21,7 @@ import entitlements as ENT  # noqa: E402
 
 
 def _clear(monkeypatch):
-    for var in ("AAE_ENV", "AAE_TRUST_MODE", "AAE_ETH_RPC"):
+    for var in ("AAE_ENV", "AAE_TRUST_MODE", "AAE_ETH_RPC", "AAE_DEV_TOKEN"):
         monkeypatch.delenv(var, raising=False)
 
 
@@ -119,3 +119,14 @@ def test_boot_ok_in_prod_with_real_secret(monkeypatch):
     monkeypatch.setenv("AAE_ENV", "production")
     monkeypatch.setattr(ENT, "_SECRET_INSECURE", False)
     ENT.assert_safe_boot()                             # must not raise
+
+
+def test_boot_refused_in_prod_with_dev_token(monkeypatch):
+    # The dev token is a full oracle-tier bypass — a leaked value grants
+    # everything, so a production boot must refuse it (issue #54 §3.4).
+    _clear(monkeypatch)
+    monkeypatch.setenv("AAE_ENV", "production")
+    monkeypatch.setattr(ENT, "_SECRET_INSECURE", False)
+    monkeypatch.setenv("AAE_DEV_TOKEN", "f" * 64)
+    with pytest.raises(RuntimeError, match="AAE_DEV_TOKEN"):
+        ENT.assert_safe_boot()

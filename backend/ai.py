@@ -34,12 +34,12 @@ Configure via environment (all optional):
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
-import random
 import re
 import time
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 import httpx
 
@@ -302,7 +302,8 @@ async def interpret(
 ) -> Dict[str, object]:
     """Return {"interpretation": str, "source": "llm"|"offline", "model": str}."""
     context = _build_context(chart, selected_type, selected_id)
-    provider = _resolve_provider_for_tier(tier)
+    # The liveness probe inside can block ~1.5s — keep it off the event loop.
+    provider = await asyncio.to_thread(_resolve_provider_for_tier, tier)
     system, user, model, budget = _build_prompts(
         query, context, lens, selected_type, selected_id, depth, provider, tier
     )
@@ -353,7 +354,8 @@ async def interpret_arcana(
     {"text": str, "source": "llm"|"offline", "provider": str, "model": str}.
     On any failure source == "offline" and the caller keeps its deterministic prose.
     """
-    provider = _resolve_provider_for_tier(tier)
+    # The liveness probe inside can block ~1.5s — keep it off the event loop.
+    provider = await asyncio.to_thread(_resolve_provider_for_tier, tier)
     if provider == "offline":
         return {"text": "", "source": "offline", "provider": "offline", "model": ""}
     budget = _ARCANA_BUDGET.get(tier, _ARCANA_BUDGET["free"])
@@ -400,7 +402,8 @@ async def interpret_stream(
     chunk (those engines don't stream). Reasoning <think> spans are filtered live.
     """
     context = _build_context(chart, selected_type, selected_id)
-    provider = _resolve_provider_for_tier(tier)
+    # The liveness probe inside can block ~1.5s — keep it off the event loop.
+    provider = await asyncio.to_thread(_resolve_provider_for_tier, tier)
     system, user, model, budget = _build_prompts(
         query, context, lens, selected_type, selected_id, depth, provider, tier
     )
@@ -626,7 +629,6 @@ _HOUSE_THEME = {
 
 
 def _offline_interpretation(query, ctx, sel_type, sel_id) -> str:
-    rng = random.Random((sel_id or query) + json.dumps(ctx.get("elements", {})))
     planets = {p["id"]: p for p in ctx["planets"]}
 
     if sel_type == "planet" and sel_id in planets:

@@ -47,7 +47,7 @@ def ensure_token() -> str:
     with ENV_PATH.open("a") as f:
         if ENV_PATH.exists() and ENV_PATH.read_text() and not ENV_PATH.read_text().endswith("\n"):
             f.write("\n")
-        f.write(f"\n# Personal free-access token (oracle tier, no expiry) — see tools/unlock.py\n")
+        f.write("\n# Personal free-access token (oracle tier, no expiry) — see tools/unlock.py\n")
         f.write(f"{KEY}={token}\n")
     print(f"→ generated a new {KEY} and wrote it to {ENV_PATH}")
     print("  (restart the backend so it picks up the new token)\n")

@@ -28,7 +28,7 @@ Astra is a divination workbench built on real ephemeris math — the same celest
 
 Most horoscope apps fake it — canned text keyed off your sun sign. Astra computes everything from scratch, and it does three things almost nothing else does:
 
-- **🔒 Private by construction.** Your birth data — the most personal number you have — never touches a server. The entire deterministic engine runs **on your device**.
+- **🔒 Private by construction.** Your birth data — the most personal number you have — is never *retained* by a server: the entire deterministic engine runs **on your device**, and when you do use the optional backend (AI readings), requests are processed in memory and the server keeps no birth data and no question text — telemetry stores only anonymous counters (casting preferences, query lengths).
 - **📴 Works fully offline.** No signal, no backend, no problem: charts, tarot, forecasts, relationship math, predictive timing, and eclipses all compute locally. The app is an installable PWA.
 - **🎯 Provably correct.** The on-device TypeScript engine (`@astra/core`) is **drift-locked to the Python/Swiss-Ephemeris backend** by golden-vector parity tests that run on every commit — so the fast local math and the reference math can never silently disagree.
 

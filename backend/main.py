@@ -57,7 +57,7 @@ except ImportError:  # dotenv is optional
 
 import json as _json
 
-from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi import FastAPI, Header, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -151,6 +151,14 @@ app.add_middleware(
 _log = logging.getLogger("aae")
 
 
+def _client_error(label: str, exc: Exception, status: int = 400) -> HTTPException:
+    """Log the full exception server-side; hand the client only a generic label
+    (raw exception text can leak paths/config/internals — issue #54 §3.4)."""
+    _log.exception("%s: %s", label, exc)
+    return HTTPException(status_code=status, detail=label)
+
+
+
 @app.middleware("http")
 async def _security_headers(request, call_next):
     """Set defensive response headers on every response. The API serves JSON/audio
@@ -183,7 +191,9 @@ async def health():
     return {
         "status": "ok",
         "ephemeris": "swiss-files" if E._USING_FILES else "moshier",
-        "ai": ai_status(),
+        # ai_status probes local providers (up to ~1.5s each on a cache miss)
+        # — keep it off the event loop.
+        "ai": await asyncio.to_thread(ai_status),
         "tts": T.tts_status(),
     }
 
@@ -191,26 +201,32 @@ async def health():
 @app.post("/api/generate-chart", response_model=ChartResponse)
 async def generate_chart(req: ChartRequest, entitlement: Optional[str] = None):
     try:
-        result = E.calculate_chart(req)
+        # Swiss computation off the event loop — a synchronous calculate_chart
+        # here serializes every concurrent request (issue #54 §3.2).
+        result = await asyncio.to_thread(E.calculate_chart, req)
         tier = ENT.entitlement_status(entitlement).get("tier", "free")
         _spawn(TEL.log_chart(req.model_dump(), tier=tier))
         return result
     except Exception as exc:  # surface a clean error to the client
-        raise HTTPException(status_code=400, detail=f"chart calculation failed: {exc}")
+        raise _client_error("chart calculation failed", exc)
+
+
+def _compute_transits(req: TransitRequest) -> TransitResponse:
+    jd = E.julian_day_from_iso(req.transit_iso)
+    natal = E.calculate_chart(req.natal)
+    transiting = E.calculate_transiting_planets(jd, req.natal)
+    cross = E.aspects_between(natal.planets, transiting)
+    return TransitResponse(
+        transiting=transiting, aspects_to_natal=cross, transit_iso=req.transit_iso
+    )
 
 
 @app.post("/api/transits", response_model=TransitResponse)
 async def transits(req: TransitRequest):
     try:
-        jd = E.julian_day_from_iso(req.transit_iso)
-        natal = E.calculate_chart(req.natal)
-        transiting = E.calculate_transiting_planets(jd, req.natal)
-        cross = E.aspects_between(natal.planets, transiting)
-        return TransitResponse(
-            transiting=transiting, aspects_to_natal=cross, transit_iso=req.transit_iso
-        )
+        return await asyncio.to_thread(_compute_transits, req)
     except Exception as exc:
-        raise HTTPException(status_code=400, detail=f"transit calculation failed: {exc}")
+        raise _client_error("transit calculation failed", exc)
 
 
 @app.post("/api/ai-ask")
@@ -327,9 +343,15 @@ async def personal_report_purchase(req: ReportPurchaseRequest, request: Request)
 
 
 @app.get("/api/entitlement")
-async def get_entitlement(token: Optional[str] = None):
-    """Validate an entitlement token (passed as ?token=...)."""
-    return ENT.entitlement_status(token)
+async def get_entitlement(token: Optional[str] = None,
+                          x_aae_token: Optional[str] = Header(None)):
+    """Validate an entitlement token.
+
+    Prefer the X-AAE-Token header — a ?token= query string lands in access
+    logs and proxy caches (issue #54 §3.4). The query param remains as a
+    deprecated fallback for old links.
+    """
+    return ENT.entitlement_status(x_aae_token or token)
 
 
 def _require_supporter(token: Optional[str]) -> None:
@@ -349,7 +371,7 @@ async def tts_voices():
     try:
         return {"available": T.tts_status()["available"], "voices": await T.list_voices()}
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"voice list failed: {exc}")
+        raise _client_error("voice list failed", exc, status=502)
 
 
 @app.post("/api/tts")
@@ -363,7 +385,7 @@ async def tts(req: TTSRequest):
     try:
         audio = await T.synthesize(req.text, req.voice_id)
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"tts failed: {exc}")
+        raise _client_error("tts failed", exc, status=502)
     return Response(content=audio, media_type="audio/mpeg",
                     headers={"Cache-Control": "no-store"})
 
@@ -427,8 +449,11 @@ async def telemetry_event(ev: FeatureEvent):
 
 
 @app.get("/api/admin/stats")
-async def admin_stats(token: Optional[str] = None):
-    if not ENT.check_dev_token(token):  # constant-time compare
+async def admin_stats(token: Optional[str] = None,
+                      x_aae_token: Optional[str] = Header(None)):
+    """Admin summary. Token via X-AAE-Token header (query param deprecated —
+    it leaks into access logs)."""
+    if not ENT.check_dev_token(x_aae_token or token):  # constant-time compare
         raise HTTPException(status_code=403, detail="forbidden")
     return await asyncio.to_thread(TEL.summary)
 
@@ -496,7 +521,7 @@ async def get_forecast(req: ForecastRequest):
             "natal_count": len(natal_positions),
         }
     except Exception as exc:
-        raise HTTPException(status_code=400, detail=f"forecast failed: {exc}")
+        raise _client_error("forecast failed", exc)
 
 
 # --------------------------------------------------------------------------- #
@@ -510,7 +535,7 @@ async def natal_arcana(req: ChartResponse):
     try:
         return TAROT.build_natal_arcana_signature(req)
     except Exception as exc:
-        raise HTTPException(status_code=400, detail=f"natal arcana failed: {exc}")
+        raise _client_error("natal arcana failed", exc)
 
 
 @app.post("/api/tarot-reading", response_model=TarotReadingResponse)
@@ -528,7 +553,7 @@ async def tarot_reading(req: TarotReadingRequest, request: Request):
     try:
         reading = TAROT.build_reading_core(req)
     except Exception as exc:
-        raise HTTPException(status_code=400, detail=f"tarot reading failed: {exc}")
+        raise _client_error("tarot reading failed", exc)
 
     tier = ENT.entitlement_status(req.entitlement).get("tier", "free")
     if req.include_ai and tier in ("supporter", "oracle"):
@@ -578,7 +603,7 @@ async def arcana_forecast(req: ArcanaForecastRequest):
         )
         return {"start": start.isoformat(), "days": days, "cards": cards}
     except Exception as exc:
-        raise HTTPException(status_code=400, detail=f"arcana forecast failed: {exc}")
+        raise _client_error("arcana forecast failed", exc)
 
 
 @app.post("/api/learning-path", response_model=LearningPathResponse)
@@ -587,7 +612,7 @@ async def learning_path(req: LearningPathRequest):
     try:
         return TAROT.build_learning_path(req)
     except Exception as exc:
-        raise HTTPException(status_code=400, detail=f"learning path failed: {exc}")
+        raise _client_error("learning path failed", exc)
 
 
 @app.post("/api/oracle-report", response_model=OracleReportResponse)
@@ -608,7 +633,7 @@ async def oracle_report(req: OracleReportRequest, request: Request):
     try:
         result = await ORACLE.generate_oracle_report(req)
     except Exception as exc:
-        raise HTTPException(status_code=400, detail=f"oracle report failed: {exc}")
+        raise _client_error("oracle report failed", exc)
     _spawn(TEL.log_ai(
         tier=tier, lens="oracle_report", depth="report", query=req.question,
         provider="anthropic" if result.ai_source == "llm" else "offline",
@@ -652,7 +677,7 @@ async def personal_report(req: PersonalReportRequest, request: Request):
         # Post-Oracle gate: fabricated/foreign session reference.
         raise HTTPException(status_code=409, detail=str(exc))
     except Exception as exc:
-        raise HTTPException(status_code=400, detail=f"personal report failed: {exc}")
+        raise _client_error("personal report failed", exc)
     _spawn(TEL.log_ai(
         tier=tier, lens="personal_report", depth="report", query=req.oracle.question,
         provider="anthropic" if result.ai_source == "llm" else "offline",
@@ -671,8 +696,11 @@ async def deck_art(req: DeckArtRequest):
     """
     try:
         return DA.build_deck_art(req)
+    except ValueError as exc:
+        # Controlled validation message (e.g. unknown card id) — safe to show.
+        raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
-        raise HTTPException(status_code=400, detail=f"deck art failed: {exc}")
+        raise _client_error("deck art failed", exc)
 
 
 @app.post("/api/arcana-calendar")
@@ -692,7 +720,7 @@ async def arcana_calendar(req: ArcanaCalendarRequest):
         cards = TAROT.daily_arcana_from_events(events, start.isoformat(), days, signature)
         ics = CAL.build_ics(cards, kind=req.kind, calendar_name="Astra Arcana")
     except Exception as exc:
-        raise HTTPException(status_code=400, detail=f"arcana calendar failed: {exc}")
+        raise _client_error("arcana calendar failed", exc)
     filename = f"astra-arcana-{start.isoformat()}.ics"
     return Response(
         content=ics,
@@ -715,7 +743,7 @@ async def synastry(req: SynastryRequest):
     try:
         return await asyncio.to_thread(SYN.compute_synastry, req)
     except Exception as exc:
-        raise HTTPException(status_code=400, detail=f"synastry failed: {exc}")
+        raise _client_error("synastry failed", exc)
 
 
 @app.post("/api/composite", response_model=CompositeChart)
@@ -735,7 +763,7 @@ async def composite(req: SynastryRequest):
             a, b, house_method=req.house_method, geo_lat=geo_lat
         )
     except Exception as exc:
-        raise HTTPException(status_code=400, detail=f"composite failed: {exc}")
+        raise _client_error("composite failed", exc)
 
 
 @app.post("/api/davison", response_model=DavisonChart)
@@ -744,7 +772,7 @@ async def davison(req: SynastryRequest):
     try:
         return await asyncio.to_thread(SYN.davison_chart, req.person_a, req.person_b)
     except Exception as exc:
-        raise HTTPException(status_code=400, detail=f"davison failed: {exc}")
+        raise _client_error("davison failed", exc)
 
 
 @app.post("/api/synastry-tarot", response_model=SynastryTarotResponse)
@@ -755,7 +783,7 @@ async def synastry_tarot(req: SynastryRequest):
         b = E.calculate_chart(req.person_b)
         return SYN.synastry_tarot(a, b)
     except Exception as exc:
-        raise HTTPException(status_code=400, detail=f"synastry tarot failed: {exc}")
+        raise _client_error("synastry tarot failed", exc)
 
 
 # --------------------------------------------------------------------------- #
@@ -769,7 +797,7 @@ async def progressed_chart(req: ProgressedRequest):
     try:
         return await asyncio.to_thread(PRED.progressed_chart, req.natal, req.target_iso)
     except Exception as exc:
-        raise HTTPException(status_code=400, detail=f"progression failed: {exc}")
+        raise _client_error("progression failed", exc)
 
 
 @app.post("/api/solar-return", response_model=SolarReturnChart)
@@ -780,7 +808,7 @@ async def solar_return(req: SolarReturnRequest):
             PRED.solar_return, req.natal, req.year, req.lat, req.lng
         )
     except Exception as exc:
-        raise HTTPException(status_code=400, detail=f"solar return failed: {exc}")
+        raise _client_error("solar return failed", exc)
 
 
 @app.post("/api/eclipse-timeline", response_model=EclipseTimelineResponse)
@@ -791,7 +819,7 @@ async def eclipse_timeline(req: EclipseRequest):
             PRED.eclipse_timeline, req.natal, req.start_iso, req.count
         )
     except Exception as exc:
-        raise HTTPException(status_code=400, detail=f"eclipse timeline failed: {exc}")
+        raise _client_error("eclipse timeline failed", exc)
 
 
 # --------------------------------------------------------------------------- #
@@ -805,7 +833,7 @@ async def harmonic_chart(req: HarmonicRequest):
     try:
         return await asyncio.to_thread(ADV.harmonic_chart, req.natal, req.harmonic)
     except Exception as exc:
-        raise HTTPException(status_code=400, detail=f"harmonic chart failed: {exc}")
+        raise _client_error("harmonic chart failed", exc)
 
 
 @app.post("/api/midpoint-tree", response_model=MidpointTreeResponse)
@@ -814,7 +842,7 @@ async def midpoint_tree(req: MidpointRequest):
     try:
         return await asyncio.to_thread(ADV.midpoint_tree, req.natal, req.orb)
     except Exception as exc:
-        raise HTTPException(status_code=400, detail=f"midpoint tree failed: {exc}")
+        raise _client_error("midpoint tree failed", exc)
 
 
 @app.post("/api/fixed-stars", response_model=FixedStarResponse)
@@ -823,7 +851,7 @@ async def fixed_stars(req: FixedStarRequest):
     try:
         return await asyncio.to_thread(ADV.fixed_star_hits, req.natal, req.orb)
     except Exception as exc:
-        raise HTTPException(status_code=400, detail=f"fixed stars failed: {exc}")
+        raise _client_error("fixed stars failed", exc)
 
 
 @app.post("/api/suggestions")

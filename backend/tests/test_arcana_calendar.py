@@ -6,7 +6,6 @@ line endings, escaped TEXT, folded long lines, and stable UIDs (so re-imports
 update rather than duplicate). The endpoint returns text/calendar with N events
 for an N-day window (respecting the Phase 1.5 exactly-N guarantee).
 """
-import datetime as dt
 import os
 import sys
 

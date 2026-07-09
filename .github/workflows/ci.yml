@@ -35,6 +35,10 @@ jobs:
           cache-dependency-path: backend/requirements.txt
       - name: Install dependencies
         run: pip install -r requirements.txt
+      - name: Lint (ruff — config in backend/pyproject.toml)
+        run: |
+          pip install ruff
+          ruff check .
       - name: Run tests
         run: python -m pytest -q
       - name: Parity vectors byte-drift tripwire

@@ -298,7 +298,11 @@ export async function verifyDonation(
 }
 
 export function checkEntitlement(token: string): Promise<EntitlementStatus> {
-  return fetch(`${BASE}/entitlement?token=${encodeURIComponent(token)}`).then((r) => r.json());
+  // Token travels in a header — a ?token= query string would land in access
+  // logs and proxy caches.
+  return fetch(`${BASE}/entitlement`, {
+    headers: { "X-AAE-Token": token },
+  }).then((r) => r.json());
 }
 
 // ── Forecast ──────────────────────────────────────────────────────────────────

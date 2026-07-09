@@ -21,7 +21,7 @@ def main() -> None:
         serialization.Encoding.Raw, serialization.PublicFormat.Raw
     ).hex()
     print("── server .env (SECRET — treat like AAE_SECRET) ─────────────────")
-    print(f"AAE_SIGN_ALGO=ed25519")
+    print("AAE_SIGN_ALGO=ed25519")
     print(f"AAE_ED25519_SEED={seed}")
     print()
     print("── public key (embeddable in clients, NOT secret) ──────────────")
