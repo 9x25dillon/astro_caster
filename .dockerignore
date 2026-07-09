@@ -1,0 +1,15 @@
+# Build context for the frontend image is the repo root — keep it lean.
+.git
+**/node_modules
+**/.venv
+**/__pycache__
+**/*.pyc
+**/dist
+frontend/dev-dist
+backend/data
+test-results
+docs/screenshots
+*.log
+.env
+REVIEW.md
+REVIEW.en.md

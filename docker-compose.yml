@@ -1,0 +1,53 @@
+# Astra — production-style stack: backend image + built frontend served by nginx.
+#   cp .env.example .env      # then edit (Ollama, secret, keys)
+#   docker compose up --build
+# Frontend on http://localhost:${WEB_PORT:-8080}; /api/* is proxied to backend.
+name: astra
+
+services:
+  backend:
+    build:
+      context: ./backend
+    image: astra-backend
+    environment:
+      # Real production MUST set AAE_ENV=production and a strong AAE_SECRET,
+      # or the app fails closed and refuses to boot (see DEPLOY.md).
+      AAE_ENV: ${AAE_ENV:-development}
+      AAE_SECRET: ${AAE_SECRET:-}
+      # AI provider routing (all optional — offline reflection is the fallback).
+      AAE_AI_PROVIDER: ${AAE_AI_PROVIDER:-auto}
+      # Ollama: OLLAMA_HOST from .env → the URL the backend reads. From inside a
+      # container "localhost" is the container, so default to the host gateway.
+      AAE_OLLAMA_URL: ${OLLAMA_HOST:-http://host.docker.internal:11434}
+      AAE_OLLAMA_MODEL: ${AAE_OLLAMA_MODEL:-qwen2.5:3b}
+      AAE_OLLAMA_MODEL_DEEP: ${AAE_OLLAMA_MODEL_DEEP:-}
+      # Cloud (OpenAI-compatible gateway).
+      AAE_AI_API_KEY: ${AAE_AI_API_KEY:-}
+      AAE_AI_BASE_URL: ${AAE_AI_BASE_URL:-}
+      AAE_AI_MODEL: ${AAE_AI_MODEL:-}
+      # Premium voice + ephemeris data files (optional).
+      ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY:-}
+      SE_EPHE_PATH: ${SE_EPHE_PATH:-}
+    extra_hosts:
+      # Lets AAE_OLLAMA_URL=host.docker.internal reach an Ollama on the host.
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - backend-data:/app/data
+    expose:
+      - "8787"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    image: astra-frontend
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${WEB_PORT:-5173}:80"
+    restart: unless-stopped
+
+volumes:
+  backend-data:

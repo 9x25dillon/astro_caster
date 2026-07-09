@@ -1,0 +1,132 @@
+# Deploying Astra with Docker
+
+Two stacks are provided:
+
+| File | Frontend | Use |
+|------|----------|-----|
+| `docker-compose.yml` | built bundle served by **nginx** | production-style / demo |
+| `docker-compose.dev.yml` | **Vite dev server** on node:20 (hot-reload) | local development |
+
+Both build the **backend** from `backend/Dockerfile` (FastAPI · Python 3.12) and
+persist its SQLite data (`telemetry.db`, `receipts.db`) in the `backend-data`
+volume. The dev stack additionally sidesteps the "host Node 18 is too old for
+Vite 8" problem by running Node 20 inside a container.
+
+Prerequisites: Docker Engine + Compose v2 (`docker compose version`).
+
+---
+
+## 1. Configure
+
+```bash
+cp .env.example .env
+```
+
+Everything in `.env` is optional — with nothing set, the app runs fully and the
+AI layer falls back to the on-device offline reflection. Compose reads `.env`
+automatically. Key variables:
+
+| Variable | Meaning | Default |
+|----------|---------|---------|
+| `WEB_PORT` | host port for the web app — same in dev & prod | `5173` |
+| `AAE_ENV` | `development` (boots without a secret) or `production` | `development` |
+| `AAE_SECRET` | HMAC secret — **required in production** | empty |
+| `AAE_AI_PROVIDER` | `auto` / `ollama` / `openai` / `kgirl` | `auto` |
+| `OLLAMA_HOST` | Ollama endpoint the backend calls | `http://host.docker.internal:11434` |
+| `AAE_OLLAMA_MODEL` | quick model | `qwen2.5:3b` |
+| `AAE_AI_API_KEY` | cloud key (OpenAI-compatible gateway) | empty |
+| `ELEVENLABS_API_KEY` | premium voice | empty |
+| `SE_EPHE_PATH` | Swiss Ephemeris `.se1` files path | empty (Moshier) |
+
+### Ollama
+
+`OLLAMA_HOST` is the single knob for local models. The backend runs in a
+container, so `localhost` there is the container, not your machine — the default
+`http://host.docker.internal:11434` reaches an Ollama running on the host (both
+compose files map `host.docker.internal` via `extra_hosts`). Alternatives:
+
+- Ollama as its own container/service → `OLLAMA_HOST=http://ollama:11434`.
+- Remote Ollama box → `OLLAMA_HOST=http://10.0.0.5:11434`.
+
+`OLLAMA_HOST` is wired to what the code reads (`AAE_OLLAMA_URL`) inside compose,
+so you only ever set `OLLAMA_HOST`.
+
+---
+
+## 2. Development (hot-reload)
+
+```bash
+docker compose -f docker-compose.dev.yml up --build
+```
+
+- App → **http://localhost:${WEB_PORT:-5173}**
+- API docs (Swagger) → **http://localhost:8787/docs**
+
+`./backend` and `./frontend` are bind-mounted, so source edits reload live
+(uvicorn `--reload`, Vite HMR). `node_modules` lives in a named volume, so the
+host's Node-18-built modules never shadow the container's. First `up` installs
+deps (slower); later starts are fast.
+
+Stop: `Ctrl-C`, then `docker compose -f docker-compose.dev.yml down`.
+
+---
+
+## 3. Production-style (nginx)
+
+```bash
+docker compose up --build          # add -d to detach
+```
+
+- App → **http://localhost:${WEB_PORT:-5173}** (same port as dev)
+- `/api/*` is reverse-proxied by nginx to the backend (SSE streaming for
+  `/api/ai-ask-stream` is unbuffered); the backend port is **not** published.
+
+The frontend image is a multi-stage build (`node:20` builds the PWA →
+`nginx:alpine` serves `dist`). It waits for the backend's healthcheck before
+starting so the `/api` upstream is always resolvable.
+
+### Hardening for real production
+
+```dotenv
+AAE_ENV=production
+AAE_SECRET=<openssl rand -hex 32>
+```
+
+With `AAE_ENV=production` the backend **fails closed**: it refuses to boot
+without a strong `AAE_SECRET` (and, if `AAE_SIGN_ALGO=ed25519`, without a valid
+`AAE_ED25519_SEED`). Also review, in `backend/main.py` / the app's env:
+
+- `AAE_CORS` — set an explicit origin instead of the `*` dev default.
+- `AAE_ETH_RPC` / `AAE_*_MIN_WEI` — enable real on-chain entitlement checks.
+- Terminate TLS in front (the app already emits HSTS/CSP headers).
+
+---
+
+## 4. Operate
+
+```bash
+docker compose ps                 # status + health
+docker compose logs -f backend    # follow backend logs
+docker compose down               # stop (keeps the data volume)
+docker compose down -v            # stop AND delete backend-data (telemetry/receipts)
+```
+
+Backend data persists in the `backend-data` volume across `up`/`down`. Rebuild
+after dependency changes with `--build`.
+
+---
+
+## 5. Troubleshooting
+
+- **Frontend build fails resolving `@astra/core`** — the frontend image builds
+  from the **repo root** (`context: .`, `dockerfile: frontend/Dockerfile`)
+  because the build needs `../packages`. Run compose from the repo root.
+- **AI always "offline"** — expected with no provider configured. Set
+  `OLLAMA_HOST` (and pull a model: `ollama pull qwen2.5:3b`) or `AAE_AI_API_KEY`.
+- **Ollama unreachable from the container** — confirm Ollama listens on all
+  interfaces (`OLLAMA_HOST=0.0.0.0 ollama serve`) so `host.docker.internal` can
+  reach it; on native Linux the `extra_hosts` gateway mapping is what resolves it.
+- **Backend exits immediately in production** — that is the fail-closed guard:
+  set `AAE_SECRET` (and keep `AAE_ENV=production`).
+- **Port already in use** — change `WEB_PORT` (applies to both dev and prod) or
+  the backend `8787:8787` mapping (dev).
