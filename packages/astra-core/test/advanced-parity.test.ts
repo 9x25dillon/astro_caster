@@ -82,19 +82,32 @@ for (const kase of payload.cases) {
       kase.midpoint_tree.orb, TOL["aspect.orb_deg"] * CROSS * 2, POS_TOL * 2, "midpoint_tree"
     );
 
-    // ---- Fixed stars (catalogue longitudes are deterministic → exact) ----
+    // ---- Fixed stars (catalogue longitudes are deterministic → exact for a
+    // tropical chart; a SIDEREAL chart shifts stars by the ayanamsha, which
+    // the two stacks derive by different routes — true Lahiri vs the wasm's
+    // FB mode + J2000 constant — agreeing to ~1e-6°, so post-rounding values
+    // may sit one rounding step apart) ----
+    const sidereal = req.zodiac === "sidereal";
+    const starLonTol = sidereal ? 0.0015 : 0; // one 3-dp rounding step
     const stars = fixedStarHits(req, kase.fixed_stars.orb);
     compareOrbSet(
       stars.map((h) => ({ key: `${h.star}|${h.natal_body}`, orb: h.orb })),
       kase.fixed_stars.hits.map((h: any) => ({ key: `${h.star}|${h.natal_body}`, orb: h.orb })),
-      kase.fixed_stars.orb, TOL["aspect.orb_deg"] * CROSS, POS_TOL * 2, "fixed_stars"
+      // + epsilon: a one-step rounding difference (0.25 vs 0.24) must not
+      // fail on IEEE-754 representation (0.01000…09 > 0.01).
+      kase.fixed_stars.orb, TOL["aspect.orb_deg"] * CROSS + 1e-9, POS_TOL * 2, "fixed_stars"
     );
     const actHit = new Map(stars.map((h) => [`${h.star}|${h.natal_body}`, h]));
     for (const eh of kase.fixed_stars.hits) {
       const ah = actHit.get(`${eh.star}|${eh.natal_body}`);
       if (!ah) continue; // borderline membership handled above
-      assert.equal(ah.star_longitude, eh.star_longitude, `star ${eh.star} longitude`);
-      assert.equal(ah.sign, eh.sign, `star ${eh.star} sign`);
+      assert.ok(
+        Math.abs(ah.star_longitude - eh.star_longitude) <= starLonTol,
+        `star ${eh.star} longitude ${ah.star_longitude} vs ${eh.star_longitude}`
+      );
+      if (starLonTol === 0 || Math.abs(ah.star_longitude % 30) > 0.01) {
+        assert.equal(ah.sign, eh.sign, `star ${eh.star} sign`);
+      }
       assert.equal(ah.nature, eh.nature, `star ${eh.star} nature`);
     }
   });

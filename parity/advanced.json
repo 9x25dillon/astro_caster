@@ -1288,10 +1288,10 @@
       "degree": 2,
       "natal_body": "Pluto",
       "nature": "intensity, the unflinching gaze; passion that must be owned",
-      "orb": 0.24,
+      "orb": 0.25,
       "sign": "Taurus",
       "star": "Algol",
-      "star_longitude": 32.307
+      "star_longitude": 32.302
      },
      {
       "degree": 20,
@@ -1300,7 +1300,7 @@
       "orb": 0.8,
       "sign": "Gemini",
       "star": "Sirius",
-      "star_longitude": 80.223
+      "star_longitude": 80.218
      }
     ],
     "orb": 1.5

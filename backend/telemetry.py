@@ -9,19 +9,20 @@ at  data/telemetry.db  (relative to the working directory).
 
 Tables
 ------
-chart_events   birth data corpus — date/time/location (lat/lng rounded to
-               1 decimal place ≈ 11 km for privacy), house system, zodiac.
-ai_events      AI queries — tier, lens, depth, query preview, provider,
+chart_events   cast counters — house system, zodiac, tier. Birth date/time
+               and location are NEVER stored (issue #54 §3.3: exact birth
+               time + rough location is an identifying set, and nothing in
+               the admin summary used it). Legacy columns remain in old DBs
+               but are written as NULL.
+ai_events      AI queries — tier, lens, depth, query length, provider,
                model, response character count, source (llm / offline).
+               Question text is never stored (same rationale).
 feature_events UI events forwarded from the frontend — name + JSON props.
 tier_events    Entitlement / donation lifecycle (donate, verify, redeem).
 
 Admin
 -----
-  GET /api/admin/stats?token=<dev_token>  → aggregated summary dicts.
-
-Privacy note: include a visible privacy notice in your frontend before
-collecting data from real users (birth date + location is personal data).
+  GET /api/admin/stats  (dev token via X-AAE-Token header)  → summary dicts.
 """
 
 from __future__ import annotations
@@ -120,16 +121,14 @@ async def _write(sql: str, params: tuple = ()) -> None:
 
 
 async def log_chart(birth: Dict, tier: str = "free") -> None:
+    # Only the non-identifying casting preferences are kept — never the birth
+    # data itself ("your birth data never touches a server" must stay true of
+    # what the server RETAINS; the request is processed in memory only).
     await _write(
-        """INSERT INTO chart_events
-           (ts, year, month, day, hour, minute, lat, lng, house_sys, zodiac, tier)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+        """INSERT INTO chart_events (ts, house_sys, zodiac, tier)
+           VALUES (?,?,?,?)""",
         (
             int(time.time()),
-            birth.get("year"), birth.get("month"), birth.get("day"),
-            birth.get("hour"), birth.get("minute"),
-            round(float(birth.get("lat", 0)), 1),
-            round(float(birth.get("lng", 0)), 1),
             birth.get("house_system"), birth.get("zodiac"),
             tier,
         ),
@@ -149,14 +148,15 @@ async def log_ai(
     sel_type: Optional[str] = None,
     sel_id: Optional[str] = None,
 ) -> None:
+    # The question text is personal — only its length is kept.
     await _write(
         """INSERT INTO ai_events
-           (ts, tier, lens, depth, query_len, query_preview,
+           (ts, tier, lens, depth, query_len,
             provider, model, response_len, source, sel_type, sel_id)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+           VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
         (
             int(time.time()), tier, lens, depth,
-            len(query), query[:120],
+            len(query),
             provider, model, response_len, source,
             sel_type, sel_id,
         ),
