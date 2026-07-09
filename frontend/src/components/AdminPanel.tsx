@@ -51,7 +51,10 @@ export const AdminPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/admin/stats?token=${encodeURIComponent(entitlement ?? "")}`);
+      // Token in a header — a ?token= query string would land in access logs.
+      const res = await fetch(`/api/admin/stats`, {
+        headers: { "X-AAE-Token": entitlement ?? "" },
+      });
       if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
       setStats(await res.json());
     } catch (e) {

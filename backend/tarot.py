@@ -32,7 +32,6 @@ from tarot_data import (
     MAJOR_ARCANA,
     MAJOR_BY_ID,
     MINOR_ARCANA,
-    MINOR_BY_ID,
     PLANET_ACTIVITY,
     PLANET_MAJOR,
     SIGN_MAJOR,

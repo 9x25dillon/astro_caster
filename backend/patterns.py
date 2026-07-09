@@ -14,9 +14,12 @@ from __future__ import annotations
 
 from collections import defaultdict
 from itertools import combinations
-from typing import Dict, List, Set, Tuple
+from typing import TYPE_CHECKING, Dict, List, Set, Tuple
 
 import astrology as A
+
+if TYPE_CHECKING:  # circular at runtime — detect_patterns imports it lazily
+    from models import Pattern
 
 # Bodies eligible to participate in patterns.
 _CORE = {

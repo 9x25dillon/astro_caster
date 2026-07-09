@@ -1,0 +1,22 @@
+# Lint configuration (issue #54 §1). Run from backend/:
+#   uvx ruff check .          # or: uv pip install ruff && .venv/bin/ruff check .
+#   uvx ruff check . --fix    # auto-fix (unused imports etc.)
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+# F = pyflakes (unused imports/variables, undefined names, real defects).
+# E4/E7/E9 = the pycodestyle errors worth machine-enforcing.
+select = ["F", "E4", "E7", "E9"]
+ignore = [
+    "E402",  # module-import-not-at-top: main.py loads .env before imports by design
+    "E731",  # lambda assignments read fine in the small helpers here
+    "E741",  # `l` for a line/link is established style in the prompt builders
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests use sys.path bootstrapping + star-ish fixture imports.
+"tests/*" = ["E402"]
+# dev.py's CLI status tables use compact `a; b` one-liners deliberately.
+"tools/*" = ["E402", "E702"]

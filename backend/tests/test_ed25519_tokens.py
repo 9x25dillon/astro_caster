@@ -106,6 +106,7 @@ def test_prod_boot_refused_without_seed(monkeypatch):
     monkeypatch.setenv("AAE_ENV", "production")
     monkeypatch.setenv("AAE_SIGN_ALGO", "ed25519")
     monkeypatch.delenv("AAE_ED25519_SEED", raising=False)
+    monkeypatch.delenv("AAE_DEV_TOKEN", raising=False)
     # Give it a strong secret so we hit the ed25519 check, not the HMAC one.
     monkeypatch.setattr(ENT, "_SECRET_INSECURE", False)
     monkeypatch.setattr(ENT, "trust_mode_enabled", lambda: False)

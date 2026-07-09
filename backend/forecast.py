@@ -16,8 +16,7 @@ Runs synchronously — intended to be called via asyncio.to_thread().
 from __future__ import annotations
 
 import datetime as dt
-from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
 import swisseph as swe
 

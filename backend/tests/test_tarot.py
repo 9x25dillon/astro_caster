@@ -128,7 +128,6 @@ def test_full_deck_draw_can_include_minors_and_stays_deterministic():
 
 
 def test_minor_card_renders_in_reading():
-    chart = _chart()
     # Force a minor into the draw by checking card_model + meaning for one
     card = TAROT.card_model("knight_of_cups", reversed=True)
     assert card.arcana == "minor" and card.suit == "cups"

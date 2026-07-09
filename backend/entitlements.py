@@ -121,6 +121,13 @@ def assert_safe_boot() -> None:
             "default in production. Entitlement tokens would be forgeable. Set a "
             "strong random AAE_SECRET."
         )
+    if os.environ.get("AAE_DEV_TOKEN", "").strip():
+        raise RuntimeError(
+            "Refusing to boot: AAE_DEV_TOKEN is set in a production "
+            "environment. The dev token is a full oracle-tier bypass (free "
+            "personal reports included) — a leak grants everything. Unset it "
+            "in production; mint real entitlements instead."
+        )
     if _sign_algo() == "ed25519":
         try:
             configured = _ed25519_private() is not None
