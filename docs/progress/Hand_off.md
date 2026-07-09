@@ -4,7 +4,17 @@ _Last updated: 2026-07-08 end-of-day (session 12 close)_
 
 ## TL;DR for next session
 
-**Pick up at P2 — the Morning panel** (NEXT_ARC Track 3): an at-a-glance
+**Pick up with the issue-#54 correctness sweep, THEN P2.** Issue #54 (an
+external Claude review) surfaced real astronomy bugs — top-3 verified against
+source at session close (triage comment on the issue is the work order):
+sidereal solar returns off by ~24 days (frame mismatch), **lunations never
+appear in forecasts** (Sun skipped in the Moon block), and slow outer-planet
+exactness dropped by the hysteresis. Fix order matters: P2's Morning panel
+shows "today's tightest transits" — build it AFTER lunations exist.
+⚠ Every astronomy fix is DUAL-STACK (@astra/core ports these bugs
+faithfully) + vector regeneration, or parity CI breaks.
+
+**Then P2 — the Morning panel** (NEXT_ARC Track 3): an at-a-glance
 boot surface with today's daily card + the day's tightest transits. All
 engines exist and run offline (`arcana-forecast` daily card; the forecast
 scanner); this is composition, not engineering. After P2: Track R redesign
