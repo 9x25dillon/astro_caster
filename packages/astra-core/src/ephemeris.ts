@@ -28,7 +28,6 @@ import {
   calcSwissBody,
   calcSwissHouses,
   nextSwissEclipse,
-  swissNutationLon,
   swissReady,
 } from "./swisseph.js";
 import { detectPatterns } from "./patterns.js";
@@ -365,17 +364,15 @@ function siderealOffset(jd: number, shift: number): number {
 
 /** Effective tropical→chart-frame longitude offset at the chart's JD (0 for
  *  tropical charts) — subtract it from a tropical longitude to place a point
- *  (e.g. a fixed star) in the chart's zodiac frame. Matches the backend's
- *  swe.get_ayanamsa_ut, which is referred to the MEAN equinox of date, while
- *  siderealOffset (a difference of body longitudes) rides the true equinox —
- *  removing the nutation in longitude reconciles the two (verified vs
- *  pyswisseph to ~5e-7°). */
+ *  (e.g. a fixed star) in the chart's zodiac frame. Derived from the Sun's
+ *  tropical−sidereal difference — the SAME transformation the chart's planets
+ *  got — matching the backend's convention (which avoids get_ayanamsa_ut:
+ *  that is referred to the mean equinox and differs by nutation, ~17″). */
 export function chartFrameOffset(req: ChartRequest): number {
   if (req.zodiac !== "sidereal") return 0;
   const shift = AYANAMSHA_SHIFT[req.ayanamsha ?? 1];
   if (shift === undefined) throw unsupportedAyanamsha(req.ayanamsha);
-  const jd = julianDayUtc(req);
-  return norm360(siderealOffset(jd, shift) - (swissNutationLon(jd) ?? 0));
+  return siderealOffset(julianDayUtc(req), shift);
 }
 
 export function calculateChart(req: ChartRequest): ChartResponse {

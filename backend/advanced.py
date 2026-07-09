@@ -223,12 +223,18 @@ def fixed_star_hits(natal: ChartRequest, orb: float = 1.5) -> FixedStarResponse:
     year = natal.year
     # The catalogue precesses in the TROPICAL frame; a sidereal chart's planet
     # longitudes sit an ayanamsha (~24°) away. Shift each star into the chart's
-    # frame before comparing (and report it there, beside the chart).
+    # frame before comparing (and report it there, beside the chart). The
+    # offset is derived from the Sun's tropical−sidereal difference — the SAME
+    # transformation the chart's planets got — rather than get_ayanamsa_ut,
+    # which differs by nutation (~17″) and would sit inconsistently beside
+    # the chart's own longitudes.
     ayanamsha = 0.0
     if natal.zodiac == "sidereal":
         with E.swe_lock:
-            E._apply_zodiac(natal)
-            ayanamsha = float(swe.get_ayanamsa_ut(E._julian_day_utc(natal)))
+            sid_flag = E._apply_zodiac(natal)
+            jd = E._julian_day_utc(natal)
+            sid_sun = float(swe.calc_ut(jd, swe.SUN, E._FLG_LON | sid_flag)[0][0])
+            ayanamsha = (E.tropical_longitude(jd, "Sun") - sid_sun) % 360.0
     hits: List[FixedStarHit] = []
     for star, (lon2000, nature) in _FIXED_STARS.items():
         star_lon = (_star_longitude(lon2000, year) - ayanamsha) % 360.0

@@ -116,21 +116,6 @@ export function calcSwissBody(
   return { lon: ecl[0], lat: ecl[1], speed: ecl[3], dec: eq[1] };
 }
 
-// Swiss's special "body" that returns the frame terms instead of a position:
-// x[0]=true obliquity, x[1]=mean obliquity, x[2]=nutation in longitude,
-// x[3]=nutation in obliquity (swephexp.h SE_ECL_NUT).
-const SE_ECL_NUT = -1;
-
-/** Nutation in longitude (deg) at jd — the term separating the true equinox
- *  (which body longitudes are referred to) from the mean equinox (which
- *  swe_get_ayanamsa_ut is referred to). */
-export function swissNutationLon(jd: number): number | null {
-  const m = instance;
-  if (!m) return null;
-  const r = calcRaw(m, jd, SE_ECL_NUT, SEFLG_SWIEPH);
-  return r ? r[2] : null;
-}
-
 /** Houses + angles via swe_houses — the same C the backend's houses_ex runs
  *  (tropical; the wasm build has no sidereal export). cusps[0..11] = houses
  *  1..12; ascmc: 0=Asc, 1=MC, 2=ARMC, 3=Vertex. Placidus/Koch cusps don't

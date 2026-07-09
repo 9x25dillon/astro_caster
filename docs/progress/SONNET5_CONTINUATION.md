@@ -6,22 +6,17 @@ PRs; you open them and leave the merge button alone._
 
 ## Where you are
 
+> **UPDATE (same day, Fable session continued): Task 1 is DONE.** Commit
+> `2ace751` completed the @astra/core ports, frontend changes and backend
+> regression tests — backend 183 green, astra-core 33 green, 56 e2e green,
+> vector tripwire ok, PR open. **Start at Task 2** (security sweep), then
+> Task 3 (P2 Morning panel), then Tasks 4/5. Task 1's text is kept below
+> only as reference for how the dual-stack contract works.
+
 Branch **`correctness-sweep`** (off `main` @ 740a644). Commit `a26964f`
 contains the **complete backend half** of the issue-#54 correctness sweep
 (the work order is the triage comment on issue #54 — read it:
-`gh issue view 54 --comments`). Backend is **174 tests green**
-(`cd backend && .venv/bin/pytest -q`) and all 8 parity vectors are
-regenerated. **The @astra/core TypeScript ports are NOT done yet** — the TS
-parity tests are RED against the new vectors until you finish them. That is
-your first job.
-
-Verify your starting state:
-
-```bash
-git status && git log --oneline -3        # expect correctness-sweep @ a26964f, clean
-cd backend && .venv/bin/pytest -q         # expect 174 passed
-cd ../packages/astra-core && npm test     # expect FAILURES (ports not done)
-```
+`gh issue view 54 --comments`).
 
 ## Task 1 — port the backend fixes to @astra/core (finish PR 1)
 
