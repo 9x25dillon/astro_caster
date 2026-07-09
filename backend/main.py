@@ -441,6 +441,24 @@ _NATAL_EXCLUDE = {"Descendant", "Imum Coeli", "South Node", "Part of Fortune",
                   "Vertex", "Lilith"}
 
 
+def _tropical_natal_map(planets, meta) -> dict[str, float]:
+    """
+    Natal longitudes for the forecast scanner, in the TROPICAL frame — the
+    scanner's transiting positions are tropical, so feeding it a sidereal
+    chart's longitudes would sit every aspect an ayanamsha (~24°) off. The
+    frame offset is recovered from the chart itself: tropical Sun at the
+    chart's Julian Day minus the chart's Sun longitude (0 for tropical charts).
+    """
+    shift = 0.0
+    if meta.get("zodiac") == "sidereal":
+        sun = next((p for p in planets if p.id == "Sun"), None)
+        jd_s = meta.get("julian_day")
+        if sun is not None and jd_s:
+            shift = (E.tropical_longitude(float(jd_s), "Sun") - sun.longitude) % 360.0
+    return {p.id: (p.longitude + shift) % 360.0
+            for p in planets if p.id not in _NATAL_EXCLUDE}
+
+
 class ForecastRequest(BaseModel):
     natal: ChartRequest
     days: int = 90
@@ -461,9 +479,7 @@ async def get_forecast(req: ForecastRequest):
 
         natal_positions: dict[str, float] = {}
         if req.include_natal:
-            for p in chart.planets:
-                if p.id not in _NATAL_EXCLUDE:
-                    natal_positions[p.id] = p.longitude
+            natal_positions = _tropical_natal_map(chart.planets, chart.meta)
 
         start = dt.date.today()
         events = await asyncio.to_thread(
@@ -549,9 +565,7 @@ async def arcana_forecast(req: ArcanaForecastRequest):
     """Daily transit card overlay — a thin tarot layer over the forecast engine."""
     try:
         days = min(max(req.days, 1), 30)
-        natal_positions = {
-            p.id: p.longitude for p in req.chart.planets if p.id not in _NATAL_EXCLUDE
-        }
+        natal_positions = _tropical_natal_map(req.chart.planets, req.chart.meta)
         # The querent's local day is the unit of meaning — resolve from an explicit
         # start_date or an IANA timezone, not the server clock.
         start = TAROT.resolve_local_date(req.start_date, req.timezone)
@@ -669,9 +683,7 @@ async def arcana_calendar(req: ArcanaCalendarRequest):
     """
     try:
         days = min(max(req.days, 1), 30)
-        natal_positions = {
-            p.id: p.longitude for p in req.chart.planets if p.id not in _NATAL_EXCLUDE
-        }
+        natal_positions = _tropical_natal_map(req.chart.planets, req.chart.meta)
         start = TAROT.resolve_local_date(req.start_date, req.timezone)
         events = await asyncio.to_thread(
             generate_forecast, natal_positions, start, days, req.min_sig

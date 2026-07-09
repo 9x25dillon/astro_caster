@@ -75,11 +75,10 @@ def _jd(d: dt.datetime) -> float:
 
 def _jd_to_utc(jd: float) -> dt.datetime:
     y, m, day, ut = swe.revjul(jd, swe.GREG_CAL)
-    h = int(ut)
-    mi = int((ut - h) * 60.0)
-    s = int(round((((ut - h) * 60.0) - mi) * 60.0))
-    s = min(s, 59)
-    return dt.datetime(y, m, day, h, mi, s, tzinfo=dt.timezone.utc)
+    # timedelta normalizes the carry when rounding reaches :60 (a plain
+    # min(s, 59) clamp silently loses up to a second).
+    base = dt.datetime(y, m, day, tzinfo=dt.timezone.utc)
+    return base + dt.timedelta(seconds=round(ut * 3600.0))
 
 
 def _signed_delta(target: float, current: float) -> float:
@@ -191,15 +190,21 @@ def progressed_chart(natal: ChartRequest, target_iso: str) -> ProgressedChart:
 # --------------------------------------------------------------------------- #
 
 
-def _sun_longitude(jd: float) -> float:
-    return float(swe.calc_ut(jd, swe.SUN, _FLAGS)[0][0])
+def _sun_longitude(jd: float, flags: int = _FLAGS) -> float:
+    return float(swe.calc_ut(jd, swe.SUN, flags)[0][0])
 
 
-def solar_return_jd(natal_sun_lon: float, year: int, month: int, day: int) -> float:
-    """JD nearest the birthday in `year` when the Sun is at `natal_sun_lon`."""
+def solar_return_jd(natal_sun_lon: float, year: int, month: int, day: int,
+                    flags: int = _FLAGS) -> float:
+    """JD nearest the birthday in `year` when the Sun is at `natal_sun_lon`.
+
+    `flags` must put the transiting Sun in the SAME zodiac frame as
+    `natal_sun_lon` — comparing a sidereal natal longitude against tropical
+    positions offsets the root-find by the ayanamsha (~24 days of Sun motion).
+    """
     jd = swe.julday(year, month, day, 12.0, swe.GREG_CAL)
     for _ in range(10):
-        delta = _signed_delta(natal_sun_lon, _sun_longitude(jd))
+        delta = _signed_delta(natal_sun_lon, _sun_longitude(jd, flags))
         jd += delta / _SUN_DEG_PER_DAY
         if abs(delta) < 1e-7:
             break
@@ -210,7 +215,12 @@ def solar_return(natal: ChartRequest, year: int,
                  lat: Optional[float] = None, lng: Optional[float] = None) -> SolarReturnChart:
     natal_chart = E.calculate_chart(natal)
     natal_sun = next(p for p in natal_chart.planets if p.id == "Sun")
-    jd = solar_return_jd(natal_sun.longitude, year, natal.month, natal.day)
+    with E.swe_lock:
+        # Root-find in the chart's own frame (sidereal natal Sun ⇒ sidereal
+        # transiting Sun); the lock keeps the sid-mode set for the whole search.
+        sid_flag = E._apply_zodiac(natal)
+        jd = solar_return_jd(natal_sun.longitude, year, natal.month, natal.day,
+                             _FLAGS | sid_flag)
     ret_utc = _jd_to_utc(jd)
     req = _utc_to_request(
         ret_utc,
@@ -286,9 +296,15 @@ def eclipse_timeline(natal: ChartRequest, start_iso: Optional[str] = None,
 
     found.sort(key=lambda t: t[0])
     events: List[EclipseEvent] = []
+    with E.swe_lock:
+        # The eclipse longitude is compared against (and displayed beside) the
+        # natal chart's positions — compute it in the chart's zodiac frame.
+        sid_flag = E._apply_zodiac(natal)
+        lums = {jd_e: float(swe.calc_ut(jd_e, swe.SUN if kind == "solar" else swe.MOON,
+                                        _FLAGS | sid_flag)[0][0])
+                for jd_e, _retflag, kind in found[:count]}
     for jd_e, retflag, kind in found[:count]:
-        lum = swe.SUN if kind == "solar" else swe.MOON
-        lon = float(swe.calc_ut(jd_e, lum, _FLAGS)[0][0])
+        lon = lums[jd_e]
         deg, _minute, _sec = A.degree_in_sign(lon)
         events.append(EclipseEvent(
             date=_jd_to_utc(jd_e).date().isoformat(),

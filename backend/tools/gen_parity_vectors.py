@@ -370,6 +370,15 @@ def build_synastry_payload() -> dict:
 
 import predictive as PRED  # noqa: E402
 
+# The predictive + advanced vectors carry a SIDEREAL case: the solar-return
+# root-find, eclipse activations and fixed-star contacts are all frame-
+# sensitive (issue #54 §2.1/2.4) — the sidereal case locks the frame handling
+# on both stacks.
+SIDEREAL_CASES = [(
+    "einstein-ulm-1879-sidereal-lahiri",
+    dict(CASES[0][1], zodiac="sidereal", ayanamsha=1),
+)]
+
 PROG_TARGET_ISO = "2026-01-01T00:00:00+00:00"
 SOLAR_RETURN_YEAR = 2026
 ECLIPSE_START_ISO = "2026-01-01T00:00:00+00:00"
@@ -382,7 +391,7 @@ def _restrict_planets(planets):
 
 def build_predictive_payload() -> dict:
     cases = []
-    for case_id, req in CASES:
+    for case_id, req in CASES + SIDEREAL_CASES:
         cr = _CR(**req)
         natal_chart = E.calculate_chart(cr)
         natal_supported = _restrict_planets(natal_chart.planets)
@@ -448,7 +457,7 @@ FIXED_STAR_ORB = 1.5
 
 def build_advanced_payload() -> dict:
     cases = []
-    for case_id, req in CASES:
+    for case_id, req in CASES + SIDEREAL_CASES:
         cr = _CR(**req)
         # Restrict the base chart to the supported body set before the technique
         # runs, so every derived position is one @astra/core reproduces.

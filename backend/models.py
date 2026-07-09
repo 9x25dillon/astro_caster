@@ -112,7 +112,9 @@ class Aspect(BaseModel):
     separation: float         # actual separation
     harmony: str
     color: str
-    applying: bool            # is the aspect tightening (true) or separating (false)
+    # True = tightening, False = separating, None = undefined (both points
+    # static — angles / Part of Fortune have no motion of their own).
+    applying: Optional[bool]
 
 
 class Pattern(BaseModel):

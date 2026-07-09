@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import datetime as dt
 import os
+import threading
 from typing import List, Optional, Tuple
 
 import swisseph as swe
@@ -72,6 +73,13 @@ _PLANET_TABLE: List[Tuple[str, int, str]] = [
 _FLG_LON = swe.FLG_SPEED | (swe.FLG_SWIEPH if _USING_FILES else swe.FLG_MOSEPH)
 _FLG_EQ = _FLG_LON | swe.FLG_EQUATORIAL
 
+# swe.set_sid_mode is process-global C state; endpoints compute charts from a
+# thread pool (asyncio.to_thread), so another thread's set_sid_mode could
+# interleave between our set_sid_mode and the calc_ut/houses_ex calls that
+# depend on it. Serialize every frame-sensitive computation. Re-entrant so
+# derived techniques (progressions, returns) can nest chart calculations.
+swe_lock = threading.RLock()
+
 
 # --------------------------------------------------------------------------- #
 # Time
@@ -115,6 +123,27 @@ def _apply_zodiac(req: ChartRequest) -> int:
 # --------------------------------------------------------------------------- #
 # Houses
 # --------------------------------------------------------------------------- #
+
+
+def _houses_with_polar_fallback(
+    jd: float, lat: float, lng: float, house_system: str, sid_flag: int
+) -> Tuple[tuple, tuple, str]:
+    """
+    swe.houses_ex, falling back to whole-sign when the requested system is
+    undefined for the location. Placidus/Koch cusps don't exist at/beyond the
+    polar circles — pyswisseph raises rather than degrading, and a silent
+    error would put every body in house 12. Returns (cusps, ascmc, system_used).
+    """
+    try:
+        cusps_raw, ascmc = swe.houses_ex(
+            jd, lat, lng, house_system.encode("ascii"), sid_flag
+        )
+        return cusps_raw, ascmc, house_system
+    except swe.Error:
+        if house_system == "W":
+            raise
+        cusps_raw, ascmc = swe.houses_ex(jd, lat, lng, b"W", sid_flag)
+        return cusps_raw, ascmc, "W"
 
 
 def _house_of(longitude: float, cusps: List[float]) -> int:
@@ -176,13 +205,18 @@ def _build_planet(
 
 
 def calculate_chart(req: ChartRequest) -> ChartResponse:
+    with swe_lock:
+        return _calculate_chart_locked(req)
+
+
+def _calculate_chart_locked(req: ChartRequest) -> ChartResponse:
     jd = _julian_day_utc(req)
     sid_flag = _apply_zodiac(req)
 
     # --- Houses + angles --------------------------------------------------- #
     # swe.houses_ex honours the sidereal flag; returns (cusps[1..12], ascmc[]).
-    cusps_raw, ascmc = swe.houses_ex(
-        jd, req.lat, req.lng, req.house_system.encode("ascii"), sid_flag
+    cusps_raw, ascmc, house_system_used = _houses_with_polar_fallback(
+        jd, req.lat, req.lng, req.house_system, sid_flag
     )
     cusps = [A.norm360(c) for c in cusps_raw]  # 12 cusps, index 0 == house 1
 
@@ -248,6 +282,17 @@ def calculate_chart(req: ChartRequest) -> ChartResponse:
     patterns = detect_patterns(planets, aspects)
     elements, modalities = _tally_elements(planets)
 
+    meta = {
+        "ephemeris": "swiss-files" if _USING_FILES else "moshier",
+        "zodiac": req.zodiac,
+        "house_system": house_system_used,
+        "julian_day": f"{jd:.6f}",
+    }
+    if house_system_used != req.house_system:
+        meta["house_fallback"] = (
+            f"{req.house_system} undefined at this latitude; whole-sign used"
+        )
+
     return ChartResponse(
         planets=planets,
         houses=houses,
@@ -256,12 +301,7 @@ def calculate_chart(req: ChartRequest) -> ChartResponse:
         patterns=patterns,
         elements=elements,
         modalities=modalities,
-        meta={
-            "ephemeris": "swiss-files" if _USING_FILES else "moshier",
-            "zodiac": req.zodiac,
-            "house_system": req.house_system,
-            "julian_day": f"{jd:.6f}",
-        },
+        meta=meta,
     )
 
 
@@ -328,14 +368,22 @@ def calculate_aspects(
     return aspects
 
 
-def _is_applying(a: PlanetData, b: PlanetData, target_angle: float) -> bool:
+def _is_applying(
+    a: PlanetData, b: PlanetData, target_angle: float, freeze_b: bool = False
+) -> Optional[bool]:
     """
     An aspect is *applying* when the separation is moving toward exactness.
     We nudge time forward by the relative motion and check if orb shrinks.
+    freeze_b treats b as a fixed point (a natal position in a transit
+    cross-aspect — its birth-epoch speed must not move it). Returns None when
+    neither point moves (angles / Part of Fortune): applying is undefined.
     """
+    speed_b = 0.0 if freeze_b else b.speed
+    if a.speed == 0.0 and speed_b == 0.0:
+        return None
     sep_now = A.angular_separation(a.longitude, b.longitude)
     future_a = a.longitude + a.speed * 0.01
-    future_b = b.longitude + b.speed * 0.01
+    future_b = b.longitude + speed_b * 0.01
     sep_next = A.angular_separation(future_a, future_b)
     return abs(sep_next - target_angle) < abs(sep_now - target_angle)
 
@@ -347,19 +395,27 @@ def _is_applying(a: PlanetData, b: PlanetData, target_angle: float) -> bool:
 
 def calculate_transiting_planets(jd: float, req: ChartRequest) -> List[PlanetData]:
     """Positions of transiting bodies at a moment, placed in the natal houses."""
-    sid_flag = _apply_zodiac(req)
-    cusps_raw, _ascmc = swe.houses_ex(
-        jd, req.lat, req.lng, req.house_system.encode("ascii"), sid_flag
-    )
-    cusps = [A.norm360(c) for c in cusps_raw]
-    out: List[PlanetData] = []
-    for name, swe_id, glyph in _PLANET_TABLE:
-        try:
-            lon, lat, spd, dec = _calc_body(jd, swe_id, sid_flag)
-        except swe.Error:
-            continue
-        out.append(_build_planet(name, glyph, lon, lat, spd, dec, cusps))
-    return out
+    with swe_lock:
+        sid_flag = _apply_zodiac(req)
+        cusps_raw, _ascmc, _used = _houses_with_polar_fallback(
+            jd, req.lat, req.lng, req.house_system, sid_flag
+        )
+        cusps = [A.norm360(c) for c in cusps_raw]
+        out: List[PlanetData] = []
+        for name, swe_id, glyph in _PLANET_TABLE:
+            try:
+                lon, lat, spd, dec = _calc_body(jd, swe_id, sid_flag)
+            except swe.Error:
+                continue
+            out.append(_build_planet(name, glyph, lon, lat, spd, dec, cusps))
+        return out
+
+
+def tropical_longitude(jd: float, name: str) -> float:
+    """Tropical ecliptic longitude of a named body — frame-conversion helper
+    (sid mode only applies when FLG_SIDEREAL is passed, so no lock needed)."""
+    swe_id = next(i for n, i, _ in _PLANET_TABLE if n == name)
+    return float(swe.calc_ut(jd, swe_id, _FLG_LON)[0][0])
 
 
 def aspects_between(
@@ -379,7 +435,8 @@ def aspects_between(
                             p1=f"t:{t.id}", p2=n.id, type=ad.name, angle=ad.angle,
                             orb=round(orb, 2), separation=round(sep, 2),
                             harmony=ad.harmony, color=ad.color,
-                            applying=_is_applying(t, n, ad.angle),
+                            # The natal side is a fixed birth point — freeze it.
+                            applying=_is_applying(t, n, ad.angle, freeze_b=True),
                         )
                     )
                     break

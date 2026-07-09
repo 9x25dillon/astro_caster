@@ -1280,6 +1280,605 @@
     "tz_offset": 0.0,
     "year": 2000
    }
+  },
+  {
+   "fixed_stars": {
+    "hits": [
+     {
+      "degree": 2,
+      "natal_body": "Pluto",
+      "nature": "intensity, the unflinching gaze; passion that must be owned",
+      "orb": 0.24,
+      "sign": "Taurus",
+      "star": "Algol",
+      "star_longitude": 32.307
+     },
+     {
+      "degree": 20,
+      "natal_body": "Ascendant",
+      "nature": "the brilliant one; ambition, the sacred fire, renown",
+      "orb": 0.8,
+      "sign": "Gemini",
+      "star": "Sirius",
+      "star_longitude": 80.223
+     }
+    ],
+    "orb": 1.5
+   },
+   "harmonic": {
+    "aspects": [
+     {
+      "orb": 0.24,
+      "p1": "Pluto",
+      "p2": "Midheaven",
+      "type": "Conjunction"
+     }
+    ],
+    "n": 5,
+    "positions": [
+     {
+      "degree": 6,
+      "glyph": "\u2609",
+      "id": "Sun",
+      "longitude": 216.6668,
+      "minute": 40,
+      "sign": "Scorpio",
+      "sign_glyph": "\u264f"
+     },
+     {
+      "degree": 21,
+      "glyph": "\u263d",
+      "id": "Moon",
+      "longitude": 81.7487,
+      "minute": 44,
+      "sign": "Gemini",
+      "sign_glyph": "\u264a"
+     },
+     {
+      "degree": 24,
+      "glyph": "\u263f",
+      "id": "Mercury",
+      "longitude": 264.8469,
+      "minute": 50,
+      "sign": "Sagittarius",
+      "sign_glyph": "\u2650"
+     },
+     {
+      "degree": 4,
+      "glyph": "\u2640",
+      "id": "Venus",
+      "longitude": 334.053,
+      "minute": 3,
+      "sign": "Pisces",
+      "sign_glyph": "\u2653"
+     },
+     {
+      "degree": 23,
+      "glyph": "\u2642",
+      "id": "Mars",
+      "longitude": 293.6994,
+      "minute": 41,
+      "sign": "Capricorn",
+      "sign_glyph": "\u2651"
+     },
+     {
+      "degree": 26,
+      "glyph": "\u2643",
+      "id": "Jupiter",
+      "longitude": 86.5487,
+      "minute": 32,
+      "sign": "Gemini",
+      "sign_glyph": "\u264a"
+     },
+     {
+      "degree": 0,
+      "glyph": "\u2644",
+      "id": "Saturn",
+      "longitude": 270.0778,
+      "minute": 4,
+      "sign": "Capricorn",
+      "sign_glyph": "\u2651"
+     },
+     {
+      "degree": 15,
+      "glyph": "\u2645",
+      "id": "Uranus",
+      "longitude": 285.5708,
+      "minute": 34,
+      "sign": "Capricorn",
+      "sign_glyph": "\u2651"
+     },
+     {
+      "degree": 18,
+      "glyph": "\u2646",
+      "id": "Neptune",
+      "longitude": 78.4898,
+      "minute": 29,
+      "sign": "Gemini",
+      "sign_glyph": "\u264a"
+     },
+     {
+      "degree": 12,
+      "glyph": "\u2647",
+      "id": "Pluto",
+      "longitude": 162.7556,
+      "minute": 45,
+      "sign": "Virgo",
+      "sign_glyph": "\u264d"
+     },
+     {
+      "degree": 22,
+      "glyph": "\u260a",
+      "id": "North Node",
+      "longitude": 322.7582,
+      "minute": 45,
+      "sign": "Aquarius",
+      "sign_glyph": "\u2652"
+     },
+     {
+      "degree": 6,
+      "glyph": "\u26b7",
+      "id": "Chiron",
+      "longitude": 66.8522,
+      "minute": 51,
+      "sign": "Gemini",
+      "sign_glyph": "\u264a"
+     },
+     {
+      "degree": 7,
+      "glyph": "Asc",
+      "id": "Ascendant",
+      "longitude": 37.1081,
+      "minute": 6,
+      "sign": "Taurus",
+      "sign_glyph": "\u2649"
+     },
+     {
+      "degree": 12,
+      "glyph": "MC",
+      "id": "Midheaven",
+      "longitude": 162.992,
+      "minute": 59,
+      "sign": "Virgo",
+      "sign_glyph": "\u264d"
+     }
+    ]
+   },
+   "id": "einstein-ulm-1879-sidereal-lahiri",
+   "midpoint_tree": {
+    "entries": [
+     {
+      "contacts": [
+       {
+        "angle": 0,
+        "aspect": "conjunction",
+        "body": "Sun",
+        "orb": 0.03
+       }
+      ],
+      "degree": 1,
+      "midpoint": 331.307,
+      "pair": "Saturn/Midheaven",
+      "sign": "Pisces"
+     },
+     {
+      "contacts": [
+       {
+        "angle": 90,
+        "aspect": "square",
+        "body": "North Node",
+        "orb": 0.2
+       },
+       {
+        "angle": 90,
+        "aspect": "square",
+        "body": "South Node",
+        "orb": 0.2
+       }
+      ],
+      "degree": 10,
+      "midpoint": 10.75,
+      "pair": "Neptune/Lilith",
+      "sign": "Aries"
+     },
+     {
+      "contacts": [
+       {
+        "angle": 90,
+        "aspect": "square",
+        "body": "Mercury",
+        "orb": 0.27
+       },
+       {
+        "angle": 90,
+        "aspect": "square",
+        "body": "Saturn",
+        "orb": 0.77
+       }
+      ],
+      "degree": 11,
+      "midpoint": 71.242,
+      "pair": "Uranus/Chiron",
+      "sign": "Gemini"
+     },
+     {
+      "contacts": [
+       {
+        "angle": 90,
+        "aspect": "square",
+        "body": "Pluto",
+        "orb": 0.31
+       }
+      ],
+      "degree": 2,
+      "midpoint": 302.86,
+      "pair": "Moon/Chiron",
+      "sign": "Aquarius"
+     },
+     {
+      "contacts": [
+       {
+        "angle": 0,
+        "aspect": "conjunction",
+        "body": "Chiron",
+        "orb": 0.31
+       }
+      ],
+      "degree": 13,
+      "midpoint": 13.681,
+      "pair": "Venus/Pluto",
+      "sign": "Aries"
+     },
+     {
+      "contacts": [
+       {
+        "angle": 0,
+        "aspect": "conjunction",
+        "body": "Midheaven",
+        "orb": 0.33
+       }
+      ],
+      "degree": 20,
+      "midpoint": 320.271,
+      "pair": "Mars/Lilith",
+      "sign": "Aquarius"
+     },
+     {
+      "contacts": [
+       {
+        "angle": 90,
+        "aspect": "square",
+        "body": "Midheaven",
+        "orb": 0.37
+       }
+      ],
+      "degree": 20,
+      "midpoint": 50.224,
+      "pair": "Sun/Uranus",
+      "sign": "Taurus"
+     },
+     {
+      "contacts": [
+       {
+        "angle": 90,
+        "aspect": "square",
+        "body": "Saturn",
+        "orb": 0.39
+       }
+      ],
+      "degree": 12,
+      "midpoint": 72.406,
+      "pair": "Uranus/Neptune",
+      "sign": "Gemini"
+     },
+     {
+      "contacts": [
+       {
+        "angle": 0,
+        "aspect": "conjunction",
+        "body": "Mercury",
+        "orb": 0.47
+       }
+      ],
+      "degree": 10,
+      "midpoint": 340.504,
+      "pair": "Jupiter/Neptune",
+      "sign": "Pisces"
+     },
+     {
+      "contacts": [
+       {
+        "angle": 90,
+        "aspect": "square",
+        "body": "Pluto",
+        "orb": 0.49
+       }
+      ],
+      "degree": 3,
+      "midpoint": 303.037,
+      "pair": "Sun/Mars",
+      "sign": "Aquarius"
+     },
+     {
+      "contacts": [
+       {
+        "angle": 90,
+        "aspect": "square",
+        "body": "Ascendant",
+        "orb": 0.49
+       }
+      ],
+      "degree": 18,
+      "midpoint": 348.93,
+      "pair": "Jupiter/Pluto",
+      "sign": "Pisces"
+     },
+     {
+      "contacts": [
+       {
+        "angle": 90,
+        "aspect": "square",
+        "body": "Mars",
+        "orb": 0.51
+       },
+       {
+        "angle": 0,
+        "aspect": "conjunction",
+        "body": "Lilith",
+        "orb": 0.55
+       }
+      ],
+      "degree": 5,
+      "midpoint": 5.254,
+      "pair": "Venus/Neptune",
+      "sign": "Aries"
+     },
+     {
+      "contacts": [
+       {
+        "angle": 0,
+        "aspect": "conjunction",
+        "body": "Sun",
+        "orb": 0.55
+       }
+      ],
+      "degree": 0,
+      "midpoint": 330.784,
+      "pair": "Mercury/Midheaven",
+      "sign": "Pisces"
+     },
+     {
+      "contacts": [
+       {
+        "angle": 0,
+        "aspect": "conjunction",
+        "body": "Jupiter",
+        "orb": 0.63
+       }
+      ],
+      "degree": 5,
+      "midpoint": 305.943,
+      "pair": "Sun/North Node",
+      "sign": "Aquarius"
+     },
+     {
+      "contacts": [
+       {
+        "angle": 90,
+        "aspect": "square",
+        "body": "Jupiter",
+        "orb": 0.63
+       }
+      ],
+      "degree": 5,
+      "midpoint": 35.943,
+      "pair": "Sun/South Node",
+      "sign": "Taurus"
+     },
+     {
+      "contacts": [
+       {
+        "angle": 90,
+        "aspect": "square",
+        "body": "Sun",
+        "orb": 0.63
+       }
+      ],
+      "degree": 1,
+      "midpoint": 61.962,
+      "pair": "Venus/Uranus",
+      "sign": "Gemini"
+     },
+     {
+      "contacts": [
+       {
+        "angle": 90,
+        "aspect": "square",
+        "body": "Mars",
+        "orb": 0.65
+       }
+      ],
+      "degree": 4,
+      "midpoint": 4.091,
+      "pair": "Venus/Chiron",
+      "sign": "Aries"
+     },
+     {
+      "contacts": [
+       {
+        "angle": 90,
+        "aspect": "square",
+        "body": "Lilith",
+        "orb": 0.67
+       }
+      ],
+      "degree": 6,
+      "midpoint": 276.474,
+      "pair": "Moon/Midheaven",
+      "sign": "Capricorn"
+     },
+     {
+      "contacts": [
+       {
+        "angle": 180,
+        "aspect": "opposition",
+        "body": "Uranus",
+        "orb": 0.74
+       }
+      ],
+      "degree": 8,
+      "midpoint": 308.378,
+      "pair": "Mars/Saturn",
+      "sign": "Aquarius"
+     },
+     {
+      "contacts": [
+       {
+        "angle": 90,
+        "aspect": "square",
+        "body": "Moon",
+        "orb": 0.79
+       }
+      ],
+      "degree": 23,
+      "midpoint": 323.14,
+      "pair": "Mercury/Jupiter",
+      "sign": "Aquarius"
+     },
+     {
+      "contacts": [
+       {
+        "angle": 90,
+        "aspect": "square",
+        "body": "Moon",
+        "orb": 0.83
+       }
+      ],
+      "degree": 23,
+      "midpoint": 323.177,
+      "pair": "North Node/Lilith",
+      "sign": "Aquarius"
+     },
+     {
+      "contacts": [
+       {
+        "angle": 180,
+        "aspect": "opposition",
+        "body": "Moon",
+        "orb": 0.83
+       }
+      ],
+      "degree": 23,
+      "midpoint": 53.177,
+      "pair": "South Node/Lilith",
+      "sign": "Taurus"
+     },
+     {
+      "contacts": [
+       {
+        "angle": 90,
+        "aspect": "square",
+        "body": "Ascendant",
+        "orb": 0.85
+       }
+      ],
+      "degree": 18,
+      "midpoint": 348.568,
+      "pair": "Sun/Lilith",
+      "sign": "Pisces"
+     },
+     {
+      "contacts": [
+       {
+        "angle": 0,
+        "aspect": "conjunction",
+        "body": "Venus",
+        "orb": 0.9
+       }
+      ],
+      "degree": 23,
+      "midpoint": 353.909,
+      "pair": "Saturn/Lilith",
+      "sign": "Pisces"
+     },
+     {
+      "contacts": [
+       {
+        "angle": 90,
+        "aspect": "square",
+        "body": "Chiron",
+        "orb": 0.9
+       }
+      ],
+      "degree": 14,
+      "midpoint": 104.268,
+      "pair": "Uranus/Ascendant",
+      "sign": "Cancer"
+     },
+     {
+      "contacts": [
+       {
+        "angle": 90,
+        "aspect": "square",
+        "body": "Neptune",
+        "orb": 0.96
+       }
+      ],
+      "degree": 16,
+      "midpoint": 286.66,
+      "pair": "Moon/Mercury",
+      "sign": "Capricorn"
+     },
+     {
+      "contacts": [
+       {
+        "angle": 0,
+        "aspect": "conjunction",
+        "body": "Lilith",
+        "orb": 0.96
+       }
+      ],
+      "degree": 6,
+      "midpoint": 6.76,
+      "pair": "Mercury/Pluto",
+      "sign": "Aries"
+     },
+     {
+      "contacts": [
+       {
+        "angle": 90,
+        "aspect": "square",
+        "body": "North Node",
+        "orb": 0.97
+       },
+       {
+        "angle": 90,
+        "aspect": "square",
+        "body": "South Node",
+        "orb": 0.97
+       }
+      ],
+      "degree": 9,
+      "midpoint": 9.586,
+      "pair": "Chiron/Lilith",
+      "sign": "Aries"
+     }
+    ],
+    "orb": 1.0
+   },
+   "request": {
+    "ayanamsha": 1,
+    "day": 14,
+    "hour": 11,
+    "lat": 48.4011,
+    "lng": 9.9876,
+    "minute": 30,
+    "month": 3,
+    "second": 0,
+    "tz_offset": 0.67,
+    "year": 1879,
+    "zodiac": "sidereal"
+   }
   }
  ],
  "engine": "swiss-files",
