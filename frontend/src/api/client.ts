@@ -354,6 +354,35 @@ const FC_ASPECT_COLOR: Record<string, string> = {
   Trine: "#2e86c1", Sextile: "#48a999",
 };
 
+// Mirrors main.py's _NATAL_EXCLUDE complement (no South Node / Lilith / PoF).
+const FC_NATAL_TARGETS = ["Sun", "Moon", "Mercury", "Venus", "Mars", "Jupiter",
+  "Saturn", "Uranus", "Neptune", "Pluto", "North Node", "Chiron",
+  "Ascendant", "Midheaven"];
+
+/** Natal longitudes for the transit scanner, in the TROPICAL frame the scanner
+ *  runs in (backend _tropical_natal_map): a sidereal chart's longitudes are
+ *  shifted by the tropical-Sun − chart-Sun difference at the chart's JD, or
+ *  every aspect would sit an ayanamsha (~24°) off. */
+function tropicalNatalMap(
+  m: Awaited<ReturnType<typeof core>>,
+  chart: CoreChartResponse,
+): Record<string, number> {
+  let shift = 0;
+  if (chart.meta.zodiac === "sidereal") {
+    const sun = chart.planets.find((p) => p.id === "Sun");
+    const jdS = chart.meta.julian_day;
+    if (sun && jdS) {
+      const trop = m.eclipticLonSpeed(parseFloat(jdS), "Sun");
+      if (trop) shift = m.norm360(trop.lon - sun.longitude);
+    }
+  }
+  const natalMap: Record<string, number> = {};
+  for (const p of chart.planets) {
+    if (FC_NATAL_TARGETS.includes(p.id)) natalMap[p.id] = m.norm360(p.longitude + shift);
+  }
+  return natalMap;
+}
+
 /**
  * On-device transit forecast via @astra/core (MOBILE_ROADMAP §3/H1). Computes
  * the natal chart locally, then scans transits in the browser — the same events
@@ -365,28 +394,10 @@ export async function localForecast(
   days = 90,
   minSig: "high" | "medium" | "low" = "medium",
 ): Promise<ForecastResponse> {
-  const { calculateChart, generateForecast, eclipticLonSpeed, norm360 } = await core();
-  const chart = calculateChart(natal as unknown as CoreChartRequest);
-  // Mirrors main.py's _NATAL_EXCLUDE complement (no South Node / Lilith / PoF).
-  const targets = ["Sun", "Moon", "Mercury", "Venus", "Mars", "Jupiter",
-    "Saturn", "Uranus", "Neptune", "Pluto", "North Node", "Chiron",
-    "Ascendant", "Midheaven"];
-  // The scanner's transiting positions are tropical — feeding it a sidereal
-  // chart's longitudes would sit every aspect an ayanamsha (~24°) off. Recover
-  // the frame offset from the chart itself (backend _tropical_natal_map):
-  // tropical Sun at the chart's Julian Day minus the chart's Sun longitude.
-  let shift = 0;
-  if (chart.meta.zodiac === "sidereal") {
-    const sun = chart.planets.find((p) => p.id === "Sun");
-    const jdS = chart.meta.julian_day;
-    if (sun && jdS) {
-      const trop = eclipticLonSpeed(parseFloat(jdS), "Sun");
-      if (trop) shift = norm360(trop.lon - sun.longitude);
-    }
-  }
-  const natalMap: Record<string, number> = {};
-  for (const p of chart.planets)
-    if (targets.includes(p.id)) natalMap[p.id] = norm360(p.longitude + shift);
+  const m = await core();
+  const { generateForecast } = m;
+  const chart = m.calculateChart(natal as unknown as CoreChartRequest);
+  const natalMap = tropicalNatalMap(m, chart);
 
   const start = localToday();
   const coreEvents = generateForecast(natalMap, start, days, minSig);
@@ -828,6 +839,28 @@ export function fetchArcanaForecast(
     source: opts.source ?? "golden_dawn",
     entitlement: entitlement ?? null,
   });
+}
+
+/** On-device daily transit-card overlay via @astra/core — the same trump per
+ *  day the backend's /api/arcana-forecast deals for this chart and window
+ *  (parity-locked by parity/arcana-forecast.json). Fallback when the backend
+ *  is unreachable. */
+export async function localArcanaForecast(
+  natal: BirthInput,
+  days = 7,
+): Promise<ArcanaForecastResponse> {
+  const m = await core();
+  const chart = m.calculateChart(natal as unknown as CoreChartRequest);
+  const start = localToday();
+  const events = m.generateForecast(tropicalNatalMap(m, chart), start, days, "medium");
+  const signature = m.buildNatalArcanaSignature(chart);
+  const cards = m.dailyArcanaFromEvents(events, start, days, signature);
+  return {
+    start,
+    days,
+    cards: cards as unknown as ArcanaDay[],
+    disclaimer: m.DISCLAIMER,
+  };
 }
 
 // ── Relationship astrology (synastry / composite / Davison / tarot) ─────────────

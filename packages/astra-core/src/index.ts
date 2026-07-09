@@ -26,6 +26,10 @@ export {
   PLANET_MAJOR,
   MAJOR_IDS,
   type NatalArcanaSignature,
+  dailyArcanaFromEvents,
+  arcanaForEvent,
+  type ArcanaDay,
+  type OverlayEvent,
   type DrawnCard,
 } from "./tarot.js";
 export { aspectsBetween } from "./ephemeris.js";

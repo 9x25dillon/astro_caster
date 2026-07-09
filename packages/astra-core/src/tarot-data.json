@@ -29,6 +29,162 @@
   "judgement",
   "world"
  ],
+ "major_lessons": {
+  "chariot": {
+   "journal": "What opposing forces in me need to be yoked rather than silenced?",
+   "mythic": "The charioteer who yokes two opposing sphinxes and moves them by will alone.",
+   "practice": "Choose one direction today and move toward it without negotiating with doubt.",
+   "psychological": "Ego strength: holding contradictory drives together and steering them.",
+   "shadow": "Armoring up; pushing forward while feeling nothing."
+  },
+  "death": {
+   "journal": "What is already over that I am still pretending is alive?",
+   "mythic": "The reaper who is also the gardener, cutting back so the field can bloom.",
+   "practice": "Release one thing — an object, a story, a habit — that belongs to who you were.",
+   "psychological": "Ego-death; the composting of an old identity into fertile soil.",
+   "shadow": "Refusing endings, or destroying to feel powerful."
+  },
+  "devil": {
+   "journal": "What do I tell myself I 'have to' do, and who benefits from that story?",
+   "mythic": "The horned guardian of the material gate, whose chains are looser than they look.",
+   "practice": "Name one pattern that has you. Notice the chain is around your own neck — and loose.",
+   "psychological": "The disowned shadow; compulsions that run us while we look away.",
+   "shadow": "Mistaking appetite for fate; shame that deepens the chain."
+  },
+  "emperor": {
+   "journal": "Where does my life need structure, and where has structure become a cage?",
+   "mythic": "The sovereign on the stone throne, who builds the walls within which life can flourish.",
+   "practice": "Set one clear boundary today and keep it for the full day.",
+   "psychological": "The inner father; the capacity to set boundaries and keep one's word.",
+   "shadow": "Control mistaken for safety; tyranny over self or others."
+  },
+  "empress": {
+   "journal": "Where am I being asked to nurture, and where to let myself be nurtured?",
+   "mythic": "The great Mother, garden made flesh, who creates by receiving and tending.",
+   "practice": "Receive one beautiful thing today — color, scent, taste — without earning it first.",
+   "psychological": "The generative principle; self-worth rooted in the body and the senses.",
+   "shadow": "Giving until depleted, or possessiveness disguised as care."
+  },
+  "fool": {
+   "journal": "Where is my life asking me to begin before I feel ready?",
+   "mythic": "The Fool walks the cliff-edge with eyes on the horizon — the eternal beginner, holy and unafraid.",
+   "practice": "Name one threshold you have been circling. Take the smallest real step across it today.",
+   "psychological": "The unconditioned self before roles harden; pure potential meeting the unknown.",
+   "shadow": "Leaping without grounding, or refusing to leap at all."
+  },
+  "hanged_man": {
+   "journal": "What might I see if I stopped trying to force the outcome?",
+   "mythic": "Odin on the world-tree, hung between worlds to win the runes of vision.",
+   "practice": "Suspend one decision on purpose today and let a new angle arrive.",
+   "psychological": "Voluntary suspension of the will to receive a wider view.",
+   "shadow": "Suffering for its own sake; passivity dressed as sacrifice."
+  },
+  "hermit": {
+   "journal": "What can I only hear when I am alone?",
+   "mythic": "The lone figure on the peak, raising a lantern with a single star inside it.",
+   "practice": "Take fifteen minutes alone in silence and ask one honest question.",
+   "psychological": "The wise self met only in solitude; meaning sought rather than performed.",
+   "shadow": "Hiding from life under the name of depth."
+  },
+  "hierophant": {
+   "journal": "Whose voice do I treat as authority, and have I examined why?",
+   "mythic": "The bridge-builder (pontifex) between heaven and earth, keeper of the sacred forms.",
+   "practice": "Name one teaching that shaped you. Keep what is true; release what no longer fits.",
+   "psychological": "The internalized teacher; how we relate to authority, doctrine, and belonging.",
+   "shadow": "Outsourcing conscience to the institution; or contempt for all guidance."
+  },
+  "high_priestess": {
+   "journal": "What do I know quietly that I have not yet let myself say?",
+   "mythic": "The veiled guardian between the pillars, keeper of the lunar waters and the unspoken.",
+   "practice": "Before deciding anything today, pause and ask your body what it already senses.",
+   "psychological": "The receptive unconscious; knowledge that arrives as feeling, dream, and image.",
+   "shadow": "Withdrawal into secrecy; refusing to act on what you already know."
+  },
+  "judgement": {
+   "journal": "If I stopped putting myself on trial, what would I finally answer yes to?",
+   "mythic": "The trumpet sounding over the graves, summoning the dead to rise renewed.",
+   "practice": "Forgive yourself one old thing, and name what you are being called toward.",
+   "psychological": "The deep reckoning that integrates the past and frees you to be reborn.",
+   "shadow": "Endless self-trial; deafness to the genuine call."
+  },
+  "justice": {
+   "journal": "Where am I out of balance, and what truth would restore it?",
+   "mythic": "The blindfolded keeper of the scales and the upright sword of discernment.",
+   "practice": "Tell one small truth today that you have been softening.",
+   "psychological": "The honest inner witness that weighs without distortion.",
+   "shadow": "Rationalization; punishing the self in the name of fairness."
+  },
+  "lovers": {
+   "journal": "What am I being asked to choose, and what value is the choice really about?",
+   "mythic": "The choice at Eden's gate; two becoming one without ceasing to be two.",
+   "practice": "Make one small choice today from your values rather than your habits.",
+   "psychological": "The integration of opposites within, mirrored by attraction without.",
+   "shadow": "Losing yourself in the Other; avoiding the responsibility of choosing."
+  },
+  "magician": {
+   "journal": "What do I already have the tools to create, if I concentrate my will?",
+   "mythic": "Hermes at the crossroads, channel between worlds, who makes the invisible speak.",
+   "practice": "Speak one intention aloud as if it were already true, then take one concrete action toward it.",
+   "psychological": "The integrating ego that gathers the four elements and directs them with intention.",
+   "shadow": "Cleverness used to deceive; power without devotion."
+  },
+  "moon": {
+   "journal": "What am I afraid of in the dark that might be a messenger, not a threat?",
+   "mythic": "The moonlit road between two towers, where the wolf and the dog both howl.",
+   "practice": "Record a dream or a strong feeling without explaining it away.",
+   "psychological": "The deep unconscious; ancestral and instinctual material surfacing as image.",
+   "shadow": "Drowning in fear and fantasy; mistaking projection for reality."
+  },
+  "star": {
+   "journal": "Where is hope quietly returning, and how can I make room for it?",
+   "mythic": "The star-maiden pouring water onto land and stream, replenishing the world by night.",
+   "practice": "Do one small thing tonight purely because it gives you hope.",
+   "psychological": "The return of hope; vulnerability that heals because it stops hiding.",
+   "shadow": "Hope deferred into fantasy; refusing to be replenished."
+  },
+  "strength": {
+   "journal": "What part of my animal nature am I being asked to befriend, not conquer?",
+   "mythic": "The maiden who closes the lion's jaws with an open hand, not a sword.",
+   "practice": "Meet one impulse today with patience instead of force, and notice what it wanted.",
+   "psychological": "Befriending the instinctual self; power expressed through composure.",
+   "shadow": "Suppressing the wild self, or being ruled by it."
+  },
+  "sun": {
+   "journal": "Where do I dim myself, and what would it cost to shine?",
+   "mythic": "The naked child on the white horse beneath the unclouded sun, hiding nothing.",
+   "practice": "Let yourself be seen in one small, true way today.",
+   "psychological": "The integrated, radiant self; joy that does not need to perform.",
+   "shadow": "Forced positivity, or hiding your light to stay safe."
+  },
+  "temperance": {
+   "journal": "What two things in me are asking to be blended rather than chosen between?",
+   "mythic": "The angel pouring between two cups, mixing fire and water without spilling.",
+   "practice": "Find the middle path on one thing today — neither suppress nor indulge.",
+   "psychological": "The reconciling function that holds tension until a synthesis is born.",
+   "shadow": "Bland compromise, or swinging between extremes."
+  },
+  "tower": {
+   "journal": "What false certainty in me is asking to come down?",
+   "mythic": "The lightning-struck tower, the proud edifice undone in a single flash of truth.",
+   "practice": "Notice one structure in your life that is already cracking, and stop defending it.",
+   "psychological": "The sudden collapse of a self-concept that could no longer hold reality.",
+   "shadow": "Building higher on a cracked foundation; fearing the freeing fall."
+  },
+  "wheel_of_fortune": {
+   "journal": "What cycle am I in, and is it cresting or beginning again?",
+   "mythic": "The ever-turning wheel of the cosmos, where rise and fall are one motion.",
+   "practice": "Name one thing that is changing. Loosen your grip on the part you cannot control.",
+   "psychological": "Acceptance of impermanence; locating the still center within the turning.",
+   "shadow": "Fatalism, or grasping to keep the wheel from moving."
+  },
+  "world": {
+   "journal": "What in my life is ready to be called complete?",
+   "mythic": "The dancer in the cosmic wreath, encircled by the four living creatures.",
+   "practice": "Finish one thing you have left almost-done, and mark its completion.",
+   "psychological": "Individuation: the long work made whole, the parts at last one body.",
+   "shadow": "Refusing to complete; staying small to avoid the next beginning."
+  }
+ },
  "minor": [
   {
    "id": "ace_of_wands",
@@ -255,6 +411,22 @@
    "suit": "pentacles"
   }
  ],
+ "planet_activity": {
+  "Ascendant": "Draw your 'mask' as a simple sigil — the face you meet the world with — and thank it.",
+  "Chiron": "Place a hand where an old hurt lives and tell it, simply, that you are listening now.",
+  "Jupiter": "Name one belief that has grown too large or too small for you, and adjust it by a single degree.",
+  "Mars": "Move your body for five minutes with intention. Let drive become direction instead of pressure.",
+  "Mercury": "Write a short spell-poem using five words from your current state. Speak it once aloud and notice what shifts.",
+  "Midheaven": "Name aloud the work you would do if no one were watching the result.",
+  "Moon": "Write three sentences beginning with 'My body remembers...'. Do not edit them; let the emotional weather speak first.",
+  "Neptune": "Spend five minutes with music or water and let your mind un-focus. Note the first image that drifts up.",
+  "North Node": "Take one small step toward the unfamiliar thing that scares and calls you at once.",
+  "Pluto": "Write one sentence naming something you are ready to let die, then breathe out slowly three times.",
+  "Saturn": "Choose one small boundary that protects your future self. Write it as a vow and keep it for one day before expanding it.",
+  "Sun": "Let yourself be seen in one true, small way today. Notice who you are when you stop performing.",
+  "Uranus": "Do one ordinary thing in a deliberately different way today, just to feel the hinge of freedom.",
+  "Venus": "Choose one color, scent, sound, or texture that softens your body. Place it where you can see it — let beauty be evidence you are allowed to receive."
+ },
  "planet_major": {
   "Chiron": "hermit",
   "Jupiter": "wheel_of_fortune",

@@ -2282,3 +2282,95 @@ h2.section::after {
 .shelf-journal-prompt { font-size: 11.5px; font-style: italic; color: var(--gold-soft, #e0c578);
                         opacity: 0.85; margin-top: 2px; }
 .shelf-journal-text { margin: 4px 0 0; font-size: 13px; white-space: pre-wrap; }
+
+/* ── Morning panel (Track 3 P2) — the at-a-glance boot surface ─────────────── */
+
+.morning-panel {
+  max-width: 720px;
+  margin: 10px auto 0;
+  padding: 12px 16px 14px;
+  background: rgba(11, 11, 15, 0.82);
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  box-shadow: var(--glow-gold);
+}
+
+.morning-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.morning-title {
+  font-family: var(--serif);
+  font-size: 15px;
+  letter-spacing: 0.06em;
+  color: var(--gold-soft);
+}
+
+.morning-date {
+  font-size: 12px;
+  color: var(--ink);
+  flex: 1;
+}
+
+.morning-dismiss {
+  background: none;
+  border: none;
+  color: var(--ink);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+.morning-dismiss:hover { color: var(--parchment); }
+
+.morning-body {
+  display: flex;
+  gap: 18px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.morning-card { flex: 1 1 240px; min-width: 220px; }
+.morning-transits { flex: 1 1 260px; min-width: 220px; }
+
+.morning-card-name {
+  font-family: var(--serif);
+  font-size: 17px;
+  color: var(--gold-bright);
+}
+.morning-reversed {
+  font-size: 12px;
+  font-style: italic;
+  color: var(--copper);
+}
+.morning-card-summary {
+  font-size: 13px;
+  color: var(--parchment);
+  margin-top: 3px;
+}
+.morning-card-link {
+  font-size: 12px;
+  color: var(--amethyst-soft);
+  margin-top: 2px;
+}
+.morning-card-lesson {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 12.5px;
+  color: var(--sepia);
+  margin-top: 5px;
+}
+
+.morning-transit {
+  font-size: 13px;
+  color: var(--parchment);
+  padding: 3px 0;
+  border-bottom: 1px dotted var(--rule);
+}
+.morning-transit:last-child { border-bottom: none; }
+.morning-transit-orb { color: var(--ink); font-size: 12px; }
+
+@media (max-width: 640px) {
+  .morning-panel { margin: 8px 10px 0; }
+}
