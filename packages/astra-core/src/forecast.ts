@@ -138,6 +138,8 @@ function sigStation(planet: string): string {
 }
 
 function sigT2t(p1: string, p2: string): string {
+  if ((p1 === "Sun" && p2 === "Moon") || (p1 === "Moon" && p2 === "Sun"))
+    return "medium"; // lunations — new/full/quarter Moons carry the month
   if (OUTER.has(p1) && OUTER.has(p2)) return "high";
   if (OUTER.has(p1) || OUTER.has(p2)) return "medium";
   return "low";
@@ -218,6 +220,31 @@ const round3 = (x: number) => Math.round(x * 1000) / 1000;
 
 const BIG = 999.0;
 
+// Per-pair orb tracking state: key → [prev_orb, was_decreasing]. The trend
+// bit is what detects an exactness pass: the orb was shrinking and has now
+// started to grow — a sign change of the orb's derivative. (The old fixed
+// +0.03°/day hysteresis could never fire for slow outer-planet pairs, whose
+// orb changes ≪ 0.03°/day near the minimum, so the most significant transits
+// were dropped.)
+type OrbState = Map<string, [number, boolean]>;
+
+/** Advance one pair's orb state; return the minimum orb when the orb just
+ *  passed a local minimum inside `threshold`, else null. */
+function minimumStep(
+  state: OrbState,
+  key: string,
+  curr: number,
+  threshold: number
+): number | null {
+  const [prev, decreasing] = state.get(key) ?? [BIG, true];
+  const fired = decreasing && prev < threshold && curr > prev ? prev : null;
+  let dec = decreasing;
+  if (curr < prev) dec = true;
+  else if (curr > prev) dec = false;
+  state.set(key, [curr, dec]);
+  return fired;
+}
+
 export function generateForecast(
   natal: Record<string, number>,
   startISO: string,
@@ -231,26 +258,39 @@ export function generateForecast(
   const dayBefore = addDays(sy, sm, sd, -1);
   let prevPos = positions(jdNoon(dayBefore[0], dayBefore[1], dayBefore[2]));
 
-  const ttOrbs = new Map<string, number>();
-  const tnOrbs = new Map<string, number>();
+  const ttOrbs: OrbState = new Map();
+  const tnOrbs: OrbState = new Map();
   const ttFired = new Set<string>();
   const tnFired = new Set<string>();
 
   const bodyNames = TRANSIT_BODIES;
 
-  // Initialise orb tables from the pre-range day.
+  // Initialise orb tables from the pre-range day. Moon pairs always key as
+  // ("Moon", other) — the 6-hour Moon block is their only tracker, and a
+  // symmetric ("Sun", "Moon") entry would sit stale until the final pass
+  // emitted it as a phantom last-day event.
   for (let i = 0; i < bodyNames.length; i++) {
     const n1 = bodyNames[i];
     if (!(n1 in prevPos)) continue;
     const lon1 = prevPos[n1][0];
     for (let j = 0; j < bodyNames.length; j++) {
       const n2 = bodyNames[j];
-      if (j <= i || !(n2 in prevPos)) continue;
+      if (j <= i || !(n2 in prevPos) || n1 === "Moon" || n2 === "Moon") continue;
       const lon2 = prevPos[n2][0];
-      for (const [asp, ang] of ASPECTS) ttOrbs.set(`${n1}|${n2}|${asp}`, orb(lon1, lon2, ang));
+      for (const [asp, ang] of ASPECTS)
+        ttOrbs.set(`${n1}|${n2}|${asp}`, [orb(lon1, lon2, ang), true]);
     }
     for (const [nn, nlon] of Object.entries(natal)) {
-      for (const [asp, ang] of ASPECTS) tnOrbs.set(`${n1}|${nn}|${asp}`, orb(lon1, nlon, ang));
+      for (const [asp, ang] of ASPECTS)
+        tnOrbs.set(`${n1}|${nn}|${asp}`, [orb(lon1, nlon, ang), true]);
+    }
+  }
+  if ("Moon" in prevPos) {
+    const mlon = prevPos["Moon"][0];
+    for (const n2 of bodyNames) {
+      if (n2 === "Moon" || !(n2 in prevPos)) continue;
+      for (const [asp, ang] of ASPECTS)
+        ttOrbs.set(`Moon|${n2}|${asp}`, [orb(mlon, prevPos[n2][0], ang), true]);
     }
   }
 
@@ -287,14 +327,12 @@ export function generateForecast(
         const lon2 = pos[n2][0];
         for (const [asp, ang, threshold] of ASPECTS) {
           const key = `${n1}|${n2}|${asp}`;
-          const curr = orb(lon1, lon2, ang);
-          const prev = ttOrbs.get(key) ?? BIG;
-          if (prev < threshold && curr > prev + 0.03) {
-            const ev = eventT2t(n1, n2, asp, yIso, prev);
+          const minOrb = minimumStep(ttOrbs, key, orb(lon1, lon2, ang), threshold);
+          if (minOrb !== null) {
+            const ev = eventT2t(n1, n2, asp, yIso, minOrb);
             if ((SIG_RANK[ev.significance] ?? 1) >= minRank) events.push(ev);
             ttFired.add(key);
           }
-          ttOrbs.set(key, curr);
         }
       }
     }
@@ -307,50 +345,45 @@ export function generateForecast(
         const tThreshold = INNER.has(tname) ? 1.0 : 1.5;
         for (const [asp, ang] of ASPECTS) {
           const key = `${tname}|${nname}|${asp}`;
-          const curr = orb(tlon, nlon, ang);
-          const prev = tnOrbs.get(key) ?? BIG;
-          if (prev < tThreshold && curr > prev + 0.02) {
-            const ev = eventT2n(tname, nname, asp, yIso, prev);
+          const minOrb = minimumStep(tnOrbs, key, orb(tlon, nlon, ang), tThreshold);
+          if (minOrb !== null) {
+            const ev = eventT2n(tname, nname, asp, yIso, minOrb);
             if ((SIG_RANK[ev.significance] ?? 1) >= minRank) events.push(ev);
             tnFired.add(key);
           }
-          tnOrbs.set(key, curr);
         }
       }
     }
 
-    // Moon at 6h resolution
+    // Moon at 6h resolution. Every OTHER body pairs with the Moon here —
+    // including the Sun, whose Moon aspects are the lunations (new/full
+    // Moons and quarters). An index guard copied from the symmetric daily
+    // loop used to skip the Sun entirely.
     const jdMidnight = jd - 0.5;
-    const moonIdx = bodyNames.indexOf("Moon");
     for (const subFrac of [0.0, 0.25, 0.5, 0.75]) {
       const ml = moonLon(jdMidnight + subFrac);
       for (const n2 of bodyNames) {
         if (n2 === "Moon" || !(n2 in pos)) continue;
-        if (bodyNames.indexOf(n2) <= moonIdx) continue;
         const lon2 = pos[n2][0];
         for (const [asp, ang, threshold] of ASPECTS) {
           const key = `Moon|${n2}|${asp}`;
-          const curr = orb(ml, lon2, ang);
-          const prev = ttOrbs.get(key) ?? BIG;
-          if (prev < threshold && curr > prev + 0.03) {
-            const ev = eventT2t("Moon", n2, asp, todayIso, prev);
+          const minOrb = minimumStep(ttOrbs, key, orb(ml, lon2, ang), threshold);
+          if (minOrb !== null) {
+            const ev = eventT2t("Moon", n2, asp, todayIso, minOrb);
             if ((SIG_RANK[ev.significance] ?? 1) >= minRank) events.push(ev);
             ttFired.add(key);
           }
-          ttOrbs.set(key, curr);
         }
       }
       for (const [nname, nlon] of Object.entries(natal)) {
         for (const [asp, ang] of ASPECTS) {
           const key = `Moon|${nname}|${asp}`;
-          const curr = orb(ml, nlon, ang);
-          const prev = tnOrbs.get(key) ?? BIG;
-          if (prev < 1.0 && curr > prev + 0.02) {
-            const ev = eventT2n("Moon", nname, asp, todayIso, prev);
+          const minOrb = minimumStep(tnOrbs, key, orb(ml, nlon, ang), 1.0);
+          if (minOrb !== null) {
+            const ev = eventT2n("Moon", nname, asp, todayIso, minOrb);
             if ((SIG_RANK[ev.significance] ?? 1) >= minRank) events.push(ev);
             tnFired.add(key);
           }
-          tnOrbs.set(key, curr);
         }
       }
     }
@@ -365,16 +398,16 @@ export function generateForecast(
   const lastDay = addDays(sy, sm, sd, days - 1);
   const lastIso = isoDate(lastDay[0], lastDay[1], lastDay[2]);
 
-  for (const [key, finalOrb] of ttOrbs) {
-    if (ttFired.has(key)) continue;
+  for (const [key, [finalOrb, decreasing]] of ttOrbs) {
+    if (ttFired.has(key) || !decreasing) continue;
     const [n1, n2, asp] = key.split("|");
     if (finalOrb < (aspThresholds[asp] ?? 2.0)) {
       const ev = eventT2t(n1, n2, asp, lastIso, finalOrb);
       if ((SIG_RANK[ev.significance] ?? 1) >= minRank) events.push(ev);
     }
   }
-  for (const [key, finalOrb] of tnOrbs) {
-    if (tnFired.has(key)) continue;
+  for (const [key, [finalOrb, decreasing]] of tnOrbs) {
+    if (tnFired.has(key) || !decreasing) continue;
     const [tname, nname, asp] = key.split("|");
     const tThreshold = INNER.has(tname) ? 1.0 : 1.5;
     if (finalOrb < tThreshold) {

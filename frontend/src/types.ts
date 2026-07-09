@@ -36,7 +36,9 @@ export interface Aspect {
   separation: number;
   harmony: "harmonious" | "challenging" | "neutral";
   color: string;
-  applying: boolean;
+  // true = tightening, false = separating, null = undefined (both points
+  // static — angles / Part of Fortune have no motion of their own).
+  applying: boolean | null;
 }
 
 export interface Pattern {
