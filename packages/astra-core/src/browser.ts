@@ -82,5 +82,9 @@ export {
   type DrawnCard,
   type TarotCard,
   type LocalReading,
+  dailyArcanaFromEvents,
+  arcanaForEvent,
+  type ArcanaDay,
+  type OverlayEvent,
   type ReadingDrawnCard,
 } from "./tarot.js";

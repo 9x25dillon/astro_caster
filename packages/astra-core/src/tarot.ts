@@ -479,3 +479,131 @@ export function buildLocalReading(
     disclaimer: DISCLAIMER,
   };
 }
+
+// --------------------------------------------------------------------------- //
+// Phase 7 — Transit arcana overlay (port of tarot.daily_arcana_from_events):
+// one trump per day of a forecast window, mapped from the day's most
+// significant transit event, or a natal-weighted "quiet sky" draw when the
+// day has none. Deterministic for (events, start, days, signature) — the
+// on-device fallback for /api/arcana-forecast.
+// --------------------------------------------------------------------------- //
+
+interface TarotDataPhase7 {
+  major_lessons: Record<string, Record<string, string>>;
+  planet_activity: Record<string, string>;
+}
+const D7 = DECK as unknown as TarotDataPhase7;
+
+/** The forecast-event fields the overlay reads (structural subset of
+ *  forecast.ts's ForecastEvent / the backend event dicts). */
+export interface OverlayEvent {
+  date: string;
+  type?: string | null;
+  planet?: string | null;
+  target?: string | null;
+  significance?: string | null;
+  summary?: string | null;
+}
+
+export interface ArcanaDay {
+  date: string;
+  transit_summary: string;
+  natal_link: string | null;
+  card: TarotCard;
+  reversed: boolean;
+  lesson: string;
+  shadow: string;
+  best_expression: string;
+  alignment_action: string;
+  journal_prompt: string;
+}
+
+const OVERLAY_SIG_RANK: Record<string, number> = { high: 3, medium: 2, low: 1 };
+const QUIET_SKY_SUMMARY = "Quiet sky — an integration day.";
+
+/** Map a forecast event to (card id, natal link) — transit-to-natal takes the
+ *  natal target's trump, otherwise the moving planet's; the Wheel as a last
+ *  resort (port of tarot.arcana_for_event). */
+export function arcanaForEvent(event: OverlayEvent): [string, string | null] {
+  if (event.type === "transit_natal") {
+    const target = (event.target ?? "").replace("natal ", "").trim();
+    if (target in PLANET_MAJOR) return [PLANET_MAJOR[target], target];
+  }
+  const planet = event.planet;
+  if (planet && planet in PLANET_MAJOR) return [PLANET_MAJOR[planet], planet];
+  return ["wheel_of_fortune", null];
+}
+
+function arcanaDay(
+  date: string,
+  cardId: string,
+  reversedFlag: boolean,
+  natalLink: string | null,
+  transitSummary: string
+): ArcanaDay {
+  const lesson = D7.major_lessons[cardId] ?? {};
+  return {
+    date,
+    transit_summary: transitSummary,
+    natal_link: natalLink,
+    card: CARD_BY_ID[cardId],
+    reversed: reversedFlag,
+    lesson: lesson.psychological ?? "",
+    shadow: lesson.shadow ?? "",
+    best_expression: CARD_BY_ID[cardId]?.upright ?? "",
+    alignment_action:
+      (natalLink ? D7.planet_activity[natalLink] : undefined) ?? lesson.practice ?? "",
+    journal_prompt: lesson.journal ?? "",
+  };
+}
+
+function addDaysIso(iso: string, n: number): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d + n));
+  return dt.toISOString().slice(0, 10);
+}
+
+/** Build EXACTLY one card per day over the window. For a date with transit
+ *  events, the highest-significance event maps to a trump; a date without one
+ *  gets a deterministic natal-weighted "quiet sky" draw, so an N-day request
+ *  always returns N cards (port of tarot.daily_arcana_from_events). */
+export function dailyArcanaFromEvents(
+  events: OverlayEvent[],
+  startIso: string,
+  days: number,
+  signature: NatalArcanaSignature
+): ArcanaDay[] {
+  const byDate = new Map<string, OverlayEvent>();
+  for (const ev of events) {
+    if (!ev.date) continue;
+    const cur = byDate.get(ev.date);
+    if (
+      cur === undefined ||
+      (OVERLAY_SIG_RANK[ev.significance ?? ""] ?? 1) >
+        (OVERLAY_SIG_RANK[cur.significance ?? ""] ?? 1)
+    ) {
+      byDate.set(ev.date, ev);
+    }
+  }
+
+  const out: ArcanaDay[] = [];
+  const seedBase = startIso;
+  for (let i = 0; i < days; i++) {
+    const date = addDaysIso(startIso, i);
+    const ev = byDate.get(date);
+    if (ev !== undefined) {
+      const [cardId, natalLink] = arcanaForEvent(ev);
+      // Stable per-day reversal (no global RNG state).
+      const reversedFlag = seedRng(seedBase, date, cardId).random() < REVERSED_PROB;
+      out.push(arcanaDay(date, cardId, reversedFlag, natalLink, ev.summary ?? ""));
+    } else {
+      const rng = seedRng(seedBase, date, "quiet");
+      const cardId = weightedSampleWithoutReplacement(
+        rng, [...D.major_ids], signature.major_weights, 1
+      )[0];
+      const reversedFlag = rng.random() < REVERSED_PROB;
+      out.push(arcanaDay(date, cardId, reversedFlag, null, QUIET_SKY_SUMMARY));
+    }
+  }
+  return out;
+}

@@ -19,6 +19,7 @@ import { PredictiveModal } from "./components/PredictiveModal";
 import { AdvancedModal } from "./components/AdvancedModal";
 import { AdminPanel } from "./components/AdminPanel";
 import { InstallPrompt } from "./components/InstallPrompt";
+import { MorningPanel } from "./components/MorningPanel";
 import { deriveSoulProfile } from "./lib/archetypes";
 import { trackEvent } from "./api/client";
 
@@ -159,6 +160,8 @@ export const App: React.FC = () => {
         onOpenForecast={() => { setForecastOpen(true); trackEvent("forecast_opened"); }}
         onNewChart={() => setCeremonyOpen(true)}
       />
+
+      <MorningPanel />
 
       <div className="wheel-area">
         {chartFromCache && (

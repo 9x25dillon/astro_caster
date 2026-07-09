@@ -49,6 +49,7 @@ FORECAST_FILE = PARITY_DIR / "forecast.json"
 SYNASTRY_FILE = PARITY_DIR / "synastry.json"
 PREDICTIVE_FILE = PARITY_DIR / "predictive.json"
 ADVANCED_FILE = PARITY_DIR / "advanced.json"
+ARCANA_FC_FILE = PARITY_DIR / "arcana-forecast.json"
 
 # The two reference charts every backend suite already leans on.
 CASES: list[tuple[str, dict]] = [
@@ -250,6 +251,54 @@ def build_forecast_payload() -> dict:
         return {"schema": "astra-parity/forecast@1",
                 "date_tolerance_days": 0, "orb_tolerance_deg": 1e-6,
                 "cases": cases}
+    finally:
+        FC._TRANSIT_BODIES = saved
+
+
+# --------------------------------------------------------------------------- #
+# Arcana forecast — the daily transit-card overlay (Phase 7): forecast events
+# → one trump per day, or a natal-weighted "quiet sky" draw for an eventless
+# day. Exact (categorical + the seeded RNG). Two significance windows per
+# chart so BOTH paths are locked: min_sig=medium exercises the event→trump
+# mapping, min_sig=high leaves eventless days that exercise the quiet-sky
+# weighted draw.
+# --------------------------------------------------------------------------- #
+
+ARCANA_FC_START = "2026-01-01"
+ARCANA_FC_DAYS = 7
+ARCANA_FC_SIGS = ["medium", "high"]
+
+
+def build_arcana_forecast_payload() -> dict:
+    saved = FC._TRANSIT_BODIES
+    FC._TRANSIT_BODIES = _SUPPORTED_TRANSITS
+    try:
+        cases = []
+        start = _dt.date.fromisoformat(ARCANA_FC_START)
+        for case_id, req in CASES:
+            natal = _natal_map(req)
+            sig = TAROT.build_natal_arcana_signature(_supported_chart(req))
+            for min_sig in ARCANA_FC_SIGS:
+                events = FC.generate_forecast(natal, start, days=ARCANA_FC_DAYS,
+                                              min_sig=min_sig)
+                cards = TAROT.daily_arcana_from_events(
+                    events, ARCANA_FC_START, ARCANA_FC_DAYS, sig)
+                slim = [{
+                    "date": c["date"], "card": c["card"]["id"],
+                    "reversed": c["reversed"], "natal_link": c["natal_link"],
+                    "transit_summary": c["transit_summary"],
+                    "lesson": c["lesson"], "shadow": c["shadow"],
+                    "best_expression": c["best_expression"],
+                    "alignment_action": c["alignment_action"],
+                    "journal_prompt": c["journal_prompt"],
+                } for c in cards]
+                cases.append({
+                    "id": f"{case_id}-{min_sig}", "request": req, "natal": natal,
+                    "start": ARCANA_FC_START, "days": ARCANA_FC_DAYS,
+                    "min_sig": min_sig, "cards": slim,
+                })
+        return _round_floats({"schema": "astra-parity/arcana-forecast@1",
+                              "cases": cases})
     finally:
         FC._TRANSIT_BODIES = saved
 
@@ -521,6 +570,7 @@ def main() -> None:
         (SYNASTRY_FILE, build_synastry_payload()),
         (PREDICTIVE_FILE, build_predictive_payload()),
         (ADVANCED_FILE, build_advanced_payload()),
+        (ARCANA_FC_FILE, build_arcana_forecast_payload()),
     ]
 
     if args.check:
