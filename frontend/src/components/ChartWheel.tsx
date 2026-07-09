@@ -765,7 +765,7 @@ export const ChartWheel: React.FC<Props> = ({ size = 720 }) => {
               glyph: ASPECT_SYMBOL[a.type] ?? "∠", title: a.type,
               subtitle: `${a.p1} – ${a.p2}`,
               blurb: ASPECT_INFLUENCE[a.type] ?? "", hasPersonal: true,
-              personal: `Orb ${a.orb}° · ${a.applying ? "applying" : "separating"}.`,
+              personal: `Orb ${a.orb}°${a.applying == null ? "" : a.applying ? " · applying" : " · separating"}.`,
             };
           }
         } else if (hovered.type === "transit_aspect" && transit) {
@@ -783,7 +783,7 @@ export const ChartWheel: React.FC<Props> = ({ size = 720 }) => {
               title: `${transId} ${ASPECT_SYMBOL[a.type] ?? ""} ${a.p2}`.trim(),
               subtitle: `transiting ${transId} – natal ${a.p2}`,
               blurb: ASPECT_INFLUENCE[a.type] ?? "", hasPersonal: true,
-              personal: `Orb ${a.orb}° · ${a.applying ? "applying" : "separating"}.`,
+              personal: `Orb ${a.orb}°${a.applying == null ? "" : a.applying ? " · applying" : " · separating"}.`,
             };
           }
         }

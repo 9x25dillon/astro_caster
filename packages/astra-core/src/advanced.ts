@@ -12,7 +12,7 @@ import {
   norm360,
   signFor,
 } from "./astrology.js";
-import { calculateChart } from "./ephemeris.js";
+import { calculateChart, chartFrameOffset } from "./ephemeris.js";
 import { circularMidpoint } from "./synastry.js";
 import type { ChartRequest } from "./types.js";
 
@@ -94,8 +94,10 @@ export interface MidpointTreeEntry {
   contacts: MidpointContact[];
 }
 
+// 0/90/180 cover the whole 90° dial: angularSeparation lives in [0, 180], so a
+// 270° contact is indistinguishable from 90° and needs no entry of its own.
 const DIAL_ANGLES: [number, string][] = [
-  [0, "conjunction"], [90, "square"], [180, "opposition"], [270, "square"],
+  [0, "conjunction"], [90, "square"], [180, "opposition"],
 ];
 
 export function midpointTree(natal: ChartRequest, orb = 1.0): MidpointTreeEntry[] {
@@ -112,10 +114,9 @@ export function midpointTree(natal: ChartRequest, orb = 1.0): MidpointTreeEntry[
       for (const c of bodies) {
         if (c.id === a.id || c.id === b.id) continue;
         const sep = angularSeparation(c.longitude, mid); // 0..180
-        for (const [ang, name] of DIAL_ANGLES) {
-          const target = ang <= 180 ? ang : 360 - ang; // 270 -> 90 in 0..180 space
+        for (const [target, name] of DIAL_ANGLES) {
           if (Math.abs(sep - target) <= orb) {
-            contacts.push({ body: c.id, angle: ang, aspect: name, orb: round2(Math.abs(sep - target)) });
+            contacts.push({ body: c.id, angle: target, aspect: name, orb: round2(Math.abs(sep - target)) });
             break;
           }
         }
@@ -177,9 +178,13 @@ function starLongitude(lon2000: number, year: number): number {
 export function fixedStarHits(natal: ChartRequest, orb = 1.5): FixedStarHit[] {
   const chart = calculateChart(natal);
   const year = natal.year;
+  // The catalogue precesses in the TROPICAL frame; a sidereal chart's planet
+  // longitudes sit an ayanamsha (~24°) away. Shift each star into the chart's
+  // frame before comparing (and report it there, beside the chart).
+  const off = chartFrameOffset(natal);
   const hits: FixedStarHit[] = [];
   for (const [star, [lon2000, nature]] of Object.entries(FIXED_STARS)) {
-    const starLon = starLongitude(lon2000, year);
+    const starLon = norm360(starLongitude(lon2000, year) - off);
     const [degree] = degreeInSign(starLon);
     const sign = signFor(starLon);
     for (const p of chart.planets) {

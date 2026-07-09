@@ -116,26 +116,48 @@ export function calcSwissBody(
   return { lon: ecl[0], lat: ecl[1], speed: ecl[3], dec: eq[1] };
 }
 
+// Swiss's special "body" that returns the frame terms instead of a position:
+// x[0]=true obliquity, x[1]=mean obliquity, x[2]=nutation in longitude,
+// x[3]=nutation in obliquity (swephexp.h SE_ECL_NUT).
+const SE_ECL_NUT = -1;
+
+/** Nutation in longitude (deg) at jd — the term separating the true equinox
+ *  (which body longitudes are referred to) from the mean equinox (which
+ *  swe_get_ayanamsa_ut is referred to). */
+export function swissNutationLon(jd: number): number | null {
+  const m = instance;
+  if (!m) return null;
+  const r = calcRaw(m, jd, SE_ECL_NUT, SEFLG_SWIEPH);
+  return r ? r[2] : null;
+}
+
 /** Houses + angles via swe_houses — the same C the backend's houses_ex runs
  *  (tropical; the wasm build has no sidereal export). cusps[0..11] = houses
- *  1..12; ascmc: 0=Asc, 1=MC, 2=ARMC, 3=Vertex. */
+ *  1..12; ascmc: 0=Asc, 1=MC, 2=ARMC, 3=Vertex. Placidus/Koch cusps don't
+ *  exist at/beyond the polar circles — the C returns ERR (and silently
+ *  computes Porphyry); mirror the backend by falling back to whole-sign
+ *  ("W") and flagging the result with `fellBack`. */
 export function calcSwissHouses(
   jd: number,
   lat: number,
   lon: number,
   hsys: string
-): { cusps: number[]; asc: number; mc: number; vertex: number } | null {
+): { cusps: number[]; asc: number; mc: number; vertex: number; fellBack?: boolean } | null {
   const m = instance;
   if (!m) return null;
   const cuspsPtr = m._malloc(13 * 8);
   const ascmcPtr = m._malloc(10 * 8);
   try {
-    m.ccall(
+    const ret = m.ccall(
       "swe_houses_wrap",
       "number",
       ["number", "number", "number", "number", "number", "number"],
       [jd, lat, lon, hsys.charCodeAt(0), cuspsPtr, ascmcPtr]
-    );
+    ) as number;
+    if (ret < 0 && hsys !== "W") {
+      const w = calcSwissHouses(jd, lat, lon, "W");
+      return w ? { ...w, fellBack: true } : null;
+    }
     const cusps: number[] = [];
     for (let i = 1; i <= 12; i++) cusps.push(m.getValue(cuspsPtr + i * 8, "double"));
     return {

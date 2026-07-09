@@ -12,7 +12,14 @@
 // Drift-locked to the backend by parity/predictive.json.
 
 import { angularSeparation, degreeInSign, signFor } from "./astrology.js";
-import { calculateChart, aspectsBetween, eclipticLonSpeed, julianDay, searchEclipses } from "./ephemeris.js";
+import {
+  calculateChart,
+  aspectsBetween,
+  eclipticLonSpeed,
+  julianDay,
+  searchEclipses,
+  type ZodiacFrame,
+} from "./ephemeris.js";
 import type { Angles, Aspect, ChartRequest, HouseCusp, PlanetData } from "./types.js";
 
 export const PREDICTIVE_DISCLAIMER =
@@ -124,13 +131,18 @@ export function progressedChart(natal: ChartRequest, targetIso: string): Progres
 // Solar return
 // --------------------------------------------------------------------------- //
 
-/** JD nearest the birthday in `year` when the Sun is back at `natalSunLon`. */
+/** JD nearest the birthday in `year` when the Sun is back at `natalSunLon`.
+ *
+ *  `frame` must put the transiting Sun in the SAME zodiac frame as
+ *  `natalSunLon` — comparing a sidereal natal longitude against tropical
+ *  positions offsets the root-find by the ayanamsha (~24 days of Sun motion). */
 export function solarReturnJd(
-  natalSunLon: number, year: number, month: number, day: number
+  natalSunLon: number, year: number, month: number, day: number,
+  frame?: ZodiacFrame
 ): number {
   let jd = julianDay(year, month, day, 12.0);
   for (let i = 0; i < 10; i++) {
-    const sun = eclipticLonSpeed(jd, "Sun");
+    const sun = eclipticLonSpeed(jd, "Sun", frame);
     if (!sun) break;
     const delta = signedDelta(natalSunLon, sun.lon);
     jd += delta / SUN_DEG_PER_DAY;
@@ -197,7 +209,9 @@ export function eclipseTimeline(natal: ChartRequest, startIso?: string, count = 
   const natalChart = calculateChart(natal);
   const start = startIso ? new Date(parseIsoUtc(startIso)) : new Date();
   const eclipses: EclipseEvent[] = searchEclipses(start, count).map((e) => {
-    const lon = eclipticLonSpeed(e.jd, e.is_solar ? "Sun" : "Moon")!.lon;
+    // The eclipse longitude is compared against (and displayed beside) the
+    // natal chart's positions — compute it in the chart's zodiac frame.
+    const lon = eclipticLonSpeed(e.jd, e.is_solar ? "Sun" : "Moon", natal)!.lon;
     const [degree] = degreeInSign(lon);
     return {
       date: e.date,
@@ -218,7 +232,9 @@ export function solarReturn(
   const natalChart = calculateChart(natal);
   const natalSun = natalChart.planets.find((p) => p.id === "Sun");
   if (!natalSun) throw new Error("natal chart has no Sun");
-  const jd = solarReturnJd(natalSun.longitude, year, natal.month, natal.day);
+  // Root-find in the chart's own frame (sidereal natal Sun ⇒ sidereal
+  // transiting Sun).
+  const jd = solarReturnJd(natalSun.longitude, year, natal.month, natal.day, natal);
   const retD = jdToUtcDate(jd);
   const req = utcToRequest(retD, lat ?? natal.lat, lng ?? natal.lng, natal);
   const chart = calculateChart(req);

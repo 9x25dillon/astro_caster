@@ -316,7 +316,7 @@ export const DetailPanel: React.FC = () => {
                     onClick={() => select({ type: "aspect", id: `${a.p1}|${a.p2}|${a.type}` })}
                   >
                     <GlossaryTooltip term={a.type}><span style={{ color: a.color }}>{a.type}</span></GlossaryTooltip> {other} · orb {a.orb}°{" "}
-                    {a.applying ? "↗" : "↘"}
+                    {a.applying == null ? "·" : a.applying ? "↗" : "↘"}
                   </div>
                 );
               })}
@@ -362,7 +362,7 @@ export const DetailPanel: React.FC = () => {
           <div className="kv"><b>Separation</b><span>{a.separation}°</span></div>
           <div className="kv"><b>Orb</b><span>{a.orb}°</span></div>
           <div className="kv"><b>Quality</b><span>{a.harmony}</span></div>
-          <div className="kv"><b>Phase</b><span>{a.applying ? "Applying" : "Separating"}</span></div>
+          <div className="kv"><b>Phase</b><span>{a.applying == null ? "Static" : a.applying ? "Applying" : "Separating"}</span></div>
         </>
       );
     }
