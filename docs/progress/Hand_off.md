@@ -1,42 +1,48 @@
 # Hand_off.md
 
-_Last updated: 2026-07-08 end-of-day (session 12 close)_
+_Last updated: 2026-07-10 end-of-session (session 14 close)_
 
 ## TL;DR for next session
 
-**Pick up with the issue-#54 correctness sweep, THEN P2.** Issue #54 (an
-external Claude review) surfaced real astronomy bugs — top-3 verified against
-source at session close (triage comment on the issue is the work order):
-sidereal solar returns off by ~24 days (frame mismatch), **lunations never
-appear in forecasts** (Sun skipped in the Moon block), and slow outer-planet
-exactness dropped by the hysteresis. Fix order matters: P2's Morning panel
-shows "today's tightest transits" — build it AFTER lunations exist.
-⚠ Every astronomy fix is DUAL-STACK (@astra/core ports these bugs
-faithfully) + vector regeneration, or parity CI breaks.
+**Merge queue (operator, in order): #64 Course → #65 plates → #67 dial** —
+stacked; GitHub retargets as bases merge. All green.
 
-**Then P2 — the Morning panel** (NEXT_ARC Track 3): an at-a-glance
-boot surface with today's daily card + the day's tightest transits. All
-engines exist and run offline (`arcana-forecast` daily card; the forecast
-scanner); this is composition, not engineering. After P2: Track R redesign
-(wireframes FIRST, per the ratified blueprint).
+**Then build R-2 (the margin glass).** The build sheet is in the Track R
+wireframes artifact (§"R-2 mockup", fig. 5):
+https://claude.ai/code/artifact/b42a9765-4e12-42fb-93fb-a4472c4d8102
+One PR, ~4 commits: (1) unwrap the six chapter components' modal-overlay
+chrome + delete the .chapter-host neutralization CSS (they only mount in
+chapters since R-1/PR #67); (2) `marginContent` store slot — chapters publish
+selections, DetailPanel renders them; (3) Ask input moves to the margin's
+pinned foot, visible in every chapter; (4) JournalPad beside every selection.
+Overlays that STAY overlays: Support, Ceremony, Admin, Glossary, Oracle/Soul.
+Acceptance: no chapter .modal-overlay in DOM, 66 e2e green (selector edits
+only), ergonomic law holds (fixed dial positions, keys 1-8/Esc, thumb arc).
+After R-2: R-3 (Library chapter + ✦ Generate-My-Tome spine meter), R-4
+(material pass: void glass, ion trace, constellation path — LAST).
 
-**Merge first:** PR **#57** (P1 Journal) may still be open — all checks were
-green at session close.
+**Session-14 facts you need:**
+- **Anthropic usage cap EXHAUSTED until 2026-08-01** — Fable calls 400;
+  offline compilers serve honestly meanwhile (course verified live that way).
+- **The operator's image key is an OPENAI key** — plumbing shipped in #65
+  (`/api/deck-art-image`, Studio "◈ render plate"). **Key still NOT in
+  backend/.env** — operator adds `AAE_OPENAI_API_KEY=sk-...`, then live-verify
+  ONE plate.
+- **Voice canon (operator, verbatim): "nothing Astra produces is a life
+  sentence, it is a life poem."** Governs all copy; R-2+ should collapse the
+  five DISCLAIMER variants into this refrain as a chapter running-footer;
+  it's the tome colophon. Copy test: does the line open a door or close one?
+- The Course: backend/course.py + POST /api/course (oracle tier) + Classroom
+  composer; 4.1 learning-path inversion FIXED (path departs anchor, descends
+  when needed). Plates: backend/plate_art.py, oracle tier, honest 503 sans key.
+- Dial (R-1): ChapterDial.tsx — nodes at fixed compass positions and they
+  NEVER move (the drift lives on a decorative dashed ring; a drifting node
+  broke both Playwright stability and the ergonomic law). e2e enters chapters
+  via helpers.openChapter().
+- Issue #54: every accepted item merged; close-out comment posted; operator
+  may close it.
 
-**New since the blueprint:** the operator has **acquired an image-generation
-API key** for P3 (deck-art plates). Provider/model unknown to the repo —
-ASK which service it is before wiring anything. The ratified sequence still
-defers the P3 build decision until after tome Phase 0 + Track R, but the
-key being in hand removes its main blocker; treat P3 as "awaiting sequencing,"
-not "awaiting decision." Key handling: backend/.env var (never frontend),
-posture identical to the Anthropic key (network-optional, honest provenance).
-
-**Session-12 arc scoreboard:** Track 2 complete (B1 Vault @1→@3, B2 Bookshelf,
-B3 backup notes) · P1 Journal complete (PR #57) · P2 next · earlier the same
-day: premium Fable 5 live end-to-end, WASM Swiss all-bodies + sidereal
-(astronomy-engine retired, near-bit-exact parity), tome plates page, H1
-exited on the phone, Track D observability closed.
-
+---
 ---
 
 ### (previous TL;DR, still accurate below)
