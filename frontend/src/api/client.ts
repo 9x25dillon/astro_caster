@@ -825,6 +825,35 @@ export function fetchDeckArt(
   });
 }
 
+// ── Deck-art plates (P3) — the Studio's briefs painted via OpenAI images ─────
+
+export interface PlateResponse {
+  card_id: string;
+  title: string;
+  prompt: string;
+  image_b64: string; // PNG — render as data:image/png;base64,…
+  model: string;
+  size: string;
+  quality: string;
+  ai_source: "openai";
+  disclaimer: string;
+}
+
+/** Render ONE plate (real money per call). 402 below oracle tier; 503 when
+ *  the server has no AAE_OPENAI_API_KEY — prompts stay free either way. */
+export function renderPlate(
+  chart: ChartResponse,
+  cardId: string,
+  opts: { source?: SourceSystem; entitlement?: string | null } = {},
+): Promise<PlateResponse> {
+  return post<PlateResponse>("/deck-art-image", {
+    chart,
+    card_id: cardId,
+    source: opts.source ?? "golden_dawn",
+    entitlement: opts.entitlement ?? null,
+  });
+}
+
 /** Download the arcana forecast as an .ics calendar file (Phase 3.2). */
 export async function downloadArcanaCalendar(
   chart: ChartResponse,
