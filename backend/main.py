@@ -17,9 +17,11 @@ Endpoints:
   POST /api/learning-path       – deterministic archetypal learning path (Classroom)
   POST /api/arcana-calendar     – export forecast as an .ics calendar (ritual/journal)
   POST /api/oracle-report       – Fable 5 long-form report (oracle tier; offline fallback)
+  POST /api/course              – Fable-designed personal curriculum (oracle tier)
   POST /api/personal-report     – deluxe compiled edition (optional post-Oracle product)
   POST /api/personal-report/purchase – separate purchase rail: mint a report claim (PDF-2)
   POST /api/deck-art            – deterministic deck-art prompts (Studio)
+  POST /api/deck-art-image      – render one plate via OpenAI images (oracle tier)
   POST /api/synastry            – two-chart inter-aspects + house grid
   POST /api/composite           – midpoint composite chart
   POST /api/davison             – Davison time/space midpoint chart
@@ -84,13 +86,17 @@ from models import (
 )
 import tarot as TAROT
 import arcana_calendar as CAL
+import course as COURSE
 import deck_art as DA
+import plate_art as PLATE
 import oracle_report as ORACLE
 import personal_report as PERSONAL
 from tarot_models import (
     ArcanaCalendarRequest,
     ArcanaForecastRequest,
     ArcanaForecastResponse,
+    CourseRequest,
+    CourseResponse,
     DeckArtRequest,
     DeckArtResponse,
     LearningPathRequest,
@@ -643,6 +649,34 @@ async def oracle_report(req: OracleReportRequest, request: Request):
     return result
 
 
+@app.post("/api/course", response_model=CourseResponse)
+async def course(req: CourseRequest, request: Request):
+    """The Course — a Fable-designed personal curriculum over the chart's
+    learning path (anchor → growth edge). ORACLE TIER ONLY, same posture as
+    the Oracle Report: 402 before any work, deterministic offline curriculum
+    with honest ai_source when the AI layer is unavailable or refuses.
+    """
+    RL.check(request, "oracle", req.entitlement)   # cost cap before any work
+    tier = ENT.entitlement_status(req.entitlement).get("tier", "free")
+    if tier != "oracle":
+        raise HTTPException(
+            status_code=402,
+            detail="oracle entitlement required — the Course is a premium "
+                   "curriculum composed for your chart",
+        )
+    try:
+        result = await COURSE.generate_course(req)
+    except Exception as exc:
+        raise _client_error("course failed", exc)
+    _spawn(TEL.log_ai(
+        tier=tier, lens="course", depth="report", query=req.focus,
+        provider="anthropic" if result.ai_source == "llm" else "offline",
+        model=str(result.model or ""), response_len=len(result.course),
+        source=result.ai_source, sel_type="path", sel_id=result.anchor,
+    ))
+    return result
+
+
 @app.post("/api/personal-report", response_model=PersonalReportResponse)
 async def personal_report(req: PersonalReportRequest, request: Request):
     """The Astra Arcana Personal Report — deluxe compiled edition, an OPTIONAL
@@ -701,6 +735,41 @@ async def deck_art(req: DeckArtRequest):
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
         raise _client_error("deck art failed", exc)
+
+
+@app.post("/api/deck-art-image", response_model=PLATE.PlateResponse)
+async def deck_art_image(req: PLATE.PlateRequest, request: Request):
+    """Render ONE deck-art plate (NEXT_ARC P3) — the Studio's deterministic
+    brief painted through the OpenAI Images API. ORACLE TIER ONLY (each plate
+    is real money); 503 when the image layer is unconfigured — the prompts
+    themselves stay free and offline.
+    """
+    RL.check(request, "oracle", req.entitlement)   # cost cap before any work
+    tier = ENT.entitlement_status(req.entitlement).get("tier", "free")
+    if tier != "oracle":
+        raise HTTPException(
+            status_code=402,
+            detail="oracle entitlement required — rendering a plate is a paid "
+                   "image generation",
+        )
+    if not PLATE.plates_available():
+        raise HTTPException(
+            status_code=503,
+            detail="image layer not configured — set AAE_OPENAI_API_KEY; the "
+                   "deterministic prompts in the Studio work without it",
+        )
+    try:
+        result = await PLATE.render_plate(req)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        raise _client_error("plate render failed", exc)
+    _spawn(TEL.log_ai(
+        tier=tier, lens="deck_art_image", depth="image", query=req.card_id,
+        provider="openai", model=result.model, response_len=len(result.image_b64),
+        source="llm", sel_type="card", sel_id=req.card_id,
+    ))
+    return result
 
 
 @app.post("/api/arcana-calendar")

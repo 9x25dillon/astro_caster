@@ -33,7 +33,7 @@ backend/data/*.db-wal
 
 # Local reports and journals (not source code)
 oracle_report_*.txt
-GROK_FEEDBACK_REPORT.md
+course_*.txt
 journal/
 TASKS.md
 

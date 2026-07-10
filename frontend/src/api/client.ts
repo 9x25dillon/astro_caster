@@ -667,6 +667,42 @@ export function fetchOracleReport(
   });
 }
 
+// ── The Course — Fable-designed personal curriculum (oracle tier only) ────────
+
+export interface CourseResponse {
+  course_id: string;
+  source: SourceSystem;
+  lineage: string;
+  anchor: string;
+  growth_edge: string;
+  focus: string;
+  lessons: number;
+  course: string;
+  ai_source: "llm" | "offline";
+  model: string | null;
+  disclaimer: string;
+}
+
+/** The premium curriculum, written by Fable 5 over the deterministic learning
+ *  path. 402 below oracle tier — catch it and route to the support flow. */
+export function fetchCourse(
+  chart: ChartResponse,
+  opts: {
+    source?: SourceSystem;
+    lessons?: number;
+    focus?: string;
+    entitlement?: string | null;
+  } = {},
+): Promise<CourseResponse> {
+  return post<CourseResponse>("/course", {
+    chart,
+    source: opts.source ?? "golden_dawn",
+    lessons: opts.lessons ?? 7,
+    focus: opts.focus ?? "a foundation in reading my own chart",
+    entitlement: opts.entitlement ?? null,
+  });
+}
+
 // ── Personal Report — deluxe compiled edition (optional post-Oracle product) ──
 
 export interface PersonalReportResponse {
@@ -784,6 +820,35 @@ export function fetchDeckArt(
   return post<DeckArtResponse>("/deck-art", {
     chart,
     card_id: opts.cardId ?? null,
+    source: opts.source ?? "golden_dawn",
+    entitlement: opts.entitlement ?? null,
+  });
+}
+
+// ── Deck-art plates (P3) — the Studio's briefs painted via OpenAI images ─────
+
+export interface PlateResponse {
+  card_id: string;
+  title: string;
+  prompt: string;
+  image_b64: string; // PNG — render as data:image/png;base64,…
+  model: string;
+  size: string;
+  quality: string;
+  ai_source: "openai";
+  disclaimer: string;
+}
+
+/** Render ONE plate (real money per call). 402 below oracle tier; 503 when
+ *  the server has no AAE_OPENAI_API_KEY — prompts stay free either way. */
+export function renderPlate(
+  chart: ChartResponse,
+  cardId: string,
+  opts: { source?: SourceSystem; entitlement?: string | null } = {},
+): Promise<PlateResponse> {
+  return post<PlateResponse>("/deck-art-image", {
+    chart,
+    card_id: cardId,
     source: opts.source ?? "golden_dawn",
     entitlement: opts.entitlement ?? null,
   });

@@ -251,6 +251,33 @@ class OracleReportResponse(BaseModel):
 
 
 # --------------------------------------------------------------------------- #
+# The Course — Fable-designed personal curriculum (oracle tier)
+# --------------------------------------------------------------------------- #
+
+
+class CourseRequest(BaseModel):
+    chart: ChartResponse
+    source: SourceSystem = "golden_dawn"
+    lessons: int = Field(7, ge=3, le=8)    # learning-path depth = lesson count
+    focus: str = "a foundation in reading my own chart"
+    entitlement: Optional[str] = None      # REQUIRED in practice: oracle tier only
+
+
+class CourseResponse(BaseModel):
+    course_id: str                         # deterministic digest — the shelf key
+    source: SourceSystem
+    lineage: str
+    anchor: str                            # the archetype the curriculum departs from
+    growth_edge: str                       # the archetype it studies toward
+    focus: str
+    lessons: int                           # lesson count actually built
+    course: str                            # markdown; enriched (llm) or deterministic (offline)
+    ai_source: Literal["llm", "offline"]   # honest provenance — the client must show it
+    model: Optional[str] = None            # serving model when ai_source == "llm"
+    disclaimer: str = DISCLAIMER
+
+
+# --------------------------------------------------------------------------- #
 # Personal Report — deluxe compiled edition (optional post-Oracle product)
 # --------------------------------------------------------------------------- #
 
