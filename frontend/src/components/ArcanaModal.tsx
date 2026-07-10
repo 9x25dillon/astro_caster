@@ -11,6 +11,8 @@ import {
   fetchArcanaForecast,
   fetchLearningPath,
   fetchDeckArt,
+  renderPlate,
+  type PlateResponse,
   fetchOracleReport,
   fetchCourse,
   fetchPersonalReport,
@@ -113,6 +115,9 @@ export const ArcanaModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [course, setCourse] = useState<CourseResponse | null>(null);
   const [courseLoading, setCourseLoading] = useState(false);
   const [courseFocus, setCourseFocus] = useState("a foundation in reading my own chart");
+  // Deck-art plates (P3) — rendered images keyed by card id.
+  const [plates, setPlates] = useState<Record<string, PlateResponse>>({});
+  const [plateLoading, setPlateLoading] = useState<string | null>(null);
   // The exact (date, generated-at) context of the Oracle session — the Personal
   // Report must echo the same local date or the server's seed check rejects it.
   const [oracleCtx, setOracleCtx] = useState<{ date: string | null; generatedAt: string } | null>(null);
@@ -233,6 +238,40 @@ export const ArcanaModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function paintPlate(cardId: string) {
+    if (!chart || plateLoading) return;
+    setPlateLoading(cardId); setErr(null);
+    try {
+      // One plate per call — each render is a paid image generation.
+      const p = await renderPlate(chart, cardId, { source, entitlement });
+      setPlates((prev) => ({ ...prev, [cardId]: p }));
+      trackEvent("plate_rendered", { card: cardId, source, quality: p.quality });
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 402) {
+        setErr("Oracle tier required — rendering a plate is a paid image " +
+               "generation. Support at the oracle level to unlock it.");
+        openSupport(true);
+        trackEvent("plate_gated", { card: cardId });
+      } else if (e instanceof ApiError && e.status === 503) {
+        setErr("The image layer isn't configured on this observatory — the " +
+               "prompt itself is yours to paint with any image tool.");
+      } else {
+        setErr(String(e));
+      }
+    } finally {
+      setPlateLoading(null);
+    }
+  }
+
+  function downloadPlate(p: PlateResponse) {
+    const a = document.createElement("a");
+    a.href = `data:image/png;base64,${p.image_b64}`;
+    a.download = `astra-plate-${p.card_id}.png`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
   }
 
   async function loadCourse() {
@@ -987,6 +1026,14 @@ export const ArcanaModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                     <div key={p.card.id} className="arc-artifact" style={{ marginBottom: 10 }}>
                       <div className="arc-interp-head">{p.title}
                         <button className="ghost arc-copy" onClick={() => copy(p.prompt)}>copy</button>
+                        <button
+                          className="ghost arc-copy"
+                          title="Paint this brief into a card plate (oracle tier; paid image generation)"
+                          onClick={() => paintPlate(p.card.id)}
+                          disabled={plateLoading !== null}
+                        >
+                          {plateLoading === p.card.id ? "painting…" : "◈ render plate"}
+                        </button>
                       </div>
                       <pre className="arc-interp-text">{p.prompt}</pre>
                       {p.natal_context && (
@@ -995,6 +1042,24 @@ export const ArcanaModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                       <p style={{ opacity: 0.6, fontSize: "0.72rem", margin: "4px 0 0" }}>
                         avoid: {p.negative_prompt}
                       </p>
+                      {plates[p.card.id] && (
+                        <div className="arc-plate" style={{ marginTop: 8 }}>
+                          <img
+                            src={`data:image/png;base64,${plates[p.card.id].image_b64}`}
+                            alt={plates[p.card.id].title}
+                            style={{ width: "100%", maxWidth: 340, borderRadius: 8,
+                                     border: "1px solid var(--amethyst, #7a5cc4)" }}
+                          />
+                          <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4 }}>
+                            <span style={{ opacity: 0.6, fontSize: "0.72rem" }}>
+                              {plates[p.card.id].model} · {plates[p.card.id].size} · {plates[p.card.id].quality}
+                            </span>
+                            <button className="ghost arc-copy" onClick={() => downloadPlate(plates[p.card.id])}>
+                              ↓ save .png
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                   <p className="arc-disclaimer">{deckArt.disclaimer}</p>
