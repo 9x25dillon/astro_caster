@@ -1,6 +1,6 @@
 // P1 (NEXT_ARC): the Journal — reflections captured beside their readings,
 // persisted locally, exported as markdown.
-import { expect, test } from "./helpers";
+import { expect, test, openChapter } from "./helpers";
 import type { Page } from "@playwright/test";
 
 const ENTRY = {
@@ -41,7 +41,7 @@ test("a shelf reflection is kept, survives reload, and exports as markdown", asy
   await page.goto("/");
   await seedShelf(page);
 
-  await page.getByRole("button", { name: "❖ Shelf" }).click();
+  await openChapter(page, "VIII");
   await page.locator(".shelf-row").click();
   await page.getByRole("button", { name: /Add a reflection/ }).click();
   await page.locator(".jr-text").fill("The current runs toward the work I keep postponing.");
@@ -50,7 +50,7 @@ test("a shelf reflection is kept, survives reload, and exports as markdown", asy
 
   // Survives a full reload.
   await page.reload();
-  await page.getByRole("button", { name: "❖ Shelf" }).click();
+  await openChapter(page, "VIII");
   await page.locator(".shelf-row").click();
   await expect(page.locator(".shelf-journal-text")).toContainText("keep postponing");
 
@@ -99,7 +99,7 @@ test("a card's journal prompt opens a pad and the answer lands in the journal", 
   await expect
     .poll(() => page.locator(".wheel-area svg text").count(), { timeout: 15_000 })
     .toBeGreaterThan(10);
-  await page.getByRole("button", { name: "✶ Arcana" })
+  await page.locator('.dial-node[data-ch="II"]')
     .evaluate((el) => (el as HTMLElement).click());
   await page.getByRole("button", { name: "Draw", exact: true }).click();
   await page.locator(".arc-draw-btn").filter({ hasText: /^Draw$/ }).click();

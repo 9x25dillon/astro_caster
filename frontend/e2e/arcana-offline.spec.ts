@@ -1,4 +1,4 @@
-import { test, expect } from "./helpers";
+import { test, expect, openChapter } from "./helpers";
 
 // Offline tarot (MOBILE_ROADMAP §3/H1): with the backend severed, the chart
 // casts on-device and a spread deals from @astra/core — the same cards the
@@ -15,7 +15,7 @@ test("draws a tarot spread on-device with the backend offline", async ({ page, c
     .poll(() => wheel.locator("text").count(), { timeout: 15_000 })
     .toBeGreaterThan(10);
 
-  await page.getByRole("button", { name: "✶ Arcana" }).click();
+  await openChapter(page, "II");
   await expect(page.locator(".arcana-modal")).toBeVisible();
 
   // Natal tab (default) builds its signature on-device — links render.

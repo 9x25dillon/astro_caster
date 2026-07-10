@@ -20,6 +20,7 @@ import { AdvancedModal } from "./components/AdvancedModal";
 import { AdminPanel } from "./components/AdminPanel";
 import { InstallPrompt } from "./components/InstallPrompt";
 import { MorningPanel } from "./components/MorningPanel";
+import { ChapterDial, type Chapter, CHAPTERS } from "./components/ChapterDial";
 import { deriveSoulProfile } from "./lib/archetypes";
 import { trackEvent } from "./api/client";
 
@@ -33,15 +34,13 @@ export const App: React.FC = () => {
   const validateEntitlement = useStore((s) => s.validateEntitlement);
   const flushAskQueue = useStore((s) => s.flushAskQueue);
   const queuedAsks = useStore((s) => s.queuedAsks);
+  // Track R (R-1): the seven masthead module buttons became the chapter dial.
+  // Chapter I = the wheel at home; II–VIII mount the former modals' content
+  // in the stage, unchanged (their chrome retires in R-2).
+  const [chapter, setChapter] = useState<Chapter>("I");
   const [glossaryOpen, setGlossaryOpen] = useState(false);
   const [soulOpen, setSoulOpen] = useState(false);
   const [oracleOpen, setOracleOpen] = useState(false);
-  const [forecastOpen, setForecastOpen] = useState(false);
-  const [arcanaOpen, setArcanaOpen] = useState(false);
-  const [shelfOpen, setShelfOpen] = useState(false);
-  const [relOpen, setRelOpen] = useState(false);
-  const [predOpen, setPredOpen] = useState(false);
-  const [advOpen, setAdvOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
   const [privacyDismissed, setPrivacyDismissed] = useState(
     () => !!localStorage.getItem("aae.privacy_ack")
@@ -66,6 +65,27 @@ export const App: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const openChapter = (ch: Chapter) => {
+    setChapter(ch);
+    trackEvent("chapter_opened", { chapter: ch });
+  };
+
+  // Ergonomic law: hands on keys. 1–8 jump chapters, Esc is always home.
+  // Never hijacked while typing.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
+      if (e.key === "Escape") { setChapter("I"); return; }
+      const i = "12345678".indexOf(e.key);
+      if (i >= 0) openChapter(CHAPTERS[i].ch);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <>
     <Starfield />
@@ -84,21 +104,8 @@ export const App: React.FC = () => {
           Natal observatory · celestial cartography · oracle
         </div>
         <div className="masthead-actions">
-          <button
-            className="arcana-pill"
-            title="Astra Arcana — natal tarot"
-            onClick={() => { setArcanaOpen(true); trackEvent("arcana_opened"); }}
-          >
-            ✶ Arcana
-          </button>
-          <button className="arcana-pill" title="Relationship astrology"
-            onClick={() => { setRelOpen(true); trackEvent("relationship_opened"); }}>⚭ Relate</button>
-          <button className="ghost masthead-btn"
-            onClick={() => { setShelfOpen(true); trackEvent("bookshelf_opened"); }}>❖ Shelf</button>
-          <button className="arcana-pill" title="Predictive timing"
-            onClick={() => { setPredOpen(true); trackEvent("predictive_opened"); }}>◷ Timing</button>
-          <button className="arcana-pill" title="Advanced techniques"
-            onClick={() => { setAdvOpen(true); trackEvent("advanced_opened"); }}>✴ Advanced</button>
+          {/* Track R (R-1): module pills retired — the chapter dial navigates.
+              The masthead keeps identity, entitlement, and admin only. */}
           <button
             className={`support-pill ${isSupporter ? "is-supporter" : ""}`}
             onClick={() => openSupport(true)}
@@ -122,12 +129,6 @@ export const App: React.FC = () => {
       {glossaryOpen && <GlossaryPanel onClose={() => setGlossaryOpen(false)} />}
       {soulOpen && <SoulProfileModal onClose={() => setSoulOpen(false)} />}
       {oracleOpen && <OracleModal onClose={() => setOracleOpen(false)} profile={soulProfile} />}
-      {forecastOpen && <ForecastPanel onClose={() => setForecastOpen(false)} />}
-      {arcanaOpen && <ArcanaModal onClose={() => setArcanaOpen(false)} />}
-      {shelfOpen && <BookshelfModal onClose={() => setShelfOpen(false)} />}
-      {relOpen && <RelationshipModal onClose={() => setRelOpen(false)} />}
-      {predOpen && <PredictiveModal onClose={() => setPredOpen(false)} />}
-      {advOpen && <AdvancedModal onClose={() => setAdvOpen(false)} />}
       {adminOpen && <AdminPanel onClose={() => setAdminOpen(false)} />}
 
       {!privacyDismissed && (
@@ -157,31 +158,55 @@ export const App: React.FC = () => {
         onOpenGlossary={() => { setGlossaryOpen(true); trackEvent("glossary_opened"); }}
         onOpenSoul={() => { setSoulOpen(true); trackEvent("soul_profile_opened"); }}
         onOpenOracle={() => { setOracleOpen(true); trackEvent("oracle_opened"); }}
-        onOpenForecast={() => { setForecastOpen(true); trackEvent("forecast_opened"); }}
+        onOpenForecast={() => openChapter("III")}
         onNewChart={() => setCeremonyOpen(true)}
       />
 
-      <MorningPanel />
+      {chapter === "I" && <MorningPanel />}
 
-      <div className="wheel-area">
-        {chartFromCache && (
-          <div className="offline-note" role="status">
-            {chartFromLocal
-              ? "☾ offline — cast on your device"
-              : "☾ offline — showing your last cast"}
+      <div className={`wheel-area ${chapter !== "I" ? "has-chapter" : ""}`}>
+        {chapter === "I" ? (
+          <>
+            {chartFromCache && (
+              <div className="offline-note" role="status">
+                {chartFromLocal
+                  ? "☾ offline — cast on your device"
+                  : "☾ offline — showing your last cast"}
+              </div>
+            )}
+            {queuedAsks > 0 && (
+              <div className="offline-note queued-note" role="status">
+                ✎ {queuedAsks} {queuedAsks === 1 ? "reflection" : "reflections"} queued — will send when you reconnect
+              </div>
+            )}
+            <ChartWheel size={720} />
+          </>
+        ) : (
+          <div className="chapter-host">
+            {/* R-1: former modal content, mounted unchanged. Their own close
+                buttons / Escape handlers now navigate home. Chrome retires
+                in R-2. Distinct keys force clean remounts between the three
+                Arcana-backed chapters. */}
+            {chapter === "II" && <ArcanaModal key="ch-ii" onClose={() => setChapter("I")} />}
+            {chapter === "III" && (
+              <>
+                <ForecastPanel onClose={() => setChapter("I")} />
+                <PredictiveModal onClose={() => setChapter("I")} />
+              </>
+            )}
+            {chapter === "IV" && <RelationshipModal onClose={() => setChapter("I")} />}
+            {chapter === "V" && <AdvancedModal onClose={() => setChapter("I")} />}
+            {chapter === "VI" && <ArcanaModal key="ch-vi" initialTab="classroom" onClose={() => setChapter("I")} />}
+            {chapter === "VII" && <ArcanaModal key="ch-vii" initialTab="studio" onClose={() => setChapter("I")} />}
+            {chapter === "VIII" && <BookshelfModal onClose={() => setChapter("I")} />}
           </div>
         )}
-        {queuedAsks > 0 && (
-          <div className="offline-note queued-note" role="status">
-            ✎ {queuedAsks} {queuedAsks === 1 ? "reflection" : "reflections"} queued — will send when you reconnect
-          </div>
-        )}
-        <ChartWheel size={720} />
+        <ChapterDial active={chapter} onSelect={openChapter} />
       </div>
 
       <DetailPanel />
 
-      <TransitSlider />
+      {(chapter === "I" || chapter === "III") && <TransitSlider />}
     </div>
     <InstallPrompt />
     </>

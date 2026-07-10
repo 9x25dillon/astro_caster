@@ -90,7 +90,11 @@ function CardChip({ name, reversed }: { name: string; reversed?: boolean }) {
   );
 }
 
-export const ArcanaModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+export const ArcanaModal: React.FC<{
+  onClose: () => void;
+  // Track R: chapters VI (Study) and VII (Studio) open straight to their tab.
+  initialTab?: Tab;
+}> = ({ onClose, initialTab }) => {
   const chart = useStore((s) => s.chart);
   const birth = useStore((s) => s.birth);
   const aiResult = useStore((s) => s.aiResult);   // Astra's Detail-panel reading
@@ -100,7 +104,7 @@ export const ArcanaModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const speech = useSpeech();   // Speak buttons on the Oracle Report sections
 
   const overlayRef = useRef<HTMLDivElement>(null);
-  const [tab, setTab] = useState<Tab>("natal");
+  const [tab, setTab] = useState<Tab>(initialTab ?? "natal");
 
   const [sig, setSig] = useState<NatalArcanaSignature | null>(null);
   const [reading, setReading] = useState<TarotReadingResponse | null>(null);
@@ -154,6 +158,13 @@ export const ArcanaModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     setOracleCtx(null);
     setPersonal(null);
     setReportToken(null);   // claims bind to a session seed, not the chart
+  }, [chart]);
+
+  // Chapter VI opens straight to the classroom — fire its lazy load on mount
+  // (the tab-click handler that normally does this never ran).
+  useEffect(() => {
+    if (initialTab === "classroom" && chart && !path) loadPath();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chart]);
 
   // Load the natal signature once a chart exists; on-device if the backend is down.

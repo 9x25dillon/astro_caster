@@ -24,3 +24,11 @@ export const test = base.extend({
 });
 
 export { expect } from "@playwright/test";
+
+/** Track R: navigate via the chapter dial (fixed compass positions). */
+export async function openChapter(
+  page: import("@playwright/test").Page,
+  ch: "I" | "II" | "III" | "IV" | "V" | "VI" | "VII" | "VIII",
+) {
+  await page.locator(`.dial-node[data-ch="${ch}"]`).click();
+}
