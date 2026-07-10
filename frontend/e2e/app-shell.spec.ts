@@ -1,4 +1,4 @@
-import { test, expect } from "./helpers";
+import { test, expect, openChapter } from "./helpers";
 
 test("observatory boots and casts the default chart", async ({ page }) => {
   await page.goto("/");
@@ -16,19 +16,36 @@ test("observatory boots and casts the default chart", async ({ page }) => {
   await expect(page.locator(".support-pill")).toHaveText(/Support \/ Unlock/);
 });
 
-test("masthead module pills are present and open their surfaces", async ({ page }) => {
+test("the chapter dial navigates; positions are fixed; Esc goes home", async ({ page }) => {
   await page.goto("/");
-  for (const label of ["✶ Arcana", "⚭ Relate", "◷ Timing", "✴ Advanced"]) {
-    await expect(page.getByRole("button", { name: label })).toBeVisible();
-  }
-  await page.getByRole("button", { name: "✶ Arcana" }).click();
-  await expect(page.locator(".modal-overlay")).toBeVisible();
-  await page.locator(".modal-close").first().click();
-  await expect(page.locator(".modal-overlay")).toHaveCount(0);
+  // All eight chapters present at their fixed positions (I..VIII, in order).
+  const nodes = page.locator(".dial-node");
+  await expect(nodes).toHaveCount(8);
+  await expect(nodes.first()).toHaveAttribute("data-ch", "I");
+  await expect(nodes.last()).toHaveAttribute("data-ch", "VIII");
+
+  // Open a chapter: former modal content mounts in the stage.
+  await openChapter(page, "II");
+  await expect(page.locator(".chapter-host .arcana-modal")).toBeVisible();
+  await expect(page.locator(".wheel-area > svg")).toHaveCount(0);
+
+  // Esc is always home: the wheel returns.
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".chapter-host")).toHaveCount(0);
+  await expect(page.locator(".wheel-area svg").first()).toBeVisible();
 });
 
-test("forecast panel opens from the controls", async ({ page }) => {
+test("number keys jump chapters", async ({ page }) => {
+  await page.goto("/");
+  await page.locator("body").click({ position: { x: 5, y: 5 } }); // focus off inputs
+  await page.keyboard.press("8");
+  await expect(page.locator(".chapter-host .shelf-modal")).toBeVisible();
+  await page.keyboard.press("1");
+  await expect(page.locator(".wheel-area svg").first()).toBeVisible();
+});
+
+test("forecast opens from the controls as chapter III", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "☌ Forecast" }).click();
-  await expect(page.locator(".modal-overlay").first()).toBeVisible();
+  await expect(page.locator(".chapter-host .forecast-modal")).toBeVisible();
 });

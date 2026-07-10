@@ -2374,3 +2374,166 @@ h2.section::after {
 @media (max-width: 640px) {
   .morning-panel { margin: 8px 10px 0; }
 }
+
+/* ── Track R (R-1): the chapter dial ──────────────────────────────────────── */
+/* Eight chapters at FIXED compass positions (I always north) — position is
+   muscle memory; nodes never reorder. Geometry only in R-1; material in R-4. */
+
+.chapter-dial { pointer-events: none; }
+.chapter-dial .dial-orbit { pointer-events: none; }
+
+/* At rest (chapter I): the full ring around the wheel. */
+.chapter-dial.at-rest {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: min(100%, 850px);
+  aspect-ratio: 1;
+  max-height: 100%;
+  z-index: 6;
+}
+.chapter-dial.at-rest .dial-orbit {
+  position: absolute; inset: 0;
+}
+/* The sky drifts, barely — but ONLY the decorative ring: the chapter nodes
+   themselves never move (ergonomic law: fixed positions are the whole point,
+   and a target that holds still is a target your hand can trust). */
+.chapter-dial.at-rest::before {
+  content: "";
+  position: absolute;
+  inset: 3.5%;
+  border-radius: 50%;
+  border: 1px dashed color-mix(in srgb, var(--gold, #c9a84c) 22%, transparent);
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .chapter-dial.at-rest::before {
+    animation: dialDrift 120s ease-in-out infinite;
+  }
+}
+@keyframes dialDrift {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(45deg); }
+}
+@media (max-width: 900px) {
+  .chapter-dial.at-rest::before { display: none; }
+}
+
+.dial-node {
+  pointer-events: auto;
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  color: var(--parchment, #e8e0cf);
+  background: color-mix(in srgb, var(--void, #0a0812) 82%, transparent);
+  border: 1px solid color-mix(in srgb, var(--gold, #c9a84c) 40%, transparent);
+  border-radius: 999px;
+  padding: 6px 12px;
+  min-height: 30px;
+  cursor: pointer;
+  white-space: nowrap;
+  width: auto;
+  transition: border-color 160ms, color 160ms, box-shadow 160ms;
+}
+.chapter-dial.at-rest .dial-node {
+  position: absolute;
+  left: calc(50% + cos(var(--a)) * 46%);
+  top: calc(50% + sin(var(--a)) * 46%);
+  transform: translate(-50%, -50%);
+}
+.dial-node:hover, .dial-node:focus-visible {
+  border-color: var(--gold-bright, var(--gold));
+  color: var(--gold-bright, var(--gold));
+  box-shadow: 0 0 14px rgba(201, 168, 76, 0.25);
+  outline: none;
+}
+.dial-node.active {
+  border-color: var(--gold, #c9a84c);
+  color: var(--gold, #c9a84c);
+  box-shadow: 0 0 16px rgba(201, 168, 76, 0.3);
+}
+.dial-node.myst { border-color: color-mix(in srgb, var(--amethyst, #7a5cc4) 55%, transparent); }
+.dial-node.myst:hover, .dial-node.myst.active {
+  border-color: var(--amethyst-soft, #b9a0e8);
+  color: var(--amethyst-soft, #b9a0e8);
+  box-shadow: 0 0 14px rgba(122, 92, 196, 0.3);
+}
+
+/* Inside a chapter: the dial collapses to a numeral rail, pinned bottom-right
+   (the cursor's resting corner). Same order top-to-bottom = same memory. */
+.chapter-dial.mini {
+  position: fixed;
+  right: 12px;
+  bottom: 90px;
+  z-index: 60;
+}
+.chapter-dial.mini .dial-orbit {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  pointer-events: auto;
+}
+.chapter-dial.mini .dial-node { text-align: center; min-width: 44px; }
+.chapter-dial.mini .dial-name { display: none; }
+
+/* Thumb law: on narrow screens both states flatten into a bottom arc bar. */
+@media (max-width: 900px) {
+  .chapter-dial.at-rest, .chapter-dial.mini {
+    position: fixed;
+    inset: auto 0 0 0;
+    width: auto;
+    aspect-ratio: auto;
+    margin: 0;
+    z-index: 60;
+    background: color-mix(in srgb, var(--void, #0a0812) 92%, transparent);
+    border-top: 1px solid color-mix(in srgb, var(--gold, #c9a84c) 35%, transparent);
+    backdrop-filter: blur(6px);
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+  }
+  .chapter-dial.at-rest .dial-orbit, .chapter-dial.mini .dial-orbit {
+    position: static;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    gap: 4px;
+    animation: none;
+  }
+  .chapter-dial.at-rest .dial-node {
+    position: static;
+    transform: none;
+  }
+  .dial-node { min-height: 44px; min-width: 40px; padding: 6px 8px; }
+  .dial-name { display: none; }
+  /* Keep the stage clear of the arc. */
+  .app { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+}
+
+/* ── Track R (R-1): chapter host — former modals mounted in the stage ─────── */
+/* R-1 relocates content without touching it: the overlay chrome is neutralized
+   here and retires properly in R-2. */
+.wheel-area.has-chapter {
+  align-items: stretch;
+  justify-content: stretch;
+}
+.chapter-host {
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  padding: 4px 2px 24px;
+}
+.chapter-host .modal-overlay {
+  position: relative;
+  inset: auto;
+  z-index: auto;
+  background: none;
+  backdrop-filter: none;
+  padding: 0;
+  display: block;
+  animation: none;
+  margin: 0 0 16px;
+}
+.chapter-host .modal-overlay > * {
+  margin: 0 auto;
+  max-height: none;
+  width: min(960px, 100%);
+}

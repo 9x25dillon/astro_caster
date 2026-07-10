@@ -1,4 +1,4 @@
-import { test, expect } from "./helpers";
+import { test, expect, openChapter } from "./helpers";
 
 // The Course (premium curriculum): the Classroom tab offers a Fable-composed
 // course over the learning path. Free tier hits the server's 402 gate and is
@@ -8,7 +8,7 @@ import { test, expect } from "./helpers";
 
 test("classroom offers the course; free tier routes to support", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "✶ Arcana" }).click();
+  await openChapter(page, "II");
   await expect(page.locator(".arcana-modal")).toBeVisible();
 
   await page.getByRole("button", { name: "Classroom" }).click();

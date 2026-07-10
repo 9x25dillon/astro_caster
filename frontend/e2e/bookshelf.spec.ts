@@ -1,6 +1,6 @@
 // B2 (NEXT_ARC): the Bookshelf. Done-when, verbatim: "a report generated
 // last month can be reopened and reprinted offline."
-import { expect, test, mintedTokens } from "./helpers";
+import { expect, test, mintedTokens, openChapter } from "./helpers";
 import type { Page } from "@playwright/test";
 
 // A month-old shelved session with a deluxe edition attached. Birth data is
@@ -60,7 +60,7 @@ test("a shelved month-old report reopens and reprints offline", async ({ page, c
   // re-cast + plate re-deal are all on-device.
   await context.route((url) => url.pathname.startsWith("/api/"), (r) => r.abort());
 
-  await page.getByRole("button", { name: "❖ Shelf" }).click();
+  await openChapter(page, "VIII");
   const row = page.locator(".shelf-item");
   await expect(row).toHaveCount(1);
   await expect(row).toContainText("What did last month ask of me?");
@@ -115,7 +115,7 @@ test("a generated Oracle Report shelves itself", async ({ page }) => {
   // link, which on the Pixel-7 layout leaves the Arcana pill outside the
   // scrollable viewport. The human click path is covered by
   // arcana-offline.spec — this test is about the auto-save hook.
-  await page.getByRole("button", { name: "✶ Arcana" })
+  await page.locator('.dial-node[data-ch="II"]')
     .evaluate((el) => (el as HTMLElement).click());
   const drawTab = page.getByRole("button", { name: "Draw", exact: true });
   await drawTab.scrollIntoViewIfNeeded();
