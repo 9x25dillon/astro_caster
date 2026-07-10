@@ -12,6 +12,7 @@ import {
   fetchLearningPath,
   fetchDeckArt,
   fetchOracleReport,
+  fetchCourse,
   fetchPersonalReport,
   purchasePersonalReport,
   downloadArcanaCalendar,
@@ -23,6 +24,7 @@ import {
   type LearningPathResponse,
   type DeckArtResponse,
   type OracleReportResponse,
+  type CourseResponse,
   type PersonalReportResponse,
   type SpreadType,
   type SourceSystem,
@@ -107,6 +109,10 @@ export const ArcanaModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [deckCard, setDeckCard] = useState<string>("");   // "" = whole soul deck
   const [oracle, setOracle] = useState<OracleReportResponse | null>(null);
   const [oracleLoading, setOracleLoading] = useState(false);
+  // The Course — premium curriculum over the learning path (Classroom tab).
+  const [course, setCourse] = useState<CourseResponse | null>(null);
+  const [courseLoading, setCourseLoading] = useState(false);
+  const [courseFocus, setCourseFocus] = useState("a foundation in reading my own chart");
   // The exact (date, generated-at) context of the Oracle session — the Personal
   // Report must echo the same local date or the server's seed check rejects it.
   const [oracleCtx, setOracleCtx] = useState<{ date: string | null; generatedAt: string } | null>(null);
@@ -226,6 +232,41 @@ export const ArcanaModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       setErr(String(e));
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadCourse() {
+    if (!chart || courseLoading) return;
+    setCourseLoading(true); setErr(null);
+    try {
+      // Fable writes the curriculum over the deterministic learning path;
+      // the backend degrades to the offline compiler with honest provenance.
+      const r = await fetchCourse(chart, { source, focus: courseFocus, entitlement });
+      setCourse(r);
+      // Bookshelf: a generated course is a paid artifact — shelve it like an
+      // Oracle session, keyed by its deterministic course identity.
+      shelfSaveOracle({
+        seed: `course:${r.course_id}`,
+        question: `Course — ${r.focus}`,
+        spread: "course", source: r.source, lineage: r.lineage, date: null,
+        ai_source: r.ai_source, model: r.model ?? null,
+        report: r.course, birth: birth ?? null,
+      }).catch(() => undefined);
+      trackEvent("course_generated", {
+        source, lessons: r.lessons, ai: r.ai_source, model: r.model ?? "offline",
+      });
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 402) {
+        setErr("Oracle tier required — the Course is a premium curriculum " +
+               "composed for your chart by Claude Fable 5. Support at the " +
+               "oracle level to unlock it.");
+        openSupport(true);
+        trackEvent("course_gated", { source });
+      } else {
+        setErr(String(e));
+      }
+    } finally {
+      setCourseLoading(false);
     }
   }
 
@@ -831,6 +872,49 @@ export const ArcanaModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                     ))}
                   </ol>
                   <p className="arc-disclaimer" style={{ marginTop: 6 }}>{path.disclaimer}</p>
+
+                  {/* ── The Course — Fable-written curriculum over this path ── */}
+                  <hr style={{ opacity: 0.2, margin: "14px 0" }} />
+                  <div className="arc-course">
+                    <div style={{ opacity: 0.7, fontSize: "0.8rem", marginBottom: 6 }}>
+                      The Course — your path, taught. Claude Fable 5 writes a personal
+                      curriculum over these steps (oracle tier; works offline as a
+                      deterministic study guide).
+                    </div>
+                    <div className="arc-draw-controls">
+                      <label style={{ flex: 1 }}>Focus
+                        <input
+                          value={courseFocus}
+                          onChange={(e) => setCourseFocus(e.target.value)}
+                          placeholder="what should this course teach you?"
+                        />
+                      </label>
+                      <button className="arc-draw-btn" onClick={loadCourse} disabled={courseLoading}>
+                        {courseLoading ? "Composing…" : "✶ Compose my course"}
+                      </button>
+                    </div>
+                    {courseLoading && (
+                      <p className="arc-empty">
+                        Composing your curriculum — a full course takes a few minutes…
+                      </p>
+                    )}
+                    {course && (
+                      <div className="arc-oracle-report" style={{ marginTop: 10 }}>
+                        <div className="arc-interp-head">
+                          ✶ {course.anchor} → {course.growth_edge} · {course.lessons} lessons
+                          <span className="arc-badge" style={{ marginLeft: 8 }}>
+                            {course.ai_source === "llm"
+                              ? (ORACLE_MODEL_LABELS[course.model ?? ""] ?? course.model)
+                              : "offline study guide"}
+                          </span>
+                          <button className="ghost arc-copy" onClick={() => copy(course.course)}>copy</button>
+                        </div>
+                        <Interpretation text={course.course} />
+                        <p className="arc-disclaimer">{course.disclaimer}</p>
+                      </div>
+                    )}
+                  </div>
+
                   <hr style={{ opacity: 0.2, margin: "14px 0" }} />
                   <div style={{ opacity: 0.7, fontSize: "0.8rem", marginBottom: 6 }}>Archetype reference</div>
                 </div>

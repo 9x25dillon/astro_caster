@@ -42,10 +42,21 @@ def test_path_length_and_stages():
     assert [s.order for s in p.steps] == list(range(1, len(p.steps) + 1))
 
 
-def test_path_ascends_in_trump_number():
+def test_stage_labels_sit_on_the_right_cards():
+    # Issue #54 4.1: when the anchor's trump number exceeds the growth edge's,
+    # number-sorting the endpoints put the growth card in step 1 while the
+    # position-attached labels still read Anchor → Growth edge. The step
+    # sequence must actually depart from the anchor and arrive at the growth.
+    p = _path(steps=5)
+    assert p.steps[0].card.name == p.anchor
+    assert p.steps[-1].card.name == p.growth_edge
+
+
+def test_path_walks_monotonically_from_anchor_to_growth():
     p = _path(steps=6)
     nums = [TD.MAJOR_BY_ID[s.card.id]["number"] for s in p.steps]
-    assert nums == sorted(nums)              # monotonic ascending
+    # Monotonic in the anchor→growth direction (ascending or descending).
+    assert nums == sorted(nums) or nums == sorted(nums, reverse=True)
     assert len(set(nums)) == len(nums)       # no repeats
 
 

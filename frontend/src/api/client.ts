@@ -667,6 +667,42 @@ export function fetchOracleReport(
   });
 }
 
+// ── The Course — Fable-designed personal curriculum (oracle tier only) ────────
+
+export interface CourseResponse {
+  course_id: string;
+  source: SourceSystem;
+  lineage: string;
+  anchor: string;
+  growth_edge: string;
+  focus: string;
+  lessons: number;
+  course: string;
+  ai_source: "llm" | "offline";
+  model: string | null;
+  disclaimer: string;
+}
+
+/** The premium curriculum, written by Fable 5 over the deterministic learning
+ *  path. 402 below oracle tier — catch it and route to the support flow. */
+export function fetchCourse(
+  chart: ChartResponse,
+  opts: {
+    source?: SourceSystem;
+    lessons?: number;
+    focus?: string;
+    entitlement?: string | null;
+  } = {},
+): Promise<CourseResponse> {
+  return post<CourseResponse>("/course", {
+    chart,
+    source: opts.source ?? "golden_dawn",
+    lessons: opts.lessons ?? 7,
+    focus: opts.focus ?? "a foundation in reading my own chart",
+    entitlement: opts.entitlement ?? null,
+  });
+}
+
 // ── Personal Report — deluxe compiled edition (optional post-Oracle product) ──
 
 export interface PersonalReportResponse {

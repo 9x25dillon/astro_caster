@@ -17,6 +17,7 @@ Endpoints:
   POST /api/learning-path       – deterministic archetypal learning path (Classroom)
   POST /api/arcana-calendar     – export forecast as an .ics calendar (ritual/journal)
   POST /api/oracle-report       – Fable 5 long-form report (oracle tier; offline fallback)
+  POST /api/course              – Fable-designed personal curriculum (oracle tier)
   POST /api/personal-report     – deluxe compiled edition (optional post-Oracle product)
   POST /api/personal-report/purchase – separate purchase rail: mint a report claim (PDF-2)
   POST /api/deck-art            – deterministic deck-art prompts (Studio)
@@ -84,6 +85,7 @@ from models import (
 )
 import tarot as TAROT
 import arcana_calendar as CAL
+import course as COURSE
 import deck_art as DA
 import oracle_report as ORACLE
 import personal_report as PERSONAL
@@ -91,6 +93,8 @@ from tarot_models import (
     ArcanaCalendarRequest,
     ArcanaForecastRequest,
     ArcanaForecastResponse,
+    CourseRequest,
+    CourseResponse,
     DeckArtRequest,
     DeckArtResponse,
     LearningPathRequest,
@@ -639,6 +643,34 @@ async def oracle_report(req: OracleReportRequest, request: Request):
         provider="anthropic" if result.ai_source == "llm" else "offline",
         model=str(result.model or ""), response_len=len(result.report),
         source=result.ai_source, sel_type="spread", sel_id=req.spread,
+    ))
+    return result
+
+
+@app.post("/api/course", response_model=CourseResponse)
+async def course(req: CourseRequest, request: Request):
+    """The Course — a Fable-designed personal curriculum over the chart's
+    learning path (anchor → growth edge). ORACLE TIER ONLY, same posture as
+    the Oracle Report: 402 before any work, deterministic offline curriculum
+    with honest ai_source when the AI layer is unavailable or refuses.
+    """
+    RL.check(request, "oracle", req.entitlement)   # cost cap before any work
+    tier = ENT.entitlement_status(req.entitlement).get("tier", "free")
+    if tier != "oracle":
+        raise HTTPException(
+            status_code=402,
+            detail="oracle entitlement required — the Course is a premium "
+                   "curriculum composed for your chart",
+        )
+    try:
+        result = await COURSE.generate_course(req)
+    except Exception as exc:
+        raise _client_error("course failed", exc)
+    _spawn(TEL.log_ai(
+        tier=tier, lens="course", depth="report", query=req.focus,
+        provider="anthropic" if result.ai_source == "llm" else "offline",
+        model=str(result.model or ""), response_len=len(result.course),
+        source=result.ai_source, sel_type="path", sel_id=result.anchor,
     ))
     return result
 

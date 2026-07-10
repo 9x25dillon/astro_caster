@@ -547,15 +547,18 @@ def build_learning_path(req: LearningPathRequest) -> LearningPathResponse:
         growth_id = next((cid for cid, _ in reversed(ranked) if cid != anchor_id), "world")
 
     a_num, g_num = MAJOR_BY_ID[anchor_id]["number"], MAJOR_BY_ID[growth_id]["number"]
-    lo_id, hi_id = (anchor_id, growth_id) if a_num <= g_num else (growth_id, anchor_id)
     lo, hi = min(a_num, g_num), max(a_num, g_num)
 
     # Intermediate trumps strictly between the endpoints, chosen by emphasis
-    # (major_weights) with a seeded tie-break, then the whole path sorted by number.
+    # (major_weights) with a seeded tie-break. The walk always DEPARTS from the
+    # anchor and ARRIVES at the growth edge — descending in trump number when
+    # the anchor sits above the growth edge (issue #54 4.1: sorting endpoints
+    # by number inverted the Anchor/Growth stage labels for such charts).
     between = [c for c in MAJOR_ARCANA if lo < c["number"] < hi]
     between.sort(key=lambda c: (-signature.major_weights.get(c["id"], 0.0), rng.random()))
-    chosen_mid = sorted(between[: max(0, n - 2)], key=lambda c: c["number"])
-    ordered_ids = [lo_id] + [c["id"] for c in chosen_mid] + [hi_id]
+    chosen_mid = sorted(between[: max(0, n - 2)], key=lambda c: c["number"],
+                        reverse=a_num > g_num)
+    ordered_ids = [anchor_id] + [c["id"] for c in chosen_mid] + [growth_id]
     # Dedup while preserving order (endpoints can coincide with a midpoint edge case).
     seen: set = set()
     ordered_ids = [c for c in ordered_ids if not (c in seen or seen.add(c))]
