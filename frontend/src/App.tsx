@@ -42,8 +42,6 @@ export const App: React.FC = () => {
   // in the stage, unchanged (their chrome retires in R-2).
   const [chapter, setChapter] = useState<Chapter>("I");
   const [glossaryOpen, setGlossaryOpen] = useState(false);
-  const [soulOpen, setSoulOpen] = useState(false);
-  const [oracleOpen, setOracleOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
   const [privacyDismissed, setPrivacyDismissed] = useState(
     () => !!localStorage.getItem("aae.privacy_ack")
@@ -74,6 +72,15 @@ export const App: React.FC = () => {
     // the chapter clears it, and chapter I falls back to chart detail.
     setMargin(null);
     trackEvent("chapter_opened", { chapter: ch });
+  };
+
+  // R-3: Soul Profile and the Oracle are chapter II surfaces now — the old
+  // launcher buttons deep-scroll to them inside the Reading chapter.
+  const openReadingAt = (selector: string) => {
+    openChapter("II");
+    window.setTimeout(() => {
+      document.querySelector(selector)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 150);
   };
 
   // Ergonomic law: hands on keys. 1–8 jump chapters, Esc is always home,
@@ -140,8 +147,6 @@ export const App: React.FC = () => {
 
       <SupportModal />
       {glossaryOpen && <GlossaryPanel onClose={() => setGlossaryOpen(false)} />}
-      {soulOpen && <SoulProfileModal onClose={() => setSoulOpen(false)} />}
-      {oracleOpen && <OracleModal onClose={() => setOracleOpen(false)} profile={soulProfile} />}
       {adminOpen && <AdminPanel onClose={() => setAdminOpen(false)} />}
 
       {!privacyDismissed && (
@@ -169,8 +174,8 @@ export const App: React.FC = () => {
 
       <Controls
         onOpenGlossary={() => { setGlossaryOpen(true); trackEvent("glossary_opened"); }}
-        onOpenSoul={() => { setSoulOpen(true); trackEvent("soul_profile_opened"); }}
-        onOpenOracle={() => { setOracleOpen(true); trackEvent("oracle_opened"); }}
+        onOpenSoul={() => { openReadingAt(".soul-modal"); trackEvent("soul_profile_opened"); }}
+        onOpenOracle={() => { openReadingAt(".oracle-modal"); trackEvent("oracle_opened"); }}
         onOpenForecast={() => openChapter("III")}
         onNewChart={() => setCeremonyOpen(true)}
       />
@@ -200,7 +205,15 @@ export const App: React.FC = () => {
                 Esc / the dial navigate home; ForecastPanel's onHome is real
                 navigation (jump/Ask land on the wheel). Distinct keys force
                 clean remounts between the three Arcana-backed chapters. */}
-            {chapter === "II" && <ArcanaModal key="ch-ii" />}
+            {chapter === "II" && (
+              <>
+                <ArcanaModal key="ch-ii" />
+                {/* R-3: the Reading chapter gathers everything that answers a
+                    question — the soul profile and the Oracle fold in below. */}
+                <SoulProfileModal />
+                <OracleModal profile={soulProfile} />
+              </>
+            )}
             {chapter === "III" && (
               <>
                 <ForecastPanel onHome={() => setChapter("I")} />

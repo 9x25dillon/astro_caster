@@ -728,13 +728,17 @@ button.ghost:hover {
   body::before { animation: none; }
 }
 
-/* ── Oracle Modal ─────────────────────────────────────────────────────────── */
+/* ── Oracle (chapter II surface since R-3) ────────────────────────────────── */
 /* The Oracle is the app's most esoteric surface — here the amethyst accent is
    woven through the border, header, and tab indicators alongside the gold. */
 .oracle-modal {
+  position: relative;
   width: min(680px, 96vw);
-  max-height: 90vh;
-  border-color: var(--amethyst);
+  background: linear-gradient(180deg, var(--obsidian-2), var(--obsidian));
+  border: 1px solid var(--amethyst);
+  border-radius: 12px;
+  padding: 22px;
+  animation: modalRise 0.36s var(--ease-spring);
   box-shadow: 0 0 60px rgba(142,124,195,0.2),
               0 0 90px rgba(201,168,76,0.1),
               inset 0 0 1px rgba(181,168,224,0.4);
@@ -997,10 +1001,15 @@ button.ghost:hover {
 /* ── Soul Profile Modal ───────────────────────────────────────────────────── */
 /* Shares the Oracle's amethyst chrome so the esoteric surfaces feel of a piece.
    The per-chart element colour (c1) remains the personalised accent within. */
+/* Chapter II surface since R-3 (was an overlay modal). */
 .soul-modal {
+  position: relative;
   width: min(780px, 96vw);
-  max-height: 90vh;
-  border-color: var(--amethyst);
+  background: linear-gradient(180deg, var(--obsidian-2), var(--obsidian));
+  border: 1px solid var(--amethyst);
+  border-radius: 12px;
+  padding: 22px;
+  animation: modalRise 0.36s var(--ease-spring);
   box-shadow: 0 0 60px rgba(142,124,195,0.2),
               0 0 90px rgba(201,168,76,0.1),
               inset 0 0 1px rgba(181,168,224,0.4);
