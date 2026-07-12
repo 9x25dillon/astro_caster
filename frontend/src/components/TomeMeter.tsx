@@ -4,7 +4,7 @@
 // through the print-CSS path. Missing chapters are listed honestly.
 import React, { useEffect, useState } from "react";
 import { useStore } from "../store/useStore";
-import { compileTome, loadManifest, type TomeManifest } from "../lib/tomeCompile";
+import { compileTome, loadManifest, pressCover, type TomeManifest } from "../lib/tomeCompile";
 import { trackEvent } from "../api/client";
 
 export const TomeMeter: React.FC = () => {
@@ -20,16 +20,22 @@ export const TomeMeter: React.FC = () => {
     return () => { stale = true; };
   }, [chart]);
 
-  async function compile() {
+  async function compile(trim: "letter" | "book") {
     if (compiling) return;
     setCompiling(true); setMsg("");
     try {
-      const ok = await compileTome(birth, chart);
+      const ok = await compileTome(birth, chart, { trim });
       setMsg(ok ? "" : "Popup blocked — allow popups for this site to print the tome.");
-      if (ok) trackEvent("tome_compiled", { bound: manifest?.bound ?? 0 });
+      if (ok) trackEvent("tome_compiled", { bound: manifest?.bound ?? 0, trim });
     } finally {
       setCompiling(false);
     }
+  }
+
+  function cover() {
+    const ok = pressCover(birth, chart);
+    setMsg(ok ? "" : "Popup blocked — allow popups for this site to print the cover.");
+    if (ok) trackEvent("tome_cover", {});
   }
 
   return (
@@ -59,9 +65,21 @@ export const TomeMeter: React.FC = () => {
           </div>
 
           <div className="tome-actions">
-            <button className="arc-draw-btn tome-compile" onClick={compile}
+            <button className="arc-draw-btn tome-compile" onClick={() => compile("letter")}
                     disabled={compiling || manifest.bound === 0}>
               {compiling ? "Binding…" : "⎙ Compile the tome"}
+            </button>
+            {/* Phase 0: the physical book — POD wants interior and cover as
+                separate files at 6×9 trim (+ bleed). Print each with
+                "Save as PDF", margins none, background graphics on. */}
+            <button className="ghost tome-press" onClick={() => compile("book")}
+                    disabled={compiling || manifest.bound === 0}
+                    title="Interior file at 6×9″ book trim + bleed — for print-on-demand">
+              ⎙ press interior (6×9)
+            </button>
+            <button className="ghost tome-cover" onClick={cover}
+                    title="Separate full-bleed front-cover file — the vendor's wizard adds spine and back">
+              ◈ cover file
             </button>
             <span className="muted" style={{ fontSize: 12 }}>
               {manifest.bound} of {manifest.total} chapters carry material
