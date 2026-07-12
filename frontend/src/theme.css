@@ -98,7 +98,12 @@ body::before {
     "controls wheel detail"
     "controls timeline detail";
   gap: 18px;
-  height: 100vh;
+  /* R-3: auto height, not a fixed 100vh — tall chapter surfaces used to
+     OVERFLOW their grid tracks (the page scrolled but the detail column's
+     area stayed viewport-sized, so the sticky margin glass had no track to
+     travel). Growing the grid keeps the margin pinned all the way down. */
+  height: auto;
+  min-height: 100vh;
   /* Add the device safe-area insets to the base padding so the notch and
      home-indicator never clip the shell in iOS standalone (viewport-fit=cover). */
   padding: calc(18px + env(safe-area-inset-top)) calc(18px + env(safe-area-inset-right))
