@@ -196,7 +196,6 @@ export const RelationshipModal: React.FC = () => {
                   <p className="arc-themes">
                     <b>Complementary shadows:</b> {tarot.spread.complementary_shadows.join(" · ") || "none"}
                   </p>
-                  <p className="arc-disclaimer">{tarot.disclaimer}</p>
                 </div>
               )}
             </div>
