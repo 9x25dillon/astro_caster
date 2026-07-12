@@ -1,26 +1,45 @@
 # Hand_off.md
 
-_Last updated: 2026-07-12 (session 15, third act)_
+_Last updated: 2026-07-12 (session 15 CLOSED — everything merged, main @ 291b8f1)_
 
 ## TL;DR for next session
 
-**Merge PR #71 — Tome Phase 0, the press pipeline.** Track R fully merged
-(#67/#68/#69/#70). Phase 0 built same-session: (1) `trim:"book"` press
-variant of printReport (6.25×9.25in = 6×9 + bleed, PRESS_CSS override) +
-`pressCover()` separate full-bleed front-cover file; (2) Library tome meter
-gained `⎙ press interior (6×9)` + `◈ cover file`; (3)
-`backend/tools/make_shelf_vault.py` wraps the July-8 Fable reports (only
-exist as repo-root txt files — they predate the Bookshelf) into an
-astra-vault@3 the Library's Restore imports (birth via CLI only, output
-gitignored); (4) `docs/design/TOME_PHASE0.md` = the order runbook. VERIFIED
-ON THE ARTIFACT: headless page.pdf(preferCSSPageSize) → both files measure
-450×666pt exactly; cover/frontispiece/chapter pages eyeballed. 80 e2e.
+**Nothing is open.** 0 PRs, CI green. Session 15 shipped, in order, all
+merged: **R-2** the margin glass (#68) → **R-3** the Library + ✦ Generate
+My Tome (#69) → **R-4** the material pass (#70) → **TRACK R COMPLETE** →
+**Tome Phase 0** press pipeline (#71). The narrative is in
+WORK_JOURNAL.md; the mechanics below and in each PR body.
 
-**THE REMAINING PHASE-0 STEPS ARE THE OPERATOR'S** (runbook TOME_PHASE0.md):
-run the rescue script (add --birth for reprint plates), Restore in the
-Library, cast YOUR chart, print the two files (Save-as-PDF · custom
-6.25×9.25 · margins none · background graphics ON), order ONE Lulu 6×9
-hardcover, render the two verdicts (dark-cover quality; worth $150?).
+**The baton is in the OPERATOR'S hand — the Phase 0 order** (runbook:
+docs/design/TOME_PHASE0.md). State at close:
+
+- `astra-vault-phase0.json` is ALREADY GENERATED at repo root (gitignored),
+  carrying the July-8 Fable Oracle (13.0K) + deluxe (47.6K, short_seed
+  f2929236c3d2) + the course, WITH birth data for reprint plates.
+- Remaining clicks: Library (8) → Vault → ⇑ Restore → pick the file; load
+  HIS profile + cast; `⎙ press interior (6×9)` + `◈ cover file` (each:
+  Save-as-PDF · custom 6.25×9.25in · margins none · background graphics
+  ON); Lulu 6×9 US Trade hardcover, cover wizard composes spine/back;
+  order ONE. Exit = the two in-hand verdicts (dark-cover print quality;
+  would he gift it at $150?). Feedback lands in PHYSICAL_TOME_PRODUCT.md.
+
+**Known state worth carrying:**
+- The operator's browser carries a MINTED oracle token, not the dev token —
+  fine for everything except deluxe-purchase exemption. Fix when needed:
+  `?entitlement=<AAE_DEV_TOKEN>` link (backend/tools/unlock.py prints it).
+  He chose the rescue path over recompiling (correct — the cap would have
+  produced an offline edition).
+- **Anthropic usage cap exhausted until 2026-08-01** — Fable calls 400;
+  offline compilers serve honestly meanwhile.
+- **AAE_OPENAI_API_KEY still NOT in backend/.env** — P3 plate live-verify
+  waits on it (plumbing shipped in #66).
+- Dev servers were shut down at session close — `./run.sh` to relight.
+
+**Next candidates (no committed order):** PB1 book compiler (corpus →
+press-ready trim; tomeCompile.ts is its seed; evaluate Typst if the object
+in hand wants running page numbers — Chromium can't do them), P3 plate
+live-verify, live Fable runs after 2026-08-01, Phase 1 (gifts, N≈5) only
+after the Phase-0 object passes in hand.
 
 _(Previous entry — R-4, merged as #70):_ **The material pass. TRACK R COMPLETE.**
 Four commits on `track-r-material`: (1) void glass — panels/surfaces become
