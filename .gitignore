@@ -47,3 +47,4 @@ TASKS.md
 frontend/playwright-report/
 frontend/test-results/
 frontend/e2e/.tokens.json
+astra-vault-*.json
