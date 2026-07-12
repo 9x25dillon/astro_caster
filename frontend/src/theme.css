@@ -2585,3 +2585,42 @@ h2.section::after {
 /* R-2: anything a chapter can publish to the margin glass is selectable. */
 .mg-sel { cursor: pointer; }
 .mg-sel:hover { outline: 1px solid rgba(201, 168, 76, 0.35); outline-offset: 1px; }
+
+/* ── Track R (R-3): the Library (chapter VIII) ────────────────────────────── */
+.lib-surface {
+  background: var(--panel, #14141c);
+  border: 1px solid var(--gold, #c9a84c);
+  border-radius: 10px;
+  padding: 18px 22px 22px;
+  animation: modalRise 0.36s var(--ease-spring);
+}
+.lib-title {
+  font-family: var(--display);
+  color: var(--gold-soft, #e0c578);
+  margin: 0 0 4px;
+  font-size: 19px;
+}
+.lib-support-btn {
+  width: auto;
+  padding: 6px 16px;
+  font-size: 13px;
+  border-radius: 999px;
+  background: transparent;
+  border: 1px solid var(--gold);
+  color: var(--gold-soft);
+  cursor: pointer;
+}
+.lib-support-btn.is-supporter { border-color: var(--amethyst); color: var(--amethyst-soft); }
+.lib-support-btn:hover { background: rgba(201, 168, 76, 0.08); }
+
+/* The voice canon — one refrain at the foot of every chapter, running-footer
+   small. It replaces the scattered clinical disclaimers as the last word. */
+.chapter-refrain {
+  text-align: center;
+  font-style: italic;
+  font-size: 12px;
+  color: var(--sepia, #9a8f78);
+  opacity: 0.75;
+  margin: 6px auto 2px;
+  max-width: 60ch;
+}

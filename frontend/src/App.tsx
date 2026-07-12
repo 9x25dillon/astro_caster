@@ -14,6 +14,7 @@ import { CeremonyModal } from "./components/CeremonyModal";
 import { ForecastPanel } from "./components/ForecastPanel";
 import { ArcanaModal } from "./components/ArcanaModal";
 import { BookshelfModal } from "./components/BookshelfModal";
+import { LibraryVault } from "./components/LibraryVault";
 import { RelationshipModal } from "./components/RelationshipModal";
 import { PredictiveModal } from "./components/PredictiveModal";
 import { AdvancedModal } from "./components/AdvancedModal";
@@ -113,11 +114,13 @@ export const App: React.FC = () => {
           Natal observatory · celestial cartography · oracle
         </div>
         <div className="masthead-actions">
-          {/* Track R (R-1): module pills retired — the chapter dial navigates.
-              The masthead keeps identity, entitlement, and admin only. */}
+          {/* Track R (R-3): the masthead pill is identity — support & unlock
+              live in the Library (chapter VIII) now; 402 gates still open the
+              support overlay directly. */}
           <button
             className={`support-pill ${isSupporter ? "is-supporter" : ""}`}
-            onClick={() => openSupport(true)}
+            title="Support & unlock lives in the Library"
+            onClick={() => openChapter("VIII")}
           >
             {isSupporter ? "✦ Supporter" : "☤ Support / Unlock"}
           </button>
@@ -207,7 +210,17 @@ export const App: React.FC = () => {
             {chapter === "V" && <AdvancedModal />}
             {chapter === "VI" && <ArcanaModal key="ch-vi" initialTab="classroom" />}
             {chapter === "VII" && <ArcanaModal key="ch-vii" initialTab="studio" />}
-            {chapter === "VIII" && <BookshelfModal />}
+            {chapter === "VIII" && (
+              <>
+                <BookshelfModal />
+                <LibraryVault />
+              </>
+            )}
+            {/* The voice canon, set small and constant — a running footer,
+                one refrain instead of five clinical disclaimers. */}
+            <p className="chapter-refrain">
+              Nothing Astra produces is a life sentence — it is a life poem.
+            </p>
           </div>
         )}
         <ChapterDial active={chapter} onSelect={openChapter} />

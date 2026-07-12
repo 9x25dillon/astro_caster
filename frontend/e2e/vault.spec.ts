@@ -1,7 +1,8 @@
 // B1 (NEXT_ARC): the Vault — export all aae.* local state as one file,
 // restore it after a wipe. Done-when, verbatim: "clear browser data, import
 // file, everything is back."
-import { expect, test } from "./helpers";
+// R-3: the vault lives in the Library (chapter VIII) now.
+import { expect, test, openChapter } from "./helpers";
 
 test("vault export → wipe → restore brings the observatory's state back", async ({ page }) => {
   await page.goto("/");
@@ -20,6 +21,7 @@ test("vault export → wipe → restore brings the observatory's state back", as
   await page.reload();
 
   // Export: capture the download and keep its contents.
+  await openChapter(page, "VIII");
   const downloadP = page.waitForEvent("download");
   await page.locator(".vault-export").click();
   const download = await downloadP;
@@ -32,9 +34,10 @@ test("vault export → wipe → restore brings the observatory's state back", as
   expect(await page.evaluate(() => localStorage.getItem("aae.profiles"))).toBeNull();
 
   // Restore: confirm the dialog, feed the file, page reloads itself.
+  await openChapter(page, "VIII");
   page.on("dialog", (d) => d.accept());
   await page.locator(".vault-import").click();
-  await page.locator('input[type="file"]').setInputFiles(path!);
+  await page.locator('.lib-vault input[type="file"]').setInputFiles(path!);
   await page.waitForURL("**/*"); // reload
   await expect
     .poll(async () => page.evaluate(() => localStorage.getItem("aae.profiles")))
