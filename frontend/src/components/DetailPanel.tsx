@@ -236,8 +236,9 @@ export const DetailPanel: React.FC = () => {
 
   // Track R (R-2): the margin glass. A chapter's published selection renders
   // through this one generic shape; with nothing published the margin falls
-  // back to chart detail below (chapter I's resting state).
-  const renderMargin = (m: NonNullable<typeof margin>) => (
+  // back to chart detail (chapter I's resting state). Zone 1 carries the
+  // selection's identity; its prose flows into zone 2 with the reflection.
+  const renderMarginHead = (m: NonNullable<typeof margin>) => (
     <div className="margin-note">
       <h3>{m.title}</h3>
       {m.subtitle && <p className="muted">{m.subtitle}</p>}
@@ -246,6 +247,11 @@ export const DetailPanel: React.FC = () => {
           {m.chips.map((c) => <span key={c} className="chip">{c}</span>)}
         </div>
       )}
+    </div>
+  );
+
+  const renderMarginBody = (m: NonNullable<typeof margin>) => (
+    <div className="margin-note-body">
       {m.body?.map((b, i) => (
         <p key={i} style={{ fontSize: 14, lineHeight: 1.5 }}>{b}</p>
       ))}
@@ -402,11 +408,18 @@ export const DetailPanel: React.FC = () => {
   };
 
   return (
-    <div className="panel detail">
-      <h2 className="section">Detail</h2>
-      {margin ? renderMargin(margin) : renderSelected()}
+    <div className="panel detail margin-glass">
+      {/* R-2 margin glass · zone 1 — context head: whatever is selected. */}
+      <div className="margin-head">
+        <h2 className="section">Detail</h2>
+        {margin ? renderMarginHead(margin) : renderSelected()}
+      </div>
 
-      <h2 className="section" style={{ marginTop: 18 }}>Astra · Reflection</h2>
+      {/* zone 2 — body: the selection's prose, then Astra's reflection. */}
+      <div className="margin-body">
+      {margin && renderMarginBody(margin)}
+
+      <h2 className="section" style={{ marginTop: margin ? 14 : 0 }}>Astra · Reflection</h2>
       <div style={{ marginBottom: 8 }}>
         <select aria-label="Reading lens" value={lens} onChange={(e) => setLens(e.target.value as Lens)}>
           {LENSES.map((l) => (
@@ -415,23 +428,6 @@ export const DetailPanel: React.FC = () => {
             </option>
           ))}
         </select>
-      </div>
-      <div className="row" style={{ marginBottom: 8 }}>
-        <input
-          placeholder={
-            selection ? `Ask about this ${selection.type}…` : "Ask about your chart…"
-          }
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && q.trim()) {
-              ask(q.trim());
-            }
-          }}
-        />
-        <button className="primary" style={{ flex: "0 0 auto", width: "auto" }} onClick={() => q.trim() && ask(q.trim())}>
-          Ask
-        </button>
       </div>
       <div className="row" style={{ marginBottom: 10 }}>
         <button className="ghost" onClick={() => suggest()}>
@@ -605,6 +601,29 @@ export const DetailPanel: React.FC = () => {
           )}
         </>
       )}
+      </div>
+
+      {/* zone 3 — Ask, pinned at the margin's foot in every chapter ("/" focuses). */}
+      <div className="margin-foot">
+        <div className="row">
+          <input
+            id="margin-ask"
+            placeholder={
+              selection ? `Ask about this ${selection.type}…` : "Ask about your chart…"
+            }
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && q.trim()) {
+                ask(q.trim());
+              }
+            }}
+          />
+          <button className="primary" style={{ flex: "0 0 auto", width: "auto" }} onClick={() => q.trim() && ask(q.trim())}>
+            Ask
+          </button>
+        </div>
+      </div>
     </div>
   );
 };

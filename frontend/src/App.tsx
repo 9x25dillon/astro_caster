@@ -74,14 +74,19 @@ export const App: React.FC = () => {
     trackEvent("chapter_opened", { chapter: ch });
   };
 
-  // Ergonomic law: hands on keys. 1–8 jump chapters, Esc is always home.
-  // Never hijacked while typing.
+  // Ergonomic law: hands on keys. 1–8 jump chapters, Esc is always home,
+  // "/" focuses Ask in the margin's foot. Never hijacked while typing.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
       if (e.key === "Escape") { setChapter("I"); setMargin(null); return; }
+      if (e.key === "/") {
+        e.preventDefault();
+        document.getElementById("margin-ask")?.focus();
+        return;
+      }
       const i = "12345678".indexOf(e.key);
       if (i >= 0) openChapter(CHAPTERS[i].ch);
     };
