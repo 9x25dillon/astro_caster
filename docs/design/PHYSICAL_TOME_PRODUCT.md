@@ -72,6 +72,10 @@ and the public-deploy env checklist. None of this blocks Phases 0–1.
   ONE copy: yours. Proves the pipeline, the POD vendor, the dark-cover
   print quality, and whether the object feels worth $150 before any
   commerce exists. Exit: a physical book on your shelf you'd gift.
+  _Status 2026-07-12: pipeline BUILT — press interior (6×9 + bleed) and
+  separate cover file from the Library's tome meter; corpus rescue tool for
+  the pre-Bookshelf Fable reports. Runbook: TOME_PHASE0.md. Remaining: the
+  operator's order (vendor pick §8.1) and the in-hand verdicts._
 - **Phase 1 — Gifts (N≈5).** Friends/family editions, hand-fulfilled, no
   storefront. Exit: repeatable compile→order flow; feedback on what pages
   people actually linger on.
