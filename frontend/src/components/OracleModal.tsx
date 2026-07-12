@@ -1,4 +1,6 @@
 // OracleModal.tsx — Life Path numerology + planetary sigil builder.
+// Track R (R-3): a chapter II surface now, not an overlay — Esc and the dial
+// navigate home via the App shell.
 import React, { useMemo, useRef, useState } from "react";
 import { useStore } from "../store/useStore";
 import {
@@ -427,13 +429,11 @@ const KameaLayer: React.FC<{
 
 type Tab = "lifepath" | "sigil";
 
-export const OracleModal: React.FC<{ onClose: () => void; profile: SoulProfile | null }> = ({ onClose, profile }) => {
+export const OracleModal: React.FC<{ profile: SoulProfile | null }> = ({ profile }) => {
   const [tab, setTab] = useState<Tab>("lifepath");
 
   return (
-    <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal oracle-modal">
-        <button className="modal-close" onClick={onClose}>×</button>
+    <div className="oracle-modal">
         <h2 className="section" style={{ marginTop: 0 }}>⊙ The Oracle</h2>
 
         {/* Tabs */}
@@ -450,7 +450,6 @@ export const OracleModal: React.FC<{ onClose: () => void; profile: SoulProfile |
           {tab === "lifepath" && <LifePathSection profile={profile} />}
           {tab === "sigil" && <SigilSection profile={profile} />}
         </div>
-      </div>
     </div>
   );
 };

@@ -1,4 +1,6 @@
 // SoulProfileModal.tsx — soul archetype, avatar, life themes, manifestation portal.
+// Track R (R-3): a chapter II surface now, not an overlay — Esc and the dial
+// navigate home via the App shell.
 import React, { useMemo, useState } from "react";
 import { useStore } from "../store/useStore";
 import { deriveSoulProfile } from "../lib/archetypes";
@@ -11,7 +13,7 @@ These patterns do not determine your life. They describe the specific frequency 
 
 The avatar you see here is your frequency map made visible: your dominant element as the quality of your energy, your modality as its characteristic impulse, the planet web as the living network of your inner archetypes, and the North Node arc as the arrow of your becoming. It is not fixed. It evolves as you do.`;
 
-export const SoulProfileModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+export const SoulProfileModal: React.FC = () => {
   const chart = useStore((s) => s.chart);
   const birth = useStore((s) => s.birth);
   const isSupporter = useStore((s) => s.isSupporter);
@@ -26,12 +28,9 @@ export const SoulProfileModal: React.FC<{ onClose: () => void }> = ({ onClose })
 
   if (!chart || !profile) {
     return (
-      <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-        <div className="modal soul-modal">
-          <button className="modal-close" onClick={onClose}>×</button>
-          <h2 className="section" style={{ marginTop: 0 }}>Soul Profile</h2>
-          <p className="muted">Cast a chart first to reveal your soul profile.</p>
-        </div>
+      <div className="soul-modal">
+        <h2 className="section" style={{ marginTop: 0 }}>Soul Profile</h2>
+        <p className="muted">Cast a chart first to reveal your soul profile.</p>
       </div>
     );
   }
@@ -39,9 +38,7 @@ export const SoulProfileModal: React.FC<{ onClose: () => void }> = ({ onClose })
   const [c1] = profile.elementColors;
 
   return (
-    <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal soul-modal">
-        <button className="modal-close" onClick={onClose}>×</button>
+    <div className="soul-modal">
 
         {/* ── Header ──────────────────────────────────────────────────── */}
         <div className="soul-header">
@@ -161,7 +158,6 @@ export const SoulProfileModal: React.FC<{ onClose: () => void }> = ({ onClose })
             </div>
           )}
         </div>
-      </div>
     </div>
   );
 };

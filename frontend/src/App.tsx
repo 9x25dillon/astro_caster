@@ -14,6 +14,8 @@ import { CeremonyModal } from "./components/CeremonyModal";
 import { ForecastPanel } from "./components/ForecastPanel";
 import { ArcanaModal } from "./components/ArcanaModal";
 import { BookshelfModal } from "./components/BookshelfModal";
+import { LibraryVault } from "./components/LibraryVault";
+import { TomeMeter } from "./components/TomeMeter";
 import { RelationshipModal } from "./components/RelationshipModal";
 import { PredictiveModal } from "./components/PredictiveModal";
 import { AdvancedModal } from "./components/AdvancedModal";
@@ -40,8 +42,6 @@ export const App: React.FC = () => {
   // in the stage, unchanged (their chrome retires in R-2).
   const [chapter, setChapter] = useState<Chapter>("I");
   const [glossaryOpen, setGlossaryOpen] = useState(false);
-  const [soulOpen, setSoulOpen] = useState(false);
-  const [oracleOpen, setOracleOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
   const [privacyDismissed, setPrivacyDismissed] = useState(
     () => !!localStorage.getItem("aae.privacy_ack")
@@ -72,6 +72,15 @@ export const App: React.FC = () => {
     // the chapter clears it, and chapter I falls back to chart detail.
     setMargin(null);
     trackEvent("chapter_opened", { chapter: ch });
+  };
+
+  // R-3: Soul Profile and the Oracle are chapter II surfaces now — the old
+  // launcher buttons deep-scroll to them inside the Reading chapter.
+  const openReadingAt = (selector: string) => {
+    openChapter("II");
+    window.setTimeout(() => {
+      document.querySelector(selector)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 150);
   };
 
   // Ergonomic law: hands on keys. 1–8 jump chapters, Esc is always home,
@@ -113,11 +122,13 @@ export const App: React.FC = () => {
           Natal observatory · celestial cartography · oracle
         </div>
         <div className="masthead-actions">
-          {/* Track R (R-1): module pills retired — the chapter dial navigates.
-              The masthead keeps identity, entitlement, and admin only. */}
+          {/* Track R (R-3): the masthead pill is identity — support & unlock
+              live in the Library (chapter VIII) now; 402 gates still open the
+              support overlay directly. */}
           <button
             className={`support-pill ${isSupporter ? "is-supporter" : ""}`}
-            onClick={() => openSupport(true)}
+            title="Support & unlock lives in the Library"
+            onClick={() => openChapter("VIII")}
           >
             {isSupporter ? "✦ Supporter" : "☤ Support / Unlock"}
           </button>
@@ -136,8 +147,6 @@ export const App: React.FC = () => {
 
       <SupportModal />
       {glossaryOpen && <GlossaryPanel onClose={() => setGlossaryOpen(false)} />}
-      {soulOpen && <SoulProfileModal onClose={() => setSoulOpen(false)} />}
-      {oracleOpen && <OracleModal onClose={() => setOracleOpen(false)} profile={soulProfile} />}
       {adminOpen && <AdminPanel onClose={() => setAdminOpen(false)} />}
 
       {!privacyDismissed && (
@@ -165,8 +174,8 @@ export const App: React.FC = () => {
 
       <Controls
         onOpenGlossary={() => { setGlossaryOpen(true); trackEvent("glossary_opened"); }}
-        onOpenSoul={() => { setSoulOpen(true); trackEvent("soul_profile_opened"); }}
-        onOpenOracle={() => { setOracleOpen(true); trackEvent("oracle_opened"); }}
+        onOpenSoul={() => { openReadingAt(".soul-modal"); trackEvent("soul_profile_opened"); }}
+        onOpenOracle={() => { openReadingAt(".oracle-modal"); trackEvent("oracle_opened"); }}
         onOpenForecast={() => openChapter("III")}
         onNewChart={() => setCeremonyOpen(true)}
       />
@@ -196,7 +205,15 @@ export const App: React.FC = () => {
                 Esc / the dial navigate home; ForecastPanel's onHome is real
                 navigation (jump/Ask land on the wheel). Distinct keys force
                 clean remounts between the three Arcana-backed chapters. */}
-            {chapter === "II" && <ArcanaModal key="ch-ii" />}
+            {chapter === "II" && (
+              <>
+                <ArcanaModal key="ch-ii" />
+                {/* R-3: the Reading chapter gathers everything that answers a
+                    question — the soul profile and the Oracle fold in below. */}
+                <SoulProfileModal />
+                <OracleModal profile={soulProfile} />
+              </>
+            )}
             {chapter === "III" && (
               <>
                 <ForecastPanel onHome={() => setChapter("I")} />
@@ -207,7 +224,18 @@ export const App: React.FC = () => {
             {chapter === "V" && <AdvancedModal />}
             {chapter === "VI" && <ArcanaModal key="ch-vi" initialTab="classroom" />}
             {chapter === "VII" && <ArcanaModal key="ch-vii" initialTab="studio" />}
-            {chapter === "VIII" && <BookshelfModal />}
+            {chapter === "VIII" && (
+              <>
+                <TomeMeter />
+                <BookshelfModal />
+                <LibraryVault />
+              </>
+            )}
+            {/* The voice canon, set small and constant — a running footer,
+                one refrain instead of five clinical disclaimers. */}
+            <p className="chapter-refrain">
+              Nothing Astra produces is a life sentence — it is a life poem.
+            </p>
           </div>
         )}
         <ChapterDial active={chapter} onSelect={openChapter} />

@@ -1,8 +1,8 @@
 // ProfileManager.tsx — localStorage-based saved chart profiles.
+// Track R (R-3): the vault moved to the Library (chapter VIII).
 import React, { useState } from "react";
 import { useStore } from "../store/useStore";
 import { shareBirth } from "../lib/shareChart";
-import { downloadVault, restoreVault } from "../lib/vault";
 import type { BirthInput } from "../types";
 
 export interface SavedProfile {
@@ -29,7 +29,6 @@ const dateStr = (b: BirthInput) =>
   `${b.month}/${b.day}/${b.year}`;
 
 export const ProfileManager: React.FC<{ onLoad?: () => void }> = ({ onLoad }) => {
-  const fileRef = React.useRef<HTMLInputElement>(null);
   const birth = useStore((s) => s.birth);
   const setBirth = useStore((s) => s.setBirth);
   const generate = useStore((s) => s.generate);
@@ -132,46 +131,6 @@ export const ProfileManager: React.FC<{ onLoad?: () => void }> = ({ onLoad }) =>
           >
             ⇪ Share
           </button>
-          <button
-            className="ghost vault-export"
-            style={{ fontSize: 12, padding: "4px 10px", width: "auto" }}
-            title="Download ALL local observatory data (profiles, entitlement, report claims, bookmarks) as one file. It contains your birth data — guard it like a key."
-            onClick={async () => {
-              const n = await downloadVault();
-              setShareMsg(`vault saved · ${n} entries`);
-              setTimeout(() => setShareMsg(""), 2500);
-            }}
-          >
-            ⇓ Vault
-          </button>
-          <button
-            className="ghost vault-import"
-            style={{ fontSize: 12, padding: "4px 10px", width: "auto" }}
-            title="Restore a previously exported vault file (overwrites matching local data, then reloads)"
-            onClick={() => fileRef.current?.click()}
-          >
-            ⇑ Restore
-          </button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="application/json,.json"
-            style={{ display: "none" }}
-            onChange={async (e) => {
-              const f = e.target.files?.[0];
-              e.target.value = "";
-              if (!f) return;
-              if (!window.confirm("Restore this vault? Matching local data will be overwritten, then the observatory reloads.")) return;
-              try {
-                const n = await restoreVault(await f.text());
-                setShareMsg(`restored ${n} entries — reloading…`);
-                setTimeout(() => window.location.reload(), 700);
-              } catch (err) {
-                setShareMsg(String((err as Error).message ?? err));
-                setTimeout(() => setShareMsg(""), 4000);
-              }
-            }}
-          />
           {shareMsg && <span className="muted" style={{ fontSize: 11 }}>{shareMsg}</span>}
         </div>
       )}
