@@ -22,6 +22,7 @@ import type {
   ChartResponse,
   Lens,
   LayerState,
+  MarginNote,
   Selection,
   TransitResponse,
 } from "../types";
@@ -95,6 +96,9 @@ interface AstroState {
   // UI
   selection: Selection | null;
   hovered: Selection | null;
+  // Track R (R-2): the margin glass. Chapters publish their selection here;
+  // DetailPanel renders it, falling back to chart detail when null (chapter I).
+  marginContent: MarginNote | null;
   loading: boolean;
   error: string | null;
   autoSpeak: boolean; // read each new interpretation aloud automatically
@@ -116,6 +120,7 @@ interface AstroState {
   setLens: (l: Lens) => void;
   toggleLayer: (k: keyof LayerState) => void;
   select: (s: Selection | null) => void;
+  setMargin: (m: MarginNote | null) => void;
   hover: (s: Selection | null) => void;
   setTransitIso: (iso: string) => void;
   toggleAutoSpeak: () => void;
@@ -223,6 +228,7 @@ export const useStore = create<AstroState>((set, get) => ({
 
   selection: null,
   hovered: null,
+  marginContent: null,
   loading: false,
   error: null,
   autoSpeak: false,
@@ -245,6 +251,7 @@ export const useStore = create<AstroState>((set, get) => ({
     set({ selection, aiResult: null });
     if (selection) trackEvent("element_selected", { type: selection.type, id: selection.id });
   },
+  setMargin: (marginContent) => set({ marginContent }),
   hover: (hovered) => set({ hovered }),
   setTransitIso: (transitIso) => set({ transitIso }),
   toggleAutoSpeak: () => set((s) => ({ autoSpeak: !s.autoSpeak })),
@@ -253,7 +260,7 @@ export const useStore = create<AstroState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const chart = await generateChart(get().birth);
-      set({ chart, loading: false, selection: null, transit: null,
+      set({ chart, loading: false, selection: null, marginContent: null, transit: null,
             chartFromCache: false, chartFromLocal: false });
       try {
         localStorage.setItem(LAST_CHART_KEY, JSON.stringify({ birth: get().birth, chart }));
@@ -265,8 +272,8 @@ export const useStore = create<AstroState>((set, get) => ({
       // birth data is the best offline chart (full body set) — restore it.
       const cached = readLastChart();
       if (cached && sameBirth(cached.birth, get().birth)) {
-        set({ chart: cached.chart, loading: false, error: null,
-              selection: null, transit: null, chartFromCache: true, chartFromLocal: false });
+        set({ chart: cached.chart, loading: false, error: null, selection: null,
+              marginContent: null, transit: null, chartFromCache: true, chartFromLocal: false });
         return;
       }
       // 2) No cache for this birth — cast it on-device with @astra/core
@@ -274,7 +281,7 @@ export const useStore = create<AstroState>((set, get) => ({
       try {
         const chart = await localChart(get().birth);
         set({ chart, loading: false, error: null, selection: null,
-              transit: null, chartFromCache: true, chartFromLocal: true });
+              marginContent: null, transit: null, chartFromCache: true, chartFromLocal: true });
         return;
       } catch {
         /* local engine unavailable — fall through to the error */

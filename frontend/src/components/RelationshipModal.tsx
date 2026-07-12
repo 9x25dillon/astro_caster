@@ -30,6 +30,7 @@ const BirthFields: React.FC<{ b: BirthInput; on: (b: BirthInput) => void }> = ({
 
 export const RelationshipModal: React.FC = () => {
   const birth = useStore((s) => s.birth);
+  const setMargin = useStore((s) => s.setMargin);   // R-2: publish selections to the margin glass
   const [tab, setTab] = useState<Tab>("synastry");
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -97,7 +98,12 @@ export const RelationshipModal: React.FC = () => {
                   <p className="arc-themes"><b>{syn.inter_aspects.length} inter-aspects.</b> Tightest:</p>
                   <div className="arc-cards-row">
                     {syn.inter_aspects.slice(0, 6).sort((a, b) => a.orb - b.orb).map((a, i) => (
-                      <div key={i} className="arc-drawn">
+                      <div key={i} className="arc-drawn mg-sel"
+                           onClick={() => setMargin({
+                             title: `${a.p1.replace("t:", "")} ${a.type} ${a.p2}`,
+                             subtitle: `synastry inter-aspect · orb ${a.orb}°`,
+                             chips: [a.harmony],
+                           })}>
                         <div className="arc-drawn-pos">{a.type}</div>
                         <span className="arc-chip">{a.p1.replace("t:", "")} – {a.p2}</span>
                         <p className="arc-drawn-meaning">orb {a.orb}° · {a.harmony}</p>

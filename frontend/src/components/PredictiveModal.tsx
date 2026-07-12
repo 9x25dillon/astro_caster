@@ -16,6 +16,7 @@ const today = localToday;
 
 export const PredictiveModal: React.FC = () => {
   const birth = useStore((s) => s.birth);
+  const setMargin = useStore((s) => s.setMargin);   // R-2: publish selections to the margin glass
   const [tab, setTab] = useState<Tab>("progressions");
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -128,7 +129,14 @@ export const PredictiveModal: React.FC = () => {
                 </button>
               </div>
               {ecl?.eclipses.map((e) => (
-                <div key={e.date + e.kind} className="arc-day">
+                <div key={e.date + e.kind} className="arc-day mg-sel"
+                     onClick={() => setMargin({
+                       title: `${e.kind === "solar" ? "☉ Solar" : "☽ Lunar"} eclipse · ${e.nature}`,
+                       subtitle: `${e.date} · ${e.degree}° ${e.sign}`,
+                       body: e.activations.length > 0
+                         ? [`Activates: ${e.activations.map((c) => `${c.natal_body} (${c.aspect}, ${c.orb}°)`).join(", ")}`]
+                         : undefined,
+                     })}>
                   <div className="arc-day-head">
                     <span className="arc-day-date">{e.date}</span>
                     <span className="arc-day-transit">

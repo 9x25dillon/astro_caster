@@ -13,6 +13,7 @@ import { JournalPad } from "./JournalPad";
 import { printSessionTome } from "../lib/tomePrint";
 import { Interpretation } from "./DetailPanel";
 import { trackEvent } from "../api/client";
+import { useStore } from "../store/useStore";
 
 const SPREAD_LABEL: Record<string, string> = {
   daily: "Daily", three_card: "Three-Card", elemental_balance: "Elemental",
@@ -23,6 +24,7 @@ const SPREAD_LABEL: Record<string, string> = {
 };
 
 export const BookshelfModal: React.FC = () => {
+  const setMargin = useStore((s) => s.setMargin);   // R-2: publish selections to the margin glass
   const [entries, setEntries] = useState<ShelfEntry[] | null>(null);
   const [openSeed, setOpenSeed] = useState<string | null>(null);
   const [msg, setMsg] = useState("");
@@ -107,7 +109,20 @@ export const BookshelfModal: React.FC = () => {
         <div className="shelf-list">
           {entries?.map((e) => (
             <div key={e.seed} className={`shelf-item ${openSeed === e.seed ? "open" : ""}`}>
-              <div className="shelf-row" onClick={() => setOpenSeed(openSeed === e.seed ? null : e.seed)}>
+              <div className="shelf-row" onClick={() => {
+                const opening = openSeed !== e.seed;
+                setOpenSeed(opening ? e.seed : null);
+                // R-2: an opened session is the Library's selection.
+                setMargin(opening ? {
+                  title: e.question,
+                  subtitle: `${dateOf(e)} · ${SPREAD_LABEL[e.spread] ?? e.spread}`,
+                  chips: [
+                    ...(e.personal ? ["✶ deluxe"] : []),
+                    e.ai_source === "llm" ? (e.model ?? "live") : "offline",
+                  ],
+                  journal: { seed: e.seed, question: e.question },
+                } : null);
+              }}>
                 <span className="shelf-date">{dateOf(e)}</span>
                 <span className="shelf-q">{e.question}</span>
                 <span className="shelf-chips">

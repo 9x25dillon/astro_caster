@@ -96,6 +96,26 @@ export interface Selection {
   id: string;
 }
 
+// Track R (R-2): what a chapter publishes into the margin glass. Plain data
+// only — the margin renders every chapter's selection through one generic
+// shape (zone 1: title/subtitle/chips · zone 2: body/action + JournalPad).
+export interface MarginJournalKey {
+  seed: string;
+  position?: string | null;
+  prompt?: string | null;
+  cardName?: string | null;
+  question?: string | null;
+}
+
+export interface MarginNote {
+  title: string;
+  subtitle?: string;
+  chips?: string[];
+  body?: string[];      // prose paragraphs
+  action?: string;      // a practice / alignment line, rendered with ✦
+  journal?: MarginJournalKey; // keys the margin's JournalPad to the selection
+}
+
 export type Lens =
   | "natal"
   | "psychological"

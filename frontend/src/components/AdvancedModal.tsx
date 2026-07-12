@@ -13,6 +13,7 @@ type Tab = "harmonics" | "midpoints" | "stars";
 
 export const AdvancedModal: React.FC = () => {
   const birth = useStore((s) => s.birth);
+  const setMargin = useStore((s) => s.setMargin);   // R-2: publish selections to the margin glass
   const [tab, setTab] = useState<Tab>("harmonics");
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -93,7 +94,12 @@ export const AdvancedModal: React.FC = () => {
                 </button>
               </div>
               {mid?.entries.map((e) => (
-                <div key={e.pair} className="arc-day">
+                <div key={e.pair} className="arc-day mg-sel"
+                     onClick={() => setMargin({
+                       title: `${e.pair} midpoint`,
+                       subtitle: `${e.degree}° ${e.sign} · 90° dial`,
+                       body: [e.contacts.map((c) => `${c.body} (${c.aspect}, ${c.orb}°)`).join(", ")],
+                     })}>
                   <div className="arc-day-head">
                     <span className="arc-day-date">{e.pair}</span>
                     <span className="arc-day-transit">= {e.degree}° {e.sign}</span>
@@ -116,7 +122,12 @@ export const AdvancedModal: React.FC = () => {
                 </button>
               </div>
               {stars?.hits.map((h, i) => (
-                <div key={i} className="arc-day">
+                <div key={i} className="arc-day mg-sel"
+                     onClick={() => setMargin({
+                       title: `${h.natal_body} ☌ ${h.star}`,
+                       subtitle: `${h.degree}° ${h.sign} · orb ${h.orb}°`,
+                       body: [h.nature],
+                     })}>
                   <div className="arc-day-head">
                     <span className="arc-day-date">{h.natal_body}</span>
                     <span className="arc-day-transit">conj <b>{h.star}</b> {h.degree}° {h.sign} · orb {h.orb}°</span>

@@ -103,15 +103,26 @@ const EventCard: React.FC<{
   onAsk: (query: string, date: string) => void;
 }> = ({ ev, bookmarked, onToggleBookmark, onJump, onAsk }) => {
   const [open, setOpen] = useState(false);
+  const setMargin = useStore((s) => s.setMargin);
   const isRx = ev.direction === "retrograde";
   const isDirect = ev.direction === "direct";
+
+  // R-2: expanding an event also publishes it to the margin glass.
+  const publish = () =>
+    setMargin({
+      title: ev.summary,
+      subtitle: `${formatDate(ev.date)} · ${TYPE_LABEL[ev.type]}`,
+      chips: [ev.significance, ...(ev.harmony ? [ev.harmony] : [])],
+      body: ev.meaning ? [ev.meaning] : undefined,
+      journal: { seed: `forecast:${bmId(ev)}`, question: ev.summary },
+    });
 
   return (
     <div
       className={`fc-event fc-event--${ev.significance} fc-event--${ev.type}`}
       style={{ borderLeftColor: ev.color }}
     >
-      <div className="fc-event-header" onClick={() => setOpen((o) => !o)}>
+      <div className="fc-event-header" onClick={() => { setOpen((o) => !o); publish(); }}>
         <span className="fc-event-date">{formatDate(ev.date)}</span>
         <span className="fc-event-sig" title={ev.significance}
               style={{ color: ev.color }}>{SIG_BADGE[ev.significance]}</span>

@@ -2526,3 +2526,7 @@ h2.section::after {
   margin: 0 auto 16px;
   width: min(960px, 100%);
 }
+
+/* R-2: anything a chapter can publish to the margin glass is selectable. */
+.mg-sel { cursor: pointer; }
+.mg-sel:hover { outline: 1px solid rgba(201, 168, 76, 0.35); outline-offset: 1px; }

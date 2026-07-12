@@ -34,6 +34,7 @@ export const App: React.FC = () => {
   const validateEntitlement = useStore((s) => s.validateEntitlement);
   const flushAskQueue = useStore((s) => s.flushAskQueue);
   const queuedAsks = useStore((s) => s.queuedAsks);
+  const setMargin = useStore((s) => s.setMargin);
   // Track R (R-1): the seven masthead module buttons became the chapter dial.
   // Chapter I = the wheel at home; II–VIII mount the former modals' content
   // in the stage, unchanged (their chrome retires in R-2).
@@ -67,6 +68,9 @@ export const App: React.FC = () => {
 
   const openChapter = (ch: Chapter) => {
     setChapter(ch);
+    // A margin selection belongs to the chapter that published it — leaving
+    // the chapter clears it, and chapter I falls back to chart detail.
+    setMargin(null);
     trackEvent("chapter_opened", { chapter: ch });
   };
 
@@ -77,7 +81,7 @@ export const App: React.FC = () => {
       const t = e.target as HTMLElement | null;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
-      if (e.key === "Escape") { setChapter("I"); return; }
+      if (e.key === "Escape") { setChapter("I"); setMargin(null); return; }
       const i = "12345678".indexOf(e.key);
       if (i >= 0) openChapter(CHAPTERS[i].ch);
     };

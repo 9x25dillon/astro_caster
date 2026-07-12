@@ -157,6 +157,7 @@ function renderBody(body: string): React.ReactNode {
 export const DetailPanel: React.FC = () => {
   const chart = useStore((s) => s.chart);
   const selection = useStore((s) => s.selection);
+  const margin = useStore((s) => s.marginContent);
   const lens = useStore((s) => s.lens);
   const setLens = useStore((s) => s.setLens);
   const aiResult = useStore((s) => s.aiResult);
@@ -232,6 +233,25 @@ export const DetailPanel: React.FC = () => {
       </div>
     );
   }
+
+  // Track R (R-2): the margin glass. A chapter's published selection renders
+  // through this one generic shape; with nothing published the margin falls
+  // back to chart detail below (chapter I's resting state).
+  const renderMargin = (m: NonNullable<typeof margin>) => (
+    <div className="margin-note">
+      <h3>{m.title}</h3>
+      {m.subtitle && <p className="muted">{m.subtitle}</p>}
+      {m.chips && m.chips.length > 0 && (
+        <div style={{ margin: "6px 0" }}>
+          {m.chips.map((c) => <span key={c} className="chip">{c}</span>)}
+        </div>
+      )}
+      {m.body?.map((b, i) => (
+        <p key={i} style={{ fontSize: 14, lineHeight: 1.5 }}>{b}</p>
+      ))}
+      {m.action && <p className="arc-drawn-act">✦ {m.action}</p>}
+    </div>
+  );
 
   const renderSelected = () => {
     if (!selection) {
@@ -384,7 +404,7 @@ export const DetailPanel: React.FC = () => {
   return (
     <div className="panel detail">
       <h2 className="section">Detail</h2>
-      {renderSelected()}
+      {margin ? renderMargin(margin) : renderSelected()}
 
       <h2 className="section" style={{ marginTop: 18 }}>Astra · Reflection</h2>
       <div style={{ marginBottom: 8 }}>
