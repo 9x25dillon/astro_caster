@@ -1,6 +1,8 @@
 // RelationshipModal.tsx — synastry, composite, Davison, synastry-tarot.
 // Person A is the loaded chart; Person B is entered here.
-import React, { useEffect, useRef, useState } from "react";
+// Track R (R-2): a chapter surface (IV · Relations), not a modal — no overlay,
+// no ✕; Esc and the dial navigate home via the App shell.
+import React, { useState } from "react";
 import { useStore } from "../store/useStore";
 import {
   fetchSynastry, fetchComposite, fetchDavison, fetchSynastryTarot, trackEvent,
@@ -26,9 +28,9 @@ const BirthFields: React.FC<{ b: BirthInput; on: (b: BirthInput) => void }> = ({
   </div>
 );
 
-export const RelationshipModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+export const RelationshipModal: React.FC = () => {
   const birth = useStore((s) => s.birth);
-  const overlayRef = useRef<HTMLDivElement>(null);
+  const setMargin = useStore((s) => s.setMargin);   // R-2: publish selections to the margin glass
   const [tab, setTab] = useState<Tab>("synastry");
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -42,12 +44,6 @@ export const RelationshipModal: React.FC<{ onClose: () => void }> = ({ onClose }
   const [comp, setComp] = useState<CompositeChart | null>(null);
   const [dav, setDav] = useState<DavisonChart | null>(null);
   const [tarot, setTarot] = useState<SynastryTarotResponse | null>(null);
-
-  useEffect(() => {
-    const h = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    window.addEventListener("keydown", h);
-    return () => window.removeEventListener("keydown", h);
-  }, [onClose]);
 
   async function run<T>(fn: () => Promise<T>, set: (v: T) => void, ev: string, local?: () => Promise<T>) {
     setLoading(true); setErr(null); setOnDevice(false);
@@ -63,16 +59,13 @@ export const RelationshipModal: React.FC<{ onClose: () => void }> = ({ onClose }
   }
 
   return (
-    <div className="modal-overlay" ref={overlayRef}
-         onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}>
-      <div className="arcana-modal">
+    <div className="arcana-modal">
         <div className="arcana-header">
           <div>
             <h2 className="arcana-title">⚭ Relationship Astrology</h2>
             <p className="arcana-sub">Person A is your loaded chart. Enter Person B below.
               Symbolic mirror, not prediction.</p>
           </div>
-          <button className="modal-close" onClick={onClose}>✕</button>
         </div>
 
         <div className="rel-personb">
@@ -105,7 +98,12 @@ export const RelationshipModal: React.FC<{ onClose: () => void }> = ({ onClose }
                   <p className="arc-themes"><b>{syn.inter_aspects.length} inter-aspects.</b> Tightest:</p>
                   <div className="arc-cards-row">
                     {syn.inter_aspects.slice(0, 6).sort((a, b) => a.orb - b.orb).map((a, i) => (
-                      <div key={i} className="arc-drawn">
+                      <div key={i} className="arc-drawn mg-sel"
+                           onClick={() => setMargin({
+                             title: `${a.p1.replace("t:", "")} ${a.type} ${a.p2}`,
+                             subtitle: `synastry inter-aspect · orb ${a.orb}°`,
+                             chips: [a.harmony],
+                           })}>
                         <div className="arc-drawn-pos">{a.type}</div>
                         <span className="arc-chip">{a.p1.replace("t:", "")} – {a.p2}</span>
                         <p className="arc-drawn-meaning">orb {a.orb}° · {a.harmony}</p>
@@ -204,7 +202,6 @@ export const RelationshipModal: React.FC<{ onClose: () => void }> = ({ onClose }
             </div>
           )}
         </div>
-      </div>
     </div>
   );
 };

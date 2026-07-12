@@ -1,7 +1,9 @@
 // ArcanaModal.tsx — Astra Arcana: natal tarot observatory.
 // Tabs: Natal signature · Draw spread · Transit cards · Classroom · Studio.
 // Deterministic core works offline; AI enrichment is opt-in for supporters.
-import React, { useEffect, useRef, useState } from "react";
+// Track R (R-2): a chapter surface (II · Reading / VI · Study / VII · Studio),
+// not a modal — no overlay, no ✕; Esc and the dial navigate home via the App shell.
+import React, { useEffect, useState } from "react";
 import { useStore } from "../store/useStore";
 import {
   fetchNatalArcana,
@@ -91,19 +93,18 @@ function CardChip({ name, reversed }: { name: string; reversed?: boolean }) {
 }
 
 export const ArcanaModal: React.FC<{
-  onClose: () => void;
   // Track R: chapters VI (Study) and VII (Studio) open straight to their tab.
   initialTab?: Tab;
-}> = ({ onClose, initialTab }) => {
+}> = ({ initialTab }) => {
   const chart = useStore((s) => s.chart);
   const birth = useStore((s) => s.birth);
   const aiResult = useStore((s) => s.aiResult);   // Astra's Detail-panel reading
   const entitlement = useStore((s) => s.entitlement);
   const isSupporter = useStore((s) => s.isSupporter);
   const openSupport = useStore((s) => s.openSupport);
+  const setMargin = useStore((s) => s.setMargin);   // R-2: publish selections to the margin glass
   const speech = useSpeech();   // Speak buttons on the Oracle Report sections
 
-  const overlayRef = useRef<HTMLDivElement>(null);
   const [tab, setTab] = useState<Tab>(initialTab ?? "natal");
 
   const [sig, setSig] = useState<NatalArcanaSignature | null>(null);
@@ -138,13 +139,6 @@ export const ArcanaModal: React.FC<{
   const [useAi, setUseAi] = useState(false);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-
-  // Esc to close.
-  useEffect(() => {
-    const h = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    window.addEventListener("keydown", h);
-    return () => window.removeEventListener("keydown", h);
-  }, [onClose]);
 
   // Reset cached arcana state whenever the underlying chart changes
   // (e.g. the user casts a new chart with the modal open).
@@ -543,9 +537,7 @@ export const ArcanaModal: React.FC<{
   }
 
   return (
-    <div className="modal-overlay" ref={overlayRef}
-         onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}>
-      <div className="arcana-modal">
+    <div className="arcana-modal">
         <div className="arcana-header">
           <div>
             <h2 className="arcana-title">✶ Astra Arcana</h2>
@@ -554,7 +546,6 @@ export const ArcanaModal: React.FC<{
               it into action, beauty, and self-knowledge.
             </p>
           </div>
-          <button className="modal-close" onClick={onClose}>✕</button>
         </div>
 
         <div className="arcana-tabs">
@@ -592,7 +583,16 @@ export const ArcanaModal: React.FC<{
               </div>
               <div className="arc-link-grid">
                 {sig.links.map((l) => (
-                  <div key={l.body} className="arc-link-card">
+                  <div key={l.body} className="arc-link-card mg-sel"
+                       onClick={() => setMargin({
+                         title: l.card.name,
+                         subtitle: l.body,
+                         chips: [
+                           ...(l.sign ? [l.sign] : []),
+                           ...(l.house ? [`house ${l.house}`] : []),
+                         ],
+                         body: [l.note],
+                       })}>
                     <div className="arc-link-body">{l.body}</div>
                     <CardChip name={l.card.name} />
                     <div className="arc-link-note">{l.note}</div>
@@ -642,7 +642,18 @@ export const ArcanaModal: React.FC<{
                 <div className="arc-reading">
                   <div className="arc-cards-row">
                     {reading.cards.map((c) => (
-                      <div key={c.position} className="arc-drawn">
+                      <div key={c.position} className="arc-drawn mg-sel"
+                           onClick={() => setMargin({
+                             title: `${c.card.name}${c.reversed ? " (reversed)" : ""}`,
+                             subtitle: c.position,
+                             body: [c.meaning],
+                             action: c.activity ?? undefined,
+                             journal: {
+                               seed: reading.seed, position: c.position,
+                               prompt: c.journal_prompt ?? null,
+                               cardName: c.card.name, question: reading.question,
+                             },
+                           })}>
                         <div className="arc-drawn-pos">{c.position}</div>
                         <CardChip name={c.card.name} reversed={c.reversed} />
                         <p className="arc-drawn-meaning">{c.meaning}</p>
@@ -881,7 +892,18 @@ export const ArcanaModal: React.FC<{
                 <p className="arc-empty">No notable activations in the next {forecast.days} days.</p>
               )}
               {forecast?.cards.map((d) => (
-                <div key={d.date} className="arc-day">
+                <div key={d.date} className="arc-day mg-sel"
+                     onClick={() => setMargin({
+                       title: `${d.card.name}${d.reversed ? " (reversed)" : ""}`,
+                       subtitle: `${d.date} · ${d.transit_summary}`,
+                       body: [d.lesson],
+                       action: d.alignment_action,
+                       journal: {
+                         seed: `arcana-day:${d.date}`, position: d.date,
+                         prompt: d.journal_prompt, cardName: d.card.name,
+                         question: d.transit_summary,
+                       },
+                     })}>
                   <div className="arc-day-head">
                     <span className="arc-day-date">{d.date}</span>
                     <span className="arc-day-transit">{d.transit_summary}</span>
@@ -910,7 +932,18 @@ export const ArcanaModal: React.FC<{
                   </div>
                   <ol className="arc-path-steps" style={{ paddingLeft: 18, margin: 0 }}>
                     {path.steps.map((s) => (
-                      <li key={s.order} style={{ marginBottom: 10 }}>
+                      <li key={s.order} className="mg-sel" style={{ marginBottom: 10 }}
+                          onClick={() => setMargin({
+                            title: s.card.name,
+                            subtitle: `${s.stage} · step ${s.order} of ${path.steps.length}`,
+                            body: [s.focus],
+                            action: s.practice,
+                            journal: {
+                              seed: `path:${path.anchor}→${path.growth_edge}`,
+                              position: `${s.order} · ${s.card.name}`,
+                              prompt: s.journal, cardName: s.card.name,
+                            },
+                          })}>
                         <div>
                           <span className="arc-badge arc-badge--off">{s.stage}</span>{" "}
                           <b>{s.card.name}</b>
@@ -1079,7 +1112,6 @@ export const ArcanaModal: React.FC<{
             </div>
           )}
         </div>
-      </div>
     </div>
   );
 };

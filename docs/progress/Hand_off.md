@@ -1,25 +1,35 @@
 # Hand_off.md
 
-_Last updated: 2026-07-10 end-of-session (session 14 close)_
+_Last updated: 2026-07-11 (session 15)_
 
 ## TL;DR for next session
 
-**Merge queue (operator, in order): #64 Course → #65 plates → #67 dial** —
-stacked; GitHub retargets as bases merge. All green.
+**Merge PR #68 — Track R R-2, the margin glass.** Built to the artifact's
+build sheet (§"R-2 mockup", fig. 5), four commits: (1) the six chapter
+components unwrapped — no .modal-overlay/✕/own-Escape; ForecastPanel's prop
+renamed `onHome` (jump/Ask genuinely navigate to chapter I); the
+.chapter-host neutralization CSS deleted; surfaces lost their modal-era
+max-height caps (the host is the only scroll container). (2) `MarginNote` +
+`marginContent` store slot; ten publish sites (natal links, drawn cards,
+transit days, path steps, forecast events, eclipses, inter-aspects,
+midpoints, star hits, shelf sessions) wear `.mg-sel`; DetailPanel renders
+notes generically, chart detail is chapter I's fallback; leaving a chapter
+clears the note. (3) DetailPanel = three-zone margin glass, Ask pinned at
+the foot in every chapter, `/` focuses it; sticky + viewport-capped on
+desktop (the stage's rows outgrow 100vh — measured, not assumed), stacks
+under 1100px. (4) JournalPad in zone 2 keyed to the selection (explicit
+session keys where they exist → prompted/overwrite-in-place with existing
+text restored; derived freeform key otherwise; chart selections too).
+**Found by driving:** the mini dial rail's viewport corner now belongs to
+the Ask foot on wide screens → the rail pins to the STAGE's bottom-right
+(`@media (min-width:1101px)` in theme.css). 68 e2e green (34 × 2 projects;
+new margin publish/clear test; journal.spec scoped to the shelf's own pad
+since the margin adds a second pen).
 
-**Then build R-2 (the margin glass).** The build sheet is in the Track R
-wireframes artifact (§"R-2 mockup", fig. 5):
+**Then R-3 (the Library):** Shelf/journal/vault as chapter VIII proper +
+✦ Generate My Tome with the spine meter; fold Oracle/Soul overlays into
+chapter II. **R-4 (material pass) stays LAST.** Wireframes artifact:
 https://claude.ai/code/artifact/b42a9765-4e12-42fb-93fb-a4472c4d8102
-One PR, ~4 commits: (1) unwrap the six chapter components' modal-overlay
-chrome + delete the .chapter-host neutralization CSS (they only mount in
-chapters since R-1/PR #67); (2) `marginContent` store slot — chapters publish
-selections, DetailPanel renders them; (3) Ask input moves to the margin's
-pinned foot, visible in every chapter; (4) JournalPad beside every selection.
-Overlays that STAY overlays: Support, Ceremony, Admin, Glossary, Oracle/Soul.
-Acceptance: no chapter .modal-overlay in DOM, 66 e2e green (selector edits
-only), ergonomic law holds (fixed dial positions, keys 1-8/Esc, thumb arc).
-After R-2: R-3 (Library chapter + ✦ Generate-My-Tome spine meter), R-4
-(material pass: void glass, ion trace, constellation path — LAST).
 
 **Session-14 facts you need:**
 - **Anthropic usage cap EXHAUSTED until 2026-08-01** — Fable calls 400;

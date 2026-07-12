@@ -34,6 +34,7 @@ export const App: React.FC = () => {
   const validateEntitlement = useStore((s) => s.validateEntitlement);
   const flushAskQueue = useStore((s) => s.flushAskQueue);
   const queuedAsks = useStore((s) => s.queuedAsks);
+  const setMargin = useStore((s) => s.setMargin);
   // Track R (R-1): the seven masthead module buttons became the chapter dial.
   // Chapter I = the wheel at home; II–VIII mount the former modals' content
   // in the stage, unchanged (their chrome retires in R-2).
@@ -67,17 +68,25 @@ export const App: React.FC = () => {
 
   const openChapter = (ch: Chapter) => {
     setChapter(ch);
+    // A margin selection belongs to the chapter that published it — leaving
+    // the chapter clears it, and chapter I falls back to chart detail.
+    setMargin(null);
     trackEvent("chapter_opened", { chapter: ch });
   };
 
-  // Ergonomic law: hands on keys. 1–8 jump chapters, Esc is always home.
-  // Never hijacked while typing.
+  // Ergonomic law: hands on keys. 1–8 jump chapters, Esc is always home,
+  // "/" focuses Ask in the margin's foot. Never hijacked while typing.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
-      if (e.key === "Escape") { setChapter("I"); return; }
+      if (e.key === "Escape") { setChapter("I"); setMargin(null); return; }
+      if (e.key === "/") {
+        e.preventDefault();
+        document.getElementById("margin-ask")?.focus();
+        return;
+      }
       const i = "12345678".indexOf(e.key);
       if (i >= 0) openChapter(CHAPTERS[i].ch);
     };
@@ -183,22 +192,22 @@ export const App: React.FC = () => {
           </>
         ) : (
           <div className="chapter-host">
-            {/* R-1: former modal content, mounted unchanged. Their own close
-                buttons / Escape handlers now navigate home. Chrome retires
-                in R-2. Distinct keys force clean remounts between the three
-                Arcana-backed chapters. */}
-            {chapter === "II" && <ArcanaModal key="ch-ii" onClose={() => setChapter("I")} />}
+            {/* R-2: chapters are bare surfaces — the modal chrome retired.
+                Esc / the dial navigate home; ForecastPanel's onHome is real
+                navigation (jump/Ask land on the wheel). Distinct keys force
+                clean remounts between the three Arcana-backed chapters. */}
+            {chapter === "II" && <ArcanaModal key="ch-ii" />}
             {chapter === "III" && (
               <>
-                <ForecastPanel onClose={() => setChapter("I")} />
-                <PredictiveModal onClose={() => setChapter("I")} />
+                <ForecastPanel onHome={() => setChapter("I")} />
+                <PredictiveModal />
               </>
             )}
-            {chapter === "IV" && <RelationshipModal onClose={() => setChapter("I")} />}
-            {chapter === "V" && <AdvancedModal onClose={() => setChapter("I")} />}
-            {chapter === "VI" && <ArcanaModal key="ch-vi" initialTab="classroom" onClose={() => setChapter("I")} />}
-            {chapter === "VII" && <ArcanaModal key="ch-vii" initialTab="studio" onClose={() => setChapter("I")} />}
-            {chapter === "VIII" && <BookshelfModal onClose={() => setChapter("I")} />}
+            {chapter === "IV" && <RelationshipModal />}
+            {chapter === "V" && <AdvancedModal />}
+            {chapter === "VI" && <ArcanaModal key="ch-vi" initialTab="classroom" />}
+            {chapter === "VII" && <ArcanaModal key="ch-vii" initialTab="studio" />}
+            {chapter === "VIII" && <BookshelfModal />}
           </div>
         )}
         <ChapterDial active={chapter} onSelect={openChapter} />

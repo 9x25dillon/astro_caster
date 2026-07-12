@@ -24,15 +24,39 @@ test("the chapter dial navigates; positions are fixed; Esc goes home", async ({ 
   await expect(nodes.first()).toHaveAttribute("data-ch", "I");
   await expect(nodes.last()).toHaveAttribute("data-ch", "VIII");
 
-  // Open a chapter: former modal content mounts in the stage.
+  // Open a chapter: the surface mounts in the stage.
   await openChapter(page, "II");
   await expect(page.locator(".chapter-host .arcana-modal")).toBeVisible();
   await expect(page.locator(".wheel-area > svg")).toHaveCount(0);
+
+  // R-2 acceptance: chapters are bare surfaces — no modal chrome in the DOM,
+  // and the margin's Ask input is reachable from inside the chapter.
+  await expect(page.locator(".chapter-host .modal-overlay")).toHaveCount(0);
+  await expect(page.locator(".chapter-host .modal-close")).toHaveCount(0);
+  await expect(page.locator("#margin-ask")).toBeVisible();
 
   // Esc is always home: the wheel returns.
   await page.keyboard.press("Escape");
   await expect(page.locator(".chapter-host")).toHaveCount(0);
   await expect(page.locator(".wheel-area svg").first()).toBeVisible();
+});
+
+test("chapters publish selections into the margin glass", async ({ page }) => {
+  await page.goto("/");
+  // Chapter II's natal signature renders link cards once the chart is cast.
+  await openChapter(page, "II");
+  const card = page.locator(".arc-link-card").first();
+  await expect(card).toBeVisible({ timeout: 15_000 });
+  const cardName = (await card.locator(".arc-chip").innerText()).replace(/^✦\s*/, "");
+
+  // Selecting it publishes a margin note; the pen appears beside it.
+  await card.click();
+  await expect(page.locator(".margin-note h3")).toHaveText(cardName);
+  await expect(page.locator(".margin-journal .jr-open")).toBeVisible();
+
+  // Leaving the chapter clears the note — chapter I rests on chart detail.
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".margin-note")).toHaveCount(0);
 });
 
 test("number keys jump chapters", async ({ page }) => {
