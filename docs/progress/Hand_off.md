@@ -1,10 +1,36 @@
 # Hand_off.md
 
-_Last updated: 2026-07-11 (session 15)_
+_Last updated: 2026-07-12 (session 15, second half)_
 
 ## TL;DR for next session
 
-**Merge PR #68 — Track R R-2, the margin glass.** Built to the artifact's
+**Merge PR #69 — Track R R-3, the Library.** Built same-session right after
+#68 merged. Four commits: (1) LibraryVault joins the shelf in chapter VIII —
+vault export/restore moved from the profile bar, support & unlock live
+there; masthead pill = identity, walks to the Library; the voice-canon
+refrain runs at the foot of every chapter. (2) ✦ Generate My Tome:
+lib/tomeCompile.ts maps the corpus onto the dial's eight chapters (chart→I,
+sessions→II with deluxe preferred whole, courses→VI, journal→VIII;
+III/IV/V/VII honestly wait), TomeMeter renders the spine (gilt segments
+widen with material) + compile via the print-CSS path, refrain as colophon.
+(3) Oracle + Soul fold into chapter II beneath the Arcana; Controls
+launchers deep-scroll to them; remaining overlays = Support/Ceremony/Admin/
+Glossary exactly. (4) **Layout truth found by driving: `.app` was
+height:100vh so tall chapters overflowed their grid tracks and the sticky
+margin glass vanished on deep scroll — grid is now height:auto/min-height:
+100vh and the margin stays pinned everywhere.** 76 e2e green (38×2; new
+library.spec.ts incl. tome-compile popup asserted to the colophon;
+vault.spec drives the Library now).
+
+**Then R-4 — the material pass, the last Track R PR:** void glass, phosphor
+gold structure, amethyst fields, the ION trace (only live computation),
+constellation-drawn learning path, motion budget (2.5°/min dial drift, one
+240ms bloom, reduced-motion). Wireframes artifact §"The material system":
+https://claude.ai/code/artifact/b42a9765-4e12-42fb-93fb-a4472c4d8102
+Also worth folding into R-4: sweep the five scattered `disclaimer` render
+sites now that the refrain runs as chapter footer (dedupe, don't double).
+
+_(Previous entry — R-2, merged as #68):_ **R-2, the margin glass.** Built to the artifact's
 build sheet (§"R-2 mockup", fig. 5), four commits: (1) the six chapter
 components unwrapped — no .modal-overlay/✕/own-Escape; ForecastPanel's prop
 renamed `onHome` (jump/Ask genuinely navigate to chapter I); the
