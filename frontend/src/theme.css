@@ -2613,6 +2613,51 @@ h2.section::after {
 .lib-support-btn.is-supporter { border-color: var(--amethyst); color: var(--amethyst-soft); }
 .lib-support-btn:hover { background: rgba(201, 168, 76, 0.08); }
 
+/* The tome spine — a book's edge that fills as the shelf grows. Bound
+   chapters are gilt segments (wider with more material); waiting chapters
+   are void with a dashed edge. */
+.tome-spine {
+  display: flex;
+  gap: 3px;
+  height: 44px;
+  margin: 12px 0 10px;
+}
+.tome-seg {
+  flex: 1 1 0;
+  position: relative;
+  display: grid;
+  place-items: center;
+  border: 1px dashed rgba(201, 168, 76, 0.35);
+  border-radius: 3px;
+  color: var(--sepia, #9a8f78);
+  font-family: var(--mono, monospace);
+  font-size: 11px;
+  transition: flex-grow 0.5s var(--ease-out);
+}
+.tome-seg.bound {
+  border: 1px solid var(--gold);
+  background: linear-gradient(180deg, var(--gold-soft, #e0c578), var(--gold-deep, #9a7b2a));
+  color: #14110a;
+  font-weight: 700;
+  box-shadow: 0 0 12px rgba(201, 168, 76, 0.25);
+}
+.tome-seg-count {
+  position: absolute;
+  bottom: 2px;
+  right: 4px;
+  font-size: 9px;
+  opacity: 0.8;
+}
+.tome-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.tome-waiting {
+  margin: 12px 0 0;
+  padding-left: 18px;
+  font-size: 12px;
+  color: var(--sepia, #9a8f78);
+}
+.tome-waiting li { margin: 3px 0; }
+.tome-waiting b { color: var(--gold-soft); font-weight: 500; }
+
 /* The voice canon — one refrain at the foot of every chapter, running-footer
    small. It replaces the scattered clinical disclaimers as the last word. */
 .chapter-refrain {

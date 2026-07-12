@@ -15,6 +15,7 @@ import { ForecastPanel } from "./components/ForecastPanel";
 import { ArcanaModal } from "./components/ArcanaModal";
 import { BookshelfModal } from "./components/BookshelfModal";
 import { LibraryVault } from "./components/LibraryVault";
+import { TomeMeter } from "./components/TomeMeter";
 import { RelationshipModal } from "./components/RelationshipModal";
 import { PredictiveModal } from "./components/PredictiveModal";
 import { AdvancedModal } from "./components/AdvancedModal";
@@ -212,6 +213,7 @@ export const App: React.FC = () => {
             {chapter === "VII" && <ArcanaModal key="ch-vii" initialTab="studio" />}
             {chapter === "VIII" && (
               <>
+                <TomeMeter />
                 <BookshelfModal />
                 <LibraryVault />
               </>
