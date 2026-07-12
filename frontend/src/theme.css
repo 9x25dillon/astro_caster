@@ -210,6 +210,13 @@ body::before {
   flex-direction: column;
   padding: 0;
   overflow: hidden;
+  /* The stage's rows can outgrow 100vh (tall chapter surfaces); the margin
+     rides along sticky and viewport-capped so the Ask foot never leaves
+     reach — the glass pane the wireframe draws. */
+  position: sticky;
+  top: 18px;
+  align-self: start;
+  max-height: calc(100vh - 36px);
 }
 .margin-head {
   flex: none;
@@ -233,9 +240,16 @@ body::before {
 @media (max-width: 1100px) {
   /* Mobile: the margin stacks below the stage (fig. 3) — natural height,
      no inner scroll regions, the page itself scrolls. */
-  .detail.margin-glass { overflow: visible; }
+  .detail.margin-glass { overflow: visible; position: static; max-height: none; }
   .margin-head { max-height: none; overflow: visible; }
   .margin-body { overflow: visible; }
+}
+.margin-journal { margin: 10px 0 14px; }
+.margin-journal-head {
+  font-size: 12px;
+  color: var(--gold-soft);
+  letter-spacing: 0.06em;
+  margin-bottom: 4px;
 }
 
 h2.section {
@@ -2502,6 +2516,11 @@ h2.section::after {
   right: 12px;
   bottom: 90px;
   z-index: 60;
+}
+/* R-2: on wide screens the margin glass owns the right edge — the rail pins
+   to the STAGE's bottom-right corner instead, clear of the Ask foot. */
+@media (min-width: 1101px) {
+  .chapter-dial.mini { right: calc(456px + env(safe-area-inset-right)); }
 }
 .chapter-dial.mini .dial-orbit {
   display: flex;

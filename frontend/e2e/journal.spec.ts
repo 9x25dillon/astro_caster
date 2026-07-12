@@ -43,7 +43,9 @@ test("a shelf reflection is kept, survives reload, and exports as markdown", asy
 
   await openChapter(page, "VIII");
   await page.locator(".shelf-row").click();
-  await page.getByRole("button", { name: /Add a reflection/ }).click();
+  // R-2: opening a session also mounts the margin's freeform pad — scope to
+  // the shelf's own journal block.
+  await page.locator(".shelf-journal .jr-open").click();
   await page.locator(".jr-text").fill("The current runs toward the work I keep postponing.");
   await page.getByRole("button", { name: "Keep" }).click();
   await expect(page.locator(".shelf-journal-text")).toContainText("keep postponing");

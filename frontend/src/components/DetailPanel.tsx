@@ -8,7 +8,9 @@ import { PLANET_METAL, MODALITY_PRINCIPLE } from "../lib/alchemy";
 import { ElementSigil, PrincipleSigil } from "./AlchemySigil";
 import { useSpeech } from "../lib/speech";
 import { GlossaryTooltip } from "./GlossaryTooltip";
-import type { Lens } from "../types";
+import { JournalPad } from "./JournalPad";
+import { journalForSeed, type JournalEntry } from "../lib/bookshelf";
+import type { Lens, MarginJournalKey } from "../types";
 
 const LENSES: Lens[] = [
   "psychological",
@@ -172,6 +174,28 @@ export const DetailPanel: React.FC = () => {
   const aiStreaming = useStore((s) => s.aiStreaming);
   const isSupporter = useStore((s) => s.isSupporter);
   const birth = useStore((s) => s.birth);
+
+  // R-2 (4/4): the pen beside every selection. A published margin note carries
+  // its own journal key (session-seeded, prompted); one without gets a freeform
+  // key derived from the note itself; a chart selection (chapter I) gets one
+  // too — reflection lives beside everything, not only the shelf.
+  const journalKey: MarginJournalKey | null = margin
+    ? margin.journal ?? { seed: `note:${margin.title}`, question: margin.title }
+    : selection
+      ? { seed: `chart-sel:${selection.type}:${selection.id}`,
+          question: `${selection.type}: ${selection.id}` }
+      : null;
+  // Prompted pads overwrite in place — surface the existing text on reselect.
+  const [journalExisting, setJournalExisting] = useState<JournalEntry | null>(null);
+  useEffect(() => {
+    const j = margin?.journal;
+    if (!j?.position) { setJournalExisting(null); return; }
+    let stale = false;
+    journalForSeed(j.seed)
+      .then((es) => { if (!stale) setJournalExisting(es.find((e) => e.position === j.position) ?? null); })
+      .catch(() => { if (!stale) setJournalExisting(null); });
+    return () => { stale = true; };
+  }, [margin]);
 
   const exportReading = () => {
     if (!aiResult) return;
@@ -418,6 +442,22 @@ export const DetailPanel: React.FC = () => {
       {/* zone 2 — body: the selection's prose, then Astra's reflection. */}
       <div className="margin-body">
       {margin && renderMarginBody(margin)}
+
+      {journalKey && (
+        <div className="margin-journal">
+          <div className="margin-journal-head">✎ Reflection</div>
+          <JournalPad
+            key={`${journalKey.seed}|${journalKey.position ?? ""}`}
+            seed={journalKey.seed}
+            position={journalKey.position}
+            prompt={journalKey.prompt}
+            cardName={journalKey.cardName}
+            question={journalKey.question}
+            existing={journalKey.position ? journalExisting : null}
+            freeform={!journalKey.position}
+          />
+        </div>
+      )}
 
       <h2 className="section" style={{ marginTop: margin ? 14 : 0 }}>Astra · Reflection</h2>
       <div style={{ marginBottom: 8 }}>
