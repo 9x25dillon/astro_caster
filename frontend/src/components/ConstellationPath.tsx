@@ -48,6 +48,9 @@ export const ConstellationPath: React.FC<{
           onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelect(s.order); } }}
         >
           <title>{`${s.stage} · ${s.name}${s.walked ? " — reflection kept" : ""}`}</title>
+          {/* Invisible hit disc — real pointer target (thumb law ≥44px), and
+              it keeps the group's bbox center clickable for hit-testing. */}
+          <circle className="cp-hit" cx={x(i)} cy={y(i)} r={22} fill="transparent" />
           {s.walked && <circle className="cp-halo" cx={x(i)} cy={y(i)} r={10} />}
           <circle className="cp-core" cx={x(i)} cy={y(i)} r={s.walked ? 5 : 3.5} />
           <text className="cp-label" x={x(i)} y={y(i) + 24} textAnchor="middle">
