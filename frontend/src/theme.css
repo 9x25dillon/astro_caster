@@ -2683,3 +2683,67 @@ h2.section::after {
   margin: 6px auto 2px;
   max-width: 60ch;
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Track R (R-4): the material pass — instrument glass, four honest materials.
+   Deliberately a late override block: geometry landed in R-1..R-3 on the old
+   theme; this section re-skins it without touching structure.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* Ion — the single "future" signal. ONLY live computation ever wears it. */
+  --ion: #7fe7dc;
+  --ion-soft: rgba(127, 231, 220, 0.55);
+  /* Void glass */
+  --glass-hi: rgba(22, 22, 31, 0.62);
+  --glass-lo: rgba(9, 9, 14, 0.78);
+  --scanline: repeating-linear-gradient(
+    0deg, transparent 0 2px, rgba(232, 220, 192, 0.014) 2px 3px);
+}
+
+/* ── Void glass — panels become translucent instrument glass over the
+      starfield: backdrop blur + a faint scanline. Depth without shadow soup. */
+.panel,
+.modal,
+.arcana-modal,
+.forecast-modal,
+.shelf-modal,
+.lib-surface,
+.soul-modal,
+.oracle-modal {
+  background: var(--scanline), linear-gradient(180deg, var(--glass-hi), var(--glass-lo));
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+/* ── Phosphor gold — structure. Section rules, chapter chrome: what will be
+      ink in the printed tome is gold on screen. */
+h2.section { border-bottom-color: rgba(201, 168, 76, 0.35); }
+.margin-head, .margin-foot { border-color: rgba(201, 168, 76, 0.28); }
+.forecast-header { border-bottom-color: rgba(201, 168, 76, 0.28); }
+
+/* ── Border-fields — surfaces glow through a gradient edge instead of a flat
+      line. Amethyst for the esoteric surfaces, gold for the working ones. */
+.forecast-modal, .shelf-modal, .lib-surface { position: relative; }
+.arcana-modal, .soul-modal, .oracle-modal { border-color: rgba(142, 124, 195, 0.32); }
+.forecast-modal, .shelf-modal, .lib-surface { border-color: rgba(201, 168, 76, 0.30); }
+.arcana-modal::after, .soul-modal::after, .oracle-modal::after,
+.forecast-modal::after, .shelf-modal::after, .lib-surface::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(130deg,
+    rgba(181, 168, 224, 0.55), transparent 32%,
+    transparent 68%, rgba(142, 124, 195, 0.5));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+.forecast-modal::after, .shelf-modal::after, .lib-surface::after {
+  background: linear-gradient(130deg,
+    rgba(232, 197, 94, 0.45), transparent 32%,
+    transparent 68%, rgba(201, 168, 76, 0.4));
+}
