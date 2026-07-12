@@ -4,7 +4,25 @@ _Last updated: 2026-07-12 (session 15, third act)_
 
 ## TL;DR for next session
 
-**Merge the R-4 PR — Track R R-4, the material pass. TRACK R COMPLETE.**
+**Merge PR #71 — Tome Phase 0, the press pipeline.** Track R fully merged
+(#67/#68/#69/#70). Phase 0 built same-session: (1) `trim:"book"` press
+variant of printReport (6.25×9.25in = 6×9 + bleed, PRESS_CSS override) +
+`pressCover()` separate full-bleed front-cover file; (2) Library tome meter
+gained `⎙ press interior (6×9)` + `◈ cover file`; (3)
+`backend/tools/make_shelf_vault.py` wraps the July-8 Fable reports (only
+exist as repo-root txt files — they predate the Bookshelf) into an
+astra-vault@3 the Library's Restore imports (birth via CLI only, output
+gitignored); (4) `docs/design/TOME_PHASE0.md` = the order runbook. VERIFIED
+ON THE ARTIFACT: headless page.pdf(preferCSSPageSize) → both files measure
+450×666pt exactly; cover/frontispiece/chapter pages eyeballed. 80 e2e.
+
+**THE REMAINING PHASE-0 STEPS ARE THE OPERATOR'S** (runbook TOME_PHASE0.md):
+run the rescue script (add --birth for reprint plates), Restore in the
+Library, cast YOUR chart, print the two files (Save-as-PDF · custom
+6.25×9.25 · margins none · background graphics ON), order ONE Lulu 6×9
+hardcover, render the two verdicts (dark-cover quality; worth $150?).
+
+_(Previous entry — R-4, merged as #70):_ **The material pass. TRACK R COMPLETE.**
 Four commits on `track-r-material`: (1) void glass — panels/surfaces become
 translucent instrument glass over the starfield (backdrop blur + scanline),
 phosphor-gold section rules, gradient border-fields (amethyst esoteric /

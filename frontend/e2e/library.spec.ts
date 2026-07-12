@@ -83,6 +83,29 @@ test("the tome compiles what exists into one printed volume", async ({ page }) =
   await expect(popup.locator("body")).toContainText("life poem");
 });
 
+test("phase 0: press interior and cover emit at 6×9 book trim", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.locator(".wheel-area svg").first()).toBeVisible();
+  await seedShelf(page);
+  await openChapter(page, "VIII");
+
+  // The interior file carries the tome at press size (6.25×9.25 = trim+bleed).
+  const interiorP = page.waitForEvent("popup");
+  await page.locator(".tome-press").click();
+  const interior = await interiorP;
+  await expect(interior.locator("body")).toContainText("THE TOME");
+  expect(
+    await interior.evaluate(() => document.querySelector("style")?.textContent ?? "")
+  ).toContain("6.25in 9.25in");
+
+  // The cover ships as its own full-bleed file.
+  const coverP = page.waitForEvent("popup");
+  await page.locator(".tome-cover").click();
+  const cover = await coverP;
+  await expect(cover.locator("h1")).toHaveText("THE TOME");
+  await expect(cover.locator(".cover-art")).toBeVisible();
+});
+
 test("the Reading (II) gathers the soul profile and the Oracle beneath the Arcana", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator(".wheel-area svg").first()).toBeVisible();

@@ -11,7 +11,7 @@ import {
   journalAll, shelfList,
   type JournalEntry, type ShelfEntry,
 } from "./bookshelf";
-import { printReport } from "./printReport";
+import { coverArtSvg, printReport } from "./printReport";
 import type { BirthInput, ChartResponse } from "../types";
 
 export interface TomeChapterState {
@@ -134,10 +134,12 @@ export const TOME_REFRAIN =
   "Nothing Astra produces is a life sentence — it is a life poem.";
 
 /** Compile the whole corpus into one printed tome. Returns false when the
- *  print popup was blocked. */
+ *  print popup was blocked. Phase 0: trim "book" renders at 6×9" + bleed —
+ *  the POD interior file (the cover ships separately via pressCover). */
 export async function compileTome(
   birth: BirthInput | null,
-  chart: ChartResponse | null
+  chart: ChartResponse | null,
+  opts: { trim?: "letter" | "book" } = {}
 ): Promise<boolean> {
   const shelf = await shelfList().catch(() => [] as ShelfEntry[]);
   const journal = await journalAll().catch(() => [] as JournalEntry[]);
@@ -188,9 +190,66 @@ export async function compileTome(
     birthInfo,
     sigilPhrase: "the tome of my sky",
     seed: `tome:${today}`,
+    trim: opts.trim,
     chartPlanets: chart?.planets.map((p) => ({ id: p.id, longitude: p.longitude })),
     alchemyPlanets: chart?.planets.map((p) => ({
       id: p.id, element: p.element, modality: p.modality, sign: p.sign,
     })),
   });
+}
+
+/** Phase 0: the SEPARATE cover file POD vendors want — one full-bleed
+ *  6.25 × 9.25in page (6×9 trim + 0.125" bleed) carrying the dark cover
+ *  plate: the owner's constellation around the tome sigil. Front cover
+ *  only — the vendor's cover wizard composes spine and back from it.
+ *  Returns false when the popup was blocked. */
+export function pressCover(
+  birth: BirthInput | null,
+  chart: ChartResponse | null
+): boolean {
+  const today = new Date().toISOString().slice(0, 10);
+  const art = coverArtSvg({
+    planets: chart?.planets.map((p) => ({ id: p.id, longitude: p.longitude })),
+    seed: `tome:${today}`,
+    phrase: "the tome of my sky",
+  });
+  const name = birth?.label || "Traveler";
+  const esc = (s: string) =>
+    s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
+<title>Astra — The Tome · cover</title>
+<style>
+  @page { size: 6.25in 9.25in; margin: 0; }
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+  .cover {
+    width: 6.25in; height: 9.25in;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 0.35in; text-align: center;
+    background: linear-gradient(180deg, #0D0620 0%, #1A0F33 55%, #2C1654 100%);
+    color: #F8F4E9; font-family: Georgia, "EB Garamond", serif;
+    /* Keep type inside the trim + safe zone (bleed 0.125 + safety 0.25). */
+    padding: 0.6in 0.5in;
+  }
+  .cover-art { width: 4.6in; height: 4.6in; }
+  h1 { font-family: "Cinzel", Georgia, serif; font-size: 1.9rem; letter-spacing: 4px;
+       margin: 0; color: #F8F4E9; }
+  .name { color: #C9A84C; font-style: italic; font-size: 1.05rem; margin: 0; }
+  .refrain { color: #C9A84C; font-style: italic; font-size: 0.72rem; opacity: 0.85;
+             margin: 0; max-width: 4.6in; }
+</style></head><body>
+  <section class="cover">
+    ${art}
+    <h1>THE TOME</h1>
+    <p class="name">${esc(name)} · ${today}</p>
+    <p class="refrain">${esc(TOME_REFRAIN)}</p>
+  </section>
+</body></html>`;
+  const w = window.open("", "_blank");
+  if (!w) return false;
+  w.document.write(html);
+  w.document.close();
+  w.focus();
+  w.setTimeout(() => w.print(), 250);
+  return true;
 }
