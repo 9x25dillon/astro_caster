@@ -1,5 +1,7 @@
 // PredictiveModal.tsx — secondary progressions, solar returns, eclipse timeline.
-import React, { useEffect, useRef, useState } from "react";
+// Track R (R-2): a chapter surface (III · Timing), not a modal — no overlay,
+// no ✕; Esc and the dial navigate home via the App shell.
+import React, { useState } from "react";
 import { useStore } from "../store/useStore";
 import {
   fetchProgressed, fetchSolarReturn, fetchEclipses, trackEvent, localToday,
@@ -12,9 +14,8 @@ type Tab = "progressions" | "solar" | "eclipses";
 // default date for users within tz-offset hours of midnight.
 const today = localToday;
 
-export const PredictiveModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+export const PredictiveModal: React.FC = () => {
   const birth = useStore((s) => s.birth);
-  const overlayRef = useRef<HTMLDivElement>(null);
   const [tab, setTab] = useState<Tab>("progressions");
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -25,12 +26,6 @@ export const PredictiveModal: React.FC<{ onClose: () => void }> = ({ onClose }) 
   const [prog, setProg] = useState<ProgressedChart | null>(null);
   const [sr, setSr] = useState<SolarReturnChart | null>(null);
   const [ecl, setEcl] = useState<EclipseTimeline | null>(null);
-
-  useEffect(() => {
-    const h = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    window.addEventListener("keydown", h);
-    return () => window.removeEventListener("keydown", h);
-  }, [onClose]);
 
   async function run<T>(fn: () => Promise<T>, set: (v: T) => void, ev: string, local?: () => Promise<T>) {
     setLoading(true); setErr(null); setOnDevice(false);
@@ -46,16 +41,13 @@ export const PredictiveModal: React.FC<{ onClose: () => void }> = ({ onClose }) 
   }
 
   return (
-    <div className="modal-overlay" ref={overlayRef}
-         onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}>
-      <div className="arcana-modal">
+    <div className="arcana-modal">
         <div className="arcana-header">
           <div>
             <h2 className="arcana-title">◷ Predictive Timing</h2>
             <p className="arcana-sub">Symbolic timing mirrors — progressions, returns, eclipses.
               Not fixed prediction.</p>
           </div>
-          <button className="modal-close" onClick={onClose}>✕</button>
         </div>
 
         <div className="arcana-tabs">
@@ -153,7 +145,6 @@ export const PredictiveModal: React.FC<{ onClose: () => void }> = ({ onClose }) 
             </div>
           )}
         </div>
-      </div>
     </div>
   );
 };

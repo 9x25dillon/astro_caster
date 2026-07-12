@@ -1,7 +1,9 @@
 // ArcanaModal.tsx — Astra Arcana: natal tarot observatory.
 // Tabs: Natal signature · Draw spread · Transit cards · Classroom · Studio.
 // Deterministic core works offline; AI enrichment is opt-in for supporters.
-import React, { useEffect, useRef, useState } from "react";
+// Track R (R-2): a chapter surface (II · Reading / VI · Study / VII · Studio),
+// not a modal — no overlay, no ✕; Esc and the dial navigate home via the App shell.
+import React, { useEffect, useState } from "react";
 import { useStore } from "../store/useStore";
 import {
   fetchNatalArcana,
@@ -91,10 +93,9 @@ function CardChip({ name, reversed }: { name: string; reversed?: boolean }) {
 }
 
 export const ArcanaModal: React.FC<{
-  onClose: () => void;
   // Track R: chapters VI (Study) and VII (Studio) open straight to their tab.
   initialTab?: Tab;
-}> = ({ onClose, initialTab }) => {
+}> = ({ initialTab }) => {
   const chart = useStore((s) => s.chart);
   const birth = useStore((s) => s.birth);
   const aiResult = useStore((s) => s.aiResult);   // Astra's Detail-panel reading
@@ -103,7 +104,6 @@ export const ArcanaModal: React.FC<{
   const openSupport = useStore((s) => s.openSupport);
   const speech = useSpeech();   // Speak buttons on the Oracle Report sections
 
-  const overlayRef = useRef<HTMLDivElement>(null);
   const [tab, setTab] = useState<Tab>(initialTab ?? "natal");
 
   const [sig, setSig] = useState<NatalArcanaSignature | null>(null);
@@ -138,13 +138,6 @@ export const ArcanaModal: React.FC<{
   const [useAi, setUseAi] = useState(false);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-
-  // Esc to close.
-  useEffect(() => {
-    const h = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    window.addEventListener("keydown", h);
-    return () => window.removeEventListener("keydown", h);
-  }, [onClose]);
 
   // Reset cached arcana state whenever the underlying chart changes
   // (e.g. the user casts a new chart with the modal open).
@@ -543,9 +536,7 @@ export const ArcanaModal: React.FC<{
   }
 
   return (
-    <div className="modal-overlay" ref={overlayRef}
-         onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}>
-      <div className="arcana-modal">
+    <div className="arcana-modal">
         <div className="arcana-header">
           <div>
             <h2 className="arcana-title">✶ Astra Arcana</h2>
@@ -554,7 +545,6 @@ export const ArcanaModal: React.FC<{
               it into action, beauty, and self-knowledge.
             </p>
           </div>
-          <button className="modal-close" onClick={onClose}>✕</button>
         </div>
 
         <div className="arcana-tabs">
@@ -1079,7 +1069,6 @@ export const ArcanaModal: React.FC<{
             </div>
           )}
         </div>
-      </div>
     </div>
   );
 };

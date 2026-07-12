@@ -1,5 +1,9 @@
 // ForecastPanel.tsx — Upcoming astrological events for the next 90 days.
-import React, { useEffect, useRef, useState } from "react";
+// Track R (R-2): a chapter surface (III · Timing), not a modal — no overlay,
+// no ✕; Esc and the dial navigate home via the App shell. onHome is kept as
+// real navigation: jumping to a date or asking Astra returns to chapter I,
+// where the wheel and the margin's answer are visible.
+import React, { useEffect, useState } from "react";
 import { useStore, PLACEHOLDER_BIRTH } from "../store/useStore";
 import { fetchForecast, localForecast, type ForecastEvent } from "../api/client";
 
@@ -161,7 +165,7 @@ const EventCard: React.FC<{
 
 // ── Main panel ────────────────────────────────────────────────────────────────
 
-export const ForecastPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+export const ForecastPanel: React.FC<{ onHome: () => void }> = ({ onHome }) => {
   const birth = useStore((s) => s.birth);
   const setTransitIso = useStore((s) => s.setTransitIso);
   const ask = useStore((s) => s.ask);
@@ -181,7 +185,6 @@ export const ForecastPanel: React.FC<{ onClose: () => void }> = ({ onClose }) =>
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
   const [search, setSearch] = useState("");
   const [bookmarks, setBookmarks] = useState<Set<string>>(loadBookmarks);
-  const overlayRef = useRef<HTMLDivElement>(null);
 
   const [offline, setOffline] = useState(false);
 
@@ -209,18 +212,18 @@ export const ForecastPanel: React.FC<{ onClose: () => void }> = ({ onClose }) =>
     // Jumping to a date is only visible on the wheel with the transit layer
     // on — enable it (never disable) so the jump lands somewhere.
     if (!transitsOn) toggleLayer("transits");
-    onClose();
+    onHome();
   };
 
   const [askingToast, setAskingToast] = useState(false);
 
   // Set transit date to event date, kick off AI query, show brief toast,
-  // then close so the DetailPanel (which shows the response) becomes visible.
+  // then return home so the wheel (and the margin's answer) become visible.
   const handleAsk = (query: string, iso: string) => {
     setTransitIso(iso);
     ask(query, "deep");
     setAskingToast(true);
-    setTimeout(() => { setAskingToast(false); onClose(); }, 900);
+    setTimeout(() => { setAskingToast(false); onHome(); }, 900);
   };
 
   const exportTxt = () => {
@@ -265,13 +268,6 @@ export const ForecastPanel: React.FC<{ onClose: () => void }> = ({ onClose }) =>
     URL.revokeObjectURL(url);
   };
 
-  // Keyboard close
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [onClose]);
-
   // Apply filters (personal transits suppressed when no chart has been cast yet)
   const needle = search.trim().toLowerCase();
   const visible = (events ?? []).filter((ev) => {
@@ -306,9 +302,7 @@ export const ForecastPanel: React.FC<{ onClose: () => void }> = ({ onClose }) =>
   };
 
   return (
-    <div className="modal-overlay" ref={overlayRef}
-         onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}>
-      <div className="forecast-modal">
+    <div className="forecast-modal">
         {/* Header */}
         <div className="forecast-header">
           <div>
@@ -320,7 +314,6 @@ export const ForecastPanel: React.FC<{ onClose: () => void }> = ({ onClose }) =>
               )}
             </p>
           </div>
-          <button className="modal-close" onClick={onClose}>✕</button>
         </div>
 
         {/* Controls */}
@@ -421,7 +414,6 @@ export const ForecastPanel: React.FC<{ onClose: () => void }> = ({ onClose }) =>
             </span>
           </div>
         )}
-      </div>
     </div>
   );
 };

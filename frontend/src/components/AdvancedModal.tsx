@@ -1,5 +1,7 @@
 // AdvancedModal.tsx — harmonic charts, midpoint trees, fixed-star contacts.
-import React, { useEffect, useRef, useState } from "react";
+// Track R (R-2): a chapter surface (V · Depths), not a modal — no overlay,
+// no ✕; Esc and the dial navigate home via the App shell.
+import React, { useState } from "react";
 import { useStore } from "../store/useStore";
 import {
   fetchHarmonic, fetchMidpointTree, fetchFixedStars, trackEvent,
@@ -9,9 +11,8 @@ import {
 
 type Tab = "harmonics" | "midpoints" | "stars";
 
-export const AdvancedModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+export const AdvancedModal: React.FC = () => {
   const birth = useStore((s) => s.birth);
-  const overlayRef = useRef<HTMLDivElement>(null);
   const [tab, setTab] = useState<Tab>("harmonics");
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -21,12 +22,6 @@ export const AdvancedModal: React.FC<{ onClose: () => void }> = ({ onClose }) =>
   const [harm, setHarm] = useState<HarmonicChart | null>(null);
   const [mid, setMid] = useState<MidpointTree | null>(null);
   const [stars, setStars] = useState<FixedStarResponse | null>(null);
-
-  useEffect(() => {
-    const h = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    window.addEventListener("keydown", h);
-    return () => window.removeEventListener("keydown", h);
-  }, [onClose]);
 
   async function run<T>(fn: () => Promise<T>, set: (v: T) => void, ev: string, local?: () => Promise<T>) {
     setLoading(true); setErr(null); setOnDevice(false);
@@ -42,15 +37,12 @@ export const AdvancedModal: React.FC<{ onClose: () => void }> = ({ onClose }) =>
   }
 
   return (
-    <div className="modal-overlay" ref={overlayRef}
-         onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}>
-      <div className="arcana-modal">
+    <div className="arcana-modal">
         <div className="arcana-header">
           <div>
             <h2 className="arcana-title">✴ Advanced Techniques</h2>
             <p className="arcana-sub">Harmonics, midpoint trees, and fixed-star contacts — symbolic lenses.</p>
           </div>
-          <button className="modal-close" onClick={onClose}>✕</button>
         </div>
 
         <div className="arcana-tabs">
@@ -136,7 +128,6 @@ export const AdvancedModal: React.FC<{ onClose: () => void }> = ({ onClose }) =>
             </div>
           )}
         </div>
-      </div>
     </div>
   );
 };

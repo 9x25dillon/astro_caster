@@ -183,22 +183,22 @@ export const App: React.FC = () => {
           </>
         ) : (
           <div className="chapter-host">
-            {/* R-1: former modal content, mounted unchanged. Their own close
-                buttons / Escape handlers now navigate home. Chrome retires
-                in R-2. Distinct keys force clean remounts between the three
-                Arcana-backed chapters. */}
-            {chapter === "II" && <ArcanaModal key="ch-ii" onClose={() => setChapter("I")} />}
+            {/* R-2: chapters are bare surfaces — the modal chrome retired.
+                Esc / the dial navigate home; ForecastPanel's onHome is real
+                navigation (jump/Ask land on the wheel). Distinct keys force
+                clean remounts between the three Arcana-backed chapters. */}
+            {chapter === "II" && <ArcanaModal key="ch-ii" />}
             {chapter === "III" && (
               <>
-                <ForecastPanel onClose={() => setChapter("I")} />
-                <PredictiveModal onClose={() => setChapter("I")} />
+                <ForecastPanel onHome={() => setChapter("I")} />
+                <PredictiveModal />
               </>
             )}
-            {chapter === "IV" && <RelationshipModal onClose={() => setChapter("I")} />}
-            {chapter === "V" && <AdvancedModal onClose={() => setChapter("I")} />}
-            {chapter === "VI" && <ArcanaModal key="ch-vi" initialTab="classroom" onClose={() => setChapter("I")} />}
-            {chapter === "VII" && <ArcanaModal key="ch-vii" initialTab="studio" onClose={() => setChapter("I")} />}
-            {chapter === "VIII" && <BookshelfModal onClose={() => setChapter("I")} />}
+            {chapter === "IV" && <RelationshipModal />}
+            {chapter === "V" && <AdvancedModal />}
+            {chapter === "VI" && <ArcanaModal key="ch-vi" initialTab="classroom" />}
+            {chapter === "VII" && <ArcanaModal key="ch-vii" initialTab="studio" />}
+            {chapter === "VIII" && <BookshelfModal />}
           </div>
         )}
         <ChapterDial active={chapter} onSelect={openChapter} />

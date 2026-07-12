@@ -1,6 +1,8 @@
 // BookshelfModal.tsx — B2: the local report library. Every Oracle session
 // (and its deluxe edition) shelves itself; here they reopen, reprint (fully
 // offline — chart re-cast + plates re-dealt on-device), or burn.
+// Track R (R-2): a chapter surface (VIII · Library), not a modal — no overlay,
+// no ✕; Esc and the dial navigate home via the App shell.
 import React, { useEffect, useState } from "react";
 import {
   journalDelete, journalForSeed, journalMarkdown,
@@ -20,7 +22,7 @@ const SPREAD_LABEL: Record<string, string> = {
   course: "✶ Course",   // curriculum entries shelve beside the readings
 };
 
-export const BookshelfModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+export const BookshelfModal: React.FC = () => {
   const [entries, setEntries] = useState<ShelfEntry[] | null>(null);
   const [openSeed, setOpenSeed] = useState<string | null>(null);
   const [msg, setMsg] = useState("");
@@ -48,12 +50,6 @@ export const BookshelfModal: React.FC<{ onClose: () => void }> = ({ onClose }) =
     a.click();
     URL.revokeObjectURL(url);
   }
-
-  useEffect(() => {
-    const h = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    window.addEventListener("keydown", h);
-    return () => window.removeEventListener("keydown", h);
-  }, [onClose]);
 
   async function reprint(e: ShelfEntry) {
     if (!e.personal) return;
@@ -83,8 +79,7 @@ export const BookshelfModal: React.FC<{ onClose: () => void }> = ({ onClose }) =
   const dateOf = (e: ShelfEntry) => e.updatedAt.slice(0, 10);
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="shelf-modal" onClick={(ev) => ev.stopPropagation()}>
+    <div className="shelf-modal">
         <div className="shelf-header">
           <h2>❖ The Bookshelf</h2>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -93,7 +88,6 @@ export const BookshelfModal: React.FC<{ onClose: () => void }> = ({ onClose }) =
                     onClick={exportJournal}>
               ✎ Journal .md
             </button>
-            <button className="modal-close" onClick={onClose}>✕</button>
           </div>
         </div>
         <p className="shelf-sub">
@@ -167,7 +161,6 @@ export const BookshelfModal: React.FC<{ onClose: () => void }> = ({ onClose }) =
             </div>
           ))}
         </div>
-      </div>
     </div>
   );
 };
