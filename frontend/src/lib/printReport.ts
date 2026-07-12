@@ -86,6 +86,26 @@ const CSS = `
   .alch-mark { vertical-align: -0.14em; margin-right: 0.22rem; }
 `;
 
+/* Tome Phase 0 — the press trim. Appended after CSS when trim === "book":
+ * 6×9" book pages with 0.125" bleed each side (PDF page = 6.25 × 9.25in,
+ * Lulu-class POD spec), symmetric safe margins ≥ 0.5" from trim, and
+ * typography scaled down for the smaller measure. The COVER is a separate
+ * file (pressCover in tomeCompile) — POD wants interior and cover apart. */
+const PRESS_CSS = `
+  @page { size: 6.25in 9.25in; margin: 0; }
+  body { max-width: 6.25in; font-size: 0.84rem; line-height: 1.55; }
+  .page { padding: 0.7in 0.75in 0.75in; min-height: 9.25in; }
+  h1 { font-size: 1.45rem; letter-spacing: 1.5px; }
+  .cover h1 { font-size: 1.7rem; }
+  h2 { font-size: 1.02rem; }
+  h3 { font-size: 0.9rem; }
+  .cover-art { max-width: 4.4in; }
+  .sigil-slot { width: 260px; height: 260px; }
+  .card-grid { grid-template-columns: repeat(2, 1fr); }
+  .two-col { grid-template-columns: 1fr; }
+  .alch-table { font-size: 0.76rem; }
+`;
+
 function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
           .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
@@ -316,6 +336,8 @@ export interface PrintOptions {
   spreadCards?: PrintSpreadCard[];
   spreadName?: string;  // e.g. "planetary_seven"
   lineage?: string;     // e.g. "Golden Dawn / Hermetic"
+  /** Tome Phase 0: "book" renders at 6×9" + bleed for POD (default letter). */
+  trim?: "letter" | "book";
 }
 
 export interface PrintSpreadCard {
@@ -475,9 +497,10 @@ export function reportToPrintHtml(markdown: string, opts: PrintOptions = {}): st
   if (opts.alchemyPlanets?.length) {
     pages.push(alchemyPageHtml(opts.alchemyPlanets));
   }
+  const css = opts.trim === "book" ? CSS + PRESS_CSS : CSS;
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
 <title>${escapeHtml(opts.title ?? "Astra Arcana — Personal Report")}</title>
-<style>${CSS}</style></head><body>${pages.join("\n")}</body></html>`;
+<style>${css}</style></head><body>${pages.join("\n")}</body></html>`;
 }
 
 /** Open the styled document in a new window and invoke the print dialog.
