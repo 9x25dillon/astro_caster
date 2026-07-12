@@ -643,8 +643,9 @@ export const DetailPanel: React.FC = () => {
       )}
       </div>
 
-      {/* zone 3 — Ask, pinned at the margin's foot in every chapter ("/" focuses). */}
-      <div className="margin-foot">
+      {/* zone 3 — Ask, pinned at the margin's foot in every chapter ("/" focuses).
+          It traces ion while Astra streams — computation made visible, honestly. */}
+      <div className={`margin-foot ${aiStreaming ? "is-live" : ""}`}>
         <div className="row">
           <input
             id="margin-ask"

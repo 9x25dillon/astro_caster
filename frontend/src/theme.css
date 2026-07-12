@@ -2747,3 +2747,39 @@ h2.section { border-bottom-color: rgba(201, 168, 76, 0.35); }
     rgba(232, 197, 94, 0.45), transparent 32%,
     transparent 68%, rgba(201, 168, 76, 0.4));
 }
+
+/* ── Ion trace — the rationed signal. ONLY things computing or live right
+      now wear it: on-device compute badges, a streaming reflection or
+      report, a plate mid-paint, an event landing today. Never decoration. */
+@keyframes ionPulse {
+  0%, 100% { box-shadow: 0 0 5px rgba(127, 231, 220, 0.15); }
+  50%      { box-shadow: 0 0 16px rgba(127, 231, 220, 0.4); }
+}
+
+/* On-device compute: the engine is alive in this browser. */
+.offline-note { color: var(--ion); border-color: var(--ion-soft); }
+.arc-ondevice, .fc-offline-tag { color: var(--ion); }
+
+/* Computation in flight. */
+.spinner { border-top-color: var(--ion); }
+.interp-streaming .interp-section:last-child .interp-section-body::after,
+.interp-streaming .interp-preamble:last-child::after { color: var(--ion); }
+.interp-writing { color: var(--ion); }
+
+/* Long-running generation (Oracle / deluxe / Course / plate) mid-flight. */
+.is-live {
+  border-color: var(--ion-soft) !important;
+  animation: ionPulse 2.2s ease-in-out infinite;
+}
+button.is-live { color: var(--ion); background: rgba(127, 231, 220, 0.08); }
+
+/* The margin's Ask foot traces ion while Astra streams (fig. 5, zone 3). */
+.margin-foot.is-live {
+  border-top-color: var(--ion-soft);
+  animation: ionPulse 2.2s ease-in-out infinite;
+}
+
+/* A forecast event landing TODAY is live sky — it pulses at the edge. */
+.fc-event--today { border-left-color: var(--ion) !important; }
+.fc-event--today .fc-event-date { color: var(--ion); }
+.fc-event--today .fc-event-sig { color: var(--ion) !important; animation: ionPulse 2.2s ease-in-out infinite; border-radius: 50%; }

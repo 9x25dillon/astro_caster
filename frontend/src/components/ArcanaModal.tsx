@@ -699,7 +699,7 @@ export const ArcanaModal: React.FC<{
               <div className="arc-oracle" style={{ marginTop: 18, paddingTop: 14, borderTop: "1px solid rgba(255,255,255,0.12)" }}>
                 {!oracle && (
                   <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                    <button className="arc-draw-btn" onClick={loadOracleReport} disabled={oracleLoading}>
+                    <button className={`arc-draw-btn ${oracleLoading ? "is-live" : ""}`} onClick={loadOracleReport} disabled={oracleLoading}>
                       {oracleLoading ? "Consulting the Oracle… (this can take a minute)" : "✧ Generate Oracle Report"}
                     </button>
                     <span style={{ opacity: 0.7, fontSize: "0.78rem" }}>
@@ -796,7 +796,7 @@ export const ArcanaModal: React.FC<{
                           )}
                           {reportToken && (
                             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                              <button className="arc-draw-btn" onClick={loadPersonalReport} disabled={personalLoading}>
+                              <button className={`arc-draw-btn ${personalLoading ? "is-live" : ""}`} onClick={loadPersonalReport} disabled={personalLoading}>
                                 {personalLoading ? "Compiling the deluxe edition… (this can take minutes)" : "✦ Compile Personal Report"}
                               </button>
                               <span style={{ opacity: 0.7, fontSize: "0.76rem", color: "var(--gold-soft)" }}>
@@ -972,7 +972,7 @@ export const ArcanaModal: React.FC<{
                           placeholder="what should this course teach you?"
                         />
                       </label>
-                      <button className="arc-draw-btn" onClick={loadCourse} disabled={courseLoading}>
+                      <button className={`arc-draw-btn ${courseLoading ? "is-live" : ""}`} onClick={loadCourse} disabled={courseLoading}>
                         {courseLoading ? "Composing…" : "✶ Compose my course"}
                       </button>
                     </div>
@@ -1071,7 +1071,7 @@ export const ArcanaModal: React.FC<{
                       <div className="arc-interp-head">{p.title}
                         <button className="ghost arc-copy" onClick={() => copy(p.prompt)}>copy</button>
                         <button
-                          className="ghost arc-copy"
+                          className={`ghost arc-copy ${plateLoading === p.card.id ? "is-live" : ""}`}
                           title="Paint this brief into a card plate (oracle tier; paid image generation)"
                           onClick={() => paintPlate(p.card.id)}
                           disabled={plateLoading !== null}

@@ -5,7 +5,7 @@
 // where the wheel and the margin's answer are visible.
 import React, { useEffect, useState } from "react";
 import { useStore, PLACEHOLDER_BIRTH } from "../store/useStore";
-import { fetchForecast, localForecast, type ForecastEvent } from "../api/client";
+import { fetchForecast, localForecast, localToday, type ForecastEvent } from "../api/client";
 
 const SIG_BADGE: Record<string, string> = {
   high:   "▲",
@@ -106,6 +106,8 @@ const EventCard: React.FC<{
   const setMargin = useStore((s) => s.setMargin);
   const isRx = ev.direction === "retrograde";
   const isDirect = ev.direction === "direct";
+  // R-4 ion discipline: an event landing TODAY is live sky.
+  const isToday = ev.date === localToday();
 
   // R-2: expanding an event also publishes it to the margin glass.
   const publish = () =>
@@ -119,7 +121,7 @@ const EventCard: React.FC<{
 
   return (
     <div
-      className={`fc-event fc-event--${ev.significance} fc-event--${ev.type}`}
+      className={`fc-event fc-event--${ev.significance} fc-event--${ev.type} ${isToday ? "fc-event--today" : ""}`}
       style={{ borderLeftColor: ev.color }}
     >
       <div className="fc-event-header" onClick={() => { setOpen((o) => !o); publish(); }}>
