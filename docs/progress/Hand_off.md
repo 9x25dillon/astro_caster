@@ -1,10 +1,34 @@
 # Hand_off.md
 
-_Last updated: 2026-07-12 (session 15, second half)_
+_Last updated: 2026-07-12 (session 15, third act)_
 
 ## TL;DR for next session
 
-**Merge PR #69 — Track R R-3, the Library.** Built same-session right after
+**Merge the R-4 PR — Track R R-4, the material pass. TRACK R COMPLETE.**
+Four commits on `track-r-material`: (1) void glass — panels/surfaces become
+translucent instrument glass over the starfield (backdrop blur + scanline),
+phosphor-gold section rules, gradient border-fields (amethyst esoteric /
+gold working) — all as a late-override block at the END of theme.css.
+(2) The ion trace (--ion #7fe7dc), rationed to live computation ONLY:
+on-device badges, streaming caret/spinner/margin-foot, Oracle/deluxe/
+Course/plate mid-flight (`.is-live`), forecast events landing today
+(`.fc-event--today`). (3) Constellation path — ConstellationPath.tsx
+replaces the classroom's numbered list; stars publish lessons to the margin;
+a star stays LIT when its journal reflection exists (seed
+`path:${anchor}→${growth_edge}`, position `${order} · ${name}`); chapter
+bloom = ONE 240ms clip-path radial wipe on the keyed .chapter-host, surface
+entrances retired inside chapters. (4) The seven per-module `.arc-disclaimer`
+renders collapsed into the chapter refrain footer (backend still sends the
+field; frontend stopped rendering it). e2e/material.spec.ts drives
+star→margin→reflection→lit-star end-to-end.
+
+**After Track R:** next candidates from the roadmap — tome Phase 0 (dogfood
+ONE printed POD copy, dark-cover test), PB1 book compiler (corpus →
+press-ready book-trim PDF; tomeCompile.ts is its seed), P3 plate art
+live-verify (operator adds AAE_OPENAI_API_KEY first), Anthropic usage cap
+returns 2026-08-01 (live Course/Oracle runs possible again).
+
+_(Previous entry — R-3, merged as #69):_ **R-3, the Library.** Built same-session right after
 #68 merged. Four commits: (1) LibraryVault joins the shelf in chapter VIII —
 vault export/restore moved from the profile bar, support & unlock live
 there; masthead pill = identity, walks to the Library; the voice-canon

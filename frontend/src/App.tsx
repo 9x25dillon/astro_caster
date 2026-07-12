@@ -200,7 +200,9 @@ export const App: React.FC = () => {
             <ChartWheel size={720} />
           </>
         ) : (
-          <div className="chapter-host">
+          // R-4: keyed by chapter — every open is one 240ms bloom (the only
+          // motion of the intent; the surfaces' own entrances retire).
+          <div className="chapter-host" key={chapter}>
             {/* R-2: chapters are bare surfaces — the modal chrome retired.
                 Esc / the dial navigate home; ForecastPanel's onHome is real
                 navigation (jump/Ask land on the wheel). Distinct keys force

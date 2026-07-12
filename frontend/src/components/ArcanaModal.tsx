@@ -39,8 +39,9 @@ import { CLASSROOM, EXPRESSION_KINDS, generateArtifact, type Artifact } from "..
 import { Interpretation } from "./DetailPanel";
 import { useSpeech, speakableText } from "../lib/speech";
 import { printSessionTome } from "../lib/tomePrint";
-import { shelfAttachPersonal, shelfSaveOracle } from "../lib/bookshelf";
+import { journalForSeed, shelfAttachPersonal, shelfSaveOracle } from "../lib/bookshelf";
 import { JournalPad } from "./JournalPad";
+import { ConstellationPath } from "./ConstellationPath";
 import { chaosLetters, wordValue, reduceDigit, planetToKamea } from "../lib/sigil";
 import { deriveSoulProfile } from "../lib/archetypes";
 import { computeLifePath, LIFE_PATH_DATA, getResonance } from "../lib/numerology";
@@ -133,6 +134,11 @@ export const ArcanaModal: React.FC<{
   const [purchaseTx, setPurchaseTx] = useState("");
   const [purchasing, setPurchasing] = useState(false);
 
+  // R-4: constellation path — a star stays lit once a reflection is kept for
+  // its lesson (loaded from the journal when the path arrives; keeping one in
+  // the margin lights it on the next visit).
+  const [walked, setWalked] = useState<Set<number>>(new Set());
+
   const [spread, setSpread] = useState<SpreadType>("three_card");
   const [source, setSource] = useState<SourceSystem>("golden_dawn");
   const [question, setQuestion] = useState("What do I need to understand right now?");
@@ -160,6 +166,22 @@ export const ArcanaModal: React.FC<{
     if (initialTab === "classroom" && chart && !path) loadPath();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chart]);
+
+  // Which path lessons carry a kept reflection — those stars stay lit.
+  useEffect(() => {
+    if (!path) { setWalked(new Set()); return; }
+    let stale = false;
+    journalForSeed(`path:${path.anchor}→${path.growth_edge}`)
+      .then((es) => {
+        if (stale) return;
+        const orders = es
+          .map((e) => parseInt(e.position ?? "", 10))
+          .filter((n) => Number.isFinite(n));
+        setWalked(new Set(orders));
+      })
+      .catch(() => undefined);
+    return () => { stale = true; };
+  }, [path]);
 
   // Load the natal signature once a chart exists; on-device if the backend is down.
   useEffect(() => {
@@ -691,7 +713,9 @@ export const ArcanaModal: React.FC<{
                     <pre className="arc-interp-text">{reading.interpretation}</pre>
                     <button className="ghost arc-copy" onClick={() => copy(reading.interpretation)}>copy</button>
                   </div>
-                  <p className="arc-disclaimer">{reading.disclaimer}</p>
+                  {/* R-4 voice sweep: the per-module disclaimers collapsed into
+                      the chapter refrain footer — one line, said the way the
+                      instrument means it. */}
                 </div>
               )}
 
@@ -753,8 +777,6 @@ export const ArcanaModal: React.FC<{
                         {oracleLoading ? "Consulting…" : "regenerate"}
                       </button>
                     </div>
-
-                    <p className="arc-disclaimer">{oracle.disclaimer}</p>
 
                     {/* ── Deluxe Edition — optional post-Oracle product ── */}
                     <div className="arc-personal" style={{ marginTop: 14, paddingTop: 12, borderTop: "1px dashed rgba(255,255,255,0.18)" }}>
@@ -867,7 +889,6 @@ export const ArcanaModal: React.FC<{
                               {personalLoading ? "Compiling…" : "recompile"}
                             </button>
                           </div>
-                          <p className="arc-disclaimer">{personal.disclaimer}</p>
                         </div>
                       )}
                     </div>
@@ -930,31 +951,34 @@ export const ArcanaModal: React.FC<{
                       — {path.anchor} → {path.growth_edge} · {path.lineage}
                     </span>
                   </div>
-                  <ol className="arc-path-steps" style={{ paddingLeft: 18, margin: 0 }}>
-                    {path.steps.map((s) => (
-                      <li key={s.order} className="mg-sel" style={{ marginBottom: 10 }}
-                          onClick={() => setMargin({
-                            title: s.card.name,
-                            subtitle: `${s.stage} · step ${s.order} of ${path.steps.length}`,
-                            body: [s.focus],
-                            action: s.practice,
-                            journal: {
-                              seed: `path:${path.anchor}→${path.growth_edge}`,
-                              position: `${s.order} · ${s.card.name}`,
-                              prompt: s.journal, cardName: s.card.name,
-                            },
-                          })}>
-                        <div>
-                          <span className="arc-badge arc-badge--off">{s.stage}</span>{" "}
-                          <b>{s.card.name}</b>
-                        </div>
-                        <p style={{ margin: "3px 0" }}>{s.focus}</p>
-                        <p className="arc-drawn-act" style={{ margin: "2px 0" }}>✦ {s.practice}</p>
-                        <p className="arc-drawn-journal" style={{ margin: "2px 0" }}>✎ {s.journal}</p>
-                      </li>
-                    ))}
-                  </ol>
-                  <p className="arc-disclaimer" style={{ marginTop: 6 }}>{path.disclaimer}</p>
+                  {/* R-4: the path drawn like sky, not listed like homework.
+                      A star's lesson opens in the margin; a kept reflection
+                      lights it on the next visit. */}
+                  <ConstellationPath
+                    stars={path.steps.map((s) => ({
+                      order: s.order, stage: s.stage, name: s.card.name,
+                      walked: walked.has(s.order),
+                    }))}
+                    onSelect={(order) => {
+                      const s = path.steps.find((st) => st.order === order);
+                      if (!s) return;
+                      setMargin({
+                        title: s.card.name,
+                        subtitle: `${s.stage} · step ${s.order} of ${path.steps.length}`,
+                        body: [s.focus],
+                        action: s.practice,
+                        journal: {
+                          seed: `path:${path.anchor}→${path.growth_edge}`,
+                          position: `${s.order} · ${s.card.name}`,
+                          prompt: s.journal, cardName: s.card.name,
+                        },
+                      });
+                    }}
+                  />
+                  <p className="cp-hint">
+                    select a star — its lesson opens in the margin; keep a
+                    reflection there and the star stays lit
+                  </p>
 
                   {/* ── The Course — Fable-written curriculum over this path ── */}
                   <hr style={{ opacity: 0.2, margin: "14px 0" }} />
@@ -993,7 +1017,6 @@ export const ArcanaModal: React.FC<{
                           <button className="ghost arc-copy" onClick={() => copy(course.course)}>copy</button>
                         </div>
                         <Interpretation text={course.course} />
-                        <p className="arc-disclaimer">{course.disclaimer}</p>
                       </div>
                     )}
                   </div>
@@ -1106,7 +1129,6 @@ export const ArcanaModal: React.FC<{
                       )}
                     </div>
                   ))}
-                  <p className="arc-disclaimer">{deckArt.disclaimer}</p>
                 </div>
               )}
             </div>
