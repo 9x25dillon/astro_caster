@@ -5,6 +5,13 @@ builder-complete (see Hand_off.md); this arc is oriented around the operator
 as its **user**. Sequence and wake conditions are the contract; update
 statuses inline._
 
+> **2026-07-19 — direction extended:** the operator ratified
+> [`PUBLIC_LAUNCH_SCHEDULE.md`](PUBLIC_LAUNCH_SCHEDULE.md) — a public,
+> secure, **monetized** edition (Edition Q) alongside an unrestricted
+> personal edition (Edition P). The parked hardening/monetization wake
+> conditions below are now **AWAKE** under that schedule; this arc's
+> personal-practice tracks continue unchanged.
+
 ## Track 1 — Keep it alive (maintenance posture, recurring)
 
 - **M1 Dependency cadence** — dependabot sweeps ~monthly; majors get a fresh

@@ -1,0 +1,182 @@
+# Public Launch Schedule — secure, monetized, public Astra
+
+_Status: **RATIFIED by the operator 2026-07-19** (drafted same day).
+Supersedes the "personal instrument" direction of 2026-07-08 **for the public
+track only**; the personal instrument survives as Edition P below.
+NEXT_ARC.md carries a banner pointing here._
+
+_Ratified decisions: **D1 = (b)** fresh public repo cut from a clean tree
+(working repo's history stays private) · **D2** Stripe primary, crypto kept
+as alternative rail · **D3** AGPL-3.0 stays (source offer in footer) ·
+**D4** single VPS + docker-compose behind Cloudflare._
+
+---
+
+## 0. The two editions (the governing idea)
+
+One codebase, two deployments:
+
+| | **Edition P — the operator's observatory** | **Edition Q — the public product** |
+|---|---|---|
+| Access | **Everything unlocked, no restrictions, forever** | Tiered: free / supporter / oracle |
+| Rate limits | None | Sliding-window, spend-capped |
+| Payments | None (never pays himself) | Stripe + crypto rails |
+| Hosting | His machine (localhost / LAN) | Hardened public host |
+| Data | His vault, his `.env`, his DBs | Zero-retention posture, policies published |
+
+Everything in this schedule is Edition Q work **except Phase 1**, which makes
+Edition P a first-class configuration instead of a token workaround.
+
+## 0.1 Security triage — ✅ CLOSED 2026-07-19
+
+The GitHub vulnerability flag is resolved. Findings, for the record:
+
+- The flagged fix was already merged by the operator as Dependabot PRs
+  **#72–#74** (vite 8.1.3→8.1.4 security patch, tzdata 2026.3, setup-node 7).
+  Local main was stale; now fast-forwarded to `7b7a0fa`, `npm ci` + venv
+  resync done, **frontend build green, 199 backend + 37 core tests green**.
+- Fresh audits of all three dependency surfaces: `npm audit` (frontend,
+  astra-core) and `pip-audit` over the full frozen backend set — **0 known
+  vulnerabilities**.
+- **Dependabot alerts + automated security fixes were DISABLED on the repo —
+  enabled via API 2026-07-19.** Alerts page currently reports 0 open.
+
+---
+
+## Decision gates (operator calls — needed before the phase that consumes them)
+
+- **D1 · Git history (blocks Phase 2 exit).** The public repo's history
+  contains the operator's birth data (AUDIT_REGRESSION §5.1 — "LEAVE" was
+  chosen under the personal direction; a public product reopens it).
+  Options: (a) `git filter-repo` scrub + force-push, (b) fresh public repo
+  cut from a clean tree (history stays private), (c) leave as-is, accepted.
+  **Recommendation: (b)** — cleanest, keeps the working repo intact.
+- **D2 · Payment rails (blocks Phase 4).** Current rail is crypto-only
+  (on-chain verification). A public product realistically needs **Stripe**
+  (cards, subscriptions, refunds). Recommendation: Stripe primary, crypto
+  kept as the alternative rail.
+- **D3 · License posture (blocks Phase 5).** AGPL-3.0 is fine for a
+  monetized SaaS you own — but it obliges offering source to users. Accept
+  that (recommended: yes, it's already public) or dual-license.
+- **D4 · Hosting target (blocks Phase 3).** A VPS + docker-compose
+  (DEPLOY.md already exists) vs managed platform. Recommendation: single
+  VPS behind Cloudflare to start; the stack is one compose file.
+
+---
+
+## Phase 1 — Edition P: the unrestricted personal build (~1 session)
+
+> Your requirement: a personal version with **no locked features or
+> restrictions**. Today that's approximated by `AAE_DEV_TOKEN`; it should be
+> a boot mode, not a token you carry.
+
+- **1.1 `AAE_PERSONAL_MODE=1`**: instance-wide oracle tier for every
+  request — no tokens, no entitlement checks, no purchase gates (deluxe
+  exemption included — the gate that bit during Phase 0), no rate limits,
+  no telemetry.
+- **1.2 Fail-closed interlock**: personal mode **refuses to boot** if any
+  public-facing signal is set (treasury address, Stripe keys, non-localhost
+  bind) — so the unrestricted build can never accidentally be the public one.
+- **1.3 `run.sh --personal`** (or default when `.env` says so) + README
+  section "Your own observatory".
+- _Done when:_ fresh browser, zero tokens → every feature (Oracle, deluxe
+  report, Course, plates, TTS) works; boot with a Stripe key + personal
+  mode → refuses; tests assert both.
+
+## Phase 2 — Security hardening (the public gate, ~3–4 sessions)
+
+- **2.1 Repo surfaces** (½ done): Dependabot alerts ✅ + auto-fixes ✅;
+  add **CodeQL** workflow; enable secret scanning + push protection.
+- **2.2 Execute D1** (git-history decision).
+- **2.3 Secret hygiene**: rotate `AAE_SECRET`, dev token, all API keys
+  before exposure; secrets from environment/secret store, never baked into
+  images; document rotation runbook.
+- **2.4 Prompt-injection hardening (parked R3, wakes)**: user text is
+  quarantined in prompts (delimiters + instruction to treat as data), AI
+  output never interpolated into privileged paths; red-team test cases in
+  the suite.
+- **2.5 Edge posture**: nginx security headers (CSP, HSTS, frame-ancestors),
+  CORS pinned to the public origin, TLS via the host, request size caps;
+  rate limiter verified ON in prod config with tests.
+- **2.6 Run `/security-review`** on the branch; fix what it finds.
+- _Done when:_ review clean, headers verified by scanner, rotation drill
+  performed once, CI carries CodeQL + gitleaks + parity + full matrix.
+
+## Phase 3 — Productionization (parked backlog wakes, ~3 sessions)
+
+- **3.1 F1 API versioning** (`/api/v1/*`, PWA clients tolerate skew).
+- **3.2 F2 structured logging** (JSON, request IDs, no birth data in logs —
+  assert in tests).
+- **3.3 R4 metrics + alerting**: Prometheus endpoint, uptime + error-rate +
+  AI-spend alarms.
+- **3.4 F3/F4 caching** where measured hot (ephemeris/aspects).
+- **3.5 Backups**: scheduled encrypted backup of `data/*.db` + secrets;
+  **restore drill actually performed**.
+- **3.6 Staging deploy** on the D4 target from docker-compose; smoke matrix
+  (`dev.py smoke --full`) against it.
+- _Done when:_ staging serves the full app over TLS with dashboards live and
+  a restore drill logged.
+
+## Phase 4 — Monetization (~3–4 sessions)
+
+- **4.1 Entitlement lifecycle**: expiry/renewal/revocation for paid tokens;
+  device re-link flow; admin lookup tooling (extends receipts ledger).
+- **4.2 Stripe rail (D2)**: Checkout for supporter/oracle (subscription or
+  one-time — operator choice), webhook → verify → mint entitlement → receipt
+  row; refund webhook → revoke. Crypto rail kept: set `AAE_ETH_RPC`,
+  `AAE_ORACLE_MIN_WEI`, `AAE_REPORT_MIN_WEI` (the pre-deploy trio from the
+  audit).
+- **4.3 Deluxe purchases**: per-report purchase flow on the same rail
+  (machinery exists; wire to Stripe).
+- **4.4 AI cost controls**: per-user daily budgets, global spend alarm,
+  graceful degrade to offline compilers when capped (already honest —
+  keep `ai_source` provenance).
+- **4.5 Tome storefront gate** (PHYSICAL_TOME_PRODUCT Phase 2) — **only if
+  Phase 0's printed copy passes in hand**; Lulu fulfillment, priced ≥ the
+  $150 gift-worthiness bar.
+- _Done when:_ a stranger with a card can buy each tier and the deluxe
+  report end-to-end on staging (Stripe test mode), refunds revoke, spend
+  alarms fire in a drill.
+
+## Phase 5 — Policy, legal, copy (~1–2 sessions, can overlap Phase 4)
+
+- Privacy policy (the true story: birth data never retained server-side;
+  telemetry = anonymous counters), Terms, refund policy, pricing page.
+- D3 executed (AGPL source link in footer).
+- Disclaimer/refrain pass over all public copy per the voice canon —
+  *"nothing Astra produces is a life sentence — it is a life poem"* — plus
+  the reflective-not-predictive framing in ToS.
+- App-store review of AI-content rules **only if** H2 (Capacitor) wakes.
+
+## Phase 6 — Launch (~1–2 sessions + soak)
+
+- Load test the AI endpoints (they're the expensive path) + static surfaces.
+- Full e2e + smoke matrix against production config; airplane-mode PWA check
+  on the public URL.
+- Soft launch (unlisted URL, a few real users) → 1–2 week soak watching
+  dashboards → public announce.
+- Incident runbook: key rotation, provider outage (offline compilers are the
+  designed fallback), refund/abuse handling.
+
+---
+
+## Suggested calendar (at the current ~2 sessions/week cadence)
+
+| Week | Work |
+|---|---|
+| **W1** (Jul 20–26) | Phase 1 (Edition P) + Phase 2 start (CodeQL, secret scanning, D1 decision) |
+| **W2** (Jul 27–Aug 2) | Phase 2 finish (rotation, prompt-injection, headers, security review). **Aug 1: Fable cap returns** — live-verify reports |
+| **W3** (Aug 3–9) | Phase 3 (versioning, logging, metrics, backups, staging deploy on D4) |
+| **W4** (Aug 10–16) | Phase 4 core (entitlement lifecycle, Stripe rail, deluxe purchase) |
+| **W5** (Aug 17–23) | Phase 4 finish (cost controls) + Phase 5 (policies, pricing, copy) |
+| **W6** (Aug 24–30) | Phase 6: load test, soft launch, soak |
+| **W7+** | Public announce when the soak is quiet |
+
+**Standing threads that ride alongside (not gated on this):** the Phase 0
+tome order (operator's hands; its verdict gates 4.5), P3 plate live-verify
+(needs `AAE_OPENAI_API_KEY`), PB1 book compiler, monthly dependency cadence.
+
+**Ground rules carried over:** acceptance criteria up front · every phase
+lands as PRs the operator merges · parity vectors stay green · fail-closed
+remains the security posture · Edition P never gets weaker while Edition Q
+gets harder.
