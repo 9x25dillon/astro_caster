@@ -35,6 +35,8 @@ import time
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+import entitlements as ENT
+
 _DB_PATH = Path(os.environ.get("AAE_TELEMETRY_DB", "data/telemetry.db"))
 
 _SCHEMA = """
@@ -108,7 +110,13 @@ def _run(sql: str, params: tuple = ()) -> None:
 
 
 async def _write(sql: str, params: tuple = ()) -> None:
-    """Non-blocking write — runs DB work on the thread-pool executor."""
+    """Non-blocking write — runs DB work on the thread-pool executor.
+
+    In personal mode (Edition P) telemetry records nothing at all: the only
+    user is the operator, and "no telemetry" is part of that edition's
+    contract. Reads (the admin summary) still work."""
+    if ENT.personal_mode():
+        return
     try:
         await asyncio.to_thread(_run, sql, params)
     except Exception:

@@ -64,7 +64,7 @@ The GitHub vulnerability flag is resolved. Findings, for the record:
 
 ---
 
-## Phase 1 — Edition P: the unrestricted personal build (~1 session)
+## Phase 1 — Edition P: the unrestricted personal build — ✅ BUILT 2026-07-19 (branch `edition-p-personal-mode`)
 
 > Your requirement: a personal version with **no locked features or
 > restrictions**. Today that's approximated by `AAE_DEV_TOKEN`; it should be

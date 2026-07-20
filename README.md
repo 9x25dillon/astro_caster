@@ -125,6 +125,7 @@ Create `backend/.env` (gitignored). **Every variable is optional — the app run
 | Variable | Default | Purpose |
 |---|---|---|
 | `AAE_ENV` | *(unset → production)* | Deployment environment. Non-prod values: `development`/`dev`/`local`/`test`. **Fail-closed:** unset/unrecognized ⇒ production, where the app *refuses to boot* with a default `AAE_SECRET` or trust mode on. `run.sh` sets `development`. |
+| `AAE_PERSONAL_MODE` | *(unset → off)* | **Edition P — your own observatory, everything unlocked.** The whole instance runs at oracle tier: no tokens, no purchase gates, no rate limits, no telemetry. **Fail-closed interlock:** refuses to boot if any public-facing signal is set (production env, treasury address, payment rails/thresholds) so the unrestricted build can never accidentally serve the public. `./run.sh --personal` sets it for you. |
 | `AAE_SECRET` | `aae-dev-secret-change-me` | HMAC secret for entitlement tokens. **Set to a strong random value.** Production refuses to boot on the default; in dev the default works but tokens are forgeable. |
 | `AAE_DEV_TOKEN` | *(unset)* | Raw string that grants **oracle tier, no expiry** — for using your own app for free (see [Unlock your own copy](#unlock-your-own-copy)). |
 | `AAE_TRUST_MODE` | *(unset → off)* | Dev-only: accept a support tx hash *without* on-chain verification. Only in non-production; production boot is refused if set. |
@@ -152,7 +153,15 @@ The **Oracle Report** (oracle tier) is the deepest reading: a long-form Claude *
 
 ### Unlock your own copy
 
-It's your observatory — you shouldn't pay yourself. Set a dev token and it unlocks the full oracle tier with no expiry:
+It's your observatory — you shouldn't pay yourself. The simplest way is **personal mode** (Edition P): the whole instance runs unlocked, and no browser ever needs a token.
+
+```bash
+./run.sh --personal        # or put AAE_PERSONAL_MODE=1 in backend/.env
+```
+
+Everything — Oracle, deluxe Personal Report, the Course, plate art, TTS — works with zero tokens, rate limits off, telemetry off. As a guard, the backend **refuses to boot** in this mode if the config carries any public-facing signal (treasury address, payment rails, production env): the unrestricted build can never accidentally be the public one.
+
+If you instead want a *token* (e.g. to unlock a hosted non-personal instance from your own phone), set a dev token — it grants the full oracle tier with no expiry:
 
 ```bash
 # backend/.env
