@@ -36,6 +36,7 @@ import os
 from typing import Dict, List
 
 import astrology as A
+import promptsafe as PS
 import tarot as TAROT
 from oracle_report import _call_fable, build_report_substrate
 from tarot_models import (
@@ -210,11 +211,13 @@ def _substrate_prompt(req: PersonalReportRequest, sub: Dict) -> str:
         f"ORACLE SESSION: date {sub['oracle_date']} • seed {o.seed} • "
         f"short-seed {sub['short_seed']} • spread {o.spread} • lineage {meta['name']} "
         f"• ai_source {o.ai_source or 'unknown'}",
-        f"QUESTION: {o.question}",
-        f"COVER NAME: {req.display_name or '{{BIRTH_INFO}}'}",
+        "QUESTION:",
+        PS.quarantine(o.question, "question", 1000),
+        "COVER NAME: " + (PS.quarantine(req.display_name, "cover-name", 120)
+                          if req.display_name else "{{BIRTH_INFO}}"),
         "",
         "THE ORACLE REPORT TEXT (integrate and expand — quote generously):",
-        o.report,
+        PS.quarantine(o.report, "oracle-report-text", 60000),
         "",
         "NATAL CITATIONS (the only placements you may cite):",
     ]
@@ -243,23 +246,27 @@ def _substrate_prompt(req: PersonalReportRequest, sub: Dict) -> str:
     lines += [f"RELATIONSHIP DATA: {rel['descendant']}; 7th house: "
               f"{'; '.join(rel['seventh_house']) or 'untenanted'}; {rel['venus']}; {rel['moon']}"]
     if req.sigil_notes:
-        lines += ["", f"SIGIL FORMATION NOTES (client-side): {req.sigil_notes}"]
+        lines += ["", "SIGIL FORMATION NOTES (client-side):",
+                  PS.quarantine(req.sigil_notes, "sigil-notes", 800)]
     if req.predictive_summary:
-        lines += ["", f"PREDICTIVE HIGHLIGHTS: {req.predictive_summary}"]
+        lines += ["", "PREDICTIVE HIGHLIGHTS:",
+                  PS.quarantine(req.predictive_summary, "predictive-summary", 2000)]
     # Module inserts — weave, don't just append: the soul profile and life path
     # belong in the psychological/evolutionary deep-dive, the reflection in the
     # Oracle synthesis (quote it like the Oracle text).
     if req.soul_profile:
         lines += ["", "SOUL PROFILE (from the observatory's Soul Profile module — "
-                      "integrate into the natal deep-dive):", req.soul_profile]
+                      "integrate into the natal deep-dive):",
+                  PS.quarantine(req.soul_profile, "soul-profile", 4000)]
     if req.life_path:
         lines += ["", "LIFE PATH NUMEROLOGY (Pythagorean; integrate as its own "
                       "subsection of the deep-dive and echo it in Practices):",
-                  req.life_path]
+                  PS.quarantine(req.life_path, "life-path", 2000)]
     if req.reflection_summary:
         lines += ["", "ASTRA'S REFLECTION (an AI reading the user already received "
                       "in the Detail panel — quote and expand it inside the Oracle "
-                      "synthesis):", req.reflection_summary]
+                      "synthesis):",
+                  PS.quarantine(req.reflection_summary, "reflection-summary", 4000)]
     return "\n".join(lines)
 
 
@@ -410,7 +417,7 @@ async def generate_personal_report(req: PersonalReportRequest) -> PersonalReport
     sub = build_personal_substrate(req)
     system = (PERSONAL_REPORT_SYSTEM
               .replace("{ORACLE_DATE}", sub["oracle_date"])
-              .replace("{SHORT_SEED}", sub["short_seed"]))
+              .replace("{SHORT_SEED}", sub["short_seed"])) + PS.SYSTEM_NOTE
     ai = await _call_fable(system, _substrate_prompt(req, sub),
                            model=_MODEL, max_tokens=_MAX_TOKENS, effort=_EFFORT)
     if ai:

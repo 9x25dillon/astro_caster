@@ -130,3 +130,24 @@ after dependency changes with `--build`.
   set `AAE_SECRET` (and keep `AAE_ENV=production`).
 - **Port already in use** — change `WEB_PORT` (applies to both dev and prod) or
   the backend `8787:8787` mapping (dev).
+
+---
+
+## 6. Secret rotation runbook (Phase 2.3)
+
+Rotate on schedule (quarterly), on any suspected exposure, and always **before
+first public deploy**.
+
+| Secret | Rotate with | Blast radius |
+|---|---|---|
+| `AAE_SECRET` | `openssl rand -hex 32` → `backend/.env` → restart | Every outstanding HMAC entitlement token dies. Personal mode and `AAE_DEV_TOKEN` survive (separate paths); paying users need re-minted tokens — rotate at a maintenance window and re-issue from the receipts ledger. |
+| `AAE_DEV_TOKEN` | `openssl rand -hex 24` → `backend/.env` → restart | Only your own unlock link (`tools/unlock.py` prints the new one). Never set in production — the boot guard refuses it. |
+| `AAE_ED25519_SEED` | `tools/gen_ed25519_key.py` | Ed25519-signed tokens die; clients embedding the public key need the new one. |
+| `AAE_ANTHROPIC_API_KEY` | Anthropic console → revoke old, issue new → `dev.py ai set` → `ai check` | None (server-side only). |
+| `AAE_OPENAI_API_KEY` | OpenAI dashboard → revoke old, issue new → `.env` → restart | None (server-side only). |
+| `ELEVENLABS_API_KEY` | ElevenLabs dashboard → `.env` → restart | None. |
+
+After any rotation: restart the backend (env is read at boot), run
+`tools/dev.py smoke` against it, and verify the old value is dead (a request
+bearing it must fail). Secrets live **only** in `backend/.env` (gitignored)
+or the host's secret store — never in images, compose files, or the repo.
