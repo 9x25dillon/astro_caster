@@ -88,7 +88,13 @@ The GitHub vulnerability flag is resolved. Findings, for the record:
 - **2.1 Repo surfaces** — ✅ DONE 2026-07-20: Dependabot alerts ✅ +
   auto-fixes ✅; CodeQL workflow ✅ (#77); secret scanning + push
   protection verified enabled.
-- **2.2 Execute D1** (git-history decision).
+- **2.2 Execute D1** (git-history decision) — **working-tree half done
+  2026-07-20**: real birth-data literals scrubbed from the 4 files that
+  still carried them (test fixtures, vault-tool docstring, audit-doc
+  citations) — see PR #78. **The actual repo cut (fresh public repo from
+  a clean tree, per the ratified D1=(b)) is still pending — an
+  operator-level decision** (new GitHub repo, hosting, what stays
+  private) rather than something to execute unilaterally mid-session.
 - **2.3 Secret hygiene** — runbook ✅ (DEPLOY.md §6, #77); **rotation
   drill PERFORMED 2026-07-20** (`AAE_SECRET` + dev token; old token
   verified dead, smoke green). API keys rotate at their consoles in the
