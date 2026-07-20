@@ -1,7 +1,21 @@
 #!/usr/bin/env bash
 # run.sh — launch backend (FastAPI) and frontend (Vite) together for local dev.
-# Usage: ./run.sh   (Ctrl-C stops both)
+# Usage: ./run.sh [--personal]   (Ctrl-C stops both)
+#   --personal   Edition P: everything unlocked for this instance — oracle
+#                tier with no tokens, no purchase gates, no rate limits, no
+#                telemetry. The backend refuses to boot in this mode if any
+#                public-facing signal (treasury, payment rails, production
+#                env) is configured. Equivalent to AAE_PERSONAL_MODE=1.
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+PERSONAL=""
+for arg in "$@"; do
+  case "$arg" in
+    --personal) PERSONAL=1 ;;
+    *) echo "unknown option: $arg (usage: ./run.sh [--personal])"; exit 2 ;;
+  esac
+done
+[[ -n "$PERSONAL" ]] && export AAE_PERSONAL_MODE=1
 
 # Kill any existing listeners before starting so re-runs don't hit EADDRINUSE.
 _free_port() {
@@ -61,6 +75,7 @@ FRONT=$!
 echo
 echo "  AAE running →  http://127.0.0.1:5173"
 echo "  API docs    →  http://127.0.0.1:8787/docs"
+[[ -n "$PERSONAL" ]] && echo "  Edition P   →  personal mode: everything unlocked, nothing tracked"
 echo
 
 wait $BACK $FRONT

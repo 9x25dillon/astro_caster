@@ -89,6 +89,50 @@ def is_production() -> bool:
     return os.environ.get("AAE_ENV", "").strip().lower() not in _NONPROD_ENVS
 
 
+def personal_mode() -> bool:
+    """Edition P — the operator's own observatory, everything unlocked.
+
+    When AAE_PERSONAL_MODE is truthy the instance grants oracle tier to every
+    request with no tokens, no purchase gates, no rate limits and no
+    telemetry. assert_safe_boot() refuses to start in this mode if any
+    public-facing signal is configured (production env, treasury, payment
+    rails), so the unrestricted build can never accidentally be the public
+    one. Read per call, like trust mode, so tests and reconfiguration don't
+    fight module state.
+    """
+    return os.environ.get("AAE_PERSONAL_MODE", "").strip().lower() in _TRUTHY
+
+
+# Env vars whose mere presence marks this deployment as public-facing. The
+# personal-mode interlock refuses to boot when any is set: Edition P must be
+# unreachable by paying strangers by construction, not by discipline.
+_PUBLIC_SIGNALS = ("AAE_TREASURY_ETH", "AAE_TREASURY_BTC", "AAE_ETH_RPC")
+_PUBLIC_THRESHOLDS = ("AAE_ORACLE_MIN_WEI", "AAE_REPORT_MIN_WEI")
+
+
+def _personal_mode_conflicts() -> list[str]:
+    """Public-facing signals present while personal mode is on (empty = safe)."""
+    conflicts = [
+        "AAE_ENV is production (personal mode is a private, non-production build)"
+    ] if is_production() else []
+    conflicts += [
+        f"{name} is set" for name in _PUBLIC_SIGNALS
+        if os.environ.get(name, "").strip()
+    ]
+    conflicts += [
+        f"{name} is set" for name in sorted(os.environ)
+        if name.startswith("AAE_STRIPE_") and os.environ.get(name, "").strip()
+    ]
+    for name in _PUBLIC_THRESHOLDS:
+        raw = os.environ.get(name, "").strip()
+        try:
+            if raw and int(raw) > 0:
+                conflicts.append(f"{name} is configured")
+        except ValueError:
+            conflicts.append(f"{name} is malformed")
+    return conflicts
+
+
 def trust_mode_enabled() -> bool:
     """Whether the operator explicitly turned trust mode on (AAE_TRUST_MODE)."""
     return os.environ.get("AAE_TRUST_MODE", "").strip().lower() in _TRUTHY
@@ -106,6 +150,18 @@ def assert_safe_boot() -> None:
     prevents the ASGI app from loading — if the process is in production with
     either trust mode enabled or the built-in default HMAC secret still in use.
     """
+    if personal_mode():
+        conflicts = _personal_mode_conflicts()
+        if conflicts:
+            raise RuntimeError(
+                "Refusing to boot: AAE_PERSONAL_MODE is on but this "
+                "configuration looks public-facing — " + "; ".join(conflicts) +
+                ". Edition P (the unrestricted personal build) must never "
+                "serve the public: unset AAE_PERSONAL_MODE for a public "
+                "deployment, or remove the conflicting variables for a "
+                "personal one."
+            )
+        return  # a clean personal boot needs no further production checks
     if not is_production():
         return
     if trust_mode_enabled():
@@ -270,9 +326,17 @@ def check_dev_token(token: Optional[str]) -> bool:
     return bool(_DEV_TOKEN) and token is not None and hmac.compare_digest(token, _DEV_TOKEN)
 
 
+def is_operator(token: Optional[str]) -> bool:
+    """Whether this request is the instance's own operator: every request in
+    personal mode, or the bearer of the dev token. Gates the operator-only
+    surfaces (admin stats, deluxe purchase exemption)."""
+    return personal_mode() or check_dev_token(token)
+
+
 def entitlement_status(token: Optional[str]) -> dict:
+    # Edition P — the whole instance is the operator's; everything unlocked.
     # Dev bypass — oracle tier, never expires.
-    if check_dev_token(token):
+    if personal_mode() or check_dev_token(token):
         return {
             "supporter": True,
             "tier": "oracle",

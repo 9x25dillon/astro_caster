@@ -49,11 +49,15 @@ def _int_env(name: str, default: int) -> int:
 
 
 def enabled() -> bool:
-    """Explicit env wins; otherwise protective in production, off in non-prod."""
+    """Explicit env wins; otherwise off in personal mode (Edition P — the
+    operator never throttles themself), protective in production, off in
+    non-prod."""
     raw = os.environ.get("AAE_RATE_LIMIT_ENABLED", "").strip().lower()
     if raw in _TRUTHY:
         return True
     if raw in _FALSY:
+        return False
+    if ENT.personal_mode():
         return False
     return ENT.is_production()
 

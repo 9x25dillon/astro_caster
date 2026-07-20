@@ -196,6 +196,7 @@ def _spawn(coro) -> None:
 async def health():
     return {
         "status": "ok",
+        "personal_mode": ENT.personal_mode(),
         "ephemeris": "swiss-files" if E._USING_FILES else "moshier",
         # ai_status probes local providers (up to ~1.5s each on a cache miss)
         # — keep it off the event loop.
@@ -439,7 +440,9 @@ async def ai_ask_stream(req: AIRequest, request: Request):
 # --------------------------------------------------------------------------- #
 # Telemetry — frontend events + admin dashboard
 # --------------------------------------------------------------------------- #
-# The dev/admin token is validated via ENT.check_dev_token (constant-time).
+# Operator surfaces are gated via ENT.is_operator: the dev token
+# (constant-time compare) — or every request when the instance runs in
+# personal mode (Edition P).
 
 
 class FeatureEvent(BaseModel):
@@ -459,7 +462,7 @@ async def admin_stats(token: Optional[str] = None,
                       x_aae_token: Optional[str] = Header(None)):
     """Admin summary. Token via X-AAE-Token header (query param deprecated —
     it leaks into access logs)."""
-    if not ENT.check_dev_token(x_aae_token or token):  # constant-time compare
+    if not ENT.is_operator(x_aae_token or token):
         raise HTTPException(status_code=403, detail="forbidden")
     return await asyncio.to_thread(TEL.summary)
 
@@ -697,7 +700,7 @@ async def personal_report(req: PersonalReportRequest, request: Request):
             detail="oracle entitlement required — the Personal Report is an "
                    "optional deluxe edition compiled from your Oracle session",
         )
-    if not ENT.check_dev_token(req.entitlement) and \
+    if not ENT.is_operator(req.entitlement) and \
             ENT.verify_report_token(req.report_token, req.oracle.seed) is None:
         raise HTTPException(
             status_code=402,
