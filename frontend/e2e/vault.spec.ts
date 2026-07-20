@@ -12,8 +12,8 @@ test("vault export → wipe → restore brings the observatory's state back", as
   await page.evaluate(() => {
     localStorage.setItem("aae.profiles", JSON.stringify([{
       id: "t1", name: "Vault Test Chart", createdAt: "2026-07-08",
-      birth: { year: 1987, month: 11, day: 11, hour: 10, minute: 23, second: 0,
-               lat: 34.9333, lng: -117.1833, tz_offset: -8, house_system: "P",
+      birth: { year: 1879, month: 3, day: 14, hour: 11, minute: 30, second: 0,
+               lat: 48.4, lng: 10.0, tz_offset: 0.67, house_system: "P",
                zodiac: "tropical", ayanamsha: 1, label: "Vault Test Chart" },
     }]));
     localStorage.setItem("aae.forecast_bookmarks", JSON.stringify(["vault-mark"]));

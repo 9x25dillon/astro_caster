@@ -172,7 +172,7 @@ every response; CI green (`pytest` + `tsc -b && vite build` on clean checkout).
 ---
 
 ## 6. Open operator decisions (ASK THE USER — do not act unilaterally)
-1. **Git-history purge:** the real birth data (`34.935,-117.199`, 1987-11-11) is scrubbed
+1. **Git-history purge:** the real birth data (values redacted from this doc 2026-07-20) is scrubbed
    from the working tree but **remains in git history** (commits `b1bdd5f`→). Full removal
    needs a destructive rewrite (`git filter-repo`/BFG + force-push). **Deferred pending an
    explicit go/no-go.** Log the outcome in `docs/audits/AUDIT_REGRESSION.md`.

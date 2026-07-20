@@ -133,8 +133,8 @@ def test_applying_none_when_both_points_static():
 # --- 2.8 _jd_to_utc second carry ------------------------------------------------
 
 def test_jd_to_utc_carries_the_rounded_second():
-    # 1987-11-11 23:59:59.7 UTC — rounding the second must carry to the next
-    # day, not clamp to :59.
-    jd = swe.julday(1987, 11, 11, 23 + 59 / 60.0 + 59.7 / 3600.0, swe.GREG_CAL)
+    # 1999-12-31 23:59:59.7 UTC — rounding the second must carry to the next
+    # day (and here the next year), not clamp to :59.
+    jd = swe.julday(1999, 12, 31, 23 + 59 / 60.0 + 59.7 / 3600.0, swe.GREG_CAL)
     out = P._jd_to_utc(jd)
-    assert out == dt.datetime(1987, 11, 12, 0, 0, 0, tzinfo=dt.timezone.utc), out
+    assert out == dt.datetime(2000, 1, 1, 0, 0, 0, tzinfo=dt.timezone.utc), out

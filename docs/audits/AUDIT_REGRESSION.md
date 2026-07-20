@@ -80,7 +80,7 @@ No control was weakened, bypassed, or made conditional in any diff reviewed.
 
 1. **Git-history purge — RESOLVED: LEAVE (explicit operator decision,
    2026-07-01).** The operator has confirmed the history stays as-is. Real
-   birth data (`34.935,-117.199` · 1987-11-11) remains in git history from
+   birth data (values redacted from this doc 2026-07-20) remains in git history from
    `b1bdd5f` onward; the working tree has been clean since Phase 1.2. Revisit
    this decision if the repository is ever made public. Removal procedure
    retained for reference: `git filter-repo --replace-text` (or BFG) targeting

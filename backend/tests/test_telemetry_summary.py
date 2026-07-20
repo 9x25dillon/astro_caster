@@ -38,8 +38,8 @@ def test_report_purchases_empty(isolated_db):
 def test_log_chart_stores_no_birth_data(isolated_db):
     """Issue #54 §3.3: exact birth date/time + rough location is an identifying
     set — the server must not retain it. Only casting preferences persist."""
-    birth = dict(year=1987, month=11, day=11, hour=10, minute=23,
-                 lat=34.9333, lng=-117.1833, house_system="P", zodiac="tropical")
+    birth = dict(year=1879, month=3, day=14, hour=11, minute=30,
+                 lat=48.4, lng=10.0, house_system="P", zodiac="tropical")
     asyncio.run(TEL.log_chart(birth, tier="oracle"))
     conn = TEL._get_conn()
     try:
