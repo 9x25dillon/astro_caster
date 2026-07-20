@@ -99,13 +99,17 @@ The GitHub vulnerability flag is resolved. Findings, for the record:
   drill PERFORMED 2026-07-20** (`AAE_SECRET` + dev token; old token
   verified dead, smoke green). API keys rotate at their consoles in the
   pre-deploy sweep.
-- **2.4 Prompt-injection hardening (parked R3, wakes)**: user text is
-  quarantined in prompts (delimiters + instruction to treat as data), AI
-  output never interpolated into privileged paths; red-team test cases in
-  the suite.
-- **2.5 Edge posture**: nginx security headers (CSP, HSTS, frame-ancestors),
-  CORS pinned to the public origin, TLS via the host, request size caps;
-  rate limiter verified ON in prod config with tests.
+- **2.4 Prompt-injection hardening** — ✅ DONE (#77): `promptsafe.py`
+  quarantines user text (delimiters + instruction to treat as data) before
+  it enters oracle/course/personal-report prompts; red-team cases in
+  `test_prompt_quarantine.py`.
+- **2.5 Edge posture** — ✅ DONE 2026-07-20: nginx security headers ✅
+  (#77, now drift-locked by `test_edge_headers.py` in #78), CORS pinned to
+  `AAE_CORS` (credentialed CORS refused when wildcard, `main.py`), request
+  size cap added (`client_max_body_size 1m`, #78 — the one item 2.5 was
+  still missing), rate limiter defaults ON in production
+  (`test_enabled_by_default_in_production`). TLS itself is the D4 host's
+  job (Cloudflare/VPS termination) — nothing to verify pre-deploy.
 - **2.6 Run `/security-review`** — ✅ RUN 2026-07-20 over the Phase 2
   range: one verified finding (personal-mode interlock missed
   `AAE_TREASURY_SOL`), fixed by prefix-sweeping `AAE_TREASURY_*` (PR #78);
