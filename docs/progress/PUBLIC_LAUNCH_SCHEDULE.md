@@ -114,8 +114,14 @@ The GitHub vulnerability flag is resolved. Findings, for the record:
   range: one verified finding (personal-mode interlock missed
   `AAE_TREASURY_SOL`), fixed by prefix-sweeping `AAE_TREASURY_*` (PR #78);
   everything else clean.
-- _Done when:_ review clean, headers verified by scanner, rotation drill
-  performed once, CI carries CodeQL + gitleaks + parity + full matrix.
+- _Done when:_ review clean ✅, rotation drill performed once ✅
+  (2026-07-20), CI carries CodeQL + gitleaks + parity + full matrix ✅.
+  **Headers verified by an external scanner (securityheaders.com /
+  Mozilla Observatory) still needs a live host** — no Docker daemon
+  access in this environment to stand nginx up locally, and there's no
+  deployed edge yet to point a scanner at. `test_edge_headers.py`
+  drift-locks the config statically in the meantime; run the real
+  scanner once the D4 staging deploy (Phase 3.6) is up.
 
 ## Phase 3 — Productionization (parked backlog wakes, ~3 sessions)
 
