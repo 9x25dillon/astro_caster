@@ -44,6 +44,7 @@ from typing import Dict, Optional, Tuple
 import httpx
 
 import astrology as A
+import promptsafe as PS
 
 _PROVIDER = os.environ.get("AAE_AI_PROVIDER", "auto").strip().lower()
 
@@ -262,9 +263,10 @@ def _build_prompts(query, context, lens, selected_type, selected_id, depth, prov
         budget = 850 if depth == "deep" else 520
         focus = (f"Focus on the {selected_type} '{selected_id}'. "
                  if selected_type and selected_id else "Reflect on the whole chart. ")
+        q = PS.quarantine(query, "question", 800) if query else "Offer a reflection."
         user = (f"{_compact_context_text(context)}\n\n"
-                f"{focus}Question: {query or 'Offer a reflection.'}")
-        system = f"{LOCAL_SYSTEM}\n(Active lens: {lens}.)"
+                f"{focus}Question:\n{q}")
+        system = f"{LOCAL_SYSTEM}\n(Active lens: {lens}.){PS.SYSTEM_NOTE}"
         return system, user, model, budget
     # cloud / kgirl — select model and depth by tier.
     # Output budget is strictly tiered: oracle > supporter > free, so the top
@@ -282,8 +284,9 @@ def _build_prompts(query, context, lens, selected_type, selected_id, depth, prov
         model = _MODEL_DEEP if depth == "deep" else _MODEL
         system = f"{SYSTEM_PROMPT}\n\nActive interpretive lens: {lens}. {lens_line}"
         budget = 1000
+    system += PS.SYSTEM_NOTE
     user = (
-        f"User question: {query}\n\n"
+        f"User question:\n{PS.quarantine(query, 'question', 1500)}\n\n"
         f"Focused selection: {selected_type or 'whole chart'}"
         f"{' — ' + selected_id if selected_id else ''}\n\n"
         f"Chart data (JSON):\n{json.dumps(context, indent=2)}"

@@ -45,6 +45,8 @@ from tarot_models import (
 )
 from tarot_prompts import ARCANA_SYSTEM
 
+import promptsafe as PS
+
 _log = logging.getLogger("aae.oracle_report")
 
 _ANTHROPIC_KEY = os.environ.get("AAE_ANTHROPIC_API_KEY", "").strip()
@@ -67,7 +69,7 @@ offers. Produce a long-form markdown report with exactly these sections:
 
 Every claim must cite the specific card, position, or natal placement it rests
 on. Close with one journal question. Do not add sections; do not predict events.
-"""
+""" + PS.SYSTEM_NOTE
 
 
 # --------------------------------------------------------------------------- #
@@ -93,7 +95,8 @@ def _substrate_prompt(sub: Dict, question: str) -> str:
     reading, path, meta = sub["reading"], sub["path"], sub["meta"]
     sig = reading.signature
     lines = [
-        f"QUESTION: {question}",
+        "QUESTION:",
+        PS.quarantine(question, "question", 1000),
         f"INTERPRETIVE LINEAGE: {meta['name']} — {meta['lens']}",
         "",
         "NATAL ARCANA SIGNATURE:",

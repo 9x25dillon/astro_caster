@@ -38,6 +38,8 @@ from oracle_report import _call_fable
 from tarot_models import CourseRequest, CourseResponse, LearningPathRequest
 from tarot_prompts import ARCANA_SYSTEM
 
+import promptsafe as PS
+
 _COURSE_MODEL = os.environ.get("AAE_COURSE_MODEL", "claude-fable-5")
 _MAX_TOKENS = int(os.environ.get("AAE_COURSE_MAX_TOKENS", "24000"))
 _EFFORT = os.environ.get("AAE_COURSE_EFFORT", "high")
@@ -71,7 +73,7 @@ archetypes together.
 
 Every claim must cite the specific card, natal link, or signature fact it
 rests on. Do not add or reorder lessons; do not predict events.
-"""
+""" + PS.SYSTEM_NOTE
 
 
 # --------------------------------------------------------------------------- #
@@ -98,7 +100,8 @@ def _substrate_prompt(sub: Dict, focus: str) -> str:
     """Textual form of the substrate for the model — symbolic data only."""
     path, sig, meta = sub["path"], sub["signature"], sub["meta"]
     lines = [
-        f"STUDENT'S FOCUS: {focus}",
+        "STUDENT'S FOCUS:",
+        PS.quarantine(focus, "focus", 600),
         f"INTERPRETIVE LINEAGE: {meta['name']} — {meta['lens']}",
         "",
         "NATAL ARCANA SIGNATURE:",

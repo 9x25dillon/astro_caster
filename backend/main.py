@@ -146,7 +146,7 @@ app = FastAPI(title="Astrological Analysis Environment", version="1.0.0")
 # Vite dev server + any local origin during development.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.environ.get("AAE_CORS", "*").split(","),
+    allow_origins=[o.strip() for o in os.environ.get("AAE_CORS", "*").split(",") if o.strip()],
     # Token auth uses localStorage (not cookies), so credentialed CORS is
     # unnecessary — and the wildcard origin above is invalid when paired with it.
     allow_credentials=False,
