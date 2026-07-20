@@ -151,3 +151,8 @@ After any rotation: restart the backend (env is read at boot), run
 `tools/dev.py smoke` against it, and verify the old value is dead (a request
 bearing it must fail). Secrets live **only** in `backend/.env` (gitignored)
 or the host's secret store — never in images, compose files, or the repo.
+
+**Drill log:** 2026-07-20 — `AAE_SECRET` + `AAE_DEV_TOKEN` rotated per this
+runbook; old dev token verified dead (`/api/admin/stats` → 403), new token
+live (200), smoke 24/24 green. API keys (Anthropic/OpenAI/ElevenLabs) rotate
+at their consoles as part of the pre-deploy sweep.

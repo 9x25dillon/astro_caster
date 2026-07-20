@@ -85,12 +85,14 @@ The GitHub vulnerability flag is resolved. Findings, for the record:
 
 ## Phase 2 — Security hardening (the public gate, ~3–4 sessions)
 
-- **2.1 Repo surfaces** (½ done): Dependabot alerts ✅ + auto-fixes ✅;
-  add **CodeQL** workflow; enable secret scanning + push protection.
+- **2.1 Repo surfaces** — ✅ DONE 2026-07-20: Dependabot alerts ✅ +
+  auto-fixes ✅; CodeQL workflow ✅ (#77); secret scanning + push
+  protection verified enabled.
 - **2.2 Execute D1** (git-history decision).
-- **2.3 Secret hygiene**: rotate `AAE_SECRET`, dev token, all API keys
-  before exposure; secrets from environment/secret store, never baked into
-  images; document rotation runbook.
+- **2.3 Secret hygiene** — runbook ✅ (DEPLOY.md §6, #77); **rotation
+  drill PERFORMED 2026-07-20** (`AAE_SECRET` + dev token; old token
+  verified dead, smoke green). API keys rotate at their consoles in the
+  pre-deploy sweep.
 - **2.4 Prompt-injection hardening (parked R3, wakes)**: user text is
   quarantined in prompts (delimiters + instruction to treat as data), AI
   output never interpolated into privileged paths; red-team test cases in
@@ -98,7 +100,10 @@ The GitHub vulnerability flag is resolved. Findings, for the record:
 - **2.5 Edge posture**: nginx security headers (CSP, HSTS, frame-ancestors),
   CORS pinned to the public origin, TLS via the host, request size caps;
   rate limiter verified ON in prod config with tests.
-- **2.6 Run `/security-review`** on the branch; fix what it finds.
+- **2.6 Run `/security-review`** — ✅ RUN 2026-07-20 over the Phase 2
+  range: one verified finding (personal-mode interlock missed
+  `AAE_TREASURY_SOL`), fixed by prefix-sweeping `AAE_TREASURY_*` (PR #78);
+  everything else clean.
 - _Done when:_ review clean, headers verified by scanner, rotation drill
   performed once, CI carries CodeQL + gitleaks + parity + full matrix.
 

@@ -22,8 +22,8 @@ from main import app  # noqa: E402
 
 client = TestClient(app)
 
-_PUBLIC_VARS = ["AAE_TREASURY_ETH", "AAE_TREASURY_BTC", "AAE_ETH_RPC",
-                "AAE_ORACLE_MIN_WEI", "AAE_REPORT_MIN_WEI",
+_PUBLIC_VARS = ["AAE_TREASURY_ETH", "AAE_TREASURY_BTC", "AAE_TREASURY_SOL",
+                "AAE_ETH_RPC", "AAE_ORACLE_MIN_WEI", "AAE_REPORT_MIN_WEI",
                 "AAE_STRIPE_SECRET_KEY"]
 
 
@@ -128,6 +128,10 @@ def test_clean_personal_boot_is_allowed(monkeypatch):
 @pytest.mark.parametrize("var,value", [
     ("AAE_TREASURY_ETH", "0xabc"),
     ("AAE_TREASURY_BTC", "bc1qabc"),
+    ("AAE_TREASURY_SOL", "So1abc"),
+    # any AAE_TREASURY_* chain, present or future, must refuse the boot —
+    # the interlock matches by prefix so coverage can never drift
+    ("AAE_TREASURY_DOGE", "Dabc"),
     ("AAE_ETH_RPC", "https://rpc.example"),
     ("AAE_STRIPE_SECRET_KEY", "sk_live_x"),
     ("AAE_ORACLE_MIN_WEI", "1"),
