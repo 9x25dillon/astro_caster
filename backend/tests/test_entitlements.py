@@ -118,7 +118,23 @@ def test_boot_ok_in_prod_with_real_secret(monkeypatch):
     _clear(monkeypatch)
     monkeypatch.setenv("AAE_ENV", "production")
     monkeypatch.setattr(ENT, "_SECRET_INSECURE", False)
+    monkeypatch.setenv("AAE_CORS", "https://astra.example")
     ENT.assert_safe_boot()                             # must not raise
+
+
+def test_boot_refuses_prod_wildcard_cors(monkeypatch):
+    # Phase 2.5 — production must pin its origins; the "*" default (or any
+    # list containing it) would let arbitrary websites drive the API.
+    _clear(monkeypatch)
+    monkeypatch.setenv("AAE_ENV", "production")
+    monkeypatch.setattr(ENT, "_SECRET_INSECURE", False)
+    for cors in (None, "*", "https://astra.example, *"):
+        if cors is None:
+            monkeypatch.delenv("AAE_CORS", raising=False)
+        else:
+            monkeypatch.setenv("AAE_CORS", cors)
+        with pytest.raises(RuntimeError, match="AAE_CORS"):
+            ENT.assert_safe_boot()
 
 
 def test_boot_refused_in_prod_with_dev_token(monkeypatch):

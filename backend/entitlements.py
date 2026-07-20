@@ -196,6 +196,14 @@ def assert_safe_boot() -> None:
                 "cryptography package is unavailable. Tokens could not be "
                 "minted. Generate a keypair with tools/gen_ed25519_key.py."
             )
+    cors = [o.strip() for o in os.environ.get("AAE_CORS", "*").split(",") if o.strip()]
+    if not cors or "*" in cors:
+        raise RuntimeError(
+            "Refusing to boot: AAE_CORS must pin the public origin(s) in "
+            "production (e.g. AAE_CORS=https://astra.example — comma-separated, "
+            "no '*'). The wildcard default would let any website drive this "
+            "API from its visitors' browsers."
+        )
 
 
 # --------------------------------------------------------------------------- #
