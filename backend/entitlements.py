@@ -106,7 +106,10 @@ def personal_mode() -> bool:
 # Env vars whose mere presence marks this deployment as public-facing. The
 # personal-mode interlock refuses to boot when any is set: Edition P must be
 # unreachable by paying strangers by construction, not by discipline.
-_PUBLIC_SIGNALS = ("AAE_TREASURY_ETH", "AAE_TREASURY_BTC", "AAE_ETH_RPC")
+# Treasury and Stripe vars are matched by prefix so a newly added chain or
+# key can never drift out of the interlock's coverage.
+_PUBLIC_SIGNALS = ("AAE_ETH_RPC",)
+_PUBLIC_SIGNAL_PREFIXES = ("AAE_TREASURY_", "AAE_STRIPE_")
 _PUBLIC_THRESHOLDS = ("AAE_ORACLE_MIN_WEI", "AAE_REPORT_MIN_WEI")
 
 
@@ -121,7 +124,8 @@ def _personal_mode_conflicts() -> list[str]:
     ]
     conflicts += [
         f"{name} is set" for name in sorted(os.environ)
-        if name.startswith("AAE_STRIPE_") and os.environ.get(name, "").strip()
+        if name.startswith(_PUBLIC_SIGNAL_PREFIXES)
+        and os.environ.get(name, "").strip()
     ]
     for name in _PUBLIC_THRESHOLDS:
         raw = os.environ.get(name, "").strip()
