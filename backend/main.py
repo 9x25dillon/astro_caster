@@ -67,9 +67,13 @@ from pydantic import BaseModel
 import asyncio
 import datetime as dt
 import logging
+import re
+import time
+import uuid
 
 import ephemeris as E
 import entitlements as ENT
+import logsetup as LOG
 import ratelimit as RL
 import receipts as RCPT
 import telemetry as TEL
@@ -141,6 +145,11 @@ from advanced import (
 # production + trust mode enabled, or production + default HMAC secret.
 ENT.assert_safe_boot()
 
+# Structured logging (Phase 3.2): JSON lines in production, human in dev;
+# every record carries the request id. Import time is deliberate — uvicorn
+# configures its logging BEFORE importing the app, so this wins.
+LOG.configure()
+
 app = FastAPI(title="Astrological Analysis Environment", version="1.0.0")
 
 # The current API contract version. Clients should call /api/v1/*; bare
@@ -169,6 +178,63 @@ class _VersionPrefixRewrite:
         await self.app(scope, receive, send)
 
 
+class _RequestContext:
+    """Bind a request id, echo it as X-Request-ID, emit the access line.
+
+    Pure ASGI. Honors a well-formed inbound X-Request-ID (a fronting proxy
+    like Cloudflare may already have one); anything else gets a fresh id.
+    This middleware emits the access line itself (logger aae.access) —
+    uvicorn's own is silenced in logsetup because it logs from outside the
+    request's async context and can't carry the id. Ours also adds a
+    duration and strips the query string (a query may carry ?entitlement=;
+    tokens must never reach logs).
+    """
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            return await self.app(scope, receive, send)
+        inbound = ""
+        for k, v in scope.get("headers", []):
+            if k == b"x-request-id":
+                inbound = v.decode("latin-1")
+                break
+        rid = inbound if _RID_RE.fullmatch(inbound or "") else uuid.uuid4().hex[:16]
+        LOG.request_id_var.set(rid)
+        method = scope.get("method", "?")
+        path = scope.get("path", "?")  # path only — query never logged
+        t0 = time.perf_counter()
+        status = {"code": 0}
+
+        async def send_with_id(message):
+            if message["type"] == "http.response.start":
+                status["code"] = message.get("status", 0)
+                message.setdefault("headers", [])
+                message["headers"] = list(message["headers"]) + [
+                    (b"x-request-id", rid.encode("latin-1"))
+                ]
+            await send(message)
+
+        try:
+            await self.app(scope, receive, send_with_id)
+        finally:
+            _access_log.info(
+                "%s %s %s %dms", method, path, status["code"] or "-",
+                (time.perf_counter() - t0) * 1000,
+                extra={"method": method, "path": path,
+                       "status": status["code"],
+                       "dur_ms": round((time.perf_counter() - t0) * 1000, 1)},
+            )
+
+
+_access_log = logging.getLogger("aae.access")
+
+
+_RID_RE = re.compile(r"^[A-Za-z0-9._-]{4,64}$")
+
+# Outermost (added last, below) so the id is bound before anything logs.
 app.add_middleware(_VersionPrefixRewrite)
 
 # Vite dev server + any local origin during development.
@@ -181,6 +247,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Added last = outermost: the request id must exist before anything logs.
+app.add_middleware(_RequestContext)
 
 _log = logging.getLogger("aae")
 
