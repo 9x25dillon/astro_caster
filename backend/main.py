@@ -192,6 +192,17 @@ def _spawn(coro) -> None:
     task.add_done_callback(_done)
 
 
+@app.get("/")
+async def root():
+    """Friendly pointer for anyone who opens the API port in a browser."""
+    return {
+        "service": "Astra — Celestial Observatory API",
+        "app": "http://127.0.0.1:5173",
+        "docs": "/docs",
+        "health": "/api/health",
+    }
+
+
 @app.get("/api/health")
 async def health():
     return {
