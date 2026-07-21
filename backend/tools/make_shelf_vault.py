@@ -20,8 +20,8 @@ Usage (from repo root):
     --personal oracle_report_personal_2026-07-08.txt \
     --course course_2a5c79a37197_2026-07-10.txt \
     --question "What is this season of my life asking me to build, ..." \
-    --birth '{"year":1987,"month":11,"day":11,"hour":10,"minute":23,"second":0,
-              "lat":34.9333,"lng":-117.1833,"tz_offset":-8,
+    --birth '{"year":2000,"month":1,"day":1,"hour":12,"minute":0,"second":0,
+              "lat":51.4779,"lng":0.0,"tz_offset":0,
               "house_system":"P","zodiac":"tropical","ayanamsha":1}'
 
 Then: Library (chapter VIII) → The Vault → ⇑ Restore → pick the JSON.

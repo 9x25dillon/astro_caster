@@ -88,24 +88,40 @@ The GitHub vulnerability flag is resolved. Findings, for the record:
 - **2.1 Repo surfaces** — ✅ DONE 2026-07-20: Dependabot alerts ✅ +
   auto-fixes ✅; CodeQL workflow ✅ (#77); secret scanning + push
   protection verified enabled.
-- **2.2 Execute D1** (git-history decision).
+- **2.2 Execute D1** (git-history decision) — **working-tree half done
+  2026-07-20**: real birth-data literals scrubbed from the 4 files that
+  still carried them (test fixtures, vault-tool docstring, audit-doc
+  citations) — see PR #78. **The actual repo cut (fresh public repo from
+  a clean tree, per the ratified D1=(b)) is still pending — an
+  operator-level decision** (new GitHub repo, hosting, what stays
+  private) rather than something to execute unilaterally mid-session.
 - **2.3 Secret hygiene** — runbook ✅ (DEPLOY.md §6, #77); **rotation
   drill PERFORMED 2026-07-20** (`AAE_SECRET` + dev token; old token
   verified dead, smoke green). API keys rotate at their consoles in the
   pre-deploy sweep.
-- **2.4 Prompt-injection hardening (parked R3, wakes)**: user text is
-  quarantined in prompts (delimiters + instruction to treat as data), AI
-  output never interpolated into privileged paths; red-team test cases in
-  the suite.
-- **2.5 Edge posture**: nginx security headers (CSP, HSTS, frame-ancestors),
-  CORS pinned to the public origin, TLS via the host, request size caps;
-  rate limiter verified ON in prod config with tests.
+- **2.4 Prompt-injection hardening** — ✅ DONE (#77): `promptsafe.py`
+  quarantines user text (delimiters + instruction to treat as data) before
+  it enters oracle/course/personal-report prompts; red-team cases in
+  `test_prompt_quarantine.py`.
+- **2.5 Edge posture** — ✅ DONE 2026-07-20: nginx security headers ✅
+  (#77, now drift-locked by `test_edge_headers.py` in #78), CORS pinned to
+  `AAE_CORS` (credentialed CORS refused when wildcard, `main.py`), request
+  size cap added (`client_max_body_size 1m`, #78 — the one item 2.5 was
+  still missing), rate limiter defaults ON in production
+  (`test_enabled_by_default_in_production`). TLS itself is the D4 host's
+  job (Cloudflare/VPS termination) — nothing to verify pre-deploy.
 - **2.6 Run `/security-review`** — ✅ RUN 2026-07-20 over the Phase 2
   range: one verified finding (personal-mode interlock missed
   `AAE_TREASURY_SOL`), fixed by prefix-sweeping `AAE_TREASURY_*` (PR #78);
   everything else clean.
-- _Done when:_ review clean, headers verified by scanner, rotation drill
-  performed once, CI carries CodeQL + gitleaks + parity + full matrix.
+- _Done when:_ review clean ✅, rotation drill performed once ✅
+  (2026-07-20), CI carries CodeQL + gitleaks + parity + full matrix ✅.
+  **Headers verified by an external scanner (securityheaders.com /
+  Mozilla Observatory) still needs a live host** — no Docker daemon
+  access in this environment to stand nginx up locally, and there's no
+  deployed edge yet to point a scanner at. `test_edge_headers.py`
+  drift-locks the config statically in the meantime; run the real
+  scanner once the D4 staging deploy (Phase 3.6) is up.
 
 ## Phase 3 — Productionization (parked backlog wakes, ~3 sessions)
 

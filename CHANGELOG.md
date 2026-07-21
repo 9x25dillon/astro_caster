@@ -815,7 +815,7 @@ _Recorded retroactively for completeness (built earlier on this branch)._
   the suite to a non-prod env. Fail-before/pass-after.
 
 ### 1.2 — Purged real personal birth data
-- Real coords/time (`34.935,-117.199` · 1987-11-11, labeled "the user's chart")
+- Real coords/time (redacted here; labeled "the user's chart")
   replaced with public **Einstein** data across `test_tarot.py`, `test_advanced.py`,
   `test_predictive.py`, `test_synastry.py`.
 - Frontend `DEFAULT_BIRTH` (`useStore.ts`) — was the same real location — replaced
