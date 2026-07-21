@@ -139,7 +139,17 @@ The GitHub vulnerability flag is resolved. Findings, for the record:
   `test_structured_logging.py`.
 - **3.3 R4 metrics + alerting**: Prometheus endpoint, uptime + error-rate +
   AI-spend alarms.
-- **3.4 F3/F4 caching** where measured hot (ephemeris/aspects).
+- **3.4 F3/F4 caching** — ✅ DONE 2026-07-20 (measured first): profiled
+  the deterministic paths — `generate_forecast(90d)` = ~94 ms, called
+  repeatedly by the frontend for the same chart/day; `calculate_chart` =
+  ~0.9 ms, measured NOT worth caching. Built `backend/cache.py` (a
+  thread-safe bounded LRU with hit/miss/eviction stats + copy-on-return)
+  and applied it to forecast, keyed on natal-longitudes + start-day +
+  window + significance floor. **Measured 60× on a warm hit** (94 → 1.6
+  ms). Stats surface in `/api/admin/stats.caches`; a Prometheus
+  `aae_cache_*` family is a one-line follow-up once #85 metrics lands.
+  `AAE_CACHE_ENABLED=0` disables. Aspect/chart caching left unbuilt on
+  purpose — the numbers didn't justify it.
 - **3.5 Backups** — ✅ DONE 2026-07-20: `backend/tools/backup.py` encrypts
   `data/*.db` + `.env` into one authenticated file (Fernet + scrypt);
   DEPLOY.md §7 runbook + systemd-timer schedule; **restore drill

@@ -20,6 +20,17 @@ from typing import Dict, List, Tuple
 
 import swisseph as swe
 
+import cache as _cache
+
+# Forecast is the measured-hot deterministic path (~59 ms for 90 days vs
+# ~0.9 ms for a chart). Same natal longitudes + same start day + same
+# window + same significance floor → identical events, so it caches cleanly.
+# copy_on_return: the endpoints enrich the event dicts (arcana overlay), so
+# every hit must hand back an independent deepcopy — never the cached list.
+_forecast_cache = _cache.LRUCache(
+    "forecast", maxsize=256, copy_on_return=True
+)
+
 import astrology as A
 
 # --------------------------------------------------------------------------- #
@@ -295,7 +306,29 @@ def generate_forecast(
     """
     Return a list of forecast event dicts, sorted by date.
     Runs synchronously — call via asyncio.to_thread in async contexts.
+
+    Cached (see _forecast_cache). The key captures every input that affects
+    the output — the natal longitudes (order-independent), the start day, the
+    window, and the significance floor — so a hit is always correct; each hit
+    returns an independent deepcopy.
     """
+    key = (
+        tuple(sorted(natal.items())),
+        start_date.toordinal(),
+        days,
+        min_sig,
+    )
+    return _forecast_cache.get_or_compute(
+        key, lambda: _generate_forecast_uncached(natal, start_date, days, min_sig)
+    )
+
+
+def _generate_forecast_uncached(
+    natal: Dict[str, float],
+    start_date: dt.date,
+    days: int = 90,
+    min_sig: str = "medium",
+) -> List[dict]:
     min_rank = _SIG_RANK.get(min_sig, 2)
     events: List[dict] = []
 
