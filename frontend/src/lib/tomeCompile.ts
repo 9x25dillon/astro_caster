@@ -8,8 +8,8 @@
 // feeds the cover constellation, and printing happens in a local popup.
 
 import {
-  journalAll, shelfList,
-  type JournalEntry, type ShelfEntry,
+  galleryByKind, journalAll, shelfList,
+  type GalleryItem, type JournalEntry, type ShelfEntry,
 } from "./bookshelf";
 import { coverArtSvg, printReport } from "./printReport";
 import type { BirthInput, ChartResponse } from "../types";
@@ -37,7 +37,8 @@ function plural(n: number, unit: string): string {
 export function buildManifest(
   shelf: ShelfEntry[],
   journal: JournalEntry[],
-  hasChart: boolean
+  hasChart: boolean,
+  galleryPlates = 0
 ): TomeManifest {
   const sessions = shelf.filter((e) => !isCourse(e));
   const courses = shelf.filter(isCourse);
@@ -76,8 +77,10 @@ export function buildManifest(
         : "compose a Course in the Study and it becomes a chapter",
     },
     {
-      numeral: "VII", name: "The Studio", count: 0,
-      detail: "rendered plates don't shelve yet — save the .png meanwhile",
+      numeral: "VII", name: "The Studio", count: galleryPlates,
+      detail: galleryPlates
+        ? plural(galleryPlates, "collected plate") + " · press a deck in the Gallery"
+        : "render a plate in the Studio and it collects here toward a deck",
     },
     {
       numeral: "VIII", name: "The Library", count: journal.length,
@@ -97,7 +100,8 @@ export function buildManifest(
 export async function loadManifest(hasChart: boolean): Promise<TomeManifest> {
   const shelf = await shelfList().catch(() => [] as ShelfEntry[]);
   const journal = await journalAll().catch(() => [] as JournalEntry[]);
-  return buildManifest(shelf, journal, hasChart);
+  const plates = await galleryByKind("plate").catch(() => [] as GalleryItem[]);
+  return buildManifest(shelf, journal, hasChart, plates.length);
 }
 
 function sessionMarkdown(e: ShelfEntry): string {
@@ -143,7 +147,8 @@ export async function compileTome(
 ): Promise<boolean> {
   const shelf = await shelfList().catch(() => [] as ShelfEntry[]);
   const journal = await journalAll().catch(() => [] as JournalEntry[]);
-  const manifest = buildManifest(shelf, journal, !!chart);
+  const plates = await galleryByKind("plate").catch(() => [] as GalleryItem[]);
+  const manifest = buildManifest(shelf, journal, !!chart, plates.length);
   const sessions = shelf.filter((e) => !isCourse(e));
   const courses = shelf.filter(isCourse);
   const today = new Date().toISOString().slice(0, 10);
