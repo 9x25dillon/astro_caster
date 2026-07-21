@@ -71,6 +71,7 @@ import re
 import time
 import uuid
 
+import cache as CACHE
 import ephemeris as E
 import entitlements as ENT
 import logsetup as LOG
@@ -580,7 +581,9 @@ async def admin_stats(token: Optional[str] = None,
     it leaks into access logs)."""
     if not ENT.is_operator(x_aae_token or token):
         raise HTTPException(status_code=403, detail="forbidden")
-    return await asyncio.to_thread(TEL.summary)
+    summary = await asyncio.to_thread(TEL.summary)
+    summary["caches"] = CACHE.all_stats()  # Phase 3.4 hit-rate visibility
+    return summary
 
 
 # --------------------------------------------------------------------------- #
