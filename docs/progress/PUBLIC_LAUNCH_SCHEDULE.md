@@ -135,8 +135,13 @@ The GitHub vulnerability flag is resolved. Findings, for the record:
 - **3.3 R4 metrics + alerting**: Prometheus endpoint, uptime + error-rate +
   AI-spend alarms.
 - **3.4 F3/F4 caching** where measured hot (ephemeris/aspects).
-- **3.5 Backups**: scheduled encrypted backup of `data/*.db` + secrets;
-  **restore drill actually performed**.
+- **3.5 Backups** — ✅ DONE 2026-07-20: `backend/tools/backup.py` encrypts
+  `data/*.db` + `.env` into one authenticated file (Fernet + scrypt);
+  DEPLOY.md §7 runbook + systemd-timer schedule; **restore drill
+  PERFORMED** against live state (create → restore → both DBs
+  `integrity_check=ok`, `.env` byte-identical, wrong passphrase rejected)
+  and logged. The `drill` self-check is in CI (`test_backup.py`). Re-run
+  the on-host drill against real volumes after the first staging deploy.
 - **3.6 Staging deploy** on the D4 target from docker-compose; smoke matrix
   (`dev.py smoke --full`) against it.
 - _Done when:_ staging serves the full app over TLS with dashboards live and

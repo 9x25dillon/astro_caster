@@ -48,3 +48,8 @@ frontend/playwright-report/
 frontend/test-results/
 frontend/e2e/.tokens.json
 astra-vault-*.json
+
+# Encrypted server-state backups (contain data/*.db + .env secrets) — the
+# file is encrypted, but never track it; ship it to off-box storage
+backups/
+*.enc
