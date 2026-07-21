@@ -130,8 +130,13 @@ The GitHub vulnerability flag is resolved. Findings, for the record:
   PWA shells tolerate skew); frontend on `API_BASE=/api/v1`; unknown
   versions 404; `api_version` in `/api/health` + root. e2e exact-path
   matchers converted to suffix predicates.
-- **3.2 F2 structured logging** (JSON, request IDs, no birth data in logs —
-  assert in tests).
+- **3.2 F2 structured logging** — ✅ DONE 2026-07-20: `logsetup.py` —
+  JSON lines in production (AAE_LOG_JSON overrides either way), human in
+  dev; X-Request-ID bound per request (inbound honored when well-formed),
+  access line emitted by our middleware (uvicorn's silenced — it can't
+  see the request context; ours adds duration and strips query strings so
+  `?entitlement=` never reaches logs). No-birth-data-in-logs asserted in
+  `test_structured_logging.py`.
 - **3.3 R4 metrics + alerting**: Prometheus endpoint, uptime + error-rate +
   AI-spend alarms.
 - **3.4 F3/F4 caching** where measured hot (ephemeris/aspects).
