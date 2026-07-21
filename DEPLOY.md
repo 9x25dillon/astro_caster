@@ -156,3 +156,62 @@ or the host's secret store — never in images, compose files, or the repo.
 runbook; old dev token verified dead (`/api/admin/stats` → 403), new token
 live (200), smoke 24/24 green. API keys (Anthropic/OpenAI/ElevenLabs) rotate
 at their consoles as part of the pre-deploy sweep.
+
+---
+
+## 7. Backups & restore drill (Phase 3.5)
+
+All server-side state lives in two places (the browser side is covered by the
+Library's Vault export):
+
+- `backend/data/*.db` — the receipts ledger + telemetry counters
+- `backend/.env` — the secrets
+
+`backend/tools/backup.py` gathers both into one tar.gz and encrypts it
+(Fernet: AES-128-CBC + HMAC-SHA256; key derived from a passphrase via scrypt
+with a random per-file salt). The output is safe to copy off-box — a
+truncated or tampered file fails the HMAC on restore instead of restoring
+garbage. Keep the passphrase in the host's secret store as
+`AAE_BACKUP_PASSPHRASE`, **never** in the repo or the backup itself; losing it
+means losing the backups.
+
+```bash
+# create — writes backups/aae-backup-<utc-timestamp>.enc
+AAE_BACKUP_PASSPHRASE=… backend/.venv/bin/python backend/tools/backup.py create --out backups/
+
+# restore — decrypts into a directory (inspect before overwriting live state)
+AAE_BACKUP_PASSPHRASE=… backend/.venv/bin/python backend/tools/backup.py restore backups/aae-backup-<ts>.enc --into /tmp/restore
+
+# drill — in-memory round-trip self-check, touches nothing
+AAE_BACKUP_PASSPHRASE=… backend/.venv/bin/python backend/tools/backup.py drill
+```
+
+`backups/` and `*.enc` are gitignored. Schedule `create` with a **systemd
+timer** (or cron) on the host and push the resulting file to encrypted
+off-box storage:
+
+```ini
+# /etc/systemd/system/aae-backup.service   (Type=oneshot)
+[Service]
+Type=oneshot
+Environment=AAE_BACKUP_PASSPHRASE=…            # or EnvironmentFile= a 600 file
+WorkingDirectory=/opt/astra
+ExecStart=/opt/astra/backend/.venv/bin/python backend/tools/backup.py create --out /var/backups/astra
+ExecStartPost=/usr/local/bin/ship-offbox.sh   # rclone/rsync to remote
+
+# /etc/systemd/system/aae-backup.timer
+[Timer]
+OnCalendar=daily
+Persistent=true
+[Install]
+WantedBy=timers.target
+```
+
+**Restore drill log:** 2026-07-20 — performed against live state (receipts.db,
+telemetry.db, .env). `create` → `restore` into a temp dir → both DBs opened
+as valid SQLite (`pragma integrity_check` = `ok`; 1 and 5 tables), `.env`
+byte-identical, and a wrong passphrase correctly rejected on restore
+(`ValueError: decryption failed`). The `drill` subcommand (in-memory
+round-trip + wrong-passphrase check) is wired into CI via
+`tests/test_backup.py`. Re-run the on-host drill after the first staging
+deploy against real production volumes.
