@@ -4,7 +4,14 @@ import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
 
 // https://vite.dev/config
-export default defineConfig({
+export default defineConfig(({ command }) => {
+  // Dev (`serve`) ships a SELF-DESTROYING service worker: any browser that
+  // still has a stale precached bundle from an earlier build fetches it via
+  // autoUpdate on reload, and it unregisters itself + clears its caches — so
+  // switching branches or rebuilding never leaves a wedged worker behind.
+  // Production (`build`) always emits the real, caching PWA service worker.
+  const dev = command === "serve";
+  return {
   resolve: {
     alias: {
       // Consume the ASTRA-CORE engines directly from source (they're TS with no
@@ -18,6 +25,11 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: "autoUpdate",
+      // In dev, serve a self-destroying SW (cleans up stale workers); in
+      // production, the normal caching SW. devOptions.enabled must be true
+      // in dev for the browser to fetch the self-destroying /sw.js at all.
+      selfDestroying: dev,
+      devOptions: { enabled: dev, type: "module" },
       includeAssets: ["favicon.svg"],
       // Precache the self-hosted fonts too (workbox default is js/css/html
       // only) — the offline app shell must not fall back to system serifs.
@@ -81,4 +93,5 @@ export default defineConfig({
       },
     },
   },
+  };
 });
