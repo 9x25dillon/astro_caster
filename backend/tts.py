@@ -59,6 +59,9 @@ def tts_status() -> dict:
 
 def speakable(text: str) -> str:
     """Strip Astra's light markdown so the spoken output reads naturally."""
+    # Cap BEFORE the regex passes: they backtrack polynomially on
+    # pathological whitespace runs, so bound the input they ever see.
+    text = text[:_MAX_TOTAL_CHARS]
     text = re.sub(r"^##\s*(.+)$", r"\1. ", text, flags=re.MULTILINE)
     text = re.sub(r"\*\*(.*?)\*\*", r"\1", text)
     text = re.sub(r"^[-•]\s*", ", ", text, flags=re.MULTILINE)

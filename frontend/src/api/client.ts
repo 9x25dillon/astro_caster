@@ -29,7 +29,7 @@ import type {
 const BASE = "/api";
 
 // Session ID — random per browser session, resets on tab close, never persisted.
-const _sessionId = Math.random().toString(36).slice(2) + Date.now().toString(36);
+const _sessionId = crypto.randomUUID();
 
 /** Fire-and-forget UI event. Silently drops on network failure. */
 export function trackEvent(name: string, props?: Record<string, unknown>): void {

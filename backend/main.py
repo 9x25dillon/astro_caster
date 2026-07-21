@@ -434,8 +434,12 @@ async def ai_ask_stream(req: AIRequest, request: Request):
                 elif event == "done":
                     final = payload
                 yield f"event: {event}\ndata: {_json.dumps(payload)}\n\n"
-        except Exception as exc:  # last-resort guard
-            yield f"event: error\ndata: {_json.dumps(str(exc))}\n\n"
+        except Exception:  # last-resort guard
+            # Full detail stays server-side; clients get a generic line
+            # (same posture as _client_error — no internals in responses).
+            _log.exception("ai-ask-stream failed mid-stream")
+            yield ("event: error\ndata: "
+                   f"{_json.dumps('the reflection faltered — try again')}\n\n")
         _spawn(TEL.log_ai(
             tier=tier, lens=req.lens, depth=req.depth, query=req.query,
             provider=final.get("provider", ""), model=final.get("model", ""),
