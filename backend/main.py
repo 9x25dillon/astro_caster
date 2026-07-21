@@ -74,6 +74,7 @@ import uuid
 import ephemeris as E
 import entitlements as ENT
 import logsetup as LOG
+import metrics as MET
 import ratelimit as RL
 import receipts as RCPT
 import telemetry as TEL
@@ -220,13 +221,14 @@ class _RequestContext:
         try:
             await self.app(scope, receive, send_with_id)
         finally:
+            elapsed = time.perf_counter() - t0
+            code = status["code"]
             _access_log.info(
-                "%s %s %s %dms", method, path, status["code"] or "-",
-                (time.perf_counter() - t0) * 1000,
+                "%s %s %s %dms", method, path, code or "-", elapsed * 1000,
                 extra={"method": method, "path": path,
-                       "status": status["code"],
-                       "dur_ms": round((time.perf_counter() - t0) * 1000, 1)},
+                       "status": code, "dur_ms": round(elapsed * 1000, 1)},
             )
+            MET.observe_request(method, path, code, elapsed)
 
 
 _access_log = logging.getLogger("aae.access")
@@ -368,6 +370,8 @@ async def ai_ask(req: AIRequest, request: Request):
         source=result.get("source", "llm"),
         sel_type=req.selected_type, sel_id=req.selected_id,
     ))
+    if result.get("source") == "llm":
+        MET.observe_ai_call("ask", len(result.get("interpretation", "")))
     return result
 
 
@@ -505,6 +509,7 @@ async def tts(req: TTSRequest):
         raise HTTPException(status_code=400, detail="invalid voice id")
     except Exception as exc:
         raise _client_error("tts failed", exc, status=502)
+    MET.observe_ai_call("tts", len(req.text))
     return Response(content=audio, media_type="audio/mpeg",
                     headers={"Cache-Control": "no-store"})
 
@@ -545,6 +550,8 @@ async def ai_ask_stream(req: AIRequest, request: Request):
             response_len=char_count, source=final.get("source", "llm"),
             sel_type=req.selected_type, sel_id=req.selected_id,
         ))
+        if final.get("source") == "llm":
+            MET.observe_ai_call("ask", char_count)
 
     return StreamingResponse(
         gen(),
@@ -581,6 +588,18 @@ async def admin_stats(token: Optional[str] = None,
     if not ENT.is_operator(x_aae_token or token):
         raise HTTPException(status_code=403, detail="forbidden")
     return await asyncio.to_thread(TEL.summary)
+
+
+@app.get("/metrics")
+async def metrics(x_aae_token: Optional[str] = Header(None)):
+    """Prometheus scrape (Phase 3.3). Operator-gated, and deliberately NOT
+    under /api/* — nginx only proxies /api/*, so the public edge can never
+    reach this. A scraper on the compose network hits backend:8787 directly
+    with the token in X-AAE-Token."""
+    if not ENT.is_operator(x_aae_token):
+        raise HTTPException(status_code=403, detail="forbidden")
+    return Response(content=MET.render(),
+                    media_type="text/plain; version=0.0.4; charset=utf-8")
 
 
 # --------------------------------------------------------------------------- #
@@ -699,6 +718,7 @@ async def tarot_reading(req: TarotReadingRequest, request: Request):
         if ai.get("source") == "llm" and ai.get("text"):
             reading.interpretation = ai["text"]
             reading.ai_source = "llm"
+            MET.observe_ai_call("tarot", len(reading.interpretation))
         else:
             reading.ai_source = "offline"
         _spawn(TEL.log_ai(
@@ -765,6 +785,8 @@ async def oracle_report(req: OracleReportRequest, request: Request):
         model=str(result.model or ""), response_len=len(result.report),
         source=result.ai_source, sel_type="spread", sel_id=req.spread,
     ))
+    if result.ai_source == "llm":
+        MET.observe_ai_call("oracle", len(result.report))
     return result
 
 
@@ -793,6 +815,8 @@ async def course(req: CourseRequest, request: Request):
         model=str(result.model or ""), response_len=len(result.course),
         source=result.ai_source, sel_type="path", sel_id=result.anchor,
     ))
+    if result.ai_source == "llm":
+        MET.observe_ai_call("course", len(result.course))
     return result
 
 
@@ -837,6 +861,8 @@ async def personal_report(req: PersonalReportRequest, request: Request):
         model=str(result.model or ""), response_len=len(result.report_markdown),
         source=result.ai_source, sel_type="spread", sel_id=req.oracle.spread,
     ))
+    if result.ai_source == "llm":
+        MET.observe_ai_call("deluxe", len(result.report_markdown))
     return result
 
 
@@ -888,6 +914,9 @@ async def deck_art_image(req: PLATE.PlateRequest, request: Request):
         provider="openai", model=result.model, response_len=len(result.image_b64),
         source="llm", sel_type="card", sel_id=req.card_id,
     ))
+    # An image call is a flat cost — count the call, leave chars 0 (the
+    # base64 payload isn't a text-spend proxy).
+    MET.observe_ai_call("plate", 0)
     return result
 
 
@@ -1066,3 +1095,12 @@ async def suggestions(req: AIRequest, request: Request):
     )
     result["focal_house"] = focal
     return result
+
+
+# Bound metrics label cardinality to the actual route table: any path not
+# declared here (scanners, typos, /api/v2 probes) folds into one "(other)"
+# series. Declared AFTER every route above so app.routes is complete; the
+# /api/v1 alias normalizes to its bare form inside observe_request.
+MET.known_paths = {
+    getattr(r, "path", "") for r in app.routes if getattr(r, "path", "")
+}

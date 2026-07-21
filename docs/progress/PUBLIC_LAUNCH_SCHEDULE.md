@@ -137,8 +137,15 @@ The GitHub vulnerability flag is resolved. Findings, for the record:
   see the request context; ours adds duration and strips query strings so
   `?entitlement=` never reaches logs). No-birth-data-in-logs asserted in
   `test_structured_logging.py`.
-- **3.3 R4 metrics + alerting**: Prometheus endpoint, uptime + error-rate +
-  AI-spend alarms.
+- **3.3 R4 metrics + alerting** — ✅ metrics DONE 2026-07-20: `metrics.py`
+  (dependency-free Prometheus text format) + operator-gated `GET /metrics`
+  (outside `/api/*` so the nginx edge never proxies it); the
+  `_RequestContext` middleware records request counts/durations by
+  route+status-class (unknown paths fold to `(other)` — cardinality
+  bounded), and `observe_ai_call` counts provider-backed calls + response
+  chars per kind (offline fallbacks excluded — the point is spend). Alert
+  RULES (error-rate, AI-spend, uptime) ship with 3.6's scraper config,
+  not the app — they need a live Prometheus to fire against.
 - **3.4 F3/F4 caching** where measured hot (ephemeris/aspects).
 - **3.5 Backups**: scheduled encrypted backup of `data/*.db` + secrets;
   **restore drill actually performed**.
