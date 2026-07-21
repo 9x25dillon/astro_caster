@@ -143,6 +143,34 @@ ENT.assert_safe_boot()
 
 app = FastAPI(title="Astrological Analysis Environment", version="1.0.0")
 
+# The current API contract version. Clients should call /api/v1/*; bare
+# /api/* stays served for skew tolerance (an installed PWA may run a shell
+# cached long before the backend was upgraded). Bump ONLY on a breaking
+# contract change — additive changes never need a new version.
+API_VERSION = "v1"
+
+
+class _VersionPrefixRewrite:
+    """Serve every /api/* route under /api/v1/* too (pure ASGI — no
+    BaseHTTPMiddleware, which would buffer the SSE stream)."""
+
+    _PREFIX = f"/api/{API_VERSION}"
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http":
+            path = scope.get("path", "")
+            if path == self._PREFIX or path.startswith(self._PREFIX + "/"):
+                scope = dict(scope)
+                scope["path"] = "/api" + path[len(self._PREFIX):]
+                scope["raw_path"] = scope["path"].encode()
+        await self.app(scope, receive, send)
+
+
+app.add_middleware(_VersionPrefixRewrite)
+
 # Vite dev server + any local origin during development.
 app.add_middleware(
     CORSMiddleware,
@@ -197,9 +225,10 @@ async def root():
     """Friendly pointer for anyone who opens the API port in a browser."""
     return {
         "service": "Astra — Celestial Observatory API",
+        "api_version": API_VERSION,
         "app": "http://127.0.0.1:5173",
         "docs": "/docs",
-        "health": "/api/health",
+        "health": f"/api/{API_VERSION}/health",
     }
 
 
@@ -207,6 +236,7 @@ async def root():
 async def health():
     return {
         "status": "ok",
+        "api_version": API_VERSION,
         "personal_mode": ENT.personal_mode(),
         "ephemeris": "swiss-files" if E._USING_FILES else "moshier",
         # ai_status probes local providers (up to ~1.5s each on a cache miss)

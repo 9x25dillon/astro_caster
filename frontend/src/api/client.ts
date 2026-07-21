@@ -26,7 +26,10 @@ import type {
   TransitResponse,
 } from "../types";
 
-const BASE = "/api";
+// Versioned API base. The backend also serves bare /api/* so an app shell
+// cached before a backend upgrade keeps working (skew tolerance).
+export const API_BASE = "/api/v1";
+const BASE = API_BASE;
 
 // Session ID — random per browser session, resets on tab close, never persisted.
 const _sessionId = crypto.randomUUID();

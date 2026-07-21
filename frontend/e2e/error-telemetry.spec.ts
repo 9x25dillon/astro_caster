@@ -5,7 +5,7 @@ import { expect, test } from "./helpers";
 
 test("uncaught errors post trimmed, deduped client_error telemetry", async ({ page }) => {
   const events: Array<{ name: string; props: Record<string, unknown> }> = [];
-  await page.route("**/api/telemetry/event", async (route) => {
+  await page.route((url) => url.pathname.endsWith("/telemetry/event"), async (route) => {
     events.push(route.request().postDataJSON());
     await route.fulfill({ status: 204, body: "" });
   });
