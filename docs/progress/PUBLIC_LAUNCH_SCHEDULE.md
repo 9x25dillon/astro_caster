@@ -137,8 +137,16 @@ The GitHub vulnerability flag is resolved. Findings, for the record:
   see the request context; ours adds duration and strips query strings so
   `?entitlement=` never reaches logs). No-birth-data-in-logs asserted in
   `test_structured_logging.py`.
-- **3.3 R4 metrics + alerting**: Prometheus endpoint, uptime + error-rate +
-  AI-spend alarms.
+- **3.3 R4 metrics + alerting** — ✅ metrics DONE 2026-07-20: `metrics.py`
+  (dependency-free Prometheus text format) + operator-gated `GET /metrics`
+  (outside `/api/*` so the nginx edge never proxies it); the
+  `_RequestContext` middleware records request counts/durations by
+  route+status-class (unknown paths fold to `(other)` — cardinality
+  bounded), and `observe_ai_call` counts provider-backed calls + response
+  chars per kind (offline fallbacks excluded — the point is spend). Alert
+  RULES (error-rate, AI-spend, uptime) ship with 3.6's scraper config,
+  not the app — they need a live Prometheus to fire against. (Landed via
+  PR #88 — the #85 re-land, since #85's stacked merge never reached main.)
 - **3.4 F3/F4 caching** — ✅ DONE 2026-07-20 (measured first): profiled
   the deterministic paths — `generate_forecast(90d)` = ~94 ms, called
   repeatedly by the frontend for the same chart/day; `calculate_chart` =
@@ -147,9 +155,9 @@ The GitHub vulnerability flag is resolved. Findings, for the record:
   and applied it to forecast, keyed on natal-longitudes + start-day +
   window + significance floor. **Measured 60× on a warm hit** (94 → 1.6
   ms). Stats surface in `/api/admin/stats.caches`; a Prometheus
-  `aae_cache_*` family is a one-line follow-up once #85 metrics lands.
-  `AAE_CACHE_ENABLED=0` disables. Aspect/chart caching left unbuilt on
-  purpose — the numbers didn't justify it.
+  `aae_cache_*` family is a one-line follow-up now that metrics has landed
+  (#88). `AAE_CACHE_ENABLED=0` disables. Aspect/chart caching left unbuilt
+  on purpose — the numbers didn't justify it.
 - **3.5 Backups** — ✅ DONE 2026-07-20: `backend/tools/backup.py` encrypts
   `data/*.db` + `.env` into one authenticated file (Fernet + scrypt);
   DEPLOY.md §7 runbook + systemd-timer schedule; **restore drill
