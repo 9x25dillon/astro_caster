@@ -16,6 +16,7 @@ from __future__ import annotations
 import os
 import re
 from typing import List, Optional
+from urllib.parse import quote
 
 import httpx
 
@@ -29,6 +30,24 @@ _CHUNK_CHARS = 4800
 # Hard cap on total synthesized text to avoid runaway billing.
 _MAX_TOTAL_CHARS = 25_000
 
+# Last successful /voices payload. ElevenLabs occasionally drops a connection
+# mid-request (observed live: RemoteProtocolError, "server disconnected");
+# the voice list changes rarely, so serving the last-known-good list beats
+# surfacing a 502 for a picker dropdown.
+_voices_cache: List[dict] = []
+
+# ElevenLabs voice ids are short base62 tokens. voice_id arrives from the
+# request body and lands in the upstream URL path — an unvalidated value
+# could steer the request at a different ElevenLabs endpoint (partial SSRF).
+_VOICE_ID_RE = re.compile(r"^[A-Za-z0-9]{8,64}$")
+
+
+def _safe_voice_id(voice_id: Optional[str]) -> str:
+    vid = (voice_id or _VOICE_ID).strip()
+    if not _VOICE_ID_RE.fullmatch(vid):
+        raise ValueError("invalid voice id")
+    return vid
+
 
 def tts_status() -> dict:
     return {
@@ -40,6 +59,9 @@ def tts_status() -> dict:
 
 def speakable(text: str) -> str:
     """Strip Astra's light markdown so the spoken output reads naturally."""
+    # Cap BEFORE the regex passes: they backtrack polynomially on
+    # pathological whitespace runs, so bound the input they ever see.
+    text = text[:_MAX_TOTAL_CHARS]
     text = re.sub(r"^##\s*(.+)$", r"\1. ", text, flags=re.MULTILINE)
     text = re.sub(r"\*\*(.*?)\*\*", r"\1", text)
     text = re.sub(r"^[-•]\s*", ", ", text, flags=re.MULTILINE)
@@ -82,7 +104,7 @@ async def synthesize(text: str, voice_id: Optional[str] = None) -> bytes:
     """
     if not _API_KEY:
         raise RuntimeError("ElevenLabs not configured")
-    vid = voice_id or _VOICE_ID
+    vid = quote(_safe_voice_id(voice_id), safe="")
     headers = {"xi-api-key": _API_KEY, "Content-Type": "application/json", "Accept": "audio/mpeg"}
     voice_settings = {"stability": 0.62, "similarity_boost": 0.82, "style": 0.35}
 
@@ -101,9 +123,18 @@ async def synthesize(text: str, voice_id: Optional[str] = None) -> bytes:
             # across chunk boundaries (no audible stitch between segments).
             if prev_request_id:
                 payload["previous_request_id"] = prev_request_id
-            r = await client.post(
-                f"{_BASE}/text-to-speech/{vid}", headers=headers, json=payload
-            )
+            try:
+                r = await client.post(
+                    f"{_BASE}/text-to-speech/{vid}", headers=headers, json=payload
+                )
+            except httpx.TransportError:
+                # Transient drop (connection reset, mid-request disconnect):
+                # one retry so a single upstream blip doesn't waste the
+                # already-synthesized chunks. Auth/quota errors are HTTP
+                # statuses, not transport errors — they still raise below.
+                r = await client.post(
+                    f"{_BASE}/text-to-speech/{vid}", headers=headers, json=payload
+                )
             r.raise_for_status()
             audio_parts.append(r.content)
             prev_request_id = r.headers.get("request-id") or r.headers.get("x-request-id")
@@ -112,15 +143,29 @@ async def synthesize(text: str, voice_id: Optional[str] = None) -> bytes:
 
 
 async def list_voices() -> List[dict]:
-    """Return [{voice_id, name, category}] or [] if unavailable."""
+    """Return [{voice_id, name, category}] or [] if unavailable.
+
+    Transport-level failures (connection dropped, reset, timed out) retry
+    once, then fall back to the last successful list — the picker degrades
+    to stale-or-empty instead of erroring. Real HTTP errors (bad key, quota)
+    still raise so misconfiguration stays visible.
+    """
+    global _voices_cache
     if not _API_KEY:
         return []
     headers = {"xi-api-key": _API_KEY}
     async with httpx.AsyncClient(timeout=20.0) as client:
-        r = await client.get(f"{_BASE}/voices", headers=headers)
+        try:
+            try:
+                r = await client.get(f"{_BASE}/voices", headers=headers)
+            except httpx.TransportError:
+                r = await client.get(f"{_BASE}/voices", headers=headers)
+        except httpx.TransportError:
+            return _voices_cache
         r.raise_for_status()
         data = r.json()
-    return [
+    _voices_cache = [
         {"voice_id": v["voice_id"], "name": v.get("name", "?"), "category": v.get("category", "")}
         for v in data.get("voices", [])
     ]
+    return _voices_cache

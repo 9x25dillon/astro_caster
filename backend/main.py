@@ -192,6 +192,17 @@ def _spawn(coro) -> None:
     task.add_done_callback(_done)
 
 
+@app.get("/")
+async def root():
+    """Friendly pointer for anyone who opens the API port in a browser."""
+    return {
+        "service": "Astra — Celestial Observatory API",
+        "app": "http://127.0.0.1:5173",
+        "docs": "/docs",
+        "health": "/api/health",
+    }
+
+
 @app.get("/api/health")
 async def health():
     return {
@@ -391,6 +402,8 @@ async def tts(req: TTSRequest):
         raise HTTPException(status_code=400, detail="empty text")
     try:
         audio = await T.synthesize(req.text, req.voice_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="invalid voice id")
     except Exception as exc:
         raise _client_error("tts failed", exc, status=502)
     return Response(content=audio, media_type="audio/mpeg",
@@ -421,8 +434,12 @@ async def ai_ask_stream(req: AIRequest, request: Request):
                 elif event == "done":
                     final = payload
                 yield f"event: {event}\ndata: {_json.dumps(payload)}\n\n"
-        except Exception as exc:  # last-resort guard
-            yield f"event: error\ndata: {_json.dumps(str(exc))}\n\n"
+        except Exception:  # last-resort guard
+            # Full detail stays server-side; clients get a generic line
+            # (same posture as _client_error — no internals in responses).
+            _log.exception("ai-ask-stream failed mid-stream")
+            yield ("event: error\ndata: "
+                   f"{_json.dumps('the reflection faltered — try again')}\n\n")
         _spawn(TEL.log_ai(
             tier=tier, lens=req.lens, depth=req.depth, query=req.query,
             provider=final.get("provider", ""), model=final.get("model", ""),
