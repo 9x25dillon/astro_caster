@@ -69,7 +69,7 @@ test("a shelf reflection is kept, survives reload, and exports as markdown", asy
 
 test("a card's journal prompt opens a pad and the answer lands in the journal", async ({ page }) => {
   // Canned reading with a journal_prompt (offline local readings carry none).
-  await page.route("**/api/tarot-reading", (route) =>
+  await page.route((url) => url.pathname.endsWith("/tarot-reading"), (route) =>
     route.fulfill({
       status: 200, contentType: "application/json",
       body: JSON.stringify({

@@ -10,8 +10,8 @@ import { test, expect } from "./helpers";
 // by serving a canned reading — deterministic, independent of the backend's AI
 // provider speed.
 
-// Matches both /api/ai-ask and /api/ai-ask-stream.
-const isAiAsk = (url: URL) => url.pathname.startsWith("/api/ai-ask");
+// Matches both ai-ask and ai-ask-stream, on either /api/ or /api/v1/.
+const isAiAsk = (url: URL) => /\/api(\/v1)?\/ai-ask/.test(url.pathname);
 
 test("an ask made offline is queued, then flushes on reconnect", async ({ page, context }) => {
   await page.goto("/");
@@ -30,7 +30,7 @@ test("an ask made offline is queued, then flushes on reconnect", async ({ page, 
   // "Reconnect": serve a canned reading and fire the window 'online' event
   // (a real browser dispatches it on reconnect) so flushAskQueue drains.
   await context.unroute(isAiAsk);
-  await context.route("**/api/ai-ask", (route) =>
+  await context.route((url) => url.pathname.endsWith("/ai-ask"), (route) =>
     route.fulfill({
       status: 200,
       contentType: "application/json",

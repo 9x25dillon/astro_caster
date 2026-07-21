@@ -91,7 +91,7 @@ test("a generated Oracle Report shelves itself", async ({ page }) => {
 
   // Serve a canned Oracle response — the test is about the auto-save hook,
   // not the AI layer.
-  await page.route("**/api/oracle-report", (route) =>
+  await page.route((url) => url.pathname.endsWith("/oracle-report"), (route) =>
     route.fulfill({
       status: 200,
       contentType: "application/json",

@@ -125,7 +125,11 @@ The GitHub vulnerability flag is resolved. Findings, for the record:
 
 ## Phase 3 — Productionization (parked backlog wakes, ~3 sessions)
 
-- **3.1 F1 API versioning** (`/api/v1/*`, PWA clients tolerate skew).
+- **3.1 F1 API versioning** — ✅ DONE 2026-07-20: pure-ASGI prefix
+  rewrite serves every route at `/api/v1/*` AND bare `/api/*` (cached
+  PWA shells tolerate skew); frontend on `API_BASE=/api/v1`; unknown
+  versions 404; `api_version` in `/api/health` + root. e2e exact-path
+  matchers converted to suffix predicates.
 - **3.2 F2 structured logging** (JSON, request IDs, no birth data in logs —
   assert in tests).
 - **3.3 R4 metrics + alerting**: Prometheus endpoint, uptime + error-rate +

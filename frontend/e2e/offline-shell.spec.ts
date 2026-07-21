@@ -15,7 +15,7 @@ const isApiCall = (url: URL) => url.pathname.startsWith("/api/");
 async function castOnline(page: import("@playwright/test").Page) {
   for (let attempt = 0; attempt < 12; attempt++) {
     const respP = page
-      .waitForResponse((r) => r.url().includes("/api/generate-chart"), { timeout: 8_000 })
+      .waitForResponse((r) => r.url().includes("/generate-chart"), { timeout: 8_000 })
       .catch(() => null);
     await page.goto("/");
     const resp = await respP;

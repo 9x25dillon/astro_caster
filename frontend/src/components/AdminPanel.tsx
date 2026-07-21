@@ -1,6 +1,7 @@
 // AdminPanel.tsx — live telemetry dashboard for oracle-tier users.
 // Accessible via /#admin hash or via the ⊙ Admin link in the header (oracle only).
 import React, { useCallback, useEffect, useState } from "react";
+import { API_BASE } from "../api/client";
 import { useStore } from "../store/useStore";
 
 interface AdminStats {
@@ -52,7 +53,7 @@ export const AdminPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     setError(null);
     try {
       // Token in a header — a ?token= query string would land in access logs.
-      const res = await fetch(`/api/admin/stats`, {
+      const res = await fetch(`${API_BASE}/admin/stats`, {
         headers: { "X-AAE-Token": entitlement ?? "" },
       });
       if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
