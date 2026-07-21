@@ -402,6 +402,8 @@ async def tts(req: TTSRequest):
         raise HTTPException(status_code=400, detail="empty text")
     try:
         audio = await T.synthesize(req.text, req.voice_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="invalid voice id")
     except Exception as exc:
         raise _client_error("tts failed", exc, status=502)
     return Response(content=audio, media_type="audio/mpeg",

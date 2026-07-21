@@ -16,6 +16,7 @@ from __future__ import annotations
 import os
 import re
 from typing import List, Optional
+from urllib.parse import quote
 
 import httpx
 
@@ -34,6 +35,18 @@ _MAX_TOTAL_CHARS = 25_000
 # the voice list changes rarely, so serving the last-known-good list beats
 # surfacing a 502 for a picker dropdown.
 _voices_cache: List[dict] = []
+
+# ElevenLabs voice ids are short base62 tokens. voice_id arrives from the
+# request body and lands in the upstream URL path — an unvalidated value
+# could steer the request at a different ElevenLabs endpoint (partial SSRF).
+_VOICE_ID_RE = re.compile(r"^[A-Za-z0-9]{8,64}$")
+
+
+def _safe_voice_id(voice_id: Optional[str]) -> str:
+    vid = (voice_id or _VOICE_ID).strip()
+    if not _VOICE_ID_RE.fullmatch(vid):
+        raise ValueError("invalid voice id")
+    return vid
 
 
 def tts_status() -> dict:
@@ -88,7 +101,7 @@ async def synthesize(text: str, voice_id: Optional[str] = None) -> bytes:
     """
     if not _API_KEY:
         raise RuntimeError("ElevenLabs not configured")
-    vid = voice_id or _VOICE_ID
+    vid = quote(_safe_voice_id(voice_id), safe="")
     headers = {"xi-api-key": _API_KEY, "Content-Type": "application/json", "Accept": "audio/mpeg"}
     voice_settings = {"stability": 0.62, "similarity_boost": 0.82, "style": 0.35}
 

@@ -111,3 +111,23 @@ def test_synthesize_gives_up_after_one_retry(monkeypatch):
     _use_client(monkeypatch, _FakeClient(fail_first=2))
     with pytest.raises(httpx.RemoteProtocolError):
         asyncio.run(T.synthesize("A short reading."))
+
+
+def test_voice_id_allowlist():
+    # Real ElevenLabs ids pass through untouched.
+    assert T._safe_voice_id("pFZP5JQG7iQjIQuC4Bku") == "pFZP5JQG7iQjIQuC4Bku"
+    assert T._safe_voice_id(None) == T._VOICE_ID  # default
+    assert T._safe_voice_id("") == T._VOICE_ID  # empty → default too
+    # Anything that could steer the upstream URL path refuses loudly.
+    for evil in ("../history", "x/../../v1/user", "a b", "id?x=1", "id#f",
+                 "%2e%2e%2f", "x" * 65):
+        with pytest.raises(ValueError):
+            T._safe_voice_id(evil)
+
+
+def test_synthesize_rejects_bad_voice_id_before_any_request(monkeypatch):
+    client = _FakeClient()
+    _use_client(monkeypatch, client)
+    with pytest.raises(ValueError):
+        asyncio.run(T.synthesize("A short reading.", voice_id="../evil"))
+    assert client.calls == 0
