@@ -1,45 +1,70 @@
 # Hand_off.md
 
-_Last updated: 2026-07-12 (session 15 CLOSED — everything merged, main @ 291b8f1)_
+_Last updated: 2026-07-20 (session 16 CLOSED — everything merged, main @ ce827f3)_
 
 ## TL;DR for next session
 
-**Nothing is open.** 0 PRs, CI green. Session 15 shipped, in order, all
-merged: **R-2** the margin glass (#68) → **R-3** the Library + ✦ Generate
-My Tome (#69) → **R-4** the material pass (#70) → **TRACK R COMPLETE** →
-**Tome Phase 0** press pipeline (#71). The narrative is in
-WORK_JOURNAL.md; the mechanics below and in each PR body.
+**Nothing is open.** 0 PRs, CI green (233 backend tests, full e2e matrix,
+CodeQL, Gitleaks). Direction changed this session: the operator ratified
+**docs/progress/PUBLIC_LAUNCH_SCHEDULE.md** — build a public, monetized
+Edition Q alongside the unrestricted personal Edition P, same codebase.
+Read that file first; it's now the map. **Phase 1 (Edition P) and Phase 2
+(security hardening) are both done**, merged as #75/#77/#78/#79. Full
+narrative in WORK_JOURNAL.md session 16.
 
-**The baton is in the OPERATOR'S hand — the Phase 0 order** (runbook:
-docs/design/TOME_PHASE0.md). State at close:
-
-- `astra-vault-phase0.json` is ALREADY GENERATED at repo root (gitignored),
-  carrying the July-8 Fable Oracle (13.0K) + deluxe (47.6K, short_seed
-  f2929236c3d2) + the course, WITH birth data for reprint plates.
-- Remaining clicks: Library (8) → Vault → ⇑ Restore → pick the file; load
-  HIS profile + cast; `⎙ press interior (6×9)` + `◈ cover file` (each:
-  Save-as-PDF · custom 6.25×9.25in · margins none · background graphics
-  ON); Lulu 6×9 US Trade hardcover, cover wizard composes spine/back;
-  order ONE. Exit = the two in-hand verdicts (dark-cover print quality;
-  would he gift it at $150?). Feedback lands in PHYSICAL_TOME_PRODUCT.md.
+**What Phase 2 actually closed:**
+- `AAE_PERSONAL_MODE=1` grants the whole instance oracle tier with no
+  tokens/limits/telemetry; `assert_safe_boot` refuses to start if personal
+  mode coexists with ANY public-facing signal (prod env, any
+  `AAE_TREASURY_*` chain — matched by prefix now, not a hand-enumerated
+  list — `AAE_ETH_RPC`, any `AAE_STRIPE_*` key, payment thresholds).
+- Prompt quarantine (`backend/promptsafe.py`), CORS pinned to `AAE_CORS`,
+  nginx security headers (drift-locked across their 3 duplicated blocks
+  by `test_edge_headers.py` — nginx's `add_header` inheritance breaks the
+  moment a location sets its own), request size cap, CodeQL in CI.
+- `/security-review` ran over the whole Phase 2 range and found one real
+  gap (the treasury-signal list above, pre-fix) — fixed and regression
+  tested. Everything else came back clean.
+- **Secret rotation drill actually performed** (not just documented):
+  `AAE_SECRET` + `AAE_DEV_TOKEN` rotated, old dev token verified dead
+  against a live server, new one verified live, smoke 24/24 green. If you
+  need the current unlock link: `backend/tools/unlock.py` prints it fresh
+  (the one memorized from earlier sessions is now dead by design).
+- D1 (git-history birth-data decision) — **working-tree half done**: 4
+  files that the original Phase-1.2 purge missed (a test fixture, a tool
+  docstring, two audit-doc citations) got scrubbed. **Git history itself
+  still carries the real values — the actual D1 execution (fresh public
+  repo cut, ratified as option (b)) is still an open operator decision,**
+  not something to do mid-session.
 
 **Known state worth carrying:**
-- The operator's browser carries a MINTED oracle token, not the dev token —
-  fine for everything except deluxe-purchase exemption. Fix when needed:
-  `?entitlement=<AAE_DEV_TOKEN>` link (backend/tools/unlock.py prints it).
-  He chose the rescue path over recompiling (correct — the cap would have
-  produced an offline edition).
-- **Anthropic usage cap exhausted until 2026-08-01** — Fable calls 400;
-  offline compilers serve honestly meanwhile.
-- **AAE_OPENAI_API_KEY still NOT in backend/.env** — P3 plate live-verify
-  waits on it (plumbing shipped in #66).
+- Both `AAE_OPENAI_API_KEY` and `AAE_ANTHROPIC_API_KEY` are now SET in
+  `backend/.env` (the OpenAI key was the one still missing as of session
+  15's close). **Neither was live-verified this session** — P3 plate
+  live-verify and a fresh Fable run are both still open threads.
+- **Anthropic usage cap was exhausted until 2026-08-01** as of session 15
+  — check whether that's lifted before assuming Fable calls will 400.
 - Dev servers were shut down at session close — `./run.sh` to relight.
+- **Gotcha for next time a branch is merged mid-work:** if you open a
+  follow-on PR on the same branch and it conflicts with main, that's
+  almost always the mid-work-squash pattern (main got only part of the
+  branch's commits) rather than a real logical conflict — `git merge
+  origin/main`, resolve by keeping the branch's newer text, done. Don't
+  reach for a rebase here; merge is the simpler read on this shape.
 
-**Next candidates (no committed order):** PB1 book compiler (corpus →
-press-ready trim; tomeCompile.ts is its seed; evaluate Typst if the object
-in hand wants running page numbers — Chromium can't do them), P3 plate
-live-verify, live Fable runs after 2026-08-01, Phase 1 (gifts, N≈5) only
-after the Phase-0 object passes in hand.
+**Next candidates:** Phase 3 (API versioning, structured logging, metrics,
+backups, staging deploy on the D4 VPS target — this is where a live header
+scanner finally has a host to point at) is the natural next arc per the
+schedule. Standing threads that ride alongside, unaffected by the Q-track
+work: PB1 book compiler, P3 plate live-verify, the operator's Phase-0 tome
+order (still his hands — see the previous entry below), Phase 1 gifts only
+after that object passes in hand.
+
+---
+---
+
+_(Previous entry — session 15 close, still accurate for the tome/Track-R
+state it describes):_
 
 _(Previous entry — R-4, merged as #70):_ **The material pass. TRACK R COMPLETE.**
 Four commits on `track-r-material`: (1) void glass — panels/surfaces become

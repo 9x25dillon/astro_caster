@@ -71,3 +71,76 @@ sheets asserted in tests. The observatory ended the session shut down on
 purpose, waiting for its book.
 
 ---
+
+## Session 16 · 2026-07-19 → 07-20 — the observatory decides to go public
+
+This was the session the direction changed. The operator ratified a plan
+that had been implicit for a while but never named: build a public,
+monetized product without giving up the personal instrument that already
+existed. The schedule that resulted — docs/progress/PUBLIC_LAUNCH_SCHEDULE.md
+— is now the map. Two editions, one codebase: **P** stays his, unlocked,
+never paying, never metered; **Q** is the stranger-facing product with
+tiers, rate limits, and a Stripe rail still to come.
+
+**Phase 1 — Edition P as a boot mode, not a workaround (#75).** The dev
+token had been standing in for "give me everything" since the earliest
+sessions; it became `AAE_PERSONAL_MODE=1` instead — instance-wide oracle
+tier, no tokens, no purchase gates, no rate limits, no telemetry. The part
+that matters more than the unlock itself is the refusal: `assert_safe_boot`
+now checks for public-facing signals (production env, treasury addresses,
+Stripe keys, payment thresholds) and **refuses to start** if personal mode
+and any of them coexist. The unrestricted build can't become the public one
+by accident — that was the whole point of building it as an interlock
+instead of documentation.
+
+**Phase 2 — the public gate (#77, then #78/#79 closing what #77 opened).**
+Prompt quarantine so user text can't reach a privileged path unescaped,
+CORS pinned to a configured origin instead of a wildcard, nginx security
+headers, CodeQL wired into CI, a secret-rotation runbook written into
+DEPLOY.md. Then `/security-review` ran over the whole range looking for
+what the build missed, and it found something real: the interlock's
+public-signal list named the ETH and BTC treasury variables by hand and
+left out Solana — a donation-collecting instance running personal mode
+non-production would have booted fully unlocked, silently outside the
+control's own stated contract. Small fix, prefix-matching instead of an
+enumerated list, but exactly the kind of gap that a hand-written allowlist
+produces and a hardening pass exists to catch. Coverage now happens by
+construction: any future `AAE_TREASURY_*` chain is safe by default.
+
+The same pass closed out what Phase 2 had marked half-done or aspirational:
+a rotation drill *performed*, not just documented — `AAE_SECRET` and the
+dev token actually rotated, the old token verified dead against a live
+server, the new one verified live, smoke green. A drift-lock test so
+nginx.conf's three duplicated header blocks (an nginx quirk — `add_header`
+inheritance breaks the moment a location sets one of its own) can't
+silently diverge again. The one item 2.5 listed but nothing had built —
+a request size cap — got added. And four files that Phase 1.2's original
+birth-data purge had missed, still carrying the operator's real
+coordinates and birthdate in a test fixture and a couple of docs, got
+found and scrubbed. Git history still has it — that's D1's other half,
+staying an operator decision on purpose.
+
+**A mid-work merge, and what it teaches.** The operator merged #78 partway
+through — a known pattern by now, flagged in earlier sessions' gotchas —
+capturing only the first two commits of a longer branch. The remaining
+work reappeared as a fresh PR against the now-moved main and immediately
+conflicted with itself: the doc file both sides had touched, textually
+diverged rather than logically. Resolved by merging main back in and
+keeping the newer text throughout — no judgment calls, just recognizing
+which side of each conflict was the same content further along. Worth
+naming as a pattern rather than an incident: branches that outlive a
+partial merge need this same move, and it isn't dangerous once you know
+what you're looking at.
+
+**State at close:** main @ ce827f3, 0 open PRs, 233 backend tests green,
+CI clean end to end (CodeQL, Gitleaks, parity, full e2e matrix). Phase 2
+is exited except two items that were never going to close from a laptop
+session: the D1 repo-cut itself (needs the operator's go — new GitHub
+repo, hosting, what stays private) and a live external header scan
+(needs Phase 3.6's staging host to exist before there's an edge to point
+a scanner at). Both `AAE_OPENAI_API_KEY` and `AAE_ANTHROPIC_API_KEY` are
+present in `backend/.env` now — worth noting since the last journal entry
+had the OpenAI key still missing; neither was live-verified this session,
+that's still open work. Dev servers shut down on purpose at close.
+
+---
