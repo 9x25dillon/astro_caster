@@ -1,16 +1,144 @@
 # Hand_off.md
 
-_Last updated: 2026-07-20 (session 16 CLOSED — everything merged, main @ ce827f3)_
+_Last updated: 2026-07-20 late (session 17 CLOSED — main @ e53a8de + PR #84
+green-awaiting-merge; WIP branch `metrics` parked)_
 
 ## TL;DR for next session
 
-**Nothing is open.** 0 PRs, CI green (233 backend tests, full e2e matrix,
-CodeQL, Gitleaks). Direction changed this session: the operator ratified
-**docs/progress/PUBLIC_LAUNCH_SCHEDULE.md** — build a public, monetized
-Edition Q alongside the unrestricted personal Edition P, same codebase.
-Read that file first; it's now the map. **Phase 1 (Edition P) and Phase 2
-(security hardening) are both done**, merged as #75/#77/#78/#79. Full
-narrative in WORK_JOURNAL.md session 16.
+**Two things are open, both deliberate:** PR **#84** (structured logging,
+all 8 checks green — operator merges it FIRST, before any new work) and
+branch **`metrics`** (a WIP commit explicitly titled "do not merge" —
+`backend/metrics.py` is finished, its wiring is not; the exact wiring map
+is §"NEXT: finish 3.3" below). Phase 3 is the running arc per
+**docs/progress/PUBLIC_LAUNCH_SCHEDULE.md**: 3.1 ✅ merged (#82),
+3.2 ✅ = #84, 3.3 in flight, then 3.5 backups, then 3.6 staging.
+Narrative in WORK_JOURNAL.md session 17.
+
+## WORK ORDER for next session (in this order)
+
+**0. Preconditions.** `git fetch` + check `gh pr list` FIRST (the operator
+merges fast, sometimes mid-work — sessions 13 and 17 both hit this). If
+#84 is merged: `git checkout main && git pull`, delete local
+`structured-logging`. Then `git checkout metrics && git rebase origin/main`
+(the WIP commit is one clean new file — rebase, don't merge).
+
+**1. Finish 3.3 — metrics (the WIP branch).** `backend/metrics.py` is
+complete and tested-by-read (hand-rolled Prometheus text format, zero
+deps, thread-locked counters; label cardinality bounded via
+`known_paths` + an `(other)` fold; the module docstring explains why not
+prometheus_client). What remains is ALL wiring in `backend/main.py`:
+   - `import metrics as MET`; after ALL routes are declared (bottom of
+     file): `MET.known_paths = {r.path for r in app.routes}`.
+   - In `_RequestContext.__call__`'s `finally`: it already has `method`,
+     `path`, `status["code"]`, and the duration —
+     add `MET.observe_request(method, path, status["code"], seconds)`.
+     NOTE: pass the RAW path; observe_request itself normalizes /api/v1.
+   - `GET /metrics` endpoint: token via `X-AAE-Token` header (copy the
+     admin/stats gate — `_require_operator`-style, 403 otherwise), returns
+     `Response(MET.render(), media_type="text/plain; version=0.0.4")`.
+     It is NOT under /api/* on purpose: nginx only proxies /api/*, so the
+     public edge can never reach it; the Prometheus scraper on the compose
+     network hits backend:8787 directly with the header.
+   - AI-spend hooks — one `MET.observe_ai_call(kind, chars)` per
+     PROVIDER-BACKED success (offline fallbacks deliberately not counted).
+     The sites, located session 17 (line numbers ≈ main.py @ e53a8de +
+     #84):
+     · ai_ask ~line 364: after `result`, if `result.get("source")=="llm"`
+       → kind="ask", chars=len(interpretation)
+     · ai-ask-stream ~line 542 (inside gen(), at the TEL.log_ai spawn):
+       if `final.get("source")=="llm"` → kind="ask", chars=char_count
+     · tarot-reading ~line 699: `ai.get("source")=="llm"` branch →
+       kind="tarot"
+     · oracle_report ~line 762: `result.ai_source=="llm"` → kind="oracle",
+       chars=len(result.report)
+     · course ~line 772ff: same pattern → kind="course"
+     · personal_report ~line 800ff: same → kind="deluxe"
+     · tts ~line 495: after synthesize succeeds → kind="tts",
+       chars=len(req.text)
+     · deck_art_image ~line 860: after render succeeds → kind="plate"
+   - Tests (`tests/test_metrics.py`): counters increment per request and
+     fold unknown paths into `(other)`; status classes bucket (2xx/4xx);
+     /metrics 403s without operator token and renders parseable text with
+     one; `observe_ai_call` accumulates; uptime present. Run the repo
+     conventions: no pytest-asyncio, TestClient, `_use`-style monkeypatch.
+   - Update schedule 3.3 → done-except-alert-rules (rules land with 3.6's
+     scraper config, not the app). PR it (NOT stacked if #84 already
+     merged).
+
+**2. Then 3.5 — backups + restore drill.** Scheduled encrypted backup of
+`backend/data/*.db` + `backend/.env` (operator's machine = source of
+truth; a `backend/tools/backup.py` with tar+age or openssl enc, cron/
+systemd-timer instructions in DEPLOY.md), and — the exit criterion — a
+RESTORE DRILL actually performed once: back up, blow away a COPY, restore
+it, run `dev.py smoke` against the restored state, log the drill in
+DEPLOY.md like the §6 rotation drill.
+
+**3. Then 3.6 — staging deploy (BLOCKED on operator).** Needs the D4 VPS
+(decision ratified: single VPS + docker-compose behind Cloudflare) —
+operator provisions the box + DNS; the session then: compose prod stack
+up, TLS via Cloudflare, run the smoke matrix + full e2e against staging,
+AND the two deferred verifications that need a live edge: external header
+scan (securityheaders.com — Phase 2.5's last open box) and Prometheus
+alert rules (error-rate, AI-spend, uptime) in the scraper config.
+
+**4. Riding alongside (any session, cap permitting):**
+   - **Aug 1: Anthropic cap returns** — live-verify a Fable Oracle run
+     (`dev.py ai check`, then one real report; the offline compilers have
+     been serving honestly meanwhile).
+   - P3 plate live-verify pattern is proven (one Death plate rendered
+     2026-07-19, gpt-image-1, quality=low) — nothing pending unless the
+     operator wants more plates.
+   - PB1 book compiler (Typst evaluation) waits on the Phase-0 tome
+     verdict, which waits on the operator's Lulu order.
+   - D1 repo cut: operator-level decision, do NOT execute mid-session.
+
+## Session-17 technical facts you will need
+
+- **API is versioned now**: `API_BASE = "/api/v1"` in client.ts (exported
+  — AdminPanel imports it); backend `_VersionPrefixRewrite` (pure ASGI)
+  serves every route under both /api/v1/* and bare /api/* (skew
+  tolerance for cached PWA shells); /api/v2 404s. e2e specs may NOT use
+  exact-path globs like `**/api/oracle-report` — the five that did were
+  converted to `url.pathname.endsWith(...)` predicates; write new specs
+  that way.
+- **Logging (#84)**: `logsetup.py` + `_RequestContext` middleware.
+  JSON lines when AAE_ENV=production or AAE_LOG_JSON=1 (\"0\" forces off).
+  Request id: contextvar, X-Request-ID echoed, well-formed inbound ids
+  honored. **uvicorn's access log is silenced ON PURPOSE** — measured:
+  it logs from outside the request's async context so the contextvar is
+  invisible to it; OUR access line (logger `aae.access`) carries rid,
+  method, path (QUERY STRING STRIPPED — `?entitlement=` must never reach
+  logs), status, dur_ms. Privacy is a test:
+  `test_structured_logging.py::test_no_birth_data_reaches_the_log_stream`.
+- **TTS (#81)**: ElevenLabs transport blips retry once then serve the
+  cached voice list; `voice_id` is allowlist-validated (base62 8-64) +
+  URL-quoted — CodeQL flagged the unvalidated URL interpolation as
+  partial-SSRF the moment the diff touched those lines. Bad ids → 400.
+- **CodeQL is a live PR gate now**: it diffs alerts against main, so
+  touching a line with a pre-existing taint makes it YOUR alert. Repo
+  has 4 open alerts left, all deliberate (2 masked-fingerprint prints in
+  operator CLIs, 2 CDN scripts in resonarium art files) — operator may
+  dismiss in the Security tab.
+- **Boot guard reminder** (bit us live this session): `AAE_ENV` unset =
+  production = refuses AAE_DEV_TOKEN. Throwaway uvicorn instances need
+  `AAE_ENV=development` explicitly.
+- **The current dev token / unlock link**: rotated 2026-07-20 (drill).
+  `backend/tools/unlock.py` prints it. Any token memorized before that
+  date is dead.
+- Dev servers were left RUNNING at close this time (operator was using
+  the app: bare `bash run.sh`, NOT personal mode — telemetry on). Kill
+  :5173/:8787 before running e2e if they're stale (memory gotcha: e2e
+  `reuseExistingServer` + stale vite = local-fallback answers and cache
+  specs fail).
+- Suite sizes at close: **256 backend / 80 e2e (×2 projects) / 30 core**.
+
+---
+---
+
+_(Previous entry — session 16 close):_
+
+**Session 16 in one line:** the public-launch schedule was ratified and
+Phases 1 (Edition P) and 2 (security hardening) both landed whole.
 
 **What Phase 2 actually closed:**
 - `AAE_PERSONAL_MODE=1` grants the whole instance oracle tier with no

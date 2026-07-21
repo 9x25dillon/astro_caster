@@ -5,6 +5,69 @@ PR bodies; this is the story. Started session 15 at the operator's request._
 
 ---
 
+## Session 17 · 2026-07-20 — a live log becomes a productionization sprint
+
+The session opened not with a plan but with evidence. The operator pasted
+the terminal from a real sitting with the observatory — charts casting,
+forecasts running, the arcana and the learning path and the harmonics all
+answering — and buried in the healthy stream, one ugly stack trace: a
+`GET /api/tts/voices` that had come back 502 because ElevenLabs dropped the
+connection mid-request. Nothing was broken; an earlier call in the same run
+had succeeded. It was just weather. But the observatory had turned weather
+into a scary traceback for what amounts to a dropdown of voice names.
+
+That became the shape of the whole session: take what the running system
+actually does under real conditions and make it production-honest.
+
+**#81 — TTS resilience, and a critical alert it uncovered.** The voice list
+learned to retry once on a transport blip and then serve the last-known-good
+list rather than erroring — a picker should never 502 over an upstream
+hiccup. Synthesis got the same single retry per chunk so one drop doesn't
+waste already-billed audio. And the API port's bare `GET /`, which the log
+showed a browser hitting and getting a 404, now answers with a friendly
+pointer. Then CodeQL, which is a live PR gate now, did exactly its job: the
+moment the retry touched the synthesis line, it flagged the ElevenLabs URL
+as partial SSRF — `voice_id` came from the request body straight into the
+upstream path, unvalidated. The taint predated the PR; the diff just made it
+visible. Fixed by allowlisting the id to the base62 shape every real
+ElevenLabs id has, and URL-quoting it. Two critical alerts cleared, plus a
+sweep of the fixable pre-existing ones (a `Math.random` session id, two
+ReDoS-prone regex passes bounded, a stream error that had been leaking
+`str(exc)` to the client).
+
+**#82 — the API grew a version.** A pure-ASGI prefix rewrite now serves
+every route under `/api/v1/*` and, on purpose, under bare `/api/*` too — an
+installed PWA may be running a shell cached from before a backend upgrade,
+and it should keep working. Pure ASGI, not `BaseHTTPMiddleware`, because the
+latter would buffer the SSE stream. Unknown versions 404 rather than
+pretending to honor a contract we never wrote. The frontend moved to
+`/api/v1`; five e2e specs that had matched exact `/api/<endpoint>` globs —
+which a version prefix silently breaks — were converted to suffix
+predicates. The whole app was then driven end to end through `/api/v1`, 80
+tests green.
+
+**#84 — the logs learned to speak JSON, and to keep a secret.** Structured
+lines in production, human in dev, a request id on every record and echoed
+as `X-Request-ID` for cross-referencing a user's report with the server's
+side of it. The subtle part was the access line: uvicorn's own logs from
+outside the request's async context, so the request-id contextvar is
+invisible to it — measured, not assumed. So uvicorn's access log is silenced
+and the app emits its own, which is better anyway because it strips the query
+string before logging the path. That last detail is the one that matters:
+`?entitlement=` carries a token, and a token must never reach a log. The
+no-birth-data-in-logs promise stopped being a promise and became a test that
+drives real endpoints with a distinctive fake birth and greps every record
+for a leak.
+
+By the close the session had walked Phase 2 into Phase 3 and gotten most of
+the way through it: 3.1 versioning merged, 3.2 logging green and awaiting the
+merge button, 3.3 metrics standing as a finished registry with its wiring
+mapped but not yet threaded — parked as an honest "do not merge" WIP so the
+next session picks up a clean, well-lit task rather than a cold start. The
+observatory was left running because the operator was still in it.
+
+---
+
 ## Session 15 · 2026-07-11 → 07-12 — Track R lands whole, and the book gets its press
 
 This was the session the redesign stopped being wireframes. Four PRs went
