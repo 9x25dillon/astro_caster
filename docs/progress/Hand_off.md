@@ -5,67 +5,31 @@ green-awaiting-merge; WIP branch `metrics` parked)_
 
 ## TL;DR for next session
 
-**Two things are open, both deliberate:** PR **#84** (structured logging,
-all 8 checks green — operator merges it FIRST, before any new work) and
-branch **`metrics`** (a WIP commit explicitly titled "do not merge" —
-`backend/metrics.py` is finished, its wiring is not; the exact wiring map
-is §"NEXT: finish 3.3" below). Phase 3 is the running arc per
+**A two-PR stack is open, both green, merge IN ORDER:** PR **#84**
+(structured logging) then PR **#85** (metrics, stacked on #84's branch).
+#85 auto-retargets to main when #84 merges and its diff simplifies to
+just the metrics changes. Phase 3 per
 **docs/progress/PUBLIC_LAUNCH_SCHEDULE.md**: 3.1 ✅ merged (#82),
-3.2 ✅ = #84, 3.3 in flight, then 3.5 backups, then 3.6 staging.
+3.2 ✅ = #84, **3.3 ✅ = #85**, then 3.5 backups, then 3.6 staging.
 Narrative in WORK_JOURNAL.md session 17.
+
+**⚠ WATCH when #85 retargets to main:** CodeQL + the two Analyze jobs do
+NOT run on #85 while it targets the `structured-logging` branch — they
+fire for the first time on the metrics diff once its base becomes main
+(after #84 merges). The metrics code is low-risk (Prometheus label values
+are escaped via `_esc` and paths are bounded to `known_paths`/`(other)`),
+but confirm CodeQL is green post-retarget the way #81 taught us to.
 
 ## WORK ORDER for next session (in this order)
 
-**0. Preconditions.** `git fetch` + check `gh pr list` FIRST (the operator
-merges fast, sometimes mid-work — sessions 13 and 17 both hit this). If
-#84 is merged: `git checkout main && git pull`, delete local
-`structured-logging`. Then `git checkout metrics && git rebase origin/main`
-(the WIP commit is one clean new file — rebase, don't merge).
+**0. Preconditions.** `git fetch` + `gh pr list` FIRST (the operator
+merges fast, sometimes mid-work — sessions 13 and 17 both hit this).
+Merge the stack in order (#84 then #85), then `git checkout main &&
+git pull`, delete local `structured-logging` and `metrics`. Confirm
+#85's CodeQL went green after it retargeted to main (see the WATCH note
+above).
 
-**1. Finish 3.3 — metrics (the WIP branch).** `backend/metrics.py` is
-complete and tested-by-read (hand-rolled Prometheus text format, zero
-deps, thread-locked counters; label cardinality bounded via
-`known_paths` + an `(other)` fold; the module docstring explains why not
-prometheus_client). What remains is ALL wiring in `backend/main.py`:
-   - `import metrics as MET`; after ALL routes are declared (bottom of
-     file): `MET.known_paths = {r.path for r in app.routes}`.
-   - In `_RequestContext.__call__`'s `finally`: it already has `method`,
-     `path`, `status["code"]`, and the duration —
-     add `MET.observe_request(method, path, status["code"], seconds)`.
-     NOTE: pass the RAW path; observe_request itself normalizes /api/v1.
-   - `GET /metrics` endpoint: token via `X-AAE-Token` header (copy the
-     admin/stats gate — `_require_operator`-style, 403 otherwise), returns
-     `Response(MET.render(), media_type="text/plain; version=0.0.4")`.
-     It is NOT under /api/* on purpose: nginx only proxies /api/*, so the
-     public edge can never reach it; the Prometheus scraper on the compose
-     network hits backend:8787 directly with the header.
-   - AI-spend hooks — one `MET.observe_ai_call(kind, chars)` per
-     PROVIDER-BACKED success (offline fallbacks deliberately not counted).
-     The sites, located session 17 (line numbers ≈ main.py @ e53a8de +
-     #84):
-     · ai_ask ~line 364: after `result`, if `result.get("source")=="llm"`
-       → kind="ask", chars=len(interpretation)
-     · ai-ask-stream ~line 542 (inside gen(), at the TEL.log_ai spawn):
-       if `final.get("source")=="llm"` → kind="ask", chars=char_count
-     · tarot-reading ~line 699: `ai.get("source")=="llm"` branch →
-       kind="tarot"
-     · oracle_report ~line 762: `result.ai_source=="llm"` → kind="oracle",
-       chars=len(result.report)
-     · course ~line 772ff: same pattern → kind="course"
-     · personal_report ~line 800ff: same → kind="deluxe"
-     · tts ~line 495: after synthesize succeeds → kind="tts",
-       chars=len(req.text)
-     · deck_art_image ~line 860: after render succeeds → kind="plate"
-   - Tests (`tests/test_metrics.py`): counters increment per request and
-     fold unknown paths into `(other)`; status classes bucket (2xx/4xx);
-     /metrics 403s without operator token and renders parseable text with
-     one; `observe_ai_call` accumulates; uptime present. Run the repo
-     conventions: no pytest-asyncio, TestClient, `_use`-style monkeypatch.
-   - Update schedule 3.3 → done-except-alert-rules (rules land with 3.6's
-     scraper config, not the app). PR it (NOT stacked if #84 already
-     merged).
-
-**2. Then 3.5 — backups + restore drill.** Scheduled encrypted backup of
+**1. Then 3.5 — backups + restore drill.** Scheduled encrypted backup of
 `backend/data/*.db` + `backend/.env` (operator's machine = source of
 truth; a `backend/tools/backup.py` with tar+age or openssl enc, cron/
 systemd-timer instructions in DEPLOY.md), and — the exit criterion — a
@@ -73,7 +37,7 @@ RESTORE DRILL actually performed once: back up, blow away a COPY, restore
 it, run `dev.py smoke` against the restored state, log the drill in
 DEPLOY.md like the §6 rotation drill.
 
-**3. Then 3.6 — staging deploy (BLOCKED on operator).** Needs the D4 VPS
+**2. Then 3.6 — staging deploy (BLOCKED on operator).** Needs the D4 VPS
 (decision ratified: single VPS + docker-compose behind Cloudflare) —
 operator provisions the box + DNS; the session then: compose prod stack
 up, TLS via Cloudflare, run the smoke matrix + full e2e against staging,
@@ -81,7 +45,7 @@ AND the two deferred verifications that need a live edge: external header
 scan (securityheaders.com — Phase 2.5's last open box) and Prometheus
 alert rules (error-rate, AI-spend, uptime) in the scraper config.
 
-**4. Riding alongside (any session, cap permitting):**
+**3. Riding alongside (any session, cap permitting):**
    - **Aug 1: Anthropic cap returns** — live-verify a Fable Oracle run
      (`dev.py ai check`, then one real report; the offline compilers have
      been serving honestly meanwhile).
@@ -130,7 +94,8 @@ alert rules (error-rate, AI-spend, uptime) in the scraper config.
   :5173/:8787 before running e2e if they're stale (memory gotcha: e2e
   `reuseExistingServer` + stale vite = local-fallback answers and cache
   specs fail).
-- Suite sizes at close: **256 backend / 80 e2e (×2 projects) / 30 core**.
+- Suite sizes at close: **265 backend / 80 e2e (×2 projects) / 30 core**
+  (256 after #84 logging; +9 for #85 metrics).
 
 ---
 ---

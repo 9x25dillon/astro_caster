@@ -61,10 +61,15 @@ for a leak.
 
 By the close the session had walked Phase 2 into Phase 3 and gotten most of
 the way through it: 3.1 versioning merged, 3.2 logging green and awaiting the
-merge button, 3.3 metrics standing as a finished registry with its wiring
-mapped but not yet threaded — parked as an honest "do not merge" WIP so the
-next session picks up a clean, well-lit task rather than a cold start. The
-observatory was left running because the operator was still in it.
+merge button, and 3.3 metrics — which had briefly been parked as an honest
+"do not merge" WIP when the operator stepped in mid-turn — picked back up
+and finished in the same sitting: the finished registry got its wiring
+threaded through the logging middleware and all eight AI-spend sites, a
+`/metrics` endpoint gated to the operator and held deliberately off the
+public prefix, and nine tests plus a live scrape to prove the counters
+move and the scan-path folding holds. It went out as PR #85, stacked on
+the logging PR, green. Phase 3 stood at 3.1–3.3 done, backups and staging
+ahead. The observatory was left running because the operator was still in it.
 
 ---
 
