@@ -23,6 +23,11 @@ export default defineConfig({
   webServer: {
     command: "bash ../run.sh",
     url: "http://127.0.0.1:5173",
+    // Force tiered mode for the test server even if the operator's backend/.env
+    // sets AAE_PERSONAL_MODE=1 for their own use — the tier/free-gate specs
+    // assume the canonical tiered backend. (Only applies when Playwright boots
+    // the server; kill a running personal-mode server before reusing one.)
+    env: { AAE_PERSONAL_MODE: "" },
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
     // run.sh setsids its children; SIGTERM lets its trap kill both process
