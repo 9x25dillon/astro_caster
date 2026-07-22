@@ -191,6 +191,34 @@ The GitHub vulnerability flag is resolved. Findings, for the record:
   report end-to-end on staging (Stripe test mode), refunds revoke, spend
   alarms fire in a drill.
 
+## Track E — the engagement redesign (RATIFIED 2026-07-21, rides with Phase 4/5)
+
+**Operator direction, verbatim spirit:** the public market for this media is
+not niche — it is *perceived as taboo*. And the deep-esoteric audience,
+however loved, does not produce adequate revenue. Therefore Edition Q's
+public face must be **engaging and ergonomically intuitive first, esoteric by
+invitation**: the math is the product; the mysticism is a lens the visitor
+may pick up, never a door they must walk through.
+
+Design brief (to be wireframed before build, the Track R method):
+- **De-taboo the threshold**: landing/onboarding reads as reflective
+  self-insight — pattern, timing, self-knowledge — with zero occult
+  vocabulary required to start; the deeper lenses (arcana, sigils,
+  alchemical material) unlock progressively as chosen depth, not default.
+- **Ergonomic intuition over instruction**: a stranger reaches their first
+  meaningful chart insight in under a minute, no glossary needed; the
+  ergonomic law from Track R (≤2 interactions to anything, spatial
+  constancy, one motion per intent) applies to the public shell.
+- **Two skins, one instrument**: Edition P keeps the full holographic
+  observatory; Edition Q's default presentation is the approachable skin
+  over the SAME engines — depth is revealed, not removed.
+- Pricing/copy language follows Phase 5 under the same rule: reflective,
+  concrete, non-predictive, no jargon at the paywall.
+
+_Sequencing: wireframes during Phase 4 build sessions; build lands as its
+own PR track (E-1 threshold/onboarding, E-2 progressive depth, E-3 pricing
+surface) before Phase 6 launch._
+
 ## Phase 5 — Policy, legal, copy (~1–2 sessions, can overlap Phase 4)
 
 - Privacy policy (the true story: birth data never retained server-side;
