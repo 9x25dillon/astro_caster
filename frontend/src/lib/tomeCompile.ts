@@ -167,6 +167,14 @@ export async function compileTome(
     parts.push(`# Chapter VI — The Study`);
     for (const e of courses) parts.push(sessionMarkdown(e));
   }
+  if (plates.length) {
+    parts.push(`# Chapter VII — The Studio · Plates`);
+    parts.push(
+      `The deck as it stands — ${plates.length} of 78 cards rendered. ` +
+        `Press the full deck from the Gallery.`
+    );
+    for (const p of plates) parts.push(`![${p.title}](${p.data})`);
+  }
   if (journal.length) {
     parts.push(`# Chapter VIII — The Library · Reflections`);
     parts.push(journalMarkdownSection(journal, shelf));
