@@ -6,6 +6,7 @@
 import React, { useEffect, useState } from "react";
 import { useStore, PLACEHOLDER_BIRTH } from "../store/useStore";
 import { fetchForecast, localForecast, localToday, type ForecastEvent } from "../api/client";
+import { shelveForecast } from "../lib/shelveDoc";
 
 const SIG_BADGE: Record<string, string> = {
   high:   "▲",
@@ -205,12 +206,18 @@ export const ForecastPanel: React.FC<{ onHome: () => void }> = ({ onHome }) => {
     setLoading(true);
     setError(null);
     fetchForecast(birth, d, sig)
-      .then((r) => { setEvents(r.events); setOffline(false); setLoading(false); })
+      .then((r) => {
+        setEvents(r.events); setOffline(false); setLoading(false);
+        // Shelve the timing so chapter III of the tome binds it (idempotent
+        // by day + window — revisiting the same forecast overwrites in place).
+        void shelveForecast(r.events, localToday(), d);
+      })
       .catch(async () => {
         // Backend down → scan transits on-device (Sun–Pluto; reduced set).
         try {
           const r = await localForecast(birth, d, sig);
           setEvents(r.events); setOffline(true); setLoading(false);
+          void shelveForecast(r.events, localToday(), d);
         } catch (e2) {
           setError((e2 as Error).message); setLoading(false);
         }

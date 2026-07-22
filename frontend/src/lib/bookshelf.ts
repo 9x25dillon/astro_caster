@@ -16,10 +16,13 @@
 import type { BirthInput } from "../types";
 
 const DB_NAME = "astra-bookshelf";
-const DB_VERSION = 3; // v2 added the journal (P1); v3 adds the gallery (The Archive)
+// v2 journal (P1); v3 gallery (Archive images); v4 documents (Archive text —
+// forecasts/relationships/specialist charts shelve for the tome).
+const DB_VERSION = 4;
 const STORE = "sessions";
 const JOURNAL = "journal";
 const GALLERY = "gallery";
+const DOCUMENTS = "documents";
 
 export interface ShelfPersonal {
   report_markdown: string;
@@ -61,6 +64,11 @@ function openDb(): Promise<IDBDatabase> {
         const g = req.result.createObjectStore(GALLERY, { keyPath: "id" });
         g.createIndex("kind", "kind", { unique: false });
         g.createIndex("cardId", "cardId", { unique: false });
+      }
+      if (!req.result.objectStoreNames.contains(DOCUMENTS)) {
+        const d = req.result.createObjectStore(DOCUMENTS, { keyPath: "id" });
+        d.createIndex("kind", "kind", { unique: false });
+        d.createIndex("chapter", "chapter", { unique: false });
       }
     };
     req.onsuccess = () => resolve(req.result);
@@ -305,6 +313,79 @@ export async function galleryImport(items: GalleryItem[]): Promise<number> {
   for (const it of items) {
     if (!it || typeof it.id !== "string" || typeof it.data !== "string") continue;
     await tx(GALLERY, "readwrite", (s) => s.put(it));
+    n += 1;
+  }
+  return n;
+}
+
+// ── The Documents (The Archive) — shelved text the tome binds ──
+//
+// Chapters III (The Timing / forecasts), IV (The Relations), and V (The
+// Depths / specialist charts) produce text but never persisted it, so the
+// tome bound nothing from them. Each generation now shelves a markdown
+// summary here, keyed so a re-run overwrites in place.
+
+export type DocChapter = "III" | "IV" | "V";
+
+export interface ShelfDoc {
+  id: string;          // dedup key, e.g. `forecast:${seed}` (re-run replaces)
+  kind: string;        // forecast | synastry | composite | progressed | …
+  chapter: DocChapter; // which tome chapter it binds into
+  title: string;
+  markdown: string;    // the text the tome renders
+  seed: string | null;
+  meta: Record<string, unknown> | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Save (or overwrite) a shelved document. */
+export async function docSave(
+  doc: Omit<ShelfDoc, "createdAt" | "updatedAt">
+): Promise<ShelfDoc> {
+  const existing = await tx<ShelfDoc | undefined>(
+    DOCUMENTS, "readonly", (s) => s.get(doc.id)
+  ).catch(() => undefined);
+  const now = new Date().toISOString();
+  const entry: ShelfDoc = {
+    ...doc,
+    createdAt: existing?.createdAt ?? now,
+    updatedAt: now,
+  };
+  await tx(DOCUMENTS, "readwrite", (s) => s.put(entry));
+  return entry;
+}
+
+export function docList(): Promise<ShelfDoc[]> {
+  return tx<ShelfDoc[]>(DOCUMENTS, "readonly", (s) => s.getAll()).then((all) =>
+    all.sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1))
+  );
+}
+
+export function docByChapter(chapter: DocChapter): Promise<ShelfDoc[]> {
+  return openDb().then(
+    (db) =>
+      new Promise<ShelfDoc[]>((resolve, reject) => {
+        const t = db.transaction(DOCUMENTS, "readonly");
+        const req = t.objectStore(DOCUMENTS).index("chapter").getAll(chapter);
+        req.onsuccess = () =>
+          resolve(req.result.sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1)));
+        req.onerror = () => reject(req.error);
+        t.oncomplete = () => db.close();
+      })
+  );
+}
+
+export function docDelete(id: string): Promise<void> {
+  return tx(DOCUMENTS, "readwrite", (s) => s.delete(id)).then(() => undefined);
+}
+
+/** Bulk import (Vault restore); overwrites by id. */
+export async function docImport(docs: ShelfDoc[]): Promise<number> {
+  let n = 0;
+  for (const d of docs) {
+    if (!d || typeof d.id !== "string" || typeof d.markdown !== "string") continue;
+    await tx(DOCUMENTS, "readwrite", (s) => s.put(d));
     n += 1;
   }
   return n;

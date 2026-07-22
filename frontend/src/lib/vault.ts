@@ -8,8 +8,9 @@
 // so it is the user's to guard (the UI says so).
 
 import {
-  galleryImport, galleryList, journalAll, journalImport, shelfImport, shelfList,
-  type GalleryItem, type JournalEntry, type ShelfEntry,
+  docImport, docList, galleryImport, galleryList, journalAll, journalImport,
+  shelfImport, shelfList,
+  type GalleryItem, type JournalEntry, type ShelfDoc, type ShelfEntry,
 } from "./bookshelf";
 
 const PREFIX = "aae.";
@@ -25,6 +26,7 @@ export interface VaultFile {
   bookshelf?: ShelfEntry[];
   journal?: JournalEntry[];
   gallery?: GalleryItem[];
+  documents?: ShelfDoc[];
 }
 
 /** Snapshot every aae.* localStorage key + the Bookshelf library. */
@@ -40,6 +42,7 @@ export async function buildVault(): Promise<VaultFile> {
   const bookshelf = await shelfList().catch(() => [] as ShelfEntry[]);
   const journal = await journalAll().catch(() => [] as JournalEntry[]);
   const gallery = await galleryList().catch(() => [] as GalleryItem[]);
+  const documents = await docList().catch(() => [] as ShelfDoc[]);
   return {
     format: FORMAT,
     exported_at: new Date().toISOString(),
@@ -47,6 +50,7 @@ export async function buildVault(): Promise<VaultFile> {
     bookshelf,
     journal,
     gallery,
+    documents,
   };
 }
 
@@ -63,7 +67,8 @@ export async function downloadVault(): Promise<number> {
   a.click();
   URL.revokeObjectURL(url);
   return Object.keys(vault.localStorage).length + (vault.bookshelf?.length ?? 0)
-    + (vault.journal?.length ?? 0) + (vault.gallery?.length ?? 0);
+    + (vault.journal?.length ?? 0) + (vault.gallery?.length ?? 0)
+    + (vault.documents?.length ?? 0);
 }
 
 /** Restore a vault file's contents (accepts @1 through @4). Only aae.*-prefixed
@@ -98,6 +103,9 @@ export async function restoreVault(text: string): Promise<number> {
   }
   if (Array.isArray(v.gallery)) {
     written += await galleryImport(v.gallery);
+  }
+  if (Array.isArray(v.documents)) {
+    written += await docImport(v.documents);
   }
   return written;
 }

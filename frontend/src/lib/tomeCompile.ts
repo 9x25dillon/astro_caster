@@ -8,8 +8,8 @@
 // feeds the cover constellation, and printing happens in a local popup.
 
 import {
-  galleryByKind, journalAll, shelfList,
-  type GalleryItem, type JournalEntry, type ShelfEntry,
+  docByChapter, galleryByKind, journalAll, shelfList,
+  type DocChapter, type GalleryItem, type JournalEntry, type ShelfDoc, type ShelfEntry,
 } from "./bookshelf";
 import { coverArtSvg, printReport } from "./printReport";
 import type { BirthInput, ChartResponse } from "../types";
@@ -33,12 +33,15 @@ function plural(n: number, unit: string): string {
   return `${n} ${unit}${n === 1 ? "" : "s"}`;
 }
 
+export interface DocCounts { III: number; IV: number; V: number; }
+
 /** The spine meter's data: what each of the eight chapters holds today. */
 export function buildManifest(
   shelf: ShelfEntry[],
   journal: JournalEntry[],
   hasChart: boolean,
-  galleryPlates = 0
+  galleryPlates = 0,
+  docs: DocCounts = { III: 0, IV: 0, V: 0 }
 ): TomeManifest {
   const sessions = shelf.filter((e) => !isCourse(e));
   const courses = shelf.filter(isCourse);
@@ -59,16 +62,22 @@ export function buildManifest(
         : "generate an Oracle Report and it binds itself here",
     },
     {
-      numeral: "III", name: "The Timing", count: 0,
-      detail: "forecasts don't shelve yet — a later arc binds the clocks",
+      numeral: "III", name: "The Timing", count: docs.III,
+      detail: docs.III
+        ? plural(docs.III, "forecast")
+        : "run a forecast and its timing shelves here",
     },
     {
-      numeral: "IV", name: "The Relations", count: 0,
-      detail: "relationship charts don't shelve yet",
+      numeral: "IV", name: "The Relations", count: docs.IV,
+      detail: docs.IV
+        ? plural(docs.IV, "relationship reading")
+        : "cast a synastry/composite and it binds here",
     },
     {
-      numeral: "V", name: "The Depths", count: 0,
-      detail: "the specialist instruments don't shelve yet",
+      numeral: "V", name: "The Depths", count: docs.V,
+      detail: docs.V
+        ? plural(docs.V, "specialist reading")
+        : "the specialist instruments shelve here once run",
     },
     {
       numeral: "VI", name: "The Study", count: courses.length,
@@ -97,11 +106,17 @@ export function buildManifest(
   };
 }
 
+async function docCounts(): Promise<DocCounts> {
+  const grab = (c: DocChapter) => docByChapter(c).catch(() => [] as ShelfDoc[]);
+  const [iii, iv, v] = await Promise.all([grab("III"), grab("IV"), grab("V")]);
+  return { III: iii.length, IV: iv.length, V: v.length };
+}
+
 export async function loadManifest(hasChart: boolean): Promise<TomeManifest> {
   const shelf = await shelfList().catch(() => [] as ShelfEntry[]);
   const journal = await journalAll().catch(() => [] as JournalEntry[]);
   const plates = await galleryByKind("plate").catch(() => [] as GalleryItem[]);
-  return buildManifest(shelf, journal, hasChart, plates.length);
+  return buildManifest(shelf, journal, hasChart, plates.length, await docCounts());
 }
 
 function sessionMarkdown(e: ShelfEntry): string {
@@ -148,7 +163,11 @@ export async function compileTome(
   const shelf = await shelfList().catch(() => [] as ShelfEntry[]);
   const journal = await journalAll().catch(() => [] as JournalEntry[]);
   const plates = await galleryByKind("plate").catch(() => [] as GalleryItem[]);
-  const manifest = buildManifest(shelf, journal, !!chart, plates.length);
+  const grab = (c: DocChapter) => docByChapter(c).catch(() => [] as ShelfDoc[]);
+  const [docsIII, docsIV, docsV] = await Promise.all([grab("III"), grab("IV"), grab("V")]);
+  const manifest = buildManifest(shelf, journal, !!chart, plates.length, {
+    III: docsIII.length, IV: docsIV.length, V: docsV.length,
+  });
   const sessions = shelf.filter((e) => !isCourse(e));
   const courses = shelf.filter(isCourse);
   const today = new Date().toISOString().slice(0, 10);
@@ -163,6 +182,17 @@ export async function compileTome(
     parts.push(`# Chapter II — The Reading`);
     for (const e of sessions) parts.push(sessionMarkdown(e));
   }
+  const docSection = (heading: string, docs: ShelfDoc[]) => {
+    if (!docs.length) return;
+    parts.push(heading);
+    for (const d of docs) {
+      parts.push(`## ${d.title} — ${d.updatedAt.slice(0, 10)}`);
+      parts.push(d.markdown);
+    }
+  };
+  docSection(`# Chapter III — The Timing`, docsIII);
+  docSection(`# Chapter IV — The Relations`, docsIV);
+  docSection(`# Chapter V — The Depths`, docsV);
   if (courses.length) {
     parts.push(`# Chapter VI — The Study`);
     for (const e of courses) parts.push(sessionMarkdown(e));

@@ -10,6 +10,8 @@ import {
   type SynastryResponse, type CompositeChart, type DavisonChart, type SynastryTarotResponse,
 } from "../api/client";
 import type { BirthInput } from "../types";
+import { shelveReading } from "../lib/shelveDoc";
+import type { DocChapter } from "../lib/bookshelf";
 
 type Tab = "synastry" | "composite" | "davison" | "tarot";
 
@@ -45,18 +47,29 @@ export const RelationshipModal: React.FC = () => {
   const [dav, setDav] = useState<DavisonChart | null>(null);
   const [tarot, setTarot] = useState<SynastryTarotResponse | null>(null);
 
-  async function run<T>(fn: () => Promise<T>, set: (v: T) => void, ev: string, local?: () => Promise<T>) {
+  async function run<T>(
+    fn: () => Promise<T>, set: (v: T) => void, ev: string, local?: () => Promise<T>,
+    shelve?: { kind: string; chapter: DocChapter; title: string }
+  ) {
     setLoading(true); setErr(null); setOnDevice(false);
-    try { set(await fn()); trackEvent(ev); }
+    try {
+      const r = await fn(); set(r); trackEvent(ev);
+      if (shelve) void shelveReading({ ...shelve, result: r, birth: personB });
+    }
     catch (e) {
       // Backend unreachable → compute on-device via @astra/core (full body set).
       if (local && isOfflineError(String(e))) {
-        try { set(await local()); setOnDevice(true); trackEvent(ev + "_local"); }
+        try {
+          const r = await local(); set(r); setOnDevice(true); trackEvent(ev + "_local");
+          if (shelve) void shelveReading({ ...shelve, result: r, birth: personB });
+        }
         catch (e2) { setErr(String(e2)); }
       } else setErr(String(e));
     }
     finally { setLoading(false); }
   }
+
+  const partner = () => personB.label || "Person B";
 
   return (
     <div className="arcana-modal">
@@ -89,7 +102,7 @@ export const RelationshipModal: React.FC = () => {
             <div>
               <div className="arc-draw-controls">
                 <button className="arc-draw-btn" disabled={loading}
-                        onClick={() => run(() => fetchSynastry(birth, personB), setSyn, "synastry_run", () => localSynastry(birth, personB))}>
+                        onClick={() => run(() => fetchSynastry(birth, personB), setSyn, "synastry_run", () => localSynastry(birth, personB), { kind: "synastry", chapter: "IV", title: `Synastry · ${partner()}` })}>
                   {loading ? "…" : "Compare charts"}
                 </button>
               </div>
@@ -130,7 +143,7 @@ export const RelationshipModal: React.FC = () => {
                   derived-MC houses
                 </label>
                 <button className="arc-draw-btn" disabled={loading}
-                        onClick={() => run(() => fetchComposite(birth, personB, houseMethod), setComp, "composite_run", () => localComposite(birth, personB, houseMethod))}>
+                        onClick={() => run(() => fetchComposite(birth, personB, houseMethod), setComp, "composite_run", () => localComposite(birth, personB, houseMethod), { kind: "composite", chapter: "IV", title: `Composite · ${partner()}` })}>
                   {loading ? "…" : "Build composite"}
                 </button>
               </div>
@@ -156,7 +169,7 @@ export const RelationshipModal: React.FC = () => {
             <div>
               <div className="arc-draw-controls">
                 <button className="arc-draw-btn" disabled={loading}
-                        onClick={() => run(() => fetchDavison(birth, personB), setDav, "davison_run", () => localDavison(birth, personB))}>
+                        onClick={() => run(() => fetchDavison(birth, personB), setDav, "davison_run", () => localDavison(birth, personB), { kind: "davison", chapter: "IV", title: `Davison · ${partner()}` })}>
                   {loading ? "…" : "Cast Davison"}
                 </button>
               </div>
@@ -180,7 +193,7 @@ export const RelationshipModal: React.FC = () => {
             <div>
               <div className="arc-draw-controls">
                 <button className="arc-draw-btn" disabled={loading}
-                        onClick={() => run(() => fetchSynastryTarot(birth, personB), setTarot, "synastry_tarot_run", () => localSynastryTarot(birth, personB))}>
+                        onClick={() => run(() => fetchSynastryTarot(birth, personB), setTarot, "synastry_tarot_run", () => localSynastryTarot(birth, personB), { kind: "synastry_tarot", chapter: "IV", title: `Tarot Bond · ${partner()}` })}>
                   {loading ? "…" : "Draw relationship bond"}
                 </button>
               </div>
