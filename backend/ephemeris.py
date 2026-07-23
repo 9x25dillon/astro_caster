@@ -314,7 +314,24 @@ def _is_day_chart(sun_lon: float, asc: float) -> bool:
 
 
 def _tally_elements(planets: List[PlanetData]):
-    """Weighted element/modality tallies. Luminaries + Asc/MC count double."""
+    """Weighted element/modality tallies over an EXPLICIT 12-body set.
+
+    Body set (`counted`): the ten classical planets + Ascendant + Midheaven.
+    Deliberately EXCLUDED: Chiron, the lunar Nodes, Lilith, Part of Fortune —
+    they carry their own symbolism but are not part of the elemental centre of
+    gravity here. Stating the set explicitly because it is recoverable from a
+    printed balance only by inference (a reviewer's verification pass inferred
+    a *different* 13-body set that included Chiron; this is the real one).
+
+    Weighting (`heavy`): luminaries and the two angles count double; the other
+    eight planets count single. So the denominator is 8·1 + 4·2 = 16, and a
+    printed percentage is `round(100 · count / 16)` (ties-to-even).
+
+    NOTE — this is the DETERMINISTIC balance surfaced as `chart.elements` and
+    `dominant_element`. Any elemental percentage that appears in an AI-
+    synthesised report is the model's own arithmetic over the placement list,
+    NOT this tally, and is not reproducible. See docs/design/RESONARIUM_PARITY.md.
+    """
     elements = {"Fire": 0, "Earth": 0, "Air": 0, "Water": 0}
     modalities = {"Cardinal": 0, "Fixed": 0, "Mutable": 0}
     heavy = {"Sun", "Moon", "Ascendant", "Midheaven"}
