@@ -73,6 +73,7 @@ import uuid
 
 import cache as CACHE
 import ephemeris as E
+import budget as BUDGET
 import entitlements as ENT
 import stripe_rail as STRIPE
 import logsetup as LOG
@@ -709,6 +710,7 @@ async def admin_stats(token: Optional[str] = None,
         raise HTTPException(status_code=403, detail="forbidden")
     summary = await asyncio.to_thread(TEL.summary)
     summary["caches"] = CACHE.all_stats()  # Phase 3.4 hit-rate visibility
+    summary["budget"] = BUDGET.snapshot()  # Phase 4.4 AI spend visibility
     return summary
 
 
@@ -926,8 +928,9 @@ async def oracle_report(req: OracleReportRequest, request: Request):
             status_code=402,
             detail="oracle entitlement required — the Oracle Report is a paid reading",
         )
+    allow_ai, _cap = BUDGET.allow_call(req.entitlement, "oracle")  # 4.4 cost control
     try:
-        result = await ORACLE.generate_oracle_report(req)
+        result = await ORACLE.generate_oracle_report(req, allow_ai=allow_ai)
     except Exception as exc:
         raise _client_error("oracle report failed", exc)
     _spawn(TEL.log_ai(
@@ -938,6 +941,7 @@ async def oracle_report(req: OracleReportRequest, request: Request):
     ))
     if result.ai_source == "llm":
         MET.observe_ai_call("oracle", len(result.report))
+        BUDGET.record(req.entitlement, "oracle", len(result.report))
     return result
 
 
@@ -956,8 +960,9 @@ async def course(req: CourseRequest, request: Request):
             detail="oracle entitlement required — the Course is a premium "
                    "curriculum composed for your chart",
         )
+    allow_ai, _cap = BUDGET.allow_call(req.entitlement, "course")  # 4.4 cost control
     try:
-        result = await COURSE.generate_course(req)
+        result = await COURSE.generate_course(req, allow_ai=allow_ai)
     except Exception as exc:
         raise _client_error("course failed", exc)
     _spawn(TEL.log_ai(
@@ -968,6 +973,7 @@ async def course(req: CourseRequest, request: Request):
     ))
     if result.ai_source == "llm":
         MET.observe_ai_call("course", len(result.course))
+        BUDGET.record(req.entitlement, "course", len(result.course))
     return result
 
 
@@ -999,8 +1005,9 @@ async def personal_report(req: PersonalReportRequest, request: Request):
                    "one-time purchase per Oracle session; verify your "
                    "contribution at /api/personal-report/purchase to unlock it",
         )
+    allow_ai, _cap = BUDGET.allow_call(req.entitlement, "deluxe")  # 4.4 cost control
     try:
-        result = await PERSONAL.generate_personal_report(req)
+        result = await PERSONAL.generate_personal_report(req, allow_ai=allow_ai)
     except ValueError as exc:
         # Post-Oracle gate: fabricated/foreign session reference.
         raise HTTPException(status_code=409, detail=str(exc))
@@ -1014,6 +1021,7 @@ async def personal_report(req: PersonalReportRequest, request: Request):
     ))
     if result.ai_source == "llm":
         MET.observe_ai_call("deluxe", len(result.report_markdown))
+        BUDGET.record(req.entitlement, "deluxe", len(result.report_markdown))
     return result
 
 
@@ -1054,6 +1062,19 @@ async def deck_art_image(req: PLATE.PlateRequest, request: Request):
             detail="image layer not configured — set AAE_OPENAI_API_KEY; the "
                    "deterministic prompts in the Studio work without it",
         )
+    # 4.4 cost control: images have no offline compiler, so an over-budget
+    # plate is refused (429) rather than degraded — the prompt stays free.
+    allow_ai, why = BUDGET.allow_call(req.entitlement, "plate")
+    if not allow_ai:
+        raise HTTPException(
+            status_code=429,
+            detail=("today's image budget is reached — the deterministic "
+                    "prompt in the Studio still renders your brief for free"
+                    if why == "user" else
+                    "the observatory's daily image budget is reached; try "
+                    "again tomorrow — the free prompt is available now"),
+            headers={"Retry-After": "3600"},
+        )
     try:
         result = await PLATE.render_plate(req)
     except ValueError as exc:
@@ -1068,6 +1089,7 @@ async def deck_art_image(req: PLATE.PlateRequest, request: Request):
     # An image call is a flat cost — count the call, leave chars 0 (the
     # base64 payload isn't a text-spend proxy).
     MET.observe_ai_call("plate", 0)
+    BUDGET.record(req.entitlement, "plate", 0)
     return result
 
 

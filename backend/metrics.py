@@ -118,4 +118,21 @@ def render() -> str:
         ]
         for kind, n in sorted(_ai_chars.items()):
             lines.append(f'aae_ai_response_chars_total{{kind="{_esc(kind)}"}} {n}')
+    # Phase 4.4 AI-spend gauges (estimated USD; the scraper alarms on these).
+    try:
+        import budget as _budget
+        snap = _budget.snapshot()
+        lines += [
+            "# HELP aae_ai_spend_usd Estimated AI provider spend today (USD).",
+            "# TYPE aae_ai_spend_usd gauge",
+            f"aae_ai_spend_usd {snap['global_today_usd']}",
+            "# HELP aae_ai_spend_cap_usd Global daily AI-spend cap (USD).",
+            "# TYPE aae_ai_spend_cap_usd gauge",
+            f"aae_ai_spend_cap_usd {snap['global_cap_usd']}",
+            "# HELP aae_ai_spend_alarm Whether the daily spend alarm has fired (1/0).",
+            "# TYPE aae_ai_spend_alarm gauge",
+            f"aae_ai_spend_alarm {1 if snap['alarm_fired'] else 0}",
+        ]
+    except Exception:
+        pass
     return "\n".join(lines) + "\n"
