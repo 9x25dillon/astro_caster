@@ -196,12 +196,14 @@ async def _call_fable(
         return None
 
 
-async def generate_oracle_report(req: OracleReportRequest) -> OracleReportResponse:
+async def generate_oracle_report(req: OracleReportRequest,
+                                 allow_ai: bool = True) -> OracleReportResponse:
     """Substrate first (deterministic), then the Fable synthesis with an honest
-    offline fallback. The seed is disclosed so the draw is reproducible."""
+    offline fallback. The seed is disclosed so the draw is reproducible.
+    allow_ai=False (budget cap) skips the provider → the offline compiler."""
     sub = build_report_substrate(req)
     reading = sub["reading"]
-    ai = await _call_fable(REPORT_SYSTEM, _substrate_prompt(sub, req.question))
+    ai = await _call_fable(REPORT_SYSTEM, _substrate_prompt(sub, req.question)) if allow_ai else None
     if ai:
         report, ai_source, model = ai["text"], "llm", ai["model"]
     else:
