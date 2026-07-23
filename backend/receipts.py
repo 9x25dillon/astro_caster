@@ -34,6 +34,18 @@ CREATE TABLE IF NOT EXISTS report_receipts (
     wei      INTEGER NOT NULL,
     created  INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS entitlement_ledger (
+    jti      TEXT PRIMARY KEY,   -- token id carried in the signed payload
+    tier     TEXT NOT NULL,
+    ref      TEXT NOT NULL,      -- payment reference (tx hash; later Stripe id)
+    verified INTEGER NOT NULL,
+    iat      INTEGER NOT NULL,
+    exp      INTEGER NOT NULL,
+    status   TEXT NOT NULL,      -- active | renewed (superseded) | revoked
+    note     TEXT NOT NULL DEFAULT '',
+    updated  INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_ent_ref ON entitlement_ledger(ref);
 """
 
 
@@ -41,7 +53,7 @@ def _connect() -> sqlite3.Connection:
     _DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(_DB_PATH)
     conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute(_SCHEMA)
+    conn.executescript(_SCHEMA)
     return conn
 
 
@@ -93,3 +105,132 @@ def claim_tx(tx_hash: str, seed: str, *, verified: bool, wei: int = 0) -> tuple[
         return False, "receipt ledger unavailable — purchase not recorded, try again"
     finally:
         conn.close()
+
+
+# --------------------------------------------------------------------------- #
+# Entitlement lifecycle ledger (Phase 4.1)
+#
+# Tier tokens stay STATELESS (signature + exp carry the truth); the ledger
+# adds the lifecycle the schedule requires: revocation (a refund must be able
+# to kill a token before its exp), renewal (supersede with a fresh exp), and
+# re-link (recover a token on a new device from the payment ref).
+#
+# Failure posture, deliberate and documented:
+#   - RECORDING a mint/renewal is best-effort: the signature is what grants
+#     access, and /api/donate/verify is replayable by design — blocking a
+#     mint on a ledger hiccup would strand a paying supporter for no security
+#     gain. An unrecorded token simply cannot be individually revoked (the
+#     AAE_SECRET rotation runbook remains the blunt instrument).
+#   - The REVOCATION CHECK fails OPEN with a loud log: revocation is
+#     defense-in-depth on top of the signature; locking out every paying
+#     user because a local SQLite file hiccuped would invert the harm.
+#   - REVOKING itself fails CLOSED (an admin must know a revoke didn't take).
+# --------------------------------------------------------------------------- #
+
+
+def ent_record(payload: dict, status: str = "active", note: str = "") -> bool:
+    """Record a minted/renewed entitlement. Best-effort (see posture above)."""
+    jti = payload.get("jti")
+    if not jti:
+        return False
+    try:
+        conn = _connect()
+        with conn:
+            conn.execute(
+                "INSERT OR REPLACE INTO entitlement_ledger "
+                "(jti, tier, ref, verified, iat, exp, status, note, updated) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (jti, payload.get("tier", ""), payload.get("ref", ""),
+                 int(bool(payload.get("verified"))), int(payload.get("iat", 0)),
+                 int(payload.get("exp", 0)), status, note, int(time.time())),
+            )
+        conn.close()
+        return True
+    except (sqlite3.Error, OSError):
+        return False
+
+
+def ent_status(jti: str) -> str | None:
+    """The ledger status for a token id: active/renewed/revoked, None when the
+    id is unknown (pre-ledger token) or the ledger is unreachable."""
+    try:
+        conn = _connect()
+        row = conn.execute(
+            "SELECT status FROM entitlement_ledger WHERE jti = ?", (jti,)
+        ).fetchone()
+        conn.close()
+        return row[0] if row else None
+    except (sqlite3.Error, OSError):
+        return None
+
+
+def ent_revoke(jti: str, note: str = "") -> tuple[bool, str]:
+    """Mark a token id revoked. Fails CLOSED (the caller must know)."""
+    try:
+        conn = _connect()
+        with conn:
+            cur = conn.execute(
+                "UPDATE entitlement_ledger SET status='revoked', note=?, updated=? "
+                "WHERE jti = ?",
+                (note, int(time.time()), jti),
+            )
+        conn.close()
+        if cur.rowcount == 0:
+            return False, "unknown token id (pre-ledger tokens revoke via secret rotation)"
+        return True, "revoked"
+    except (sqlite3.Error, OSError):
+        return False, "ledger unavailable — revocation NOT recorded"
+
+
+def ent_mark_renewed(old_jti: str) -> None:
+    """Mark a superseded token. Best-effort (the new token is already live)."""
+    try:
+        conn = _connect()
+        with conn:
+            conn.execute(
+                "UPDATE entitlement_ledger SET status='renewed', updated=? "
+                "WHERE jti = ? AND status = 'active'",
+                (int(time.time()), old_jti),
+            )
+        conn.close()
+    except (sqlite3.Error, OSError):
+        pass
+
+
+def ent_find_active_ref(ref: str) -> dict | None:
+    """Newest ACTIVE, unexpired ledger entry for a payment reference — the
+    re-link lookup. Returns None when nothing re-linkable exists."""
+    try:
+        conn = _connect()
+        row = conn.execute(
+            "SELECT jti, tier, ref, verified, iat, exp FROM entitlement_ledger "
+            "WHERE ref = ? AND status = 'active' AND exp > ? "
+            "ORDER BY iat DESC LIMIT 1",
+            (ref.strip(), int(time.time())),
+        ).fetchone()
+        conn.close()
+        if not row:
+            return None
+        return {"jti": row[0], "tier": row[1], "ref": row[2],
+                "verified": bool(row[3]), "iat": row[4], "exp": row[5]}
+    except (sqlite3.Error, OSError):
+        return None
+
+
+def ent_admin_list(q: str = "", limit: int = 50) -> list[dict]:
+    """Operator lookup: rows matching a jti/ref fragment, newest first."""
+    try:
+        conn = _connect()
+        like = f"%{q.strip()}%"
+        rows = conn.execute(
+            "SELECT jti, tier, ref, verified, iat, exp, status, note, updated "
+            "FROM entitlement_ledger WHERE jti LIKE ? OR ref LIKE ? "
+            "ORDER BY updated DESC LIMIT ?",
+            (like, like, max(1, min(int(limit), 500))),
+        ).fetchall()
+        conn.close()
+        keys = ("jti", "tier", "ref", "verified", "iat", "exp",
+                "status", "note", "updated")
+        return [dict(zip(keys, r)) for r in rows]
+    except (sqlite3.Error, OSError):
+        return []

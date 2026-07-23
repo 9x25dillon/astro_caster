@@ -7,6 +7,16 @@ import os
 # Individual tests override AAE_ENV via monkeypatch where they need production.
 os.environ.setdefault("AAE_ENV", "test")
 
+# Force canonical TIERED mode for the whole suite, regardless of the operator's
+# backend/.env. Edition P (AAE_PERSONAL_MODE=1) grants oracle tier + operator
+# rights to every request, which flips the tier/admin/boot-guard tests to
+# spurious failures. main.py's load_dotenv() will NOT override an already-set
+# variable, so assigning these before main is imported wins over .env. (CI has
+# no operator .env and is unaffected; this only keeps LOCAL runs matching CI —
+# same fix as playwright.config.ts's webServer.env.)
+os.environ["AAE_PERSONAL_MODE"] = ""
+os.environ["AAE_TRUST_MODE"] = ""
+
 # Pin the ephemeris to the vendored seas-only dir (the drift-lock config the
 # parity vectors are generated against, and the exact file set the on-device
 # TS engine ships). Forced, not defaulted: a developer's backend/ephe or env
