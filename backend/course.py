@@ -177,13 +177,13 @@ def course_id(sub: Dict, req: CourseRequest) -> str:
 # --------------------------------------------------------------------------- #
 
 
-async def generate_course(req: CourseRequest) -> CourseResponse:
+async def generate_course(req: CourseRequest, allow_ai: bool = True) -> CourseResponse:
     sub = build_course_substrate(req)
     path = sub["path"]
     ai = await _call_fable(
         COURSE_SYSTEM, _substrate_prompt(sub, req.focus),
         model=_COURSE_MODEL, max_tokens=_MAX_TOKENS, effort=_EFFORT,
-    )
+    ) if allow_ai else None
     if ai:
         course, ai_source, model = ai["text"], "llm", ai["model"]
     else:

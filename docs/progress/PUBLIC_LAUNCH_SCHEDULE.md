@@ -195,9 +195,18 @@ The GitHub vulnerability flag is resolved. Findings, for the record:
   `AAE_ORACLE_MIN_WEI`, `AAE_REPORT_MIN_WEI` — the pre-deploy trio).
 - **4.3 Deluxe purchases**: per-report purchase flow on the same rail
   (machinery exists; wire to Stripe).
-- **4.4 AI cost controls**: per-user daily budgets, global spend alarm,
-  graceful degrade to offline compilers when capped (already honest —
-  keep `ai_source` provenance).
+- **4.4 AI cost controls** — ✅ DONE 2026-07-22 (branch
+  `phase4-cost-controls`, stacked on 4.2): `budget.py` — per-user + global
+  daily USD ceilings (estimated cost, output-token-dominated), a spend
+  alarm (logged once/day + `aae_ai_spend_alarm` gauge). Over cap, the
+  report endpoints degrade to the offline compiler via a new `allow_ai`
+  flag threaded through `generate_oracle_report/course/personal_report`
+  (honest `ai_source=offline`); the image endpoint (no offline path)
+  refuses with **429** and points at the free prompt. Spend surfaces in
+  `/api/admin/stats.budget` and Prometheus (`aae_ai_spend_usd/_cap/
+  _alarm`). Env: `AAE_USER_DAILY_USD` (2), `AAE_GLOBAL_DAILY_USD` (100),
+  `AAE_SPEND_ALARM_FRAC` (0.8), cost knobs; `AAE_BUDGET_ENABLED=0` off.
+  9 tests; 319 backend green.
 - **4.5 Tome storefront gate** (PHYSICAL_TOME_PRODUCT Phase 2) — **only if
   Phase 0's printed copy passes in hand**; Lulu fulfillment, priced ≥ the
   $150 gift-worthiness bar.
