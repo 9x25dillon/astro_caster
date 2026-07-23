@@ -5,6 +5,72 @@ PR bodies; this is the story. Started session 15 at the operator's request._
 
 ---
 
+## Session 18 · 2026-07-23 — the till, the predicate, and a lossy seed
+
+Three arcs, and they rhymed: each one was about making a claim honest before
+anyone leans on it.
+
+**Phase 4 — the observatory grew a till.** The whole monetization spine
+landed and merged in one sitting: **4.1** the entitlement lifecycle (#99) —
+revocation, renewal, device re-link, admin tooling, built as a stateful
+jti-keyed ledger sitting under the existing stateless HMAC/Ed25519 tokens so
+a token can be killed or renewed without breaking the offline-verifiable
+shape; **4.2** the Stripe rail (#100) — checkout sessions, and a webhook
+whose signature we verify by hand to Stripe's own scheme
+(`HMAC_SHA256(secret, "{t}.{body}")`, 300s tolerance, constant-time compare)
+so a refund event walks straight through to a revocation; **4.4** the cost
+controls (#101) — an output-token-dominated cost estimate gating every AI
+endpoint against per-user and global daily USD caps, a spend alarm gauge, and
+— the part that matters — a graceful degrade, `allow_ai=False` dropping the
+oracle/course/personal compilers back to their honest offline selves rather
+than erroring when the cap is hit. The fail-closed interlock from Phase 2
+still holds the line: any `AAE_STRIPE_*` or `AAE_TREASURY_*` key refuses to
+coexist with personal mode. 319 backend tests green. The operator merged the
+stack fast, as the handoff warned he does.
+
+**substrate-comm — the predicate was wrong, and the fix is the deliverable.**
+Over in the physics project the diffraction classifier was calling
+Thue-Morse a Pisot case and nearly labelling it pure-point. The bug was
+conceptual, not arithmetic: the code tested whether the sub-dominant
+eigenvalue sits inside the unit circle, and for Thue-Morse it does (λ₂ = 0),
+so the wrong test passed. The real disqualifier is that the characteristic
+polynomial is *reducible* — `x(x−2)` factors, and reducibility is what breaks
+the pure-point diffraction, with the true spectrum singular continuous
+(Kakutani). So `pisot()` now requires `charpoly_irreducible()` via sympy, and
+the predicate finally matches the mathematics rather than a proxy for it.
+Fibonacci stays pure-point (`x²−x−1`, irreducible), Thue-Morse falls out to
+singular continuous, period-doubling still resolves via Dekking. Committed
+and pushed (`ce83b30`).
+
+**The verification pass — a lossy seed, and a number that was never ours.**
+The operator ran an external verification over `hellonerf.pdf`, his own natal
+report, and handed back findings. Two got acted on (#103, merged), and the
+second one changed how we should think about the not-yet-built resonarium.
+The first, #1: the printed 2-decimal longitudes are *lossy*. Sun Quintile
+Part of Fortune computes an orb of `0.44999…` from the printed seed — rounds
+to 0.4 — but the report printed 0.5 because the engine had the full-precision
+longitude, which sits `1.1×10⁻¹⁴` above the tie. So a printed page is not a
+complete specification, and any bit-exact parity claim stated against it is
+false for that aspect. Captured as a founding constraint before the
+instrument exists: display-quantize before arithmetic so the printed seed
+*is* the spec, keep the machine parity vector at full precision, and note
+that `round()` is ties-to-even and that too is part of the contract.
+
+The third, #3, started as "state the body set explicitly" and turned into
+something sharper. Documenting `_tally_elements` meant computing it — and the
+engine gives **Fire 25%, Water-dominant** for that chart, not the report's
+**Fire 38%**. The 38% matches a 13-body unweighted tally the code does not
+implement; it was the Fable synthesis doing its own arithmetic over the
+placement list. So the report's statistic was never a substrate fact. That
+became the second founding constraint in `RESONARIUM_PARITY.md`: parity
+covers the *deterministic* substrate only — positions, houses, aspects,
+`chart.elements`, the seeded tarot draw — and never LLM prose. The resonarium
+must never quote a model's percentage as ground truth. The boundary got drawn
+exactly where it belongs, and it came for free from a mismatch the operator
+surfaced.
+
+---
+
 ## Session 17 · 2026-07-20 — a live log becomes a productionization sprint
 
 The session opened not with a plan but with evidence. The operator pasted

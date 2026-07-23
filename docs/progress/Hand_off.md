@@ -1,35 +1,49 @@
 # Hand_off.md
 
-_Last updated: 2026-07-20 late (session 17 CLOSED — main @ e53a8de + PR #84
-green-awaiting-merge; WIP branch `metrics` parked)_
+_Last updated: 2026-07-23 (session 18 CLOSED — main @ 08f4c33; everything
+this session is MERGED, nothing parked, working tree clean)_
 
 ## TL;DR for next session
 
-**A two-PR stack is open, both green, merge IN ORDER:** PR **#84**
-(structured logging) then PR **#85** (metrics, stacked on #84's branch).
-#85 auto-retargets to main when #84 merges and its diff simplifies to
-just the metrics changes. Phase 3 per
-**docs/progress/PUBLIC_LAUNCH_SCHEDULE.md**: 3.1 ✅ merged (#82),
-3.2 ✅ = #84, **3.3 ✅ = #85**, then 3.5 backups, then 3.6 staging.
-Narrative in WORK_JOURNAL.md session 17.
+**Clean slate — nothing awaiting merge.** The operator merged the whole
+Phase-4 stack and the parity docs this session: **#99** (4.1 entitlement
+lifecycle), **#100** (4.2 Stripe rail), **#101** (4.4 cost controls),
+**#103** (parity docs + `_tally_elements` scheme). All on main. Phase 4 per
+**docs/progress/PUBLIC_LAUNCH_SCHEDULE.md** is now: 4.1 ✅, 4.2 ✅, 4.4 ✅ —
+**4.3 was never built** (see WORK ORDER below — confirm what 4.3 is before
+assuming a gap). substrate-comm's Pisot-predicate fix is committed+pushed
+there (`ce83b30`), separate repo. Narrative in WORK_JOURNAL.md session 18.
 
-**⚠ WATCH when #85 retargets to main:** CodeQL + the two Analyze jobs do
-NOT run on #85 while it targets the `structured-logging` branch — they
-fire for the first time on the metrics diff once its base becomes main
-(after #84 merges). The metrics code is low-risk (Prometheus label values
-are escaped via `_esc` and paths are bounded to `known_paths`/`(other)`),
-but confirm CodeQL is green post-retarget the way #81 taught us to.
+**The resonarium is now specified at its boundary but not started.**
+`docs/design/RESONARIUM_PARITY.md` (new this session) sets two founding
+constraints BEFORE the instrument gets built: (1) the printed 2-dp seed is
+lossy — display-quantize before arithmetic + keep a full-precision machine
+parity vector; `round()` ties-to-even is part of the spec; (2) parity covers
+the deterministic substrate ONLY, never LLM-synthesised statistics (the
+report's "Fire 38%" is the model's arithmetic; the engine gives Fire 25% /
+Water-dominant). Read that file first if resonarium work resumes.
 
 ## WORK ORDER for next session (in this order)
 
-**0. Preconditions.** `git fetch` + `gh pr list` FIRST (the operator
-merges fast, sometimes mid-work — sessions 13 and 17 both hit this).
-Merge the stack in order (#84 then #85), then `git checkout main &&
-git pull`, delete local `structured-logging` and `metrics`. Confirm
-#85's CodeQL went green after it retargeted to main (see the WATCH note
-above).
+**0. Preconditions.** `git fetch` + `gh pr list --state all` FIRST (the
+operator merges FAST, sometimes mid-work AND same-session — session 18
+merged #99–#103 while other work was still in flight; sessions 13/17 also
+hit this). Working tree should be clean on main @ 08f4c33+.
 
-**1. Then 3.5 — backups + restore drill.** Scheduled encrypted backup of
+**0.5. Decide the direction.** Two open forks the operator has been weighing
+(his words, session 18): finish engineering the **yet-undefined
+resonarium** (start from RESONARIUM_PARITY.md), OR turn the public
+astro-caster into a **revenue-bearing app** — his read is the market is
+"perceived taboo, not niche," so the public edition wants an ergonomically
+intuitive redesign, and it must stay a math-based function (no religious/
+agnostic system dressing that can't pay for itself). This is an operator
+decision — surface it, don't pick.
+
+**1. Phase 4.3 (if it exists in the schedule).** 4.1/4.2/4.4 landed but 4.3
+was skipped — open PUBLIC_LAUNCH_SCHEDULE.md and confirm what 4.3 is
+(likely the pricing-page / public purchase UX) before treating it as a gap.
+
+**2. Then 3.5 — backups + restore drill.** Scheduled encrypted backup of
 `backend/data/*.db` + `backend/.env` (operator's machine = source of
 truth; a `backend/tools/backup.py` with tar+age or openssl enc, cron/
 systemd-timer instructions in DEPLOY.md), and — the exit criterion — a
@@ -37,7 +51,7 @@ RESTORE DRILL actually performed once: back up, blow away a COPY, restore
 it, run `dev.py smoke` against the restored state, log the drill in
 DEPLOY.md like the §6 rotation drill.
 
-**2. Then 3.6 — staging deploy (BLOCKED on operator).** Needs the D4 VPS
+**3. Then 3.6 — staging deploy (BLOCKED on operator).** Needs the D4 VPS
 (decision ratified: single VPS + docker-compose behind Cloudflare) —
 operator provisions the box + DNS; the session then: compose prod stack
 up, TLS via Cloudflare, run the smoke matrix + full e2e against staging,
@@ -45,7 +59,7 @@ AND the two deferred verifications that need a live edge: external header
 scan (securityheaders.com — Phase 2.5's last open box) and Prometheus
 alert rules (error-rate, AI-spend, uptime) in the scraper config.
 
-**3. Riding alongside (any session, cap permitting):**
+**4. Riding alongside (any session, cap permitting):**
    - **Aug 1: Anthropic cap returns** — live-verify a Fable Oracle run
      (`dev.py ai check`, then one real report; the offline compilers have
      been serving honestly meanwhile).
