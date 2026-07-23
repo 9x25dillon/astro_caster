@@ -74,6 +74,7 @@ import uuid
 import cache as CACHE
 import ephemeris as E
 import entitlements as ENT
+import stripe_rail as STRIPE
 import logsetup as LOG
 import metrics as MET
 import ratelimit as RL
@@ -455,6 +456,84 @@ async def entitlement_relink(req: DonateVerifyRequest):
     _spawn(TEL.log_tier(action="relink", tier=tier, verified=verified,
                         ref=req.tx_hash[:18]))
     return {"granted": True, "tier": tier, "note": note, "entitlement": ent}
+
+
+# --------------------------------------------------------------------------- #
+# Stripe rail (Phase 4.2) — cards/subscriptions alongside the crypto rail
+# --------------------------------------------------------------------------- #
+
+class CheckoutRequest(BaseModel):
+    tier: str                            # supporter | oracle
+    success_url: Optional[str] = None    # default: app root with the session id
+    cancel_url: Optional[str] = None
+
+
+@app.post("/api/checkout")
+async def create_checkout(req: CheckoutRequest):
+    """Create a Stripe Checkout Session and return its hosted URL. 503 when the
+    rail is unconfigured (AAE_STRIPE_SECRET_KEY unset) — the crypto rail and
+    the offline compilers remain available."""
+    if not STRIPE.stripe_available():
+        raise HTTPException(status_code=503, detail="card payments not configured")
+    if req.tier not in ("supporter", "oracle"):
+        raise HTTPException(status_code=400, detail="tier must be supporter or oracle")
+    base = os.environ.get("AAE_PUBLIC_URL", "http://127.0.0.1:5173").rstrip("/")
+    success = req.success_url or f"{base}/?checkout={{CHECKOUT_SESSION_ID}}"
+    cancel = req.cancel_url or f"{base}/?checkout=cancel"
+    try:
+        s = await STRIPE.create_checkout_session(req.tier, success, cancel)
+    except Exception as exc:
+        raise _client_error("checkout session failed", exc, status=502)
+    _spawn(TEL.log_tier(action="checkout_created", tier=req.tier,
+                        verified=False, ref=s["id"][:18]))
+    return {"url": s["url"], "session_id": s["id"]}
+
+
+@app.get("/api/checkout/{session_id}")
+async def retrieve_checkout(session_id: str):
+    """Browser retrieval after success_url. If the session is paid, mint (or
+    re-issue) the entitlement and return it — resilient to webhook lag. If not
+    yet paid, report status so the client can poll briefly."""
+    if not STRIPE.stripe_available():
+        raise HTTPException(status_code=503, detail="card payments not configured")
+    try:
+        session = await STRIPE.retrieve_session(session_id)
+    except Exception as exc:
+        raise _client_error("session lookup failed", exc, status=502)
+    if session.get("payment_status") not in ("paid", "no_payment_required"):
+        return {"granted": False, "status": session.get("payment_status", "pending")}
+    tier = (session.get("metadata") or {}).get("tier")
+    if tier not in ("supporter", "oracle"):
+        raise HTTPException(status_code=409, detail="session has no tier")
+    ent = ENT.relink_ref(STRIPE.ref_for_session(session), tier, verified=True)
+    return {"granted": True, "tier": tier, "entitlement": ent}
+
+
+@app.post("/api/stripe/webhook")
+async def stripe_webhook(request: Request):
+    """Stripe → server. Verify the signature over the RAW body, then apply the
+    lifecycle action: completed → mint, refund/cancel → revoke. Returns 200 so
+    Stripe stops retrying once we've accepted it; a bad signature is 400."""
+    if not STRIPE.webhook_configured():
+        raise HTTPException(status_code=503, detail="webhook not configured")
+    payload = await request.body()
+    sig = request.headers.get("stripe-signature", "")
+    try:
+        event = STRIPE.verify_webhook(payload, sig)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=f"webhook rejected: {exc}")
+    plan = STRIPE.plan_from_event(event)
+    if plan is None:
+        return {"received": True, "handled": False}     # event we don't act on
+    if plan["action"] == "mint":
+        ENT.relink_ref(plan["ref"], plan["tier"], verified=True)
+        _spawn(TEL.log_tier(action="stripe_mint", tier=plan["tier"],
+                            verified=True, ref=plan["ref"][:18]))
+    else:  # revoke
+        RCPT.ent_revoke_ref(plan["ref"], note="stripe refund/cancel")
+        _spawn(TEL.log_tier(action="stripe_revoke", tier="", verified=True,
+                            ref=plan["ref"][:18]))
+    return {"received": True, "handled": True, "action": plan["action"]}
 
 
 class ReportPurchaseRequest(BaseModel):

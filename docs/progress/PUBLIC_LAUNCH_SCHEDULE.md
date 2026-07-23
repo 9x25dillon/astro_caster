@@ -180,11 +180,19 @@ The GitHub vulnerability flag is resolved. Findings, for the record:
   admin lookup + revoke endpoints (operator-gated, revoke fails CLOSED).
   Rail-agnostic core so 4.2 Stripe plugs in. 11 lifecycle tests; conftest
   now forces tiered mode so local runs match CI. 297 backend green.
-- **4.2 Stripe rail (D2)**: Checkout for supporter/oracle (subscription or
-  one-time — operator choice), webhook → verify → mint entitlement → receipt
-  row; refund webhook → revoke. Crypto rail kept: set `AAE_ETH_RPC`,
-  `AAE_ORACLE_MIN_WEI`, `AAE_REPORT_MIN_WEI` (the pre-deploy trio from the
-  audit).
+- **4.2 Stripe rail (D2)** — ✅ CODE DONE 2026-07-22 (branch
+  `phase4-stripe`, stacked on 4.1): `stripe_rail.py` (raw httpx, no SDK) —
+  `POST /api/checkout` (hosted Checkout, one-time or subscription via
+  `AAE_STRIPE_MODE`), `GET /api/checkout/{id}` (mint on browser return,
+  webhook-lag resilient), `POST /api/stripe/webhook` (RAW-body signature
+  verify hand-rolled per Stripe's scheme → completed=mint, refund/cancel=
+  revoke, reusing 4.1's `relink_ref`/`ent_revoke_ref`). 503 when
+  unconfigured; the `AAE_STRIPE_*` keys trip the personal-mode interlock
+  (Edition Q only). DEPLOY.md §8 + Stripe-CLI drill. 13 tests (webhook
+  tamper/stale/wrong-secret all rejected, mint→refund round trip); 310
+  backend green. **OPERATOR: add test keys + run the §8 drill to move
+  this to live-verified.** Crypto rail kept (`AAE_ETH_RPC`,
+  `AAE_ORACLE_MIN_WEI`, `AAE_REPORT_MIN_WEI` — the pre-deploy trio).
 - **4.3 Deluxe purchases**: per-report purchase flow on the same rail
   (machinery exists; wire to Stripe).
 - **4.4 AI cost controls**: per-user daily budgets, global spend alarm,

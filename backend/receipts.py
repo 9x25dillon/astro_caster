@@ -217,6 +217,17 @@ def ent_find_active_ref(ref: str) -> dict | None:
         return None
 
 
+def ent_revoke_ref(ref: str, note: str = "") -> tuple[bool, str]:
+    """Revoke the active token for a payment reference — the Stripe refund /
+    subscription-cancel path. Returns (ok, note); (False, ...) when there is
+    no active entitlement for the ref (already revoked, or webhook out of
+    order). Fails CLOSED like ent_revoke."""
+    active = ent_find_active_ref(ref)
+    if not active or not active.get("jti"):
+        return False, "no active entitlement for this reference"
+    return ent_revoke(active["jti"], note)
+
+
 def ent_admin_list(q: str = "", limit: int = 50) -> list[dict]:
     """Operator lookup: rows matching a jti/ref fragment, newest first."""
     try:

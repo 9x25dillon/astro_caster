@@ -215,3 +215,41 @@ byte-identical, and a wrong passphrase correctly rejected on restore
 round-trip + wrong-passphrase check) is wired into CI via
 `tests/test_backup.py`. Re-run the on-host drill after the first staging
 deploy against real production volumes.
+
+---
+
+## 8. Stripe payment rail (Phase 4.2)
+
+Cards/subscriptions alongside the crypto rail. Unset = the rail 503s and the
+crypto rail + offline compilers still serve; **any `AAE_STRIPE_*` key marks
+the deployment public-facing, so the personal-mode interlock refuses to boot
+Edition P with these set** (by design — Stripe means Edition Q).
+
+| Variable | Meaning | Default |
+|---|---|---|
+| `AAE_STRIPE_SECRET_KEY` | `sk_test_…` / `sk_live_…` — enables the rail | empty (503) |
+| `AAE_STRIPE_WEBHOOK_SECRET` | `whsec_…` — verifies webhook signatures | empty (webhook 503) |
+| `AAE_STRIPE_MODE` | `payment` (one-time) or `subscription` | `payment` |
+| `AAE_STRIPE_SUPPORTER_USD` / `AAE_STRIPE_ORACLE_USD` | tier prices | 5 / 15 |
+| `AAE_PUBLIC_URL` | base for success/cancel redirects | `http://127.0.0.1:5173` |
+
+Flow: `POST /api/checkout {tier}` → hosted Stripe URL → user pays → Stripe
+redirects to `?checkout=<session_id>` and fires the webhook. `GET
+/api/checkout/{id}` mints/returns the token on the browser's return (resilient
+to webhook lag); `POST /api/stripe/webhook` is the source of truth
+(`checkout.session.completed` → mint via `relink_ref`; `charge.refunded` /
+`customer.subscription.deleted` → revoke via `ent_revoke_ref`). Webhook
+signatures are verified over the RAW body against `AAE_STRIPE_WEBHOOK_SECRET`
+(hand-rolled per Stripe's scheme; timestamp tolerance 300 s; bad sig → 400).
+
+**Test-mode drill (needs the operator's Stripe test keys):**
+```bash
+# 1. set AAE_STRIPE_SECRET_KEY=sk_test_… ; AAE_ENV=production ; a strong AAE_SECRET
+# 2. forward webhooks locally with the Stripe CLI:
+stripe listen --forward-to http://127.0.0.1:8787/api/stripe/webhook
+#    -> prints the whsec_… -> set AAE_STRIPE_WEBHOOK_SECRET to it, restart
+# 3. trigger events:
+stripe trigger checkout.session.completed
+stripe trigger charge.refunded
+# 4. confirm: GET /api/admin/entitlements shows the mint then the revoke.
+```
