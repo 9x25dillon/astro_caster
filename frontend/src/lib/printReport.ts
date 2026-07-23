@@ -50,6 +50,11 @@ const CSS = `
   .sigil-caption { text-align: center; font-size: 0.7rem; letter-spacing: 3px;
                    color: #C9A84C; margin-top: -0.6rem; }
   .disclaimer { font-size: 0.72rem; opacity: 0.8; font-style: italic; }
+  /* Rendered plates bound into the tome (from the Gallery). */
+  .tome-plate { break-inside: avoid; text-align: center; margin: 0.9rem auto; max-width: 3in; }
+  .tome-plate img { width: 2.75in; height: 4.75in; object-fit: cover;
+                    border: 0.5pt solid #bcae90; border-radius: 6pt; display: block; margin: 0 auto; }
+  .tome-plate figcaption { font-size: 0.72rem; color: #5a5142; margin-top: 0.2rem; font-variant: small-caps; }
   /* Plates — the session's dealt spread as engraved card plates (mock: .card-grid) */
   .card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.55rem; margin: 0.9rem 0 0.4rem; }
   .tarot-card { border: 1px solid #C9A84C; background: #F8F4E9; border-radius: 3px;
@@ -299,6 +304,18 @@ function renderBlocks(body: string, sigil: string): string {
       flushList();
       out.push(`<div class="sigil-slot">${sigil}</div>` +
                `<div class="sigil-caption">✧ YOUR PERSONAL CHAOS SIGIL ✧</div>`);
+    } else if (/^!\[[^\]]*\]\(/.test(line)) {
+      // Embedded image — used to bind collected plates into the tome. Only
+      // data: URLs are honored (the images are the gallery's own self-
+      // contained data URLs; nothing external or scriptable is injected).
+      flushList();
+      const m = line.match(/^!\[([^\]]*)\]\((data:[^)]+)\)\s*$/);
+      if (m) {
+        out.push(
+          `<figure class="tome-plate"><img src="${m[2]}" alt="${escapeHtml(m[1])}" />` +
+          `<figcaption>${escapeHtml(m[1])}</figcaption></figure>`
+        );
+      }
     } else if (line.startsWith("## ")) {
       flushList(); out.push(`<h2>${inline(escapeHtml(line.slice(3)))}</h2>`);
     } else if (line.startsWith("### ")) {

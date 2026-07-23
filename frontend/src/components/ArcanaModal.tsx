@@ -39,7 +39,7 @@ import { CLASSROOM, EXPRESSION_KINDS, generateArtifact, type Artifact } from "..
 import { Interpretation } from "./DetailPanel";
 import { useSpeech, speakableText } from "../lib/speech";
 import { printSessionTome } from "../lib/tomePrint";
-import { journalForSeed, shelfAttachPersonal, shelfSaveOracle } from "../lib/bookshelf";
+import { galleryByKind, gallerySave, journalForSeed, shelfAttachPersonal, shelfSaveOracle } from "../lib/bookshelf";
 import { JournalPad } from "./JournalPad";
 import { ConstellationPath } from "./ConstellationPath";
 import { chaosLetters, wordValue, reduceDigit, planetToKamea } from "../lib/sigil";
@@ -195,6 +195,34 @@ export const ArcanaModal: React.FC<{
     }
   }, [chart, sig]);
 
+  // Restore previously collected plates from the Gallery so the Studio shows
+  // the deck you've built so far, not just this session's fresh renders.
+  useEffect(() => {
+    let alive = true;
+    galleryByKind("plate")
+      .then((items) => {
+        if (!alive) return;
+        const restored: Record<string, PlateResponse> = {};
+        for (const it of items) {
+          if (!it.cardId) continue;
+          restored[it.cardId] = {
+            card_id: it.cardId,
+            title: it.title,
+            prompt: "",
+            image_b64: it.data.replace(/^data:image\/png;base64,/, ""),
+            model: String(it.meta?.model ?? ""),
+            size: String(it.meta?.size ?? ""),
+            quality: String(it.meta?.quality ?? ""),
+            ai_source: "openai",
+            disclaimer: "",
+          };
+        }
+        setPlates((prev) => ({ ...restored, ...prev })); // fresh renders win
+      })
+      .catch(() => undefined);
+    return () => { alive = false; };
+  }, []);
+
   async function draw() {
     if (!chart) return;
     setLoading(true); setErr(null);
@@ -275,6 +303,20 @@ export const ArcanaModal: React.FC<{
       const p = await renderPlate(chart, cardId, { source, entitlement });
       setPlates((prev) => ({ ...prev, [cardId]: p }));
       trackEvent("plate_rendered", { card: cardId, source, quality: p.quality });
+      // Persist to the Gallery so the plate is a permanent, collectible
+      // artifact (chapter VII / the physical deck) — not lost when the modal
+      // closes. One image per card per deck source: re-rendering replaces it.
+      void gallerySave({
+        id: `plate:${source}:${cardId}`,
+        kind: "plate",
+        cardId,
+        title: p.title || cardId,
+        mime: "image/png",
+        data: `data:image/png;base64,${p.image_b64}`,
+        source,
+        seed: null,
+        meta: { quality: p.quality, model: p.model, size: p.size },
+      }).catch(() => undefined);
     } catch (e) {
       if (e instanceof ApiError && e.status === 402) {
         setErr("Oracle tier required — rendering a plate is a paid image " +

@@ -8,6 +8,8 @@ import {
   localProgressed, localSolarReturn, localEclipses, isOfflineError,
   type ProgressedChart, type SolarReturnChart, type EclipseTimeline,
 } from "../api/client";
+import { shelveReading } from "../lib/shelveDoc";
+import type { DocChapter } from "../lib/bookshelf";
 
 type Tab = "progressions" | "solar" | "eclipses";
 // Browser-local calendar date — toISOString() is UTC and shows the wrong
@@ -28,13 +30,22 @@ export const PredictiveModal: React.FC = () => {
   const [sr, setSr] = useState<SolarReturnChart | null>(null);
   const [ecl, setEcl] = useState<EclipseTimeline | null>(null);
 
-  async function run<T>(fn: () => Promise<T>, set: (v: T) => void, ev: string, local?: () => Promise<T>) {
+  async function run<T>(
+    fn: () => Promise<T>, set: (v: T) => void, ev: string, local?: () => Promise<T>,
+    shelve?: { kind: string; chapter: DocChapter; title: string }
+  ) {
     setLoading(true); setErr(null); setOnDevice(false);
-    try { set(await fn()); trackEvent(ev); }
+    try {
+      const r = await fn(); set(r); trackEvent(ev);
+      if (shelve) void shelveReading({ ...shelve, result: r, birth });
+    }
     catch (e) {
       // Backend unreachable → compute on-device via @astra/core (full body set).
       if (local && isOfflineError(String(e))) {
-        try { set(await local()); setOnDevice(true); trackEvent(ev + "_local"); }
+        try {
+          const r = await local(); set(r); setOnDevice(true); trackEvent(ev + "_local");
+          if (shelve) void shelveReading({ ...shelve, result: r, birth });
+        }
         catch (e2) { setErr(String(e2)); }
       } else setErr(String(e));
     }
@@ -70,7 +81,7 @@ export const PredictiveModal: React.FC = () => {
                   <input type="date" value={target} onChange={(e) => setTarget(e.target.value)} />
                 </label>
                 <button className="arc-draw-btn" disabled={loading}
-                        onClick={() => run(() => fetchProgressed(birth, target), setProg, "progressed_run", () => localProgressed(birth, target))}>
+                        onClick={() => run(() => fetchProgressed(birth, target), setProg, "progressed_run", () => localProgressed(birth, target), { kind: "progressed", chapter: "III", title: `Secondary Progressions · ${target}` })}>
                   {loading ? "…" : "Progress"}
                 </button>
               </div>
@@ -100,7 +111,7 @@ export const PredictiveModal: React.FC = () => {
                   <input type="number" value={year} onChange={(e) => setYear(Number(e.target.value))} />
                 </label>
                 <button className="arc-draw-btn" disabled={loading}
-                        onClick={() => run(() => fetchSolarReturn(birth, year), setSr, "solar_return_run", () => localSolarReturn(birth, year))}>
+                        onClick={() => run(() => fetchSolarReturn(birth, year), setSr, "solar_return_run", () => localSolarReturn(birth, year), { kind: "solar_return", chapter: "III", title: `Solar Return · ${year}` })}>
                   {loading ? "…" : "Cast return"}
                 </button>
               </div>
@@ -124,7 +135,7 @@ export const PredictiveModal: React.FC = () => {
             <div>
               <div className="arc-draw-controls">
                 <button className="arc-draw-btn" disabled={loading}
-                        onClick={() => run(() => fetchEclipses(birth, today(), 8), setEcl, "eclipses_run", () => localEclipses(birth, today(), 8))}>
+                        onClick={() => run(() => fetchEclipses(birth, today(), 8), setEcl, "eclipses_run", () => localEclipses(birth, today(), 8), { kind: "eclipses", chapter: "III", title: "Eclipse Timeline" })}>
                   {loading ? "…" : "Next 8 eclipses"}
                 </button>
               </div>

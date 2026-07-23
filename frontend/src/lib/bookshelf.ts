@@ -16,9 +16,13 @@
 import type { BirthInput } from "../types";
 
 const DB_NAME = "astra-bookshelf";
-const DB_VERSION = 2; // v2 adds the journal store (P1)
+// v2 journal (P1); v3 gallery (Archive images); v4 documents (Archive text —
+// forecasts/relationships/specialist charts shelve for the tome).
+const DB_VERSION = 4;
 const STORE = "sessions";
 const JOURNAL = "journal";
+const GALLERY = "gallery";
+const DOCUMENTS = "documents";
 
 export interface ShelfPersonal {
   report_markdown: string;
@@ -55,6 +59,16 @@ function openDb(): Promise<IDBDatabase> {
       if (!req.result.objectStoreNames.contains(JOURNAL)) {
         const j = req.result.createObjectStore(JOURNAL, { keyPath: "id" });
         j.createIndex("seed", "seed", { unique: false });
+      }
+      if (!req.result.objectStoreNames.contains(GALLERY)) {
+        const g = req.result.createObjectStore(GALLERY, { keyPath: "id" });
+        g.createIndex("kind", "kind", { unique: false });
+        g.createIndex("cardId", "cardId", { unique: false });
+      }
+      if (!req.result.objectStoreNames.contains(DOCUMENTS)) {
+        const d = req.result.createObjectStore(DOCUMENTS, { keyPath: "id" });
+        d.createIndex("kind", "kind", { unique: false });
+        d.createIndex("chapter", "chapter", { unique: false });
       }
     };
     req.onsuccess = () => resolve(req.result);
@@ -219,4 +233,160 @@ export async function journalMarkdown(): Promise<string> {
     }
   }
   return parts.join("\n");
+}
+
+// ── The Gallery (The Archive) — generated images, shelved to be collected ──
+//
+// Every rendered tarot plate, built sigil, or exported chart image persists
+// here so it becomes a permanent, collectible artifact — the source for a
+// physical tarot deck (VII binds these; the deck-press lays them out) and an
+// illustrated companion to the deluxe tome. Images are stored as data URLs
+// (base64 PNG or inline SVG) so they travel inside a Vault export unchanged.
+
+export type GalleryKind = "plate" | "sigil" | "wheel" | "chart" | "other";
+
+export interface GalleryItem {
+  id: string;          // dedup key — e.g. `plate:${source}:${cardId}` (latest wins)
+  kind: GalleryKind;
+  cardId: string | null;   // the tarot card, when kind === "plate"
+  title: string;           // display label, e.g. "Death — The Studio plate"
+  mime: string;            // "image/png" | "image/svg+xml"
+  data: string;            // a data: URL (self-contained, print- and vault-safe)
+  source: string | null;   // deck lineage (golden_dawn/thoth) or generator (openai)
+  seed: string | null;     // the session/chart it belongs to, when applicable
+  meta: Record<string, unknown> | null; // quality, model, prompt digest, etc.
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Save (or overwrite) a gallery artifact. A stable id (e.g. one per card per
+ *  deck source) makes re-rendering replace the previous image in place. */
+export async function gallerySave(
+  item: Omit<GalleryItem, "createdAt" | "updatedAt">
+): Promise<GalleryItem> {
+  const existing = await tx<GalleryItem | undefined>(
+    GALLERY, "readonly", (s) => s.get(item.id)
+  ).catch(() => undefined);
+  const now = new Date().toISOString();
+  const entry: GalleryItem = {
+    ...item,
+    createdAt: existing?.createdAt ?? now,
+    updatedAt: now,
+  };
+  await tx(GALLERY, "readwrite", (s) => s.put(entry));
+  return entry;
+}
+
+export function galleryList(): Promise<GalleryItem[]> {
+  return tx<GalleryItem[]>(GALLERY, "readonly", (s) => s.getAll()).then((all) =>
+    all.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
+  );
+}
+
+export function galleryByKind(kind: GalleryKind): Promise<GalleryItem[]> {
+  return openDb().then(
+    (db) =>
+      new Promise<GalleryItem[]>((resolve, reject) => {
+        const t = db.transaction(GALLERY, "readonly");
+        const req = t.objectStore(GALLERY).index("kind").getAll(kind);
+        req.onsuccess = () =>
+          resolve(req.result.sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1)));
+        req.onerror = () => reject(req.error);
+        t.oncomplete = () => db.close();
+      })
+  );
+}
+
+export function galleryGet(id: string): Promise<GalleryItem | null> {
+  return tx<GalleryItem | undefined>(GALLERY, "readonly", (s) => s.get(id)).then(
+    (r) => r ?? null
+  );
+}
+
+export function galleryDelete(id: string): Promise<void> {
+  return tx(GALLERY, "readwrite", (s) => s.delete(id)).then(() => undefined);
+}
+
+/** Bulk import (Vault restore); overwrites by id. */
+export async function galleryImport(items: GalleryItem[]): Promise<number> {
+  let n = 0;
+  for (const it of items) {
+    if (!it || typeof it.id !== "string" || typeof it.data !== "string") continue;
+    await tx(GALLERY, "readwrite", (s) => s.put(it));
+    n += 1;
+  }
+  return n;
+}
+
+// ── The Documents (The Archive) — shelved text the tome binds ──
+//
+// Chapters III (The Timing / forecasts), IV (The Relations), and V (The
+// Depths / specialist charts) produce text but never persisted it, so the
+// tome bound nothing from them. Each generation now shelves a markdown
+// summary here, keyed so a re-run overwrites in place.
+
+export type DocChapter = "III" | "IV" | "V";
+
+export interface ShelfDoc {
+  id: string;          // dedup key, e.g. `forecast:${seed}` (re-run replaces)
+  kind: string;        // forecast | synastry | composite | progressed | …
+  chapter: DocChapter; // which tome chapter it binds into
+  title: string;
+  markdown: string;    // the text the tome renders
+  seed: string | null;
+  meta: Record<string, unknown> | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Save (or overwrite) a shelved document. */
+export async function docSave(
+  doc: Omit<ShelfDoc, "createdAt" | "updatedAt">
+): Promise<ShelfDoc> {
+  const existing = await tx<ShelfDoc | undefined>(
+    DOCUMENTS, "readonly", (s) => s.get(doc.id)
+  ).catch(() => undefined);
+  const now = new Date().toISOString();
+  const entry: ShelfDoc = {
+    ...doc,
+    createdAt: existing?.createdAt ?? now,
+    updatedAt: now,
+  };
+  await tx(DOCUMENTS, "readwrite", (s) => s.put(entry));
+  return entry;
+}
+
+export function docList(): Promise<ShelfDoc[]> {
+  return tx<ShelfDoc[]>(DOCUMENTS, "readonly", (s) => s.getAll()).then((all) =>
+    all.sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1))
+  );
+}
+
+export function docByChapter(chapter: DocChapter): Promise<ShelfDoc[]> {
+  return openDb().then(
+    (db) =>
+      new Promise<ShelfDoc[]>((resolve, reject) => {
+        const t = db.transaction(DOCUMENTS, "readonly");
+        const req = t.objectStore(DOCUMENTS).index("chapter").getAll(chapter);
+        req.onsuccess = () =>
+          resolve(req.result.sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1)));
+        req.onerror = () => reject(req.error);
+        t.oncomplete = () => db.close();
+      })
+  );
+}
+
+export function docDelete(id: string): Promise<void> {
+  return tx(DOCUMENTS, "readwrite", (s) => s.delete(id)).then(() => undefined);
+}
+
+/** Bulk import (Vault restore); overwrites by id. */
+export async function docImport(docs: ShelfDoc[]): Promise<number> {
+  let n = 0;
+  for (const d of docs) {
+    if (!d || typeof d.id !== "string" || typeof d.markdown !== "string") continue;
+    await tx(DOCUMENTS, "readwrite", (s) => s.put(d));
+    n += 1;
+  }
+  return n;
 }

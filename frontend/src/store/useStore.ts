@@ -447,16 +447,23 @@ export const useStore = create<AstroState>((set, get) => ({
 
   validateEntitlement: async () => {
     const { entitlement } = get();
-    if (!entitlement) return;
     try {
-      const status = await checkEntitlement(entitlement);
-      if (!status.supporter) {
+      // Always ask the backend — even with NO token. In personal mode
+      // (Edition P) the instance grants oracle tier to every request, so a
+      // tokenless browser is still fully unlocked; without this the UI would
+      // show free-tier support/purchase prompts against an unlocked backend.
+      const status = await checkEntitlement(entitlement ?? "");
+      if (status.supporter) {
+        set({ isSupporter: true });
+      } else if (entitlement) {
         // Token expired or revoked — clear it so the UI reflects reality.
         localStorage.removeItem(ENT_KEY);
         set({ entitlement: null, isSupporter: false });
+      } else {
+        set({ isSupporter: false });
       }
     } catch {
-      // Network failure — leave the stored token alone; it's verified next time.
+      // Network failure — leave the stored state alone; re-checked next time.
     }
   },
 }));
