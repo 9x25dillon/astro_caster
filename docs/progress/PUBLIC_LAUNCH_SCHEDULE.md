@@ -172,8 +172,14 @@ The GitHub vulnerability flag is resolved. Findings, for the record:
 
 ## Phase 4 — Monetization (~3–4 sessions)
 
-- **4.1 Entitlement lifecycle**: expiry/renewal/revocation for paid tokens;
-  device re-link flow; admin lookup tooling (extends receipts ledger).
+- **4.1 Entitlement lifecycle** — ✅ DONE 2026-07-22 (branch
+  `phase4-entitlements`): tokens carry a `jti` and record to a new
+  `entitlement_ledger` table; `verify_token` honors revocation (fail-OPEN
+  on ledger error — signature stays primary); renewal supersedes + issues
+  fresh; device re-link MOVES the entitlement (re-verify payment required);
+  admin lookup + revoke endpoints (operator-gated, revoke fails CLOSED).
+  Rail-agnostic core so 4.2 Stripe plugs in. 11 lifecycle tests; conftest
+  now forces tiered mode so local runs match CI. 297 backend green.
 - **4.2 Stripe rail (D2)**: Checkout for supporter/oracle (subscription or
   one-time — operator choice), webhook → verify → mint entitlement → receipt
   row; refund webhook → revoke. Crypto rail kept: set `AAE_ETH_RPC`,

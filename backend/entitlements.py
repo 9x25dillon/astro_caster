@@ -48,7 +48,9 @@ import base64
 import hashlib
 import hmac
 import json
+import logging
 import os
+import secrets
 import time
 from typing import Optional, Tuple
 
@@ -272,6 +274,16 @@ def _sign(payload: dict) -> str:
 
 
 def mint_entitlement(tier: str, ref: str, verified: bool) -> dict:
+    """Mint a signed tier token.
+
+    Phase 4.1: the payload carries a `jti` (token id) and the mint is recorded
+    on the entitlement ledger so the token can later be revoked (a refund must
+    kill it before its exp), renewed (superseded by a fresh exp), or re-linked
+    on a new device from the payment ref. Recording is best-effort BY DESIGN
+    (see receipts.py posture note): the signature is what grants access, so a
+    ledger hiccup must never block a paying user's mint — an unrecorded token
+    simply cannot be individually revoked (secret rotation remains the blunt
+    fallback)."""
     now = int(time.time())
     payload = {
         "tier": tier,
@@ -279,8 +291,54 @@ def mint_entitlement(tier: str, ref: str, verified: bool) -> dict:
         "verified": verified,
         "iat": now,
         "exp": now + _ENT_DAYS * 86400,
+        # Phase 4.1: a token id makes the stateless token individually
+        # revocable/renewable via the entitlement ledger.
+        "jti": secrets.token_hex(8),
     }
+    try:
+        import receipts as _rcpt
+        _rcpt.ent_record(payload)
+    except Exception:  # best-effort: never block a mint on ledger bookkeeping
+        logging.getLogger("aae").debug("entitlement ledger record skipped", exc_info=True)
     return {"token": _sign(payload), **payload}
+
+
+def renew_entitlement(token: Optional[str]) -> Optional[dict]:
+    """Phase 4.1 renewal. Given a still-valid token, mint a fresh one with the
+    same tier/ref and a new expiry, and mark the old id superseded. Returns
+    the new token dict, or None when the presented token is invalid/expired/
+    revoked (renew a lapsed token by re-presenting payment via relink instead).
+    The client swaps to the returned token; the old one stops verifying."""
+    payload = verify_token(token)
+    if payload is None:
+        return None
+    fresh = mint_entitlement(payload["tier"], payload.get("ref", ""),
+                             bool(payload.get("verified")))
+    old = payload.get("jti")
+    if old:
+        try:
+            import receipts as _rcpt
+            _rcpt.ent_mark_renewed(old)
+        except Exception:
+            logging.getLogger("aae").debug("renew supersede skipped", exc_info=True)
+    return fresh
+
+
+def relink_ref(ref: str, tier: str, verified: bool) -> dict:
+    """Phase 4.1 device re-link (rail-agnostic core). Supersede any active
+    token for this payment reference, then mint a fresh one — so the
+    entitlement MOVES to the requesting device and other devices' tokens for
+    the same payment stop verifying. The CALLER must have re-proved the
+    payment (on-chain re-verify, or later a Stripe session) before calling
+    this; the ledger lookup alone is not proof, since tx hashes are public."""
+    try:
+        import receipts as _rcpt
+        prior = _rcpt.ent_find_active_ref(ref)
+        if prior and prior.get("jti"):
+            _rcpt.ent_mark_renewed(prior["jti"])
+    except Exception:
+        logging.getLogger("aae").debug("relink supersede skipped", exc_info=True)
+    return mint_entitlement(tier, ref=ref, verified=verified)
 
 
 def verify_token(token: Optional[str]) -> Optional[dict]:
@@ -316,6 +374,21 @@ def verify_token(token: Optional[str]) -> Optional[dict]:
         return None
     if int(payload.get("exp", 0)) < int(time.time()):
         return None
+    # Phase 4.1 revocation check. A revoked or superseded token is rejected
+    # even though its signature is valid and it is unexpired. Fails OPEN: an
+    # unreachable ledger (status None) or a pre-ledger token (no jti / unknown
+    # id) is honored on its signature alone — locking out every paying user
+    # because a local SQLite file hiccuped would invert the harm (see the
+    # posture note in receipts.py). Revocation is defense-in-depth, not the
+    # primary gate.
+    jti = payload.get("jti")
+    if jti:
+        try:
+            import receipts as _rcpt
+            if _rcpt.ent_status(jti) in ("revoked", "renewed"):
+                return None
+        except Exception:
+            logging.getLogger("aae").debug("revocation check skipped", exc_info=True)
     return payload
 
 

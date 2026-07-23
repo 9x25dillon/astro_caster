@@ -417,6 +417,46 @@ async def donate_verify(req: DonateVerifyRequest):
     return {"granted": True, "tier": tier, "note": note, "entitlement": ent}
 
 
+class RenewRequest(BaseModel):
+    entitlement: str
+
+
+@app.post("/api/entitlement/renew")
+async def entitlement_renew(req: RenewRequest):
+    """Phase 4.1: renew a still-valid token — issue a fresh one (new expiry,
+    same tier), supersede the old. The client stores the returned token."""
+    fresh = ENT.renew_entitlement(req.entitlement)
+    if fresh is None:
+        raise HTTPException(
+            status_code=401,
+            detail="token invalid, expired, or revoked — re-link with your "
+                   "payment to recover an entitlement",
+        )
+    _spawn(TEL.log_tier(action="renew", tier=fresh["tier"],
+                        verified=bool(fresh["verified"]), ref=fresh.get("ref", "")))
+    return {"granted": True, "tier": fresh["tier"], "entitlement": fresh}
+
+
+@app.post("/api/entitlement/relink")
+async def entitlement_relink(req: DonateVerifyRequest):
+    """Phase 4.1 device re-link: re-prove the payment, then MOVE the
+    entitlement to this device (supersedes other devices' tokens for the same
+    payment). Re-verification is mandatory — a public tx hash is not proof by
+    itself. Crypto rail; the Stripe re-link lands with 4.2."""
+    if req.chain == "evm":
+        ok, verified, note, value_wei = await ENT.verify_eth_payment_details(req.tx_hash)
+    else:
+        ok, verified, note = ENT.accept_offchain_payment(req.tx_hash)
+        value_wei = 0
+    if not ok:
+        raise HTTPException(status_code=402, detail=note)
+    tier = ENT.paid_tier(verified, value_wei)
+    ent = ENT.relink_ref(req.tx_hash[:18], tier, verified)
+    _spawn(TEL.log_tier(action="relink", tier=tier, verified=verified,
+                        ref=req.tx_hash[:18]))
+    return {"granted": True, "tier": tier, "note": note, "entitlement": ent}
+
+
 class ReportPurchaseRequest(BaseModel):
     tx_hash: str
     chain: str = "evm"
@@ -591,6 +631,35 @@ async def admin_stats(token: Optional[str] = None,
     summary = await asyncio.to_thread(TEL.summary)
     summary["caches"] = CACHE.all_stats()  # Phase 3.4 hit-rate visibility
     return summary
+
+
+@app.get("/api/admin/entitlements")
+async def admin_entitlements(q: str = "", limit: int = 50,
+                             x_aae_token: Optional[str] = Header(None)):
+    """Phase 4.1 operator lookup over the entitlement ledger. `q` matches a
+    token-id or payment-ref fragment; newest first."""
+    if not ENT.is_operator(x_aae_token):
+        raise HTTPException(status_code=403, detail="forbidden")
+    return {"rows": await asyncio.to_thread(RCPT.ent_admin_list, q, limit)}
+
+
+class RevokeRequest(BaseModel):
+    jti: str
+    note: str = ""
+
+
+@app.post("/api/admin/entitlement/revoke")
+async def admin_entitlement_revoke(req: RevokeRequest,
+                                   x_aae_token: Optional[str] = Header(None)):
+    """Phase 4.1 operator revocation (the refund→kill path). Fails CLOSED: an
+    unknown id or an unreachable ledger returns an error so the operator knows
+    the revoke did not take (pre-ledger tokens are killed by secret rotation)."""
+    if not ENT.is_operator(x_aae_token):
+        raise HTTPException(status_code=403, detail="forbidden")
+    ok, note = await asyncio.to_thread(RCPT.ent_revoke, req.jti, req.note)
+    if not ok:
+        raise HTTPException(status_code=409, detail=note)
+    return {"revoked": True, "jti": req.jti, "note": note}
 
 
 @app.get("/metrics")
