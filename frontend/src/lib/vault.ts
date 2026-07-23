@@ -8,14 +8,16 @@
 // so it is the user's to guard (the UI says so).
 
 import {
-  journalAll, journalImport, shelfImport, shelfList,
-  type JournalEntry, type ShelfEntry,
+  docImport, docList, galleryImport, galleryList, journalAll, journalImport,
+  shelfImport, shelfList,
+  type GalleryItem, type JournalEntry, type ShelfDoc, type ShelfEntry,
 } from "./bookshelf";
 
 const PREFIX = "aae.";
 const FORMAT_V1 = "astra-vault@1";
 const FORMAT_V2 = "astra-vault@2"; // @2 added the Bookshelf
-const FORMAT = "astra-vault@3"; // @3 adds the Journal
+const FORMAT_V3 = "astra-vault@3"; // @3 added the Journal
+const FORMAT = "astra-vault@4"; // @4 adds the Gallery (The Archive)
 
 export interface VaultFile {
   format: string;
@@ -23,6 +25,8 @@ export interface VaultFile {
   localStorage: Record<string, string>;
   bookshelf?: ShelfEntry[];
   journal?: JournalEntry[];
+  gallery?: GalleryItem[];
+  documents?: ShelfDoc[];
 }
 
 /** Snapshot every aae.* localStorage key + the Bookshelf library. */
@@ -37,12 +41,16 @@ export async function buildVault(): Promise<VaultFile> {
   }
   const bookshelf = await shelfList().catch(() => [] as ShelfEntry[]);
   const journal = await journalAll().catch(() => [] as JournalEntry[]);
+  const gallery = await galleryList().catch(() => [] as GalleryItem[]);
+  const documents = await docList().catch(() => [] as ShelfDoc[]);
   return {
     format: FORMAT,
     exported_at: new Date().toISOString(),
     localStorage: state,
     bookshelf,
     journal,
+    gallery,
+    documents,
   };
 }
 
@@ -58,10 +66,12 @@ export async function downloadVault(): Promise<number> {
   a.download = `astra-vault-${vault.exported_at.slice(0, 10)}.json`;
   a.click();
   URL.revokeObjectURL(url);
-  return Object.keys(vault.localStorage).length + (vault.bookshelf?.length ?? 0) + (vault.journal?.length ?? 0);
+  return Object.keys(vault.localStorage).length + (vault.bookshelf?.length ?? 0)
+    + (vault.journal?.length ?? 0) + (vault.gallery?.length ?? 0)
+    + (vault.documents?.length ?? 0);
 }
 
-/** Restore a vault file's contents (accepts @1 and @2). Only aae.*-prefixed
+/** Restore a vault file's contents (accepts @1 through @4). Only aae.*-prefixed
  *  keys are written (allowlist — a doctored file can't plant arbitrary keys);
  *  existing aae.* keys the file doesn't carry are left alone. Bookshelf
  *  entries import by seed (overwrite). Returns the count restored; throws on
@@ -74,7 +84,8 @@ export async function restoreVault(text: string): Promise<number> {
     throw new Error("not a vault file (invalid JSON)");
   }
   const v = parsed as Partial<VaultFile>;
-  const knownFormat = v.format === FORMAT || v.format === FORMAT_V2 || v.format === FORMAT_V1;
+  const knownFormat = v.format === FORMAT || v.format === FORMAT_V3
+    || v.format === FORMAT_V2 || v.format === FORMAT_V1;
   if (!knownFormat || typeof v.localStorage !== "object" || v.localStorage === null) {
     throw new Error("not a vault file (unrecognized format)");
   }
@@ -89,6 +100,12 @@ export async function restoreVault(text: string): Promise<number> {
   }
   if (Array.isArray(v.journal)) {
     written += await journalImport(v.journal);
+  }
+  if (Array.isArray(v.gallery)) {
+    written += await galleryImport(v.gallery);
+  }
+  if (Array.isArray(v.documents)) {
+    written += await docImport(v.documents);
   }
   return written;
 }
