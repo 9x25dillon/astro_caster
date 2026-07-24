@@ -5,6 +5,56 @@ PR bodies; this is the story. Started session 15 at the operator's request._
 
 ---
 
+## Session 19 · 2026-07-24 — a label that lied, and a door that opens outward
+
+The session began "let's pick up from yesterday," and the handoff said clean
+slate: Phase 4 all merged. Git disagreed. Two of the four Phase-4 PRs — #100
+(the Stripe rail) and #101 (the cost controls) — showed **MERGED** on GitHub
+but were nowhere on main. They'd been stacked on `phase4-entitlements`, so
+when #99 squash-merged to main first it orphaned that branch, and #100/#101
+then merged *into the dead branch*. `stripe_rail.py` and `budget.py` didn't
+exist on main. The label lied; only `git merge-base --is-ancestor` told the
+truth. The whole task the operator picked — 4.3, "wire the deluxe purchase to
+the Stripe rail" — was standing on a rail that wasn't there.
+
+So first we recovered. Both orphaned squashes isolated perfectly (each a single
+commit against its base), cherry-picked onto a fresh branch cut from main with
+zero conflicts, and the suite came back to **319** — the exact number session
+18 had recorded. That number was the proof: the recovery *was* the intended
+state, nothing lost, nothing altered. Then 4.3 on top: the deluxe report as a
+one-time Stripe purchase, bound to one Oracle session by the seed's **hash** —
+because the raw seed ends with the user's question, only the hash rides in
+Stripe metadata; the question never leaves the observatory.
+
+Then the operator said the thing that mattered most, and it came from being
+burned: *make sure a customer can actually cancel — stop auto-pay, remove the
+sub — because I'm dealing with that missing from another company right now and
+I won't ship it.* That's not a feature request, it's a values statement, and it
+got built as one: Stripe's hosted Customer Portal behind `POST
+/api/billing/portal`, a "Manage or cancel subscription" button in the Support
+panel, the Stripe customer recorded at mint so the entitlement can find its own
+portal, and the cancellation flowing back through the webhook to revoke access
+at period end. A subscription you can't leave isn't shippable. Now you can
+leave it in two clicks, no email to anyone.
+
+Two more honesty passes rode along: CodeQL caught a partial-SSRF the moment the
+new claim endpoint fed a user-supplied `session_id` into a Stripe URL path —
+fixed with the same allowlist pattern the repo used for `voice_id`. And the
+high dependabot alert (`brace-expansion` ReDoS) got its patch. Both PRs (#104,
+#105) went green and the operator merged them — #104 onto main first-parent
+clean this time, so the trap that started the day did not get to repeat itself.
+
+We ended trying to *watch* it work: Stripe CLI installed, `.env` flipped into a
+reversible Edition-Q test mode, `stripe listen` forwarding to a live backend, a
+real test-mode checkout link handed over. The operator stepped away mid-test
+(and, in parallel, finished their Stripe account verification and business
+review — live payments are unlocked next). Servers down, `.env` restored to the
+personal instance, the live click-through still pending their hands. The code
+is proven by 339 tests; what's left is the ceremony of seeing the card charge
+and the cancel revoke, whenever they sit down to it.
+
+---
+
 ## Session 18 · 2026-07-23 — the till, the predicate, and a lossy seed
 
 Three arcs, and they rhymed: each one was about making a claim honest before

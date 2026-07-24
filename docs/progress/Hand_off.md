@@ -1,27 +1,47 @@
 # Hand_off.md
 
-_Last updated: 2026-07-23 (session 18 CLOSED — main @ 08f4c33; everything
-this session is MERGED, nothing parked, working tree clean)_
+_Last updated: 2026-07-24 (session 19 CLOSED — main @ b300c7b; #104 + #105
+MERGED, servers down, .env back in personal mode, working tree clean)_
 
 ## TL;DR for next session
 
-**Clean slate — nothing awaiting merge.** The operator merged the whole
-Phase-4 stack and the parity docs this session: **#99** (4.1 entitlement
-lifecycle), **#100** (4.2 Stripe rail), **#101** (4.4 cost controls),
-**#103** (parity docs + `_tally_elements` scheme). All on main. Phase 4 per
-**docs/progress/PUBLIC_LAUNCH_SCHEDULE.md** is now: 4.1 ✅, 4.2 ✅, 4.4 ✅ —
-**4.3 was never built** (see WORK ORDER below — confirm what 4.3 is before
-assuming a gap). substrate-comm's Pisot-predicate fix is committed+pushed
-there (`ce83b30`), separate repo. Narrative in WORK_JOURNAL.md session 18.
+**Phase 4 monetization is now FULLY on main and complete.** This session first
+discovered that session 18's handoff was WRONG: #100 (Stripe rail) + #101 (cost
+controls) showed MERGED on GitHub but had squash-merged onto a dead *stacked*
+base branch, never reaching main (`stripe_rail.py`/`budget.py` were missing).
+See [[stacked-pr-orphan-trap]] + WORK_JOURNAL session 19. Recovered both via
+clean cherry-picks (suite returned to exactly 319, proving fidelity), THEN
+added **4.3 deluxe purchase** (deluxe report on the Stripe rail, bound to one
+Oracle session by the seed HASH — raw seed never reaches Stripe) and
+**subscription self-service** (cancel/stop-auto-renew/update-card via Stripe's
+Customer Portal, `POST /api/billing/portal` + a "Manage or cancel subscription"
+button in the Support panel; cancellation → webhook revoke at period end) + a
+partial-SSRF fix (allowlist `session_id` before it hits a Stripe URL). All in
+PR **#104** (MERGED — landed on main first-parent-clean, trap did not recur).
+Dependabot high (`brace-expansion` ReDoS) fixed in **#105** (MERGED). main @
+b300c7b, 0 open PRs, **339 backend tests**. PUBLIC_LAUNCH_SCHEDULE.md Phase 4:
+4.1/4.2/4.3/4.4 ✅ + subscription self-service ✅.
 
-**The resonarium is now specified at its boundary but not started.**
-`docs/design/RESONARIUM_PARITY.md` (new this session) sets two founding
-constraints BEFORE the instrument gets built: (1) the printed 2-dp seed is
-lossy — display-quantize before arithmetic + keep a full-precision machine
-parity vector; `round()` ties-to-even is part of the spec; (2) parity covers
-the deterministic substrate ONLY, never LLM-synthesised statistics (the
-report's "Fire 38%" is the model's arithmetic; the engine gives Fire 25% /
-Water-dominant). Read that file first if resonarium work resumes.
+**Stripe is set up but the live click-through is NOT yet verified.** Operator
+has enabled the Customer Portal (cancel + email notifications) in the dashboard
+AND finished account verification + business review (live payments unlocked
+next). The **Stripe CLI is installed** (`~/.local/bin/stripe`, v1.44.0). The
+test key is saved **commented** in `backend/.env` (any active `AAE_STRIPE_*`
+trips the personal-mode interlock — Stripe = Edition Q, exclusive with personal
+mode). **LIVE-TEST TOGGLE** (reversible; exercised + reverted this session): in
+`.env` comment `AAE_PERSONAL_MODE` and uncomment the `AAE_ENV`/`AAE_STRIPE_*`
+block → `stripe listen --forward-to http://127.0.0.1:8787/api/stripe/webhook`
+(fresh `whsec_` each run → into `.env`) → `bash run.sh` → `POST /api/checkout`
+returns a hosted URL. The unfinished bit is the human click-through: pay test
+card `4242 4242 4242 4242`, then Cancel via the portal, and watch mint→revoke.
+Reverse the toggle after (already done — `.env` is back in personal mode).
+**Token to roll:** the `sk_test_` key was pasted in chat once; when the operator
+rolls it, re-place the new value into `.env` with the edit tool (never echo it).
+
+**The resonarium (the other direction fork) is still specified-not-started** —
+`docs/design/RESONARIUM_PARITY.md`: (1) printed 2-dp seed is lossy →
+display-quantize before arithmetic + keep a full-precision parity vector;
+(2) parity covers the deterministic substrate ONLY, never LLM statistics.
 
 ## WORK ORDER for next session (in this order)
 
@@ -39,9 +59,14 @@ intuitive redesign, and it must stay a math-based function (no religious/
 agnostic system dressing that can't pay for itself). This is an operator
 decision — surface it, don't pick.
 
-**1. Phase 4.3 (if it exists in the schedule).** 4.1/4.2/4.4 landed but 4.3
-was skipped — open PUBLIC_LAUNCH_SCHEDULE.md and confirm what 4.3 is
-(likely the pricing-page / public purchase UX) before treating it as a gap.
+**1. Phase 4.3 — DONE (session 19), plus subscription self-service.** The
+remaining monetization gap is now the **BUY UI (Track E, E-3 pricing surface)**:
+the Stripe tier checkout (#100) AND the deluxe checkout (4.3) both shipped
+backend-first with only client.ts wiring (`reportCheckout`/`claimReportCheckout`
+/`openBillingPortal`). The Support panel has the CANCEL button, but there is
+still no BUY flow — button → `/api/checkout` (or `/api/personal-report/checkout`)
+→ redirect → handle `?checkout=` / `?report_checkout=` on return. That's Track
+E's job. Also finish the live Stripe click-through verification (TL;DR toggle).
 
 **2. Then 3.5 — backups + restore drill.** Scheduled encrypted backup of
 `backend/data/*.db` + `backend/.env` (operator's machine = source of
