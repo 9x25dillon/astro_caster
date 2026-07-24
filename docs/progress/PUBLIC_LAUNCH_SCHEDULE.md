@@ -180,16 +180,63 @@ The GitHub vulnerability flag is resolved. Findings, for the record:
   admin lookup + revoke endpoints (operator-gated, revoke fails CLOSED).
   Rail-agnostic core so 4.2 Stripe plugs in. 11 lifecycle tests; conftest
   now forces tiered mode so local runs match CI. 297 backend green.
-- **4.2 Stripe rail (D2)**: Checkout for supporter/oracle (subscription or
-  one-time — operator choice), webhook → verify → mint entitlement → receipt
-  row; refund webhook → revoke. Crypto rail kept: set `AAE_ETH_RPC`,
-  `AAE_ORACLE_MIN_WEI`, `AAE_REPORT_MIN_WEI` (the pre-deploy trio from the
-  audit).
-- **4.3 Deluxe purchases**: per-report purchase flow on the same rail
-  (machinery exists; wire to Stripe).
-- **4.4 AI cost controls**: per-user daily budgets, global spend alarm,
-  graceful degrade to offline compilers when capped (already honest —
-  keep `ai_source` provenance).
+- **4.2 Stripe rail (D2)** — ✅ CODE DONE 2026-07-22 (branch
+  `phase4-stripe`, stacked on 4.1): `stripe_rail.py` (raw httpx, no SDK) —
+  `POST /api/checkout` (hosted Checkout, one-time or subscription via
+  `AAE_STRIPE_MODE`), `GET /api/checkout/{id}` (mint on browser return,
+  webhook-lag resilient), `POST /api/stripe/webhook` (RAW-body signature
+  verify hand-rolled per Stripe's scheme → completed=mint, refund/cancel=
+  revoke, reusing 4.1's `relink_ref`/`ent_revoke_ref`). 503 when
+  unconfigured; the `AAE_STRIPE_*` keys trip the personal-mode interlock
+  (Edition Q only). DEPLOY.md §8 + Stripe-CLI drill. 13 tests (webhook
+  tamper/stale/wrong-secret all rejected, mint→refund round trip); 310
+  backend green. **OPERATOR: add test keys + run the §8 drill to move
+  this to live-verified.** Crypto rail kept (`AAE_ETH_RPC`,
+  `AAE_ORACLE_MIN_WEI`, `AAE_REPORT_MIN_WEI` — the pre-deploy trio).
+- **4.3 Deluxe purchases** — ✅ CODE DONE 2026-07-24 (branch
+  `phase4-recover-and-deluxe`): the deluxe personal-report on the Stripe
+  rail — `POST /api/personal-report/checkout` (oracle-gated, one-time
+  `payment` session priced by `AAE_STRIPE_REPORT_USD`, default $9) →
+  hosted URL → on redirect back, `POST /api/personal-report/checkout/claim`
+  {session_id, seed} mints the report claim. Bound to ONE Oracle session by
+  the seed's HASH — only the hash rides in Stripe metadata, so the raw seed
+  (which ends with the user's question) never leaves. Idempotent via the
+  receipt ledger (`claim_tx`, ref-keyed); a paid session for one sitting
+  can't unlock another (409 on seed-hash mismatch). The webhook deliberately
+  ignores report `completed` events (the claim binds to the raw seed the
+  webhook never sees). **KNOWN LIMIT:** report claims are stateless 30-day
+  client-held tokens (same as the crypto rail), so a refund can't revoke an
+  already-minted deluxe report — documented, matches existing behavior.
+  Client wiring: `reportCheckout` / `claimReportCheckout` in client.ts; the
+  purchase BUTTON + redirect-return handling ride with Track E (E-3 pricing
+  surface), exactly as 4.2's tier checkout shipped backend-first. 12 tests
+  (seed-hash binding, idempotency, gating, hash-only-leaves); 331 backend
+  green. **NOTE:** this branch ALSO recovers 4.2 (#100) and 4.4 (#101),
+  which merged into their orphaned stacked-PR base branches, not main.
+- **4.x Subscription self-service** — ✅ CODE DONE 2026-07-24 (same branch):
+  the launch quality bar that a subscription must be cancellable. `POST
+  /api/billing/portal {entitlement}` opens Stripe's hosted Customer Portal
+  (cancel / stop auto-renew / update card / invoices); the Stripe customer id
+  is recorded at mint time (keyed by payment ref) so the holder can be linked
+  to their portal. Cancellation → `customer.subscription.deleted` → the webhook
+  revokes at period end (already built in 4.2). Frontend: "Manage or cancel
+  subscription" in the ☤ Support panel. **Hardening:** the user-supplied Stripe
+  `session_id` reaching `retrieve_session`'s URL path is now allowlisted
+  (`safe_object_id`, guards py/partial-ssrf — CodeQL flagged it on #104).
+  **OPERATOR:** enable the portal once in the Stripe dashboard (Settings →
+  Billing → Customer portal, "Cancel subscriptions" on) — DEPLOY.md 8.2.
+- **4.4 AI cost controls** — ✅ DONE 2026-07-22 (branch
+  `phase4-cost-controls`, stacked on 4.2): `budget.py` — per-user + global
+  daily USD ceilings (estimated cost, output-token-dominated), a spend
+  alarm (logged once/day + `aae_ai_spend_alarm` gauge). Over cap, the
+  report endpoints degrade to the offline compiler via a new `allow_ai`
+  flag threaded through `generate_oracle_report/course/personal_report`
+  (honest `ai_source=offline`); the image endpoint (no offline path)
+  refuses with **429** and points at the free prompt. Spend surfaces in
+  `/api/admin/stats.budget` and Prometheus (`aae_ai_spend_usd/_cap/
+  _alarm`). Env: `AAE_USER_DAILY_USD` (2), `AAE_GLOBAL_DAILY_USD` (100),
+  `AAE_SPEND_ALARM_FRAC` (0.8), cost knobs; `AAE_BUDGET_ENABLED=0` off.
+  9 tests; 319 backend green.
 - **4.5 Tome storefront gate** (PHYSICAL_TOME_PRODUCT Phase 2) — **only if
   Phase 0's printed copy passes in hand**; Lulu fulfillment, priced ≥ the
   $150 gift-worthiness bar.

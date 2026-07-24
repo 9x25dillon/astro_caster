@@ -410,16 +410,18 @@ def _offline_compiled(req: PersonalReportRequest, sub: Dict) -> str:
 # --------------------------------------------------------------------------- #
 
 
-async def generate_personal_report(req: PersonalReportRequest) -> PersonalReportResponse:
+async def generate_personal_report(req: PersonalReportRequest,
+                                   allow_ai: bool = True) -> PersonalReportResponse:
     """Verify the Oracle session (fail closed), build the deterministic
-    substrate, then compile — Fable 5 synthesis with an honest offline fallback."""
+    substrate, then compile — Fable 5 synthesis with an honest offline fallback.
+    allow_ai=False (budget cap) skips the provider → the offline compiler."""
     verify_oracle_session(req)          # raises ValueError -> endpoint 409
     sub = build_personal_substrate(req)
     system = (PERSONAL_REPORT_SYSTEM
               .replace("{ORACLE_DATE}", sub["oracle_date"])
               .replace("{SHORT_SEED}", sub["short_seed"])) + PS.SYSTEM_NOTE
     ai = await _call_fable(system, _substrate_prompt(req, sub),
-                           model=_MODEL, max_tokens=_MAX_TOKENS, effort=_EFFORT)
+                           model=_MODEL, max_tokens=_MAX_TOKENS, effort=_EFFORT) if allow_ai else None
     if ai:
         markdown, ai_source, model = ai["text"], "llm", ai["model"]
     else:

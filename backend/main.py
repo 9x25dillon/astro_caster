@@ -73,7 +73,9 @@ import uuid
 
 import cache as CACHE
 import ephemeris as E
+import budget as BUDGET
 import entitlements as ENT
+import stripe_rail as STRIPE
 import logsetup as LOG
 import metrics as MET
 import ratelimit as RL
@@ -457,6 +459,136 @@ async def entitlement_relink(req: DonateVerifyRequest):
     return {"granted": True, "tier": tier, "note": note, "entitlement": ent}
 
 
+# --------------------------------------------------------------------------- #
+# Stripe rail (Phase 4.2) — cards/subscriptions alongside the crypto rail
+# --------------------------------------------------------------------------- #
+
+class CheckoutRequest(BaseModel):
+    tier: str                            # supporter | oracle
+    success_url: Optional[str] = None    # default: app root with the session id
+    cancel_url: Optional[str] = None
+
+
+@app.post("/api/checkout")
+async def create_checkout(req: CheckoutRequest):
+    """Create a Stripe Checkout Session and return its hosted URL. 503 when the
+    rail is unconfigured (AAE_STRIPE_SECRET_KEY unset) — the crypto rail and
+    the offline compilers remain available."""
+    if not STRIPE.stripe_available():
+        raise HTTPException(status_code=503, detail="card payments not configured")
+    if req.tier not in ("supporter", "oracle"):
+        raise HTTPException(status_code=400, detail="tier must be supporter or oracle")
+    base = os.environ.get("AAE_PUBLIC_URL", "http://127.0.0.1:5173").rstrip("/")
+    success = req.success_url or f"{base}/?checkout={{CHECKOUT_SESSION_ID}}"
+    cancel = req.cancel_url or f"{base}/?checkout=cancel"
+    try:
+        s = await STRIPE.create_checkout_session(req.tier, success, cancel)
+    except Exception as exc:
+        raise _client_error("checkout session failed", exc, status=502)
+    _spawn(TEL.log_tier(action="checkout_created", tier=req.tier,
+                        verified=False, ref=s["id"][:18]))
+    return {"url": s["url"], "session_id": s["id"]}
+
+
+@app.get("/api/checkout/{session_id}")
+async def retrieve_checkout(session_id: str):
+    """Browser retrieval after success_url. If the session is paid, mint (or
+    re-issue) the entitlement and return it — resilient to webhook lag. If not
+    yet paid, report status so the client can poll briefly."""
+    if not STRIPE.stripe_available():
+        raise HTTPException(status_code=503, detail="card payments not configured")
+    try:
+        session = await STRIPE.retrieve_session(session_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="malformed checkout session id")
+    except Exception as exc:
+        raise _client_error("session lookup failed", exc, status=502)
+    if session.get("payment_status") not in ("paid", "no_payment_required"):
+        return {"granted": False, "status": session.get("payment_status", "pending")}
+    if STRIPE.is_report_session(session):
+        raise HTTPException(
+            status_code=409,
+            detail="deluxe-report purchase — claim it at "
+                   "/api/personal-report/checkout/claim with the Oracle seed",
+        )
+    tier = (session.get("metadata") or {}).get("tier")
+    if tier not in ("supporter", "oracle"):
+        raise HTTPException(status_code=409, detail="session has no tier")
+    ref = STRIPE.ref_for_session(session)
+    ent = ENT.relink_ref(ref, tier, verified=True)
+    if STRIPE.customer_id(session):     # so the holder can self-manage / cancel
+        RCPT.stripe_customer_set(ref, STRIPE.customer_id(session))
+    return {"granted": True, "tier": tier, "entitlement": ent}
+
+
+@app.post("/api/stripe/webhook")
+async def stripe_webhook(request: Request):
+    """Stripe → server. Verify the signature over the RAW body, then apply the
+    lifecycle action: completed → mint, refund/cancel → revoke. Returns 200 so
+    Stripe stops retrying once we've accepted it; a bad signature is 400."""
+    if not STRIPE.webhook_configured():
+        raise HTTPException(status_code=503, detail="webhook not configured")
+    payload = await request.body()
+    sig = request.headers.get("stripe-signature", "")
+    try:
+        event = STRIPE.verify_webhook(payload, sig)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=f"webhook rejected: {exc}")
+    plan = STRIPE.plan_from_event(event)
+    if plan is None:
+        return {"received": True, "handled": False}     # event we don't act on
+    if plan["action"] == "mint":
+        ENT.relink_ref(plan["ref"], plan["tier"], verified=True)
+        if plan.get("customer"):    # so the holder can self-manage / cancel
+            RCPT.stripe_customer_set(plan["ref"], plan["customer"])
+        _spawn(TEL.log_tier(action="stripe_mint", tier=plan["tier"],
+                            verified=True, ref=plan["ref"][:18]))
+    else:  # revoke
+        RCPT.ent_revoke_ref(plan["ref"], note="stripe refund/cancel")
+        _spawn(TEL.log_tier(action="stripe_revoke", tier="", verified=True,
+                            ref=plan["ref"][:18]))
+    return {"received": True, "handled": True, "action": plan["action"]}
+
+
+class BillingPortalRequest(BaseModel):
+    entitlement: str
+    return_url: Optional[str] = None
+
+
+@app.post("/api/billing/portal")
+async def billing_portal(req: BillingPortalRequest):
+    """Customer self-service (Phase 4). Open the Stripe Customer Portal for the
+    subscription behind this entitlement so the holder can CANCEL, stop
+    auto-renew, update their card, or download invoices — no email to us
+    required. The cancellation returns as a `customer.subscription.deleted`
+    webhook, which revokes the entitlement at period end. 409 when no Stripe
+    subscription is linked (crypto/one-time purchases have nothing to cancel)."""
+    if not STRIPE.stripe_available():
+        raise HTTPException(status_code=503, detail="card payments not configured")
+    payload = ENT.verify_token(req.entitlement)
+    if not payload:
+        raise HTTPException(
+            status_code=401,
+            detail="a valid entitlement is required to manage billing",
+        )
+    customer = RCPT.stripe_customer_get(payload.get("ref", ""))
+    if not customer:
+        raise HTTPException(
+            status_code=409,
+            detail="no card subscription is linked to this entitlement — "
+                   "self-service billing is for Stripe subscription purchases",
+        )
+    base = os.environ.get("AAE_PUBLIC_URL", "http://127.0.0.1:5173").rstrip("/")
+    try:
+        s = await STRIPE.create_billing_portal_session(customer, req.return_url or base)
+    except Exception as exc:
+        raise _client_error("billing portal unavailable", exc, status=502)
+    _spawn(TEL.log_tier(action="billing_portal_opened", tier=payload.get("tier", ""),
+                        verified=bool(payload.get("verified")),
+                        ref=str(payload.get("ref", ""))[:18]))
+    return {"url": s["url"]}
+
+
 class ReportPurchaseRequest(BaseModel):
     tx_hash: str
     chain: str = "evm"
@@ -500,6 +632,90 @@ async def personal_report_purchase(req: ReportPurchaseRequest, request: Request)
     _spawn(TEL.log_tier(
         action="report_purchase", tier=tier, verified=verified, ref=req.tx_hash[:18]
     ))
+    return {"granted": True, "product": "personal_report", "note": note,
+            "report_token": tok}
+
+
+class ReportCheckoutRequest(BaseModel):
+    seed: str                            # the Oracle session the claim will bind to
+    entitlement: Optional[str] = None    # oracle tier required
+    success_url: Optional[str] = None
+    cancel_url: Optional[str] = None
+
+
+@app.post("/api/personal-report/checkout")
+async def personal_report_checkout(req: ReportCheckoutRequest, request: Request):
+    """Phase 4.3 — the deluxe edition on the Stripe rail (the card equivalent of
+    /api/personal-report/purchase). Oracle tier is required (the product only
+    exists post-Oracle); returns a hosted Stripe URL. Only the seed's HASH rides
+    in Stripe metadata — the raw seed (which ends with the question) does not."""
+    if not STRIPE.stripe_available():
+        raise HTTPException(status_code=503, detail="card payments not configured")
+    RL.check(request, "oracle", req.entitlement)   # shares the paid-path budget
+    tier = ENT.entitlement_status(req.entitlement).get("tier", "free")
+    if tier != "oracle":
+        raise HTTPException(
+            status_code=402,
+            detail="oracle entitlement required — the deluxe edition is an "
+                   "optional post-Oracle product",
+        )
+    if not req.seed.strip():
+        raise HTTPException(status_code=400, detail="missing oracle session seed")
+    base = os.environ.get("AAE_PUBLIC_URL", "http://127.0.0.1:5173").rstrip("/")
+    success = req.success_url or f"{base}/?report_checkout={{CHECKOUT_SESSION_ID}}"
+    cancel = req.cancel_url or f"{base}/?report_checkout=cancel"
+    try:
+        s = await STRIPE.create_report_checkout_session(req.seed, success, cancel)
+    except Exception as exc:
+        raise _client_error("checkout session failed", exc, status=502)
+    _spawn(TEL.log_tier(action="report_checkout_created", tier=tier,
+                        verified=False, ref=s["id"][:18]))
+    return {"url": s["url"], "session_id": s["id"]}
+
+
+class ReportClaimRequest(BaseModel):
+    session_id: str
+    seed: str                            # proves which Oracle session this unlocks
+    entitlement: Optional[str] = None
+
+
+@app.post("/api/personal-report/checkout/claim")
+async def personal_report_checkout_claim(req: ReportClaimRequest, request: Request):
+    """Phase 4.3 — after Stripe redirects back with the session id, mint the
+    report claim for THIS session. The session must be paid AND its metadata
+    seed-hash must match the presented seed, so a purchase for one Oracle sitting
+    cannot unlock another. Idempotent via the receipt ledger (first redemption
+    binds the payment to this seed; re-claims for the same seed re-mint)."""
+    if not STRIPE.stripe_available():
+        raise HTTPException(status_code=503, detail="card payments not configured")
+    RL.check(request, "oracle", req.entitlement)
+    if not req.seed.strip():
+        raise HTTPException(status_code=400, detail="missing oracle session seed")
+    try:
+        session = await STRIPE.retrieve_session(req.session_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="malformed checkout session id")
+    except Exception as exc:
+        raise _client_error("session lookup failed", exc, status=502)
+    if session.get("payment_status") not in ("paid", "no_payment_required"):
+        raise HTTPException(status_code=402, detail="payment not completed for this session")
+    if not STRIPE.is_report_session(session):
+        raise HTTPException(status_code=409, detail="this session is not a deluxe-report purchase")
+    if not STRIPE.seed_hash_matches(session, req.seed):
+        raise HTTPException(
+            status_code=409,
+            detail="this purchase was for a different Oracle session",
+        )
+    ref = STRIPE.ref_for_session(session)
+    # First redemption binds the payment to this seed; a different seed is
+    # refused (the Stripe payment can't be reused across sessions). Fails closed.
+    ok, note = RCPT.claim_tx(ref, req.seed, verified=True,
+                             wei=STRIPE.report_price_cents())
+    if not ok:
+        raise HTTPException(status_code=402, detail=note)
+    tok = ENT.mint_report_token(seed=req.seed, ref=ref[:18], verified=True)
+    _spawn(TEL.log_tier(action="report_purchase", tier="oracle",
+                        verified=True, ref=ref[:18]))
     return {"granted": True, "product": "personal_report", "note": note,
             "report_token": tok}
 
@@ -630,6 +846,7 @@ async def admin_stats(token: Optional[str] = None,
         raise HTTPException(status_code=403, detail="forbidden")
     summary = await asyncio.to_thread(TEL.summary)
     summary["caches"] = CACHE.all_stats()  # Phase 3.4 hit-rate visibility
+    summary["budget"] = BUDGET.snapshot()  # Phase 4.4 AI spend visibility
     return summary
 
 
@@ -847,8 +1064,9 @@ async def oracle_report(req: OracleReportRequest, request: Request):
             status_code=402,
             detail="oracle entitlement required — the Oracle Report is a paid reading",
         )
+    allow_ai, _cap = BUDGET.allow_call(req.entitlement, "oracle")  # 4.4 cost control
     try:
-        result = await ORACLE.generate_oracle_report(req)
+        result = await ORACLE.generate_oracle_report(req, allow_ai=allow_ai)
     except Exception as exc:
         raise _client_error("oracle report failed", exc)
     _spawn(TEL.log_ai(
@@ -859,6 +1077,7 @@ async def oracle_report(req: OracleReportRequest, request: Request):
     ))
     if result.ai_source == "llm":
         MET.observe_ai_call("oracle", len(result.report))
+        BUDGET.record(req.entitlement, "oracle", len(result.report))
     return result
 
 
@@ -877,8 +1096,9 @@ async def course(req: CourseRequest, request: Request):
             detail="oracle entitlement required — the Course is a premium "
                    "curriculum composed for your chart",
         )
+    allow_ai, _cap = BUDGET.allow_call(req.entitlement, "course")  # 4.4 cost control
     try:
-        result = await COURSE.generate_course(req)
+        result = await COURSE.generate_course(req, allow_ai=allow_ai)
     except Exception as exc:
         raise _client_error("course failed", exc)
     _spawn(TEL.log_ai(
@@ -889,6 +1109,7 @@ async def course(req: CourseRequest, request: Request):
     ))
     if result.ai_source == "llm":
         MET.observe_ai_call("course", len(result.course))
+        BUDGET.record(req.entitlement, "course", len(result.course))
     return result
 
 
@@ -920,8 +1141,9 @@ async def personal_report(req: PersonalReportRequest, request: Request):
                    "one-time purchase per Oracle session; verify your "
                    "contribution at /api/personal-report/purchase to unlock it",
         )
+    allow_ai, _cap = BUDGET.allow_call(req.entitlement, "deluxe")  # 4.4 cost control
     try:
-        result = await PERSONAL.generate_personal_report(req)
+        result = await PERSONAL.generate_personal_report(req, allow_ai=allow_ai)
     except ValueError as exc:
         # Post-Oracle gate: fabricated/foreign session reference.
         raise HTTPException(status_code=409, detail=str(exc))
@@ -935,6 +1157,7 @@ async def personal_report(req: PersonalReportRequest, request: Request):
     ))
     if result.ai_source == "llm":
         MET.observe_ai_call("deluxe", len(result.report_markdown))
+        BUDGET.record(req.entitlement, "deluxe", len(result.report_markdown))
     return result
 
 
@@ -975,6 +1198,19 @@ async def deck_art_image(req: PLATE.PlateRequest, request: Request):
             detail="image layer not configured — set AAE_OPENAI_API_KEY; the "
                    "deterministic prompts in the Studio work without it",
         )
+    # 4.4 cost control: images have no offline compiler, so an over-budget
+    # plate is refused (429) rather than degraded — the prompt stays free.
+    allow_ai, why = BUDGET.allow_call(req.entitlement, "plate")
+    if not allow_ai:
+        raise HTTPException(
+            status_code=429,
+            detail=("today's image budget is reached — the deterministic "
+                    "prompt in the Studio still renders your brief for free"
+                    if why == "user" else
+                    "the observatory's daily image budget is reached; try "
+                    "again tomorrow — the free prompt is available now"),
+            headers={"Retry-After": "3600"},
+        )
     try:
         result = await PLATE.render_plate(req)
     except ValueError as exc:
@@ -989,6 +1225,7 @@ async def deck_art_image(req: PLATE.PlateRequest, request: Request):
     # An image call is a flat cost — count the call, leave chars 0 (the
     # base64 payload isn't a text-spend proxy).
     MET.observe_ai_call("plate", 0)
+    BUDGET.record(req.entitlement, "plate", 0)
     return result
 
 

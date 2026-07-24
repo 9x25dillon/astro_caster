@@ -215,3 +215,93 @@ byte-identical, and a wrong passphrase correctly rejected on restore
 round-trip + wrong-passphrase check) is wired into CI via
 `tests/test_backup.py`. Re-run the on-host drill after the first staging
 deploy against real production volumes.
+
+---
+
+## 8. Stripe payment rail (Phase 4.2)
+
+Cards/subscriptions alongside the crypto rail. Unset = the rail 503s and the
+crypto rail + offline compilers still serve; **any `AAE_STRIPE_*` key marks
+the deployment public-facing, so the personal-mode interlock refuses to boot
+Edition P with these set** (by design — Stripe means Edition Q).
+
+| Variable | Meaning | Default |
+|---|---|---|
+| `AAE_STRIPE_SECRET_KEY` | `sk_test_…` / `sk_live_…` — enables the rail | empty (503) |
+| `AAE_STRIPE_WEBHOOK_SECRET` | `whsec_…` — verifies webhook signatures | empty (webhook 503) |
+| `AAE_STRIPE_MODE` | `payment` (one-time) or `subscription` | `payment` |
+| `AAE_STRIPE_SUPPORTER_USD` / `AAE_STRIPE_ORACLE_USD` | tier prices | 5 / 15 |
+| `AAE_PUBLIC_URL` | base for success/cancel redirects | `http://127.0.0.1:5173` |
+
+Flow: `POST /api/checkout {tier}` → hosted Stripe URL → user pays → Stripe
+redirects to `?checkout=<session_id>` and fires the webhook. `GET
+/api/checkout/{id}` mints/returns the token on the browser's return (resilient
+to webhook lag); `POST /api/stripe/webhook` is the source of truth
+(`checkout.session.completed` → mint via `relink_ref`; `charge.refunded` /
+`customer.subscription.deleted` → revoke via `ent_revoke_ref`). Webhook
+signatures are verified over the RAW body against `AAE_STRIPE_WEBHOOK_SECRET`
+(hand-rolled per Stripe's scheme; timestamp tolerance 300 s; bad sig → 400).
+
+**Test-mode drill (needs the operator's Stripe test keys):**
+```bash
+# 1. set AAE_STRIPE_SECRET_KEY=sk_test_… ; AAE_ENV=production ; a strong AAE_SECRET
+# 2. forward webhooks locally with the Stripe CLI:
+stripe listen --forward-to http://127.0.0.1:8787/api/stripe/webhook
+#    -> prints the whsec_… -> set AAE_STRIPE_WEBHOOK_SECRET to it, restart
+# 3. trigger events:
+stripe trigger checkout.session.completed
+stripe trigger charge.refunded
+# 4. confirm: GET /api/admin/entitlements shows the mint then the revoke.
+```
+
+### 8.1 Deluxe personal report on the Stripe rail (Phase 4.3)
+
+The deluxe edition is a one-time purchase bound to ONE Oracle session — the
+card equivalent of the crypto `POST /api/personal-report/purchase`.
+
+| Variable | Meaning | Default |
+|---|---|---|
+| `AAE_STRIPE_REPORT_USD` | one-time deluxe-report price | 9 |
+
+Flow: `POST /api/personal-report/checkout {seed}` (oracle tier required) →
+hosted Stripe URL → user pays → Stripe redirects to
+`?report_checkout=<session_id>` → `POST /api/personal-report/checkout/claim
+{session_id, seed}` verifies the session is paid and that its metadata
+seed-**hash** matches the presented seed, then mints the report claim token.
+
+**Privacy:** only `sha256(seed)` is sent to Stripe (in session metadata). The
+raw seed ends with the user's question, so it never leaves the observatory;
+the claim is minted server-side against the raw seed the browser still holds.
+
+**Idempotency & binding:** the receipt ledger (`claim_tx`, keyed on the Stripe
+payment reference) binds a payment to its seed on first claim; re-claims for
+the same seed re-mint (browser reload safe), a different seed is refused (409).
+
+**Known limit:** report claims are stateless 30-day client-held tokens, so a
+**refund cannot revoke an already-minted deluxe report** (same as the crypto
+rail). The webhook ignores report `completed` events by design — the claim is
+bound to the raw seed the webhook never sees. Tier entitlements (§8) remain
+fully refund-revocable.
+
+### 8.2 Customer self-service — cancel / manage a subscription
+
+Every card subscriber can cancel, stop auto-renew, update their card, or
+download invoices **themselves**, with no email to the operator — via Stripe's
+hosted Customer Portal. This is a launch quality bar: subscriptions a customer
+can't leave are not shippable.
+
+- `POST /api/billing/portal {entitlement}` → verifies the token, finds the
+  Stripe customer linked to it (recorded at mint time, keyed by the payment
+  ref), and returns a hosted portal URL to redirect to. 409 when no card
+  subscription is linked (crypto/one-time purchases — nothing recurring to
+  cancel); 401 without a valid entitlement; 503 when the rail is unconfigured.
+- The frontend surfaces it as **"Manage or cancel subscription"** in the
+  **☤ Support** panel (visible to supporters).
+- A cancellation returns as `customer.subscription.deleted`, which the webhook
+  (§8) revokes — **access continues until the paid period ends, then drops.**
+
+**One-time operator setup (required for the portal to work):** in the Stripe
+dashboard, **Settings → Billing → Customer portal**, activate it and enable
+"Cancel subscriptions" (+ "Update payment methods", invoices). Test and live
+modes are configured separately. Without this, `billing_portal/sessions`
+returns a configuration error.

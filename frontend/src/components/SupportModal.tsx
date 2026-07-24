@@ -7,6 +7,7 @@
 import React, { useEffect, useState } from "react";
 import { useStore } from "../store/useStore";
 import { ELEMENT_COLORS } from "../lib/astro";
+import { openBillingPortal, ApiError } from "../api/client";
 
 // Minimal EIP-1193 shape so we don't need a wallet SDK.
 type Eth = {
@@ -53,11 +54,39 @@ export const SupportModal: React.FC = () => {
   const loadTreasury = useStore((s) => s.loadTreasury);
   const redeem = useStore((s) => s.redeemDonation);
   const isSupporter = useStore((s) => s.isSupporter);
+  const entitlement = useStore((s) => s.entitlement);
 
   const [amount, setAmount] = useState(0.003);
   const [txHash, setTxHash] = useState("");
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
+  const [portalBusy, setPortalBusy] = useState(false);
+
+  // Customer self-service — open Stripe's Customer Portal to cancel, stop
+  // auto-renew, update the card, or get invoices. Crypto supporters have no
+  // recurring charge, so the server answers 409 (nothing to cancel).
+  const manageBilling = async () => {
+    if (!entitlement) return;
+    setPortalBusy(true);
+    setStatus(null);
+    try {
+      const { url } = await openBillingPortal(entitlement);
+      window.location.href = url;
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 409) {
+        setStatus(
+          "Nothing to cancel — your access isn't a recurring card subscription. " +
+          "(Self-service billing is for Stripe card plans.)",
+        );
+      } else if (e instanceof ApiError && e.status === 503) {
+        setStatus("Card billing isn't enabled on this instance.");
+      } else {
+        setStatus((e as Error).message || "Could not open the billing portal.");
+      }
+    } finally {
+      setPortalBusy(false);
+    }
+  };
 
   useEffect(() => {
     if (open && !treasury) loadTreasury();
@@ -118,9 +147,20 @@ export const SupportModal: React.FC = () => {
         </p>
 
         {isSupporter && (
-          <p style={{ color: "var(--gold-soft)" }}>
-            ✦ You're a supporter — premium features are unlocked. Thank you.
-          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <p style={{ color: "var(--gold-soft)", margin: 0 }}>
+              ✦ You're a supporter — premium features are unlocked. Thank you.
+            </p>
+            <button
+              className="ghost"
+              style={{ alignSelf: "flex-start" }}
+              onClick={manageBilling}
+              disabled={portalBusy || !entitlement}
+              title="Cancel, stop auto-renew, update your card, or download invoices — no email required."
+            >
+              {portalBusy ? "Opening…" : "Manage or cancel subscription"}
+            </button>
+          </div>
         )}
 
         {/* Funding dashboard */}
