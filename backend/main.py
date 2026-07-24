@@ -503,6 +503,12 @@ async def retrieve_checkout(session_id: str):
         raise _client_error("session lookup failed", exc, status=502)
     if session.get("payment_status") not in ("paid", "no_payment_required"):
         return {"granted": False, "status": session.get("payment_status", "pending")}
+    if STRIPE.is_report_session(session):
+        raise HTTPException(
+            status_code=409,
+            detail="deluxe-report purchase — claim it at "
+                   "/api/personal-report/checkout/claim with the Oracle seed",
+        )
     tier = (session.get("metadata") or {}).get("tier")
     if tier not in ("supporter", "oracle"):
         raise HTTPException(status_code=409, detail="session has no tier")
@@ -580,6 +586,88 @@ async def personal_report_purchase(req: ReportPurchaseRequest, request: Request)
     _spawn(TEL.log_tier(
         action="report_purchase", tier=tier, verified=verified, ref=req.tx_hash[:18]
     ))
+    return {"granted": True, "product": "personal_report", "note": note,
+            "report_token": tok}
+
+
+class ReportCheckoutRequest(BaseModel):
+    seed: str                            # the Oracle session the claim will bind to
+    entitlement: Optional[str] = None    # oracle tier required
+    success_url: Optional[str] = None
+    cancel_url: Optional[str] = None
+
+
+@app.post("/api/personal-report/checkout")
+async def personal_report_checkout(req: ReportCheckoutRequest, request: Request):
+    """Phase 4.3 — the deluxe edition on the Stripe rail (the card equivalent of
+    /api/personal-report/purchase). Oracle tier is required (the product only
+    exists post-Oracle); returns a hosted Stripe URL. Only the seed's HASH rides
+    in Stripe metadata — the raw seed (which ends with the question) does not."""
+    if not STRIPE.stripe_available():
+        raise HTTPException(status_code=503, detail="card payments not configured")
+    RL.check(request, "oracle", req.entitlement)   # shares the paid-path budget
+    tier = ENT.entitlement_status(req.entitlement).get("tier", "free")
+    if tier != "oracle":
+        raise HTTPException(
+            status_code=402,
+            detail="oracle entitlement required — the deluxe edition is an "
+                   "optional post-Oracle product",
+        )
+    if not req.seed.strip():
+        raise HTTPException(status_code=400, detail="missing oracle session seed")
+    base = os.environ.get("AAE_PUBLIC_URL", "http://127.0.0.1:5173").rstrip("/")
+    success = req.success_url or f"{base}/?report_checkout={{CHECKOUT_SESSION_ID}}"
+    cancel = req.cancel_url or f"{base}/?report_checkout=cancel"
+    try:
+        s = await STRIPE.create_report_checkout_session(req.seed, success, cancel)
+    except Exception as exc:
+        raise _client_error("checkout session failed", exc, status=502)
+    _spawn(TEL.log_tier(action="report_checkout_created", tier=tier,
+                        verified=False, ref=s["id"][:18]))
+    return {"url": s["url"], "session_id": s["id"]}
+
+
+class ReportClaimRequest(BaseModel):
+    session_id: str
+    seed: str                            # proves which Oracle session this unlocks
+    entitlement: Optional[str] = None
+
+
+@app.post("/api/personal-report/checkout/claim")
+async def personal_report_checkout_claim(req: ReportClaimRequest, request: Request):
+    """Phase 4.3 — after Stripe redirects back with the session id, mint the
+    report claim for THIS session. The session must be paid AND its metadata
+    seed-hash must match the presented seed, so a purchase for one Oracle sitting
+    cannot unlock another. Idempotent via the receipt ledger (first redemption
+    binds the payment to this seed; re-claims for the same seed re-mint)."""
+    if not STRIPE.stripe_available():
+        raise HTTPException(status_code=503, detail="card payments not configured")
+    RL.check(request, "oracle", req.entitlement)
+    if not req.seed.strip():
+        raise HTTPException(status_code=400, detail="missing oracle session seed")
+    try:
+        session = await STRIPE.retrieve_session(req.session_id)
+    except Exception as exc:
+        raise _client_error("session lookup failed", exc, status=502)
+    if session.get("payment_status") not in ("paid", "no_payment_required"):
+        raise HTTPException(status_code=402, detail="payment not completed for this session")
+    if not STRIPE.is_report_session(session):
+        raise HTTPException(status_code=409, detail="this session is not a deluxe-report purchase")
+    if not STRIPE.seed_hash_matches(session, req.seed):
+        raise HTTPException(
+            status_code=409,
+            detail="this purchase was for a different Oracle session",
+        )
+    ref = STRIPE.ref_for_session(session)
+    # First redemption binds the payment to this seed; a different seed is
+    # refused (the Stripe payment can't be reused across sessions). Fails closed.
+    ok, note = RCPT.claim_tx(ref, req.seed, verified=True,
+                             wei=STRIPE.report_price_cents())
+    if not ok:
+        raise HTTPException(status_code=402, detail=note)
+    tok = ENT.mint_report_token(seed=req.seed, ref=ref[:18], verified=True)
+    _spawn(TEL.log_tier(action="report_purchase", tier="oracle",
+                        verified=True, ref=ref[:18]))
     return {"granted": True, "product": "personal_report", "note": note,
             "report_token": tok}
 

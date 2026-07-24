@@ -253,3 +253,32 @@ stripe trigger checkout.session.completed
 stripe trigger charge.refunded
 # 4. confirm: GET /api/admin/entitlements shows the mint then the revoke.
 ```
+
+### 8.1 Deluxe personal report on the Stripe rail (Phase 4.3)
+
+The deluxe edition is a one-time purchase bound to ONE Oracle session — the
+card equivalent of the crypto `POST /api/personal-report/purchase`.
+
+| Variable | Meaning | Default |
+|---|---|---|
+| `AAE_STRIPE_REPORT_USD` | one-time deluxe-report price | 9 |
+
+Flow: `POST /api/personal-report/checkout {seed}` (oracle tier required) →
+hosted Stripe URL → user pays → Stripe redirects to
+`?report_checkout=<session_id>` → `POST /api/personal-report/checkout/claim
+{session_id, seed}` verifies the session is paid and that its metadata
+seed-**hash** matches the presented seed, then mints the report claim token.
+
+**Privacy:** only `sha256(seed)` is sent to Stripe (in session metadata). The
+raw seed ends with the user's question, so it never leaves the observatory;
+the claim is minted server-side against the raw seed the browser still holds.
+
+**Idempotency & binding:** the receipt ledger (`claim_tx`, keyed on the Stripe
+payment reference) binds a payment to its seed on first claim; re-claims for
+the same seed re-mint (browser reload safe), a different seed is refused (409).
+
+**Known limit:** report claims are stateless 30-day client-held tokens, so a
+**refund cannot revoke an already-minted deluxe report** (same as the crypto
+rail). The webhook ignores report `completed` events by design — the claim is
+bound to the raw seed the webhook never sees. Tier entitlements (§8) remain
+fully refund-revocable.

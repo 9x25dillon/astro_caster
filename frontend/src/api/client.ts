@@ -749,6 +749,37 @@ export function purchasePersonalReport(
   });
 }
 
+/** Phase 4.3 — the deluxe edition on the Stripe rail. Returns the hosted
+ *  checkout URL to redirect to; only the seed's HASH reaches Stripe. 402 below
+ *  oracle tier, 503 when card payments are unconfigured. On the redirect back
+ *  (`?report_checkout=<session_id>`) call `claimReportCheckout` with the same
+ *  seed to mint the claim. */
+export function reportCheckout(
+  seed: string,
+  opts: { entitlement?: string | null } = {},
+): Promise<{ url: string; session_id: string }> {
+  return post("/personal-report/checkout", {
+    seed,
+    entitlement: opts.entitlement ?? null,
+  });
+}
+
+/** Phase 4.3 — after the Stripe redirect returns, exchange the paid session id
+ *  (with the Oracle seed that proves which session it unlocks) for a report
+ *  claim token bound to that seed. 409 if the session paid for a different
+ *  seed; 402 if not yet paid. */
+export function claimReportCheckout(
+  sessionId: string,
+  seed: string,
+  opts: { entitlement?: string | null } = {},
+): Promise<ReportPurchaseResponse> {
+  return post<ReportPurchaseResponse>("/personal-report/checkout/claim", {
+    session_id: sessionId,
+    seed,
+    entitlement: opts.entitlement ?? null,
+  });
+}
+
 /** Compile the deluxe edition from a GENUINE prior Oracle session. The server
  *  re-derives the session seed and answers 409 on a mismatch (e.g. the chart
  *  changed since the Oracle ran) and 402 below oracle tier OR without a valid

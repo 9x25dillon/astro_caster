@@ -43,6 +43,10 @@ _API = "https://api.stripe.com/v1"
 _TIMEOUT = float(os.environ.get("AAE_STRIPE_TIMEOUT", "20"))
 _TOLERANCE_S = 300  # webhook timestamp tolerance (Stripe's default)
 
+# Phase 4.3 — the deluxe personal-report product rides the same rail as a
+# one-time purchase bound to ONE Oracle session. Matches entitlements._REPORT_PRODUCT.
+_REPORT_PRODUCT = "personal_report"
+
 
 def _secret_key() -> str:
     return os.environ.get("AAE_STRIPE_SECRET_KEY", "").strip()
@@ -75,13 +79,34 @@ def price_cents(tier: str) -> int:
     return int(round(usd * 100))
 
 
+def report_price_cents() -> int:
+    """Price of the one-time deluxe personal-report purchase (Phase 4.3)."""
+    return int(round(float(os.environ.get("AAE_STRIPE_REPORT_USD", "9")) * 100))
+
+
+def seed_hash(seed: str) -> str:
+    """The Oracle-session seed's hash. The raw seed ENDS WITH THE USER'S
+    QUESTION, so only this hash rides in Stripe metadata — the question text
+    never leaves the observatory."""
+    return hashlib.sha256(seed.encode()).hexdigest()
+
+
 # ---- Checkout session -----------------------------------------------------
+async def _post_session(form: dict) -> dict:
+    if not stripe_available():
+        raise RuntimeError("Stripe not configured")
+    async with httpx.AsyncClient(timeout=_TIMEOUT) as c:
+        r = await c.post(f"{_API}/checkout/sessions", data=form,
+                         auth=(_secret_key(), ""))
+    r.raise_for_status()
+    s = r.json()
+    return {"id": s["id"], "url": s["url"]}
+
+
 async def create_checkout_session(tier: str, success_url: str,
                                   cancel_url: str) -> dict:
     """Create a Checkout Session with an inline price (no pre-made products
     needed) and tier in metadata. Returns {id, url}."""
-    if not stripe_available():
-        raise RuntimeError("Stripe not configured")
     mode = _mode()
     cents = price_cents(tier)
     form = {
@@ -96,12 +121,27 @@ async def create_checkout_session(tier: str, success_url: str,
     }
     if mode == "subscription":
         form["line_items[0][price_data][recurring][interval]"] = "month"
-    async with httpx.AsyncClient(timeout=_TIMEOUT) as c:
-        r = await c.post(f"{_API}/checkout/sessions", data=form,
-                         auth=(_secret_key(), ""))
-    r.raise_for_status()
-    s = r.json()
-    return {"id": s["id"], "url": s["url"]}
+    return await _post_session(form)
+
+
+async def create_report_checkout_session(seed: str, success_url: str,
+                                         cancel_url: str) -> dict:
+    """Phase 4.3 — a one-time Checkout Session for the deluxe personal-report
+    edition, bound to ONE Oracle session by the seed's HASH. Always `payment`
+    mode (a report is not a subscription). Returns {id, url}."""
+    cents = report_price_cents()
+    form = {
+        "mode": "payment",
+        "success_url": success_url,
+        "cancel_url": cancel_url,
+        "metadata[product]": _REPORT_PRODUCT,
+        "metadata[seed_hash]": seed_hash(seed),
+        "line_items[0][quantity]": "1",
+        "line_items[0][price_data][currency]": "usd",
+        "line_items[0][price_data][product_data][name]": "Astra deluxe personal report",
+        "line_items[0][price_data][unit_amount]": str(cents),
+    }
+    return await _post_session(form)
 
 
 async def retrieve_session(session_id: str) -> dict:
@@ -169,9 +209,29 @@ def ref_for_session(session: dict) -> str:
                or session.get("id"))
 
 
+def is_report_session(session: dict) -> bool:
+    """True when a Checkout Session is a Phase 4.3 deluxe-report purchase."""
+    return (session.get("metadata") or {}).get("product") == _REPORT_PRODUCT
+
+
+def session_seed_hash(session: dict) -> str:
+    return str((session.get("metadata") or {}).get("seed_hash", ""))
+
+
+def seed_hash_matches(session: dict, seed: str) -> bool:
+    """Constant-time check that a report session was paid for THIS seed — so a
+    session bought for one Oracle sitting cannot unlock another."""
+    return hmac.compare_digest(session_seed_hash(session), seed_hash(seed))
+
+
 def plan_from_event(event: dict) -> Optional[dict]:
     """Translate a Stripe event into a lifecycle action, or None to ignore.
-    Returns {'action': 'mint'|'revoke', 'tier': str|None, 'ref': str}."""
+    Returns {'action': 'mint'|'revoke', 'tier': str|None, 'ref': str}.
+
+    Deluxe-report (Phase 4.3) `checkout.session.completed` events return None:
+    a report claim is minted synchronously on the browser's return
+    (/api/personal-report/checkout/claim), because the claim token is bound to
+    the RAW seed, which by design never reached Stripe (only its hash did)."""
     etype = event.get("type", "")
     obj = event.get("data", {}).get("object", {})
     if etype == "checkout.session.completed":
