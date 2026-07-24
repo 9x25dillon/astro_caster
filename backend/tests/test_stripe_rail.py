@@ -276,6 +276,89 @@ def test_report_claim_is_idempotent_for_same_seed(monkeypatch):
 def test_get_checkout_rejects_report_session(monkeypatch):
     monkeypatch.setenv("AAE_STRIPE_SECRET_KEY", "sk_test_x")
     _patch_retrieve(monkeypatch, _paid_report_session("seedG", ref="pi_get"))
-    r = client.get("/api/checkout/cs_report")
+    r = client.get("/api/checkout/cs_test_report")
     assert r.status_code == 409
     assert "claim" in r.json()["detail"]
+
+
+# ── partial-SSRF guard on ids that reach a Stripe URL path ───────────────────
+
+def test_safe_object_id_allowlist():
+    assert S.safe_object_id("cs_test_abc123XYZ") == "cs_test_abc123XYZ"
+    assert S.safe_object_id("  sub_1a2b3c  ") == "sub_1a2b3c"
+    for bad in ["cs_x/../y", "../evil", "cs_x?a=b", "cs_x#frag",
+                "http://evil.test", "cs_x y", "", "   ", "cs_" + "a" * 300]:
+        with pytest.raises(ValueError):
+            S.safe_object_id(bad)
+
+
+def test_claim_rejects_malformed_session_id(monkeypatch):
+    # A path-traversal-shaped session id is refused BEFORE any HTTP call (400),
+    # not passed into the Stripe URL.
+    monkeypatch.setenv("AAE_STRIPE_SECRET_KEY", "sk_test_x")
+    r = client.post("/api/personal-report/checkout/claim",
+                    json={"session_id": "cs_x/../../evil", "seed": "s",
+                          "entitlement": _otoken()})
+    assert r.status_code == 400
+
+
+# ── Phase 4 — subscription self-service (cancel / manage via billing portal) ──
+
+def test_plan_carries_customer_for_subscription():
+    obj = {"id": "cs", "subscription": "sub_9", "customer": "cus_9",
+           "payment_status": "paid", "metadata": {"tier": "supporter"}}
+    plan = S.plan_from_event({"type": "checkout.session.completed",
+                              "data": {"object": obj}})
+    assert plan == {"action": "mint", "tier": "supporter",
+                    "ref": "sub_9", "customer": "cus_9"}
+
+
+def test_subscription_mint_records_customer(monkeypatch):
+    monkeypatch.setenv("AAE_STRIPE_WEBHOOK_SECRET", WHSEC)
+    completed = _event("checkout.session.completed",
+                       {"id": "cs_sub", "subscription": "sub_rec",
+                        "customer": "cus_rec", "payment_status": "paid",
+                        "metadata": {"tier": "oracle"}})
+    r = client.post("/api/stripe/webhook", content=completed,
+                    headers={"stripe-signature": _sign(completed)})
+    assert r.status_code == 200 and r.json()["action"] == "mint"
+    assert RCPT.stripe_customer_get("sub_rec") == "cus_rec"    # portal can find it
+
+
+def test_billing_portal_503_when_unconfigured(monkeypatch):
+    monkeypatch.delenv("AAE_STRIPE_SECRET_KEY", raising=False)
+    r = client.post("/api/billing/portal", json={"entitlement": _otoken()})
+    assert r.status_code == 503
+
+
+def test_billing_portal_401_without_valid_entitlement(monkeypatch):
+    monkeypatch.setenv("AAE_STRIPE_SECRET_KEY", "sk_test_x")
+    r = client.post("/api/billing/portal", json={"entitlement": "not-a-token"})
+    assert r.status_code == 401
+
+
+def test_billing_portal_409_when_no_subscription_linked(monkeypatch):
+    # A valid entitlement with no linked Stripe customer (crypto/one-time) →
+    # nothing to cancel.
+    monkeypatch.setenv("AAE_STRIPE_SECRET_KEY", "sk_test_x")
+    tok = ENT.mint_entitlement("oracle", ref="crypto-only-ref", verified=True)["token"]
+    r = client.post("/api/billing/portal", json={"entitlement": tok})
+    assert r.status_code == 409
+
+
+def test_billing_portal_returns_url_for_linked_customer(monkeypatch):
+    monkeypatch.setenv("AAE_STRIPE_SECRET_KEY", "sk_test_x")
+    ent = ENT.mint_entitlement("oracle", ref="sub_portal", verified=True)
+    RCPT.stripe_customer_set("sub_portal", "cus_portal")
+
+    captured = {}
+
+    async def _fake_portal(customer, return_url):
+        captured["customer"] = customer
+        return {"url": "https://billing.stripe.test/session/abc"}
+
+    monkeypatch.setattr(S, "create_billing_portal_session", _fake_portal)
+    r = client.post("/api/billing/portal", json={"entitlement": ent["token"]})
+    assert r.status_code == 200, r.text[:200]
+    assert r.json() == {"url": "https://billing.stripe.test/session/abc"}
+    assert captured["customer"] == "cus_portal"    # the right customer's portal

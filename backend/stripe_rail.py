@@ -34,6 +34,7 @@ import hashlib
 import hmac
 import json
 import os
+import re
 import time
 from typing import Optional
 
@@ -144,14 +145,54 @@ async def create_report_checkout_session(seed: str, success_url: str,
     return await _post_session(form)
 
 
+# Stripe object ids are `<prefix>_<base62/underscore>`. Allowlisting the shape
+# before an id reaches a request URL path guards py/partial-ssrf: the id cannot
+# contain '/', '.', '#' or '?', so it cannot alter the path, host, or scheme.
+_STRIPE_ID_RE = re.compile(r"^[a-z]{2,6}_[A-Za-z0-9_]{1,255}$")
+
+
+def safe_object_id(value: str) -> str:
+    """Return `value` iff it is a well-formed Stripe object id, else raise
+    ValueError. Callers interpolating an id into a Stripe URL path MUST route it
+    through here first."""
+    v = (value or "").strip()
+    if not _STRIPE_ID_RE.match(v):
+        raise ValueError("malformed Stripe object id")
+    return v
+
+
 async def retrieve_session(session_id: str) -> dict:
     if not stripe_available():
         raise RuntimeError("Stripe not configured")
+    sid = safe_object_id(session_id)          # allowlist before it hits the URL
     async with httpx.AsyncClient(timeout=_TIMEOUT) as c:
-        r = await c.get(f"{_API}/checkout/sessions/{session_id}",
+        r = await c.get(f"{_API}/checkout/sessions/{sid}",
                         auth=(_secret_key(), ""))
     r.raise_for_status()
     return r.json()
+
+
+def customer_id(session: dict) -> str:
+    """The Stripe customer id on a Checkout Session (present for subscriptions;
+    recorded so the customer can later self-manage via the billing portal)."""
+    return str(session.get("customer") or "")
+
+
+async def create_billing_portal_session(customer: str, return_url: str) -> dict:
+    """Create a Stripe Customer Portal session — the hosted page where a
+    customer CANCELS a subscription, stops auto-renew, updates the card, or
+    downloads invoices. Cancellation flows back as `customer.subscription.
+    deleted`, which the webhook revokes. Requires the portal to be enabled once
+    in the Stripe dashboard (Billing → Customer portal), with 'cancel
+    subscriptions' on. Returns {url}."""
+    if not stripe_available():
+        raise RuntimeError("Stripe not configured")
+    async with httpx.AsyncClient(timeout=_TIMEOUT) as c:
+        r = await c.post(f"{_API}/billing_portal/sessions",
+                         data={"customer": customer, "return_url": return_url},
+                         auth=(_secret_key(), ""))
+    r.raise_for_status()
+    return {"url": r.json()["url"]}
 
 
 # ---- Webhook signature (Stripe scheme, hand-rolled + testable) ------------
@@ -240,7 +281,11 @@ def plan_from_event(event: dict) -> Optional[dict]:
         tier = (obj.get("metadata") or {}).get("tier")
         if tier not in ("supporter", "oracle"):
             return None
-        return {"action": "mint", "tier": tier, "ref": ref_for_session(obj)}
+        plan = {"action": "mint", "tier": tier, "ref": ref_for_session(obj)}
+        cust = customer_id(obj)
+        if cust:                              # subscriptions carry a customer id
+            plan["customer"] = cust
+        return plan
     if etype in ("charge.refunded", "customer.subscription.deleted"):
         ref = str(obj.get("payment_intent") or obj.get("id"))
         return {"action": "revoke", "tier": None, "ref": ref}

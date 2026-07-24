@@ -213,6 +213,18 @@ The GitHub vulnerability flag is resolved. Findings, for the record:
   (seed-hash binding, idempotency, gating, hash-only-leaves); 331 backend
   green. **NOTE:** this branch ALSO recovers 4.2 (#100) and 4.4 (#101),
   which merged into their orphaned stacked-PR base branches, not main.
+- **4.x Subscription self-service** — ✅ CODE DONE 2026-07-24 (same branch):
+  the launch quality bar that a subscription must be cancellable. `POST
+  /api/billing/portal {entitlement}` opens Stripe's hosted Customer Portal
+  (cancel / stop auto-renew / update card / invoices); the Stripe customer id
+  is recorded at mint time (keyed by payment ref) so the holder can be linked
+  to their portal. Cancellation → `customer.subscription.deleted` → the webhook
+  revokes at period end (already built in 4.2). Frontend: "Manage or cancel
+  subscription" in the ☤ Support panel. **Hardening:** the user-supplied Stripe
+  `session_id` reaching `retrieve_session`'s URL path is now allowlisted
+  (`safe_object_id`, guards py/partial-ssrf — CodeQL flagged it on #104).
+  **OPERATOR:** enable the portal once in the Stripe dashboard (Settings →
+  Billing → Customer portal, "Cancel subscriptions" on) — DEPLOY.md 8.2.
 - **4.4 AI cost controls** — ✅ DONE 2026-07-22 (branch
   `phase4-cost-controls`, stacked on 4.2): `budget.py` — per-user + global
   daily USD ceilings (estimated cost, output-token-dominated), a spend

@@ -780,6 +780,20 @@ export function claimReportCheckout(
   });
 }
 
+/** Customer self-service — open the Stripe Customer Portal for the subscription
+ *  behind this entitlement (cancel, stop auto-renew, update card, invoices).
+ *  Returns the hosted URL to redirect to. 409 when no card subscription is
+ *  linked (e.g. a crypto/one-time purchase); 401 without a valid entitlement. */
+export function openBillingPortal(
+  entitlement: string,
+  returnUrl?: string,
+): Promise<{ url: string }> {
+  return post<{ url: string }>("/billing/portal", {
+    entitlement,
+    return_url: returnUrl ?? null,
+  });
+}
+
 /** Compile the deluxe edition from a GENUINE prior Oracle session. The server
  *  re-derives the session seed and answers 409 on a mismatch (e.g. the chart
  *  changed since the Oracle ran) and 402 below oracle tier OR without a valid

@@ -499,6 +499,8 @@ async def retrieve_checkout(session_id: str):
         raise HTTPException(status_code=503, detail="card payments not configured")
     try:
         session = await STRIPE.retrieve_session(session_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="malformed checkout session id")
     except Exception as exc:
         raise _client_error("session lookup failed", exc, status=502)
     if session.get("payment_status") not in ("paid", "no_payment_required"):
@@ -512,7 +514,10 @@ async def retrieve_checkout(session_id: str):
     tier = (session.get("metadata") or {}).get("tier")
     if tier not in ("supporter", "oracle"):
         raise HTTPException(status_code=409, detail="session has no tier")
-    ent = ENT.relink_ref(STRIPE.ref_for_session(session), tier, verified=True)
+    ref = STRIPE.ref_for_session(session)
+    ent = ENT.relink_ref(ref, tier, verified=True)
+    if STRIPE.customer_id(session):     # so the holder can self-manage / cancel
+        RCPT.stripe_customer_set(ref, STRIPE.customer_id(session))
     return {"granted": True, "tier": tier, "entitlement": ent}
 
 
@@ -534,6 +539,8 @@ async def stripe_webhook(request: Request):
         return {"received": True, "handled": False}     # event we don't act on
     if plan["action"] == "mint":
         ENT.relink_ref(plan["ref"], plan["tier"], verified=True)
+        if plan.get("customer"):    # so the holder can self-manage / cancel
+            RCPT.stripe_customer_set(plan["ref"], plan["customer"])
         _spawn(TEL.log_tier(action="stripe_mint", tier=plan["tier"],
                             verified=True, ref=plan["ref"][:18]))
     else:  # revoke
@@ -541,6 +548,45 @@ async def stripe_webhook(request: Request):
         _spawn(TEL.log_tier(action="stripe_revoke", tier="", verified=True,
                             ref=plan["ref"][:18]))
     return {"received": True, "handled": True, "action": plan["action"]}
+
+
+class BillingPortalRequest(BaseModel):
+    entitlement: str
+    return_url: Optional[str] = None
+
+
+@app.post("/api/billing/portal")
+async def billing_portal(req: BillingPortalRequest):
+    """Customer self-service (Phase 4). Open the Stripe Customer Portal for the
+    subscription behind this entitlement so the holder can CANCEL, stop
+    auto-renew, update their card, or download invoices — no email to us
+    required. The cancellation returns as a `customer.subscription.deleted`
+    webhook, which revokes the entitlement at period end. 409 when no Stripe
+    subscription is linked (crypto/one-time purchases have nothing to cancel)."""
+    if not STRIPE.stripe_available():
+        raise HTTPException(status_code=503, detail="card payments not configured")
+    payload = ENT.verify_token(req.entitlement)
+    if not payload:
+        raise HTTPException(
+            status_code=401,
+            detail="a valid entitlement is required to manage billing",
+        )
+    customer = RCPT.stripe_customer_get(payload.get("ref", ""))
+    if not customer:
+        raise HTTPException(
+            status_code=409,
+            detail="no card subscription is linked to this entitlement — "
+                   "self-service billing is for Stripe subscription purchases",
+        )
+    base = os.environ.get("AAE_PUBLIC_URL", "http://127.0.0.1:5173").rstrip("/")
+    try:
+        s = await STRIPE.create_billing_portal_session(customer, req.return_url or base)
+    except Exception as exc:
+        raise _client_error("billing portal unavailable", exc, status=502)
+    _spawn(TEL.log_tier(action="billing_portal_opened", tier=payload.get("tier", ""),
+                        verified=bool(payload.get("verified")),
+                        ref=str(payload.get("ref", ""))[:18]))
+    return {"url": s["url"]}
 
 
 class ReportPurchaseRequest(BaseModel):
@@ -647,6 +693,8 @@ async def personal_report_checkout_claim(req: ReportClaimRequest, request: Reque
         raise HTTPException(status_code=400, detail="missing oracle session seed")
     try:
         session = await STRIPE.retrieve_session(req.session_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="malformed checkout session id")
     except Exception as exc:
         raise _client_error("session lookup failed", exc, status=502)
     if session.get("payment_status") not in ("paid", "no_payment_required"):

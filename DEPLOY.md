@@ -282,3 +282,26 @@ the same seed re-mint (browser reload safe), a different seed is refused (409).
 rail). The webhook ignores report `completed` events by design — the claim is
 bound to the raw seed the webhook never sees. Tier entitlements (§8) remain
 fully refund-revocable.
+
+### 8.2 Customer self-service — cancel / manage a subscription
+
+Every card subscriber can cancel, stop auto-renew, update their card, or
+download invoices **themselves**, with no email to the operator — via Stripe's
+hosted Customer Portal. This is a launch quality bar: subscriptions a customer
+can't leave are not shippable.
+
+- `POST /api/billing/portal {entitlement}` → verifies the token, finds the
+  Stripe customer linked to it (recorded at mint time, keyed by the payment
+  ref), and returns a hosted portal URL to redirect to. 409 when no card
+  subscription is linked (crypto/one-time purchases — nothing recurring to
+  cancel); 401 without a valid entitlement; 503 when the rail is unconfigured.
+- The frontend surfaces it as **"Manage or cancel subscription"** in the
+  **☤ Support** panel (visible to supporters).
+- A cancellation returns as `customer.subscription.deleted`, which the webhook
+  (§8) revokes — **access continues until the paid period ends, then drops.**
+
+**One-time operator setup (required for the portal to work):** in the Stripe
+dashboard, **Settings → Billing → Customer portal**, activate it and enable
+"Cancel subscriptions" (+ "Update payment methods", invoices). Test and live
+modes are configured separately. Without this, `billing_portal/sessions`
+returns a configuration error.

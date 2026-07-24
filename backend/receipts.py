@@ -46,6 +46,11 @@ CREATE TABLE IF NOT EXISTS entitlement_ledger (
     updated  INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_ent_ref ON entitlement_ledger(ref);
+CREATE TABLE IF NOT EXISTS stripe_customers (
+    ref      TEXT PRIMARY KEY,   -- entitlement payment reference (subscription id)
+    customer TEXT NOT NULL,       -- Stripe customer id, for the billing portal
+    updated  INTEGER NOT NULL
+);
 """
 
 
@@ -245,3 +250,44 @@ def ent_admin_list(q: str = "", limit: int = 50) -> list[dict]:
         return [dict(zip(keys, r)) for r in rows]
     except (sqlite3.Error, OSError):
         return []
+
+
+# --------------------------------------------------------------------------- #
+# Stripe customer map (Phase 4) — links a subscription entitlement to its
+# Stripe customer id so the holder can open the billing portal (cancel, stop
+# auto-renew, update card). Best-effort: the portal is also reachable from the
+# Stripe dashboard, so a ledger hiccup must never block a mint.
+# --------------------------------------------------------------------------- #
+
+
+def stripe_customer_set(ref: str, customer: str) -> None:
+    """Record the Stripe customer id behind a payment reference."""
+    if not ref or not customer:
+        return
+    try:
+        conn = _connect()
+        with conn:
+            conn.execute(
+                "INSERT OR REPLACE INTO stripe_customers (ref, customer, updated) "
+                "VALUES (?, ?, ?)",
+                (ref.strip(), customer.strip(), int(time.time())),
+            )
+        conn.close()
+    except (sqlite3.Error, OSError):
+        pass
+
+
+def stripe_customer_get(ref: str) -> str | None:
+    """The Stripe customer id for a payment reference, or None when unknown
+    (pre-portal entitlement, one-time payment, or ledger unreachable)."""
+    if not ref:
+        return None
+    try:
+        conn = _connect()
+        row = conn.execute(
+            "SELECT customer FROM stripe_customers WHERE ref = ?", (ref.strip(),)
+        ).fetchone()
+        conn.close()
+        return row[0] if row else None
+    except (sqlite3.Error, OSError):
+        return None
