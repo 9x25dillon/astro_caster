@@ -2,13 +2,11 @@
 // The vault (export / restore everything) and support & unlock live here now;
 // the masthead keeps identity only.
 import React, { useRef, useState } from "react";
-import { useStore } from "../store/useStore";
 import { downloadVault, restoreVault } from "../lib/vault";
+import { PricingPanel } from "./PricingPanel";
 
 export const LibraryVault: React.FC = () => {
   const fileRef = useRef<HTMLInputElement>(null);
-  const isSupporter = useStore((s) => s.isSupporter);
-  const openSupport = useStore((s) => s.openSupport);
   const [msg, setMsg] = useState("");
 
   return (
@@ -64,22 +62,9 @@ export const LibraryVault: React.FC = () => {
         {msg && <span className="muted" style={{ fontSize: 11 }}>{msg}</span>}
       </div>
 
-      <div className="lib-support">
-        <h2 className="lib-title" style={{ marginTop: 18 }}>☤ Support &amp; Unlock</h2>
-        <p className="shelf-sub">
-          {isSupporter
-            ? "This observatory runs unlocked — thank you. The door stays open below if you want to revisit or extend your support."
-            : "The deeper instruments — in-depth readings, the Oracle Report, the Course — open with support. The observatory never locks what it can give freely."}
-        </p>
-        {/* Not .support-pill — that selector is the masthead's identity pill
-            and e2e matches it strictly. */}
-        <button
-          className={`lib-support-btn ${isSupporter ? "is-supporter" : ""}`}
-          onClick={() => openSupport(true)}
-        >
-          {isSupporter ? "✦ Supporter — view options" : "☤ Support / Unlock"}
-        </button>
-      </div>
+      {/* E-3: support & unlock became a real pricing surface — both rails, live
+          prices — instead of a lone button into the crypto modal. */}
+      <PricingPanel />
     </div>
   );
 };

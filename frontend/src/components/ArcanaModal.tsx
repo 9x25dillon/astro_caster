@@ -19,6 +19,9 @@ import {
   fetchCourse,
   fetchPersonalReport,
   purchasePersonalReport,
+  reportCheckout,
+  getPricing,
+  type Pricing,
   downloadArcanaCalendar,
   localToday,
   trackEvent,
@@ -45,6 +48,7 @@ import { ConstellationPath } from "./ConstellationPath";
 import { chaosLetters, wordValue, reduceDigit, planetToKamea } from "../lib/sigil";
 import { deriveSoulProfile } from "../lib/archetypes";
 import { computeLifePath, LIFE_PATH_DATA, getResonance } from "../lib/numerology";
+import { loadReportToken, saveReportToken, stashPendingReportSeed } from "../lib/reportTokens";
 
 // Friendly labels for the models that can serve an Oracle Report (requested
 // model + its server-side fallback). Unknown IDs fall through as-is — honest
@@ -55,26 +59,6 @@ const ORACLE_MODEL_LABELS: Record<string, string> = {
 };
 
 type Tab = "natal" | "draw" | "transit" | "classroom" | "studio";
-
-// PDF-2 — purchased deluxe claims, kept per Oracle-session seed. The seed is
-// deterministic (same chart + spread + question ⇒ same seed), so a purchase
-// survives page refreshes and identical re-runs of the Oracle Report.
-const REPORT_TOKENS_KEY = "aae.report_tokens";
-
-function loadReportToken(seed: string): string | null {
-  try {
-    const map = JSON.parse(localStorage.getItem(REPORT_TOKENS_KEY) ?? "{}");
-    return typeof map[seed] === "string" ? map[seed] : null;
-  } catch { return null; }
-}
-
-function saveReportToken(seed: string, token: string | null) {
-  try {
-    const map = JSON.parse(localStorage.getItem(REPORT_TOKENS_KEY) ?? "{}");
-    if (token) map[seed] = token; else delete map[seed];
-    localStorage.setItem(REPORT_TOKENS_KEY, JSON.stringify(map));
-  } catch { /* storage unavailable — the claim just won't persist */ }
-}
 
 const SPREADS: { id: SpreadType; label: string }[] = [
   { id: "daily", label: "Daily card" },
@@ -133,6 +117,9 @@ export const ArcanaModal: React.FC<{
   const [reportToken, setReportToken] = useState<string | null>(null);
   const [purchaseTx, setPurchaseTx] = useState("");
   const [purchasing, setPurchasing] = useState(false);
+  // Deluxe price + whether the card rail exists at all. Null until known, so
+  // the card option simply doesn't render on an instance without Stripe.
+  const [pricing, setPricing] = useState<Pricing | null>(null);
 
   // R-4: constellation path — a star stays lit once a reflection is kept for
   // its lesson (loaded from the journal when the path arrives; keeping one in
@@ -159,6 +146,14 @@ export const ArcanaModal: React.FC<{
     setPersonal(null);
     setReportToken(null);   // claims bind to a session seed, not the chart
   }, [chart]);
+
+  // The deluxe price + whether cards are accepted here. Fetched once; a failure
+  // is silent — the crypto rail and the free tier stand on their own.
+  useEffect(() => {
+    let live = true;
+    getPricing().then((p) => { if (live) setPricing(p); }).catch(() => {});
+    return () => { live = false; };
+  }, []);
 
   // Chapter VI opens straight to the classroom — fire its lazy load on mount
   // (the tab-click handler that normally does this never ran).
@@ -531,6 +526,32 @@ export const ArcanaModal: React.FC<{
     }
   }
 
+  // Phase 4.3 — the same deluxe purchase on the card rail. Stripe is a redirect
+  // flow, so we stash which Oracle session this buys BEFORE leaving: the raw
+  // seed ends with the question and never travels to Stripe (only its hash
+  // rides in the session metadata), which means the browser has to carry it
+  // across the redirect itself. The store's completeCheckoutReturn claims it
+  // on the way back.
+  async function buyDeluxeWithCard() {
+    if (!oracle || purchasing) return;
+    setPurchasing(true); setErr(null);
+    try {
+      const { url, session_id } = await reportCheckout(oracle.seed, { entitlement });
+      stashPendingReportSeed(session_id, oracle.seed);
+      trackEvent("checkout_started", { kind: "deluxe", rail: "card" });
+      window.location.href = url;
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 503) {
+        setErr("Card payments aren't enabled on this instance — the crypto rail below still works.");
+      } else if (e instanceof ApiError && e.status === 402) {
+        setErr("Oracle tier required before the deluxe edition can be purchased.");
+      } else {
+        setErr(String(e));
+      }
+      setPurchasing(false);
+    }
+  }
+
   // PDF-3 — "Your Personal Audio Companion": narrate the Synthesis + Practices
   // from the deluxe edition. speech.speak routes to ElevenLabs when configured
   // (supporter voice; tts.py sentence-chunks under the 5000-char limit
@@ -835,6 +856,25 @@ export const ArcanaModal: React.FC<{
                               directly via the ghost button below. */}
                           {!reportToken && (
                             <>
+                              {/* Phase 4.3 — the card rail, beside the original
+                                  crypto one. Hidden entirely when Stripe isn't
+                                  configured, rather than 503ing on click. */}
+                              {pricing?.card_available && (
+                                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                                  <button
+                                    className={`arc-draw-btn deluxe-buy-card ${purchasing ? "is-live" : ""}`}
+                                    onClick={buyDeluxeWithCard}
+                                    disabled={purchasing}
+                                  >
+                                    {purchasing
+                                      ? "Opening checkout…"
+                                      : `✦ Buy with card · $${pricing.report_usd}`}
+                                  </button>
+                                  <span style={{ opacity: 0.6, fontSize: "0.72rem" }}>
+                                    One-time, for this Oracle session. You'll return here unlocked.
+                                  </span>
+                                </div>
+                              )}
                               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                                 <input
                                   value={purchaseTx}
@@ -852,9 +892,11 @@ export const ArcanaModal: React.FC<{
                                 </button>
                               </div>
                               <span style={{ opacity: 0.6, fontSize: "0.72rem" }}>
-                                Send the deluxe-edition contribution to the observatory treasury
-                                (the <b>♥ Support</b> panel has the address), then paste the tx
-                                hash here. The claim unlocks <i>this</i> Oracle session's edition.
+                                {pricing?.card_available && <>Or pay in crypto: s</>}
+                                {!pricing?.card_available && <>S</>}end the deluxe-edition
+                                contribution to the observatory treasury (the <b>♥ Support</b>{" "}
+                                panel has the address), then paste the tx hash here. The claim
+                                unlocks <i>this</i> Oracle session's edition.
                               </span>
                             </>
                           )}

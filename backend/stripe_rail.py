@@ -70,6 +70,12 @@ def _mode() -> str:
     return m if m in ("payment", "subscription") else "payment"
 
 
+def checkout_mode() -> str:
+    """Public read of the tier rail's mode — the pricing surface words the offer
+    differently for a recurring subscription than for a one-time unlock."""
+    return _mode()
+
+
 def price_cents(tier: str) -> int:
     usd = {
         "supporter": float(os.environ.get("AAE_STRIPE_SUPPORTER_USD", "5")),

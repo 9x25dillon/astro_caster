@@ -5,14 +5,21 @@ import {
   aiAskStream,
   aiSuggestions,
   checkEntitlement,
+  claimReportCheckout,
   fetchTransits,
   generateChart,
   localChart,
   getTreasury,
+  retrieveCheckout,
   verifyDonation,
   type AIResult,
   type Treasury,
 } from "../api/client";
+import {
+  clearPendingReportSeed,
+  readPendingReportSeed,
+  saveReportToken,
+} from "../lib/reportTokens";
 
 const ENT_KEY = "aae.entitlement";
 const LAST_CHART_KEY = "aae.last_chart";
@@ -114,6 +121,10 @@ interface AstroState {
   isSupporter: boolean;
   treasury: Treasury | null;
   supportOpen: boolean; // is the Support modal visible
+  // Feedback for a Stripe redirect-return ("unlocked", "cancelled", a failure
+  // to explain). Transient — never persisted, cleared when acknowledged.
+  checkoutNote: string | null;
+  checkoutBusy: boolean; // settling a return (the poll window)
 
   // Actions
   setBirth: (b: Partial<BirthInput>) => void;
@@ -136,6 +147,8 @@ interface AstroState {
   redeemDonation: (txHash: string, chain?: string) => Promise<boolean>;
   clearEntitlement: () => void;
   validateEntitlement: () => Promise<void>;
+  completeCheckoutReturn: () => Promise<void>;
+  setCheckoutNote: (note: string | null) => void;
 }
 
 const EMPTY_RESULT: AIResult = {
@@ -163,6 +176,38 @@ const EMPTY_RESULT: AIResult = {
       null, "", window.location.pathname + (rest ? `?${rest}` : "") + window.location.hash);
   } catch { /* sandboxed storage or no window: ignore */ }
 })();
+
+// Stripe redirect-return (Phase 4 / Track E-3). Checkout is a REDIRECT flow:
+// the browser leaves for Stripe's hosted page and comes back to
+// `?checkout=<session_id>` (tier) or `?report_checkout=<session_id>` (deluxe),
+// or `…=cancel` if the customer backed out. Capture BOTH synchronously here and
+// scrub them immediately — same discipline as `?entitlement=` above — so a
+// reload can't re-trigger a mint and the session id doesn't linger in the bar,
+// in history, or in a referrer. The network half runs later, in
+// `completeCheckoutReturn`, which the App calls on mount.
+const CHECKOUT_RETURN: { tier: string | null; report: string | null } = (() => {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const tier = params.get("checkout");
+    const report = params.get("report_checkout");
+    if (tier === null && report === null) return { tier: null, report: null };
+    params.delete("checkout");
+    params.delete("report_checkout");
+    const rest = params.toString();
+    window.history.replaceState(
+      null, "", window.location.pathname + (rest ? `?${rest}` : "") + window.location.hash);
+    return { tier, report };
+  } catch {
+    return { tier: null, report: null };
+  }
+})();
+
+// Stripe reports a session paid as soon as the customer finishes, but our mint
+// can race the webhook. `GET /api/checkout/{id}` mints on read, so a short poll
+// covers the window where the browser gets back first.
+const CHECKOUT_POLLS = 3;
+const CHECKOUT_POLL_MS = 2000;
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 // Offline ask queue — persisted so a reflection typed with no connection
 // survives reload and fires when the network returns (flushAskQueue).
@@ -242,6 +287,8 @@ export const useStore = create<AstroState>((set, get) => ({
   isSupporter: !!localStorage.getItem(ENT_KEY),
   treasury: null,
   supportOpen: false,
+  checkoutNote: null,
+  checkoutBusy: false,
 
   setBirth: (b) => set((s) => ({ birth: { ...s.birth, ...b } })),
   setLens: (lens) => { set({ lens }); trackEvent("lens_changed", { lens }); },
@@ -453,6 +500,10 @@ export const useStore = create<AstroState>((set, get) => ({
       // tokenless browser is still fully unlocked; without this the UI would
       // show free-tier support/purchase prompts against an unlocked backend.
       const status = await checkEntitlement(entitlement ?? "");
+      // A checkout return can mint WHILE this request is in flight (both fire
+      // from the same mount). The answer we're holding is about the old token,
+      // so applying it would flip a customer who just paid back to locked.
+      if (get().entitlement !== entitlement) return;
       if (status.supporter) {
         set({ isSupporter: true });
       } else if (entitlement) {
@@ -464,6 +515,91 @@ export const useStore = create<AstroState>((set, get) => ({
       }
     } catch {
       // Network failure — leave the stored state alone; re-checked next time.
+    }
+  },
+
+  setCheckoutNote: (note) => set({ checkoutNote: note }),
+
+  // The other half of the Stripe redirect: the params were captured and scrubbed
+  // at module load (CHECKOUT_RETURN); this exchanges them for the actual unlock.
+  // Called once on mount — a no-op on every ordinary visit.
+  completeCheckoutReturn: async () => {
+    const { tier, report } = CHECKOUT_RETURN;
+    if (tier === null && report === null) return;
+
+    if (tier === "cancel" || report === "cancel") {
+      // Backing out is a legitimate answer, not an error. Say so kindly and
+      // change nothing.
+      trackEvent("checkout_cancelled");
+      set({ checkoutNote: "Checkout cancelled — nothing was charged." });
+      return;
+    }
+
+    set({ checkoutBusy: true });
+    try {
+      if (tier) {
+        for (let attempt = 0; attempt < CHECKOUT_POLLS; attempt++) {
+          const res = await retrieveCheckout(tier);
+          if (res.granted && res.entitlement) {
+            localStorage.setItem(ENT_KEY, res.entitlement.token);
+            trackEvent("checkout_returned", { granted: true, kind: "tier" });
+            set({
+              entitlement: res.entitlement.token,
+              isSupporter: true,
+              checkoutNote: `Unlocked — ${res.tier ?? "supporter"} tier is active. Thank you.`,
+            });
+            return;
+          }
+          // Not settled yet: the browser beat the webhook. Wait and re-read.
+          if (attempt < CHECKOUT_POLLS - 1) await sleep(CHECKOUT_POLL_MS);
+        }
+        trackEvent("checkout_returned", { granted: false, kind: "tier" });
+        set({
+          checkoutNote:
+            "Payment is still settling with Stripe. Reload in a moment — " +
+            "if it stays locked, the ♥ Support panel can re-check it.",
+        });
+        return;
+      }
+
+      // Deluxe: the claim must prove WHICH Oracle session it unlocks, and the
+      // raw seed never went to Stripe — it was stashed locally before leaving.
+      const sessionId = report as string;
+      const seed = readPendingReportSeed(sessionId);
+      if (!seed) {
+        trackEvent("checkout_returned", { granted: false, kind: "deluxe" });
+        set({
+          checkoutNote:
+            "Deluxe purchase received, but this browser doesn't hold the Oracle " +
+            "session it was bought for. Re-open that session and use " +
+            "“already unlocked? compile” to claim it.",
+        });
+        return;
+      }
+      const { entitlement } = get();
+      const res = await claimReportCheckout(sessionId, seed, { entitlement });
+      if (res.granted && res.report_token?.token) {
+        saveReportToken(seed, res.report_token.token);
+        clearPendingReportSeed();
+        trackEvent("checkout_returned", { granted: true, kind: "deluxe" });
+        set({
+          checkoutNote:
+            "Deluxe edition unlocked for that Oracle session — open it and compile.",
+        });
+      }
+    } catch (e) {
+      const err = e as Error & { status?: number };
+      // 402 = Stripe hasn't settled the payment yet; 409 = the purchase belongs
+      // to a different Oracle session. Both are worth saying precisely.
+      const note = err.status === 402
+        ? "Payment hasn't settled yet — reload in a moment to claim it."
+        : err.status === 409
+          ? "That purchase was made for a different Oracle session."
+          : `Could not complete the purchase: ${err.message}`;
+      trackEvent("checkout_returned", { granted: false });
+      set({ checkoutNote: note });
+    } finally {
+      set({ checkoutBusy: false });
     }
   },
 }));

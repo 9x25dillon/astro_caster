@@ -38,6 +38,10 @@ export const App: React.FC = () => {
   const flushAskQueue = useStore((s) => s.flushAskQueue);
   const queuedAsks = useStore((s) => s.queuedAsks);
   const setMargin = useStore((s) => s.setMargin);
+  const completeCheckoutReturn = useStore((s) => s.completeCheckoutReturn);
+  const checkoutNote = useStore((s) => s.checkoutNote);
+  const checkoutBusy = useStore((s) => s.checkoutBusy);
+  const setCheckoutNote = useStore((s) => s.setCheckoutNote);
   // Track R (R-1): the seven masthead module buttons became the chapter dial.
   // Chapter I = the wheel at home; II–VIII mount the former modals' content
   // in the stage, unchanged (their chrome retires in R-2).
@@ -56,6 +60,9 @@ export const App: React.FC = () => {
   useEffect(() => {
     if (!chart) generate();
     validateEntitlement();
+    // Returning from Stripe? The params were captured + scrubbed at module
+    // load; this settles the mint (no-op on an ordinary visit).
+    completeCheckoutReturn();
     // Deep-link: /#support opens the support panel directly (shareable).
     if (window.location.hash === "#support") openSupport(true);
     if (window.location.hash === "#admin") setAdminOpen(true);
@@ -180,6 +187,19 @@ export const App: React.FC = () => {
         onOpenForecast={() => openChapter("III")}
         onNewChart={() => setCeremonyOpen(true)}
       />
+
+      {/* The Stripe redirect lands back here. Outside the chapter switch so the
+          verdict is visible wherever the customer returns to. */}
+      {(checkoutNote || checkoutBusy) && (
+        <div className={`checkout-note ${checkoutBusy ? "is-live" : ""}`} role="status">
+          <span>{checkoutBusy ? "Confirming your purchase with Stripe…" : checkoutNote}</span>
+          {!checkoutBusy && (
+            <button className="ghost checkout-note-ok" onClick={() => setCheckoutNote(null)}>
+              OK
+            </button>
+          )}
+        </div>
+      )}
 
       {chapter === "I" && <MorningPanel />}
 
