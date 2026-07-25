@@ -2700,12 +2700,13 @@ h2.section::after {
 .pricing-buy.is-live { color: var(--ion); border-color: var(--ion); }
 .pricing-fine { font-size: 11.5px; line-height: 1.55; opacity: 0.68; margin: 0 0 12px; }
 .pricing-err { font-size: 12px; color: var(--amethyst-soft); margin: 0 0 10px; }
-.pricing-refrain {
-  margin: 12px 0 0;
-  font-family: var(--serif);
-  font-style: italic;
-  font-size: 12px;
-  opacity: 0.6;
+/* On wide screens the mini chapter rail floats over the stage's bottom-right
+   corner — which is exactly where this panel's Buy buttons and the
+   cancel-anytime line land. Measured, not guessed: the rail owns the rightmost
+   ~55px of the stage, so keep the surface's own content clear of it. A price
+   you can't read and a button the rail intercepts are both fatal here. */
+@media (min-width: 1101px) {
+  .pricing-panel { padding-right: 46px; }
 }
 
 /* The tome spine — a book's edge that fills as the shelf grows. Bound

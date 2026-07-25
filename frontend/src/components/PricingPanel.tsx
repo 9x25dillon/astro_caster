@@ -127,10 +127,8 @@ export const PricingPanel: React.FC = () => {
             ? "☤ …or contribute with crypto"
             : "☤ Support / Unlock"}
       </button>
-
-      <p className="pricing-refrain">
-        Nothing Astra produces is a life sentence — it is a life poem.
-      </p>
+      {/* No refrain here — R-4 made it the chapter's running footer, and it
+          runs once. */}
     </div>
   );
 };
