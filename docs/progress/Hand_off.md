@@ -50,14 +50,18 @@ operator merges FAST, sometimes mid-work AND same-session — session 18
 merged #99–#103 while other work was still in flight; sessions 13/17 also
 hit this). Working tree should be clean on main @ 08f4c33+.
 
-**0.5. Decide the direction.** Two open forks the operator has been weighing
-(his words, session 18): finish engineering the **yet-undefined
-resonarium** (start from RESONARIUM_PARITY.md), OR turn the public
-astro-caster into a **revenue-bearing app** — his read is the market is
-"perceived taboo, not niche," so the public edition wants an ergonomically
-intuitive redesign, and it must stay a math-based function (no religious/
-agnostic system dressing that can't pay for itself). This is an operator
-decision — surface it, don't pick.
+**0.5. Direction — DECIDED (session 19): the revenue-bearing public app.**
+The operator finished Stripe account verification + business review and wants
+to monetize (asked to use a live key — held; not time yet, see below). The
+resonarium fork is parked. **The intricate plan is
+`docs/progress/LAUNCH_ENGINEERING_ROADMAP.md`** (authored session 19) — read
+it; it supersedes the generic ordering below for the revenue path. Critical
+path: M0 validate rail in test mode → **M1 Track E-3 (purchase UI + pricing
+surface) = the next session** → M2 E-1/E-2 UX → M3 Phase 5 policies → M4 deploy
+(D4 VPS) → M5 go-live (test→live keys). **The hard blocker is that the Stripe
+rail has NO purchase UI and NO `?checkout=`/`?report_checkout=` redirect-return
+handler** — M1 builds exactly that. A live key must NOT be used until M5 (no
+public deploy, no buy UI, no policies yet); it was correctly held this session.
 
 **1. Phase 4.3 — DONE (session 19), plus subscription self-service.** The
 remaining monetization gap is now the **BUY UI (Track E, E-3 pricing surface)**:
