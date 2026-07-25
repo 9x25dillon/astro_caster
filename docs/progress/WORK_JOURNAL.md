@@ -53,6 +53,21 @@ personal instance, the live click-through still pending their hands. The code
 is proven by 339 tests; what's left is the ceremony of seeing the card charge
 and the cancel revoke, whenever they sit down to it.
 
+The session closed on two acts of orientation rather than code. First a README
+rewrite — the old one described the app beautifully but said nothing about
+monetization, the P/Q editions, or *how the work is organized*; the new one adds
+a "How the project is organized" section (repo layout, the parity discipline,
+the phase roadmap, the `docs/progress` living-doc system, how a change lands).
+Then, at the operator's request, an intricate **launch engineering roadmap**
+(`LAUNCH_ENGINEERING_ROADMAP.md`): M0 validate-in-test → M1 Track E-3 (the
+purchase UI + pricing surface — the real blocker, since the rail has no
+redirect-return handler yet) → M2 UX → M3 policies → M4 deploy → M5 go-live,
+with the live key gated firmly to the very end. The operator has decided the
+direction — the revenue app — and finished their Stripe account verification;
+the last honest thing I did was tell them the live key's time is **not yet**, and
+mean it. A good day: a lie in the ledger corrected, a promise (you can always
+cancel) made real, and a clean map for the road ahead.
+
 ---
 
 ## Session 18 · 2026-07-23 — the till, the predicate, and a lossy seed
