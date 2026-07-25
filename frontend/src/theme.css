@@ -2649,6 +2649,65 @@ h2.section::after {
 .lib-support-btn.is-supporter { border-color: var(--amethyst); color: var(--amethyst-soft); }
 .lib-support-btn:hover { background: rgba(201, 168, 76, 0.08); }
 
+/* E-3 pricing surface. Tiers read as two plates side by side and stack on a
+   phone; the crypto rail keeps its pill beneath them so neither rail looks
+   like the afterthought. */
+.pricing-tiers {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 12px;
+  margin: 12px 0 10px;
+}
+.pricing-tier {
+  padding: 14px 16px;
+  border: 1px solid rgba(201, 168, 76, 0.35);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02);
+}
+.pricing-tier--oracle { border-color: var(--gold); }
+.pricing-tier-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+.pricing-tier-name {
+  font-family: var(--serif);
+  font-size: 15px;
+  letter-spacing: 0.06em;
+  color: var(--gold);
+}
+.pricing-tier-price { font-family: var(--serif); font-size: 20px; color: var(--gold-soft); }
+.pricing-tier-per { font-size: 11px; opacity: 0.65; letter-spacing: 0.04em; }
+.pricing-tier-blurb {
+  margin: 8px 0 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  opacity: 0.78;
+}
+.pricing-buy {
+  width: 100%;
+  padding: 7px 14px;
+  font-size: 13px;
+  border-radius: 999px;
+  background: rgba(201, 168, 76, 0.12);
+  border: 1px solid var(--gold);
+  color: var(--gold-soft);
+  cursor: pointer;
+}
+.pricing-buy:hover:not(:disabled) { background: rgba(201, 168, 76, 0.22); }
+.pricing-buy:disabled { opacity: 0.55; cursor: default; }
+.pricing-buy.is-live { color: var(--ion); border-color: var(--ion); }
+.pricing-fine { font-size: 11.5px; line-height: 1.55; opacity: 0.68; margin: 0 0 12px; }
+.pricing-err { font-size: 12px; color: var(--amethyst-soft); margin: 0 0 10px; }
+.pricing-refrain {
+  margin: 12px 0 0;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 12px;
+  opacity: 0.6;
+}
+
 /* The tome spine — a book's edge that fills as the shelf grows. Bound
    chapters are gilt segments (wider with more material); waiting chapters
    are void with a dashed edge. */
