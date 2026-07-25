@@ -500,6 +500,10 @@ export const useStore = create<AstroState>((set, get) => ({
       // tokenless browser is still fully unlocked; without this the UI would
       // show free-tier support/purchase prompts against an unlocked backend.
       const status = await checkEntitlement(entitlement ?? "");
+      // A checkout return can mint WHILE this request is in flight (both fire
+      // from the same mount). The answer we're holding is about the old token,
+      // so applying it would flip a customer who just paid back to locked.
+      if (get().entitlement !== entitlement) return;
       if (status.supporter) {
         set({ isSupporter: true });
       } else if (entitlement) {
