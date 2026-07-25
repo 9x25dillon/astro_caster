@@ -749,6 +749,49 @@ export function purchasePersonalReport(
   });
 }
 
+export interface Pricing {
+  card_available: boolean;
+  crypto_available: boolean;
+  mode: "payment" | "subscription";
+  currency: string;
+  tiers: { tier: string; usd: number }[];
+  report_usd: number;
+}
+
+/** Live prices + which rails are open. The pricing surface renders from this
+ *  and NEVER hardcodes an amount — env is the source of truth, and an instance
+ *  with no Stripe key reports `card_available:false` so the UI can offer the
+ *  crypto rail alone instead of a Buy button that would 503. */
+export function getPricing(): Promise<Pricing> {
+  return fetch(`${BASE}/pricing`).then((r) => r.json());
+}
+
+/** Open a Stripe Checkout session for a tier. Returns the hosted URL to send
+ *  the browser to; Stripe redirects back to `?checkout=<session_id>`, which
+ *  `completeCheckoutReturn` in the store exchanges for the entitlement.
+ *  503 when card payments are unconfigured. */
+export function createCheckout(
+  tier: "supporter" | "oracle",
+): Promise<{ url: string; session_id: string }> {
+  return post("/checkout", { tier });
+}
+
+/** Redirect-return read for the tier rail: mints (or re-issues) the entitlement
+ *  as soon as Stripe reports the session paid, so the unlock does not wait on
+ *  the webhook. `{granted:false, status}` means payment hasn't settled yet —
+ *  poll briefly rather than declaring failure. */
+export function retrieveCheckout(sessionId: string): Promise<{
+  granted: boolean;
+  status?: string;
+  tier?: string;
+  entitlement?: Entitlement;
+}> {
+  return fetch(`${BASE}/checkout/${encodeURIComponent(sessionId)}`).then(async (r) => {
+    if (!r.ok) throw new ApiError(r.status, await r.text().catch(() => r.statusText));
+    return r.json();
+  });
+}
+
 /** Phase 4.3 — the deluxe edition on the Stripe rail. Returns the hosted
  *  checkout URL to redirect to; only the seed's HASH reaches Stripe. 402 below
  *  oracle tier, 503 when card payments are unconfigured. On the redirect back

@@ -204,6 +204,28 @@ body::before {
   color: var(--gold-soft, var(--gold));
   border-color: var(--gold);
 }
+/* Stripe redirect-return verdict (Track E-3). Unlike the offline notes this is
+   in the document flow and interactive — it carries an acknowledgement, and a
+   purchase deserves to be read rather than glanced past. */
+.checkout-note {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 0 0 10px;
+  padding: 8px 16px;
+  font-family: var(--serif);
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  color: var(--gold-soft, var(--gold));
+  background: rgba(11, 11, 15, 0.82);
+  border: 1px solid var(--gold);
+  border-radius: 10px;
+}
+.checkout-note.is-live { color: var(--ion); border-color: var(--ion); }
+.checkout-note-ok { width: auto; font-size: 11px; padding: 2px 12px; }
+
 .detail { grid-area: detail; }
 .timeline { grid-area: timeline; }
 

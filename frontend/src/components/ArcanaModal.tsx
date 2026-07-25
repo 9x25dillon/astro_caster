@@ -45,6 +45,7 @@ import { ConstellationPath } from "./ConstellationPath";
 import { chaosLetters, wordValue, reduceDigit, planetToKamea } from "../lib/sigil";
 import { deriveSoulProfile } from "../lib/archetypes";
 import { computeLifePath, LIFE_PATH_DATA, getResonance } from "../lib/numerology";
+import { loadReportToken, saveReportToken } from "../lib/reportTokens";
 
 // Friendly labels for the models that can serve an Oracle Report (requested
 // model + its server-side fallback). Unknown IDs fall through as-is — honest
@@ -55,26 +56,6 @@ const ORACLE_MODEL_LABELS: Record<string, string> = {
 };
 
 type Tab = "natal" | "draw" | "transit" | "classroom" | "studio";
-
-// PDF-2 — purchased deluxe claims, kept per Oracle-session seed. The seed is
-// deterministic (same chart + spread + question ⇒ same seed), so a purchase
-// survives page refreshes and identical re-runs of the Oracle Report.
-const REPORT_TOKENS_KEY = "aae.report_tokens";
-
-function loadReportToken(seed: string): string | null {
-  try {
-    const map = JSON.parse(localStorage.getItem(REPORT_TOKENS_KEY) ?? "{}");
-    return typeof map[seed] === "string" ? map[seed] : null;
-  } catch { return null; }
-}
-
-function saveReportToken(seed: string, token: string | null) {
-  try {
-    const map = JSON.parse(localStorage.getItem(REPORT_TOKENS_KEY) ?? "{}");
-    if (token) map[seed] = token; else delete map[seed];
-    localStorage.setItem(REPORT_TOKENS_KEY, JSON.stringify(map));
-  } catch { /* storage unavailable — the claim just won't persist */ }
-}
 
 const SPREADS: { id: SpreadType; label: string }[] = [
   { id: "daily", label: "Daily card" },

@@ -362,3 +362,40 @@ def test_billing_portal_returns_url_for_linked_customer(monkeypatch):
     assert r.status_code == 200, r.text[:200]
     assert r.json() == {"url": "https://billing.stripe.test/session/abc"}
     assert captured["customer"] == "cus_portal"    # the right customer's portal
+
+
+# ── GET /api/pricing — the pricing surface's source of truth (M1/E-3) ────────
+
+def test_pricing_reports_live_env_prices(monkeypatch):
+    # The UI renders these; hardcoding them frontend-side would drift the
+    # moment a price changes, so the endpoint must read env every call.
+    monkeypatch.setenv("AAE_STRIPE_SECRET_KEY", "sk_test_x")
+    monkeypatch.setenv("AAE_STRIPE_SUPPORTER_USD", "4")
+    monkeypatch.setenv("AAE_STRIPE_ORACLE_USD", "18")
+    monkeypatch.setenv("AAE_STRIPE_REPORT_USD", "12.50")
+    body = client.get("/api/pricing").json()
+    assert body["card_available"] is True
+    assert {t["tier"]: t["usd"] for t in body["tiers"]} == {"supporter": 4.0, "oracle": 18.0}
+    assert body["report_usd"] == 12.5
+    assert body["currency"] == "usd"
+
+
+def test_pricing_hides_card_when_rail_unconfigured(monkeypatch):
+    # Edition P / an unconfigured instance must degrade honestly to the crypto
+    # rail rather than render a Buy button that 503s.
+    monkeypatch.delenv("AAE_STRIPE_SECRET_KEY", raising=False)
+    body = client.get("/api/pricing").json()
+    assert body["card_available"] is False
+    assert "tiers" in body and body["report_usd"] > 0   # prices still readable
+
+
+def test_pricing_reports_checkout_mode(monkeypatch):
+    monkeypatch.setenv("AAE_STRIPE_MODE", "subscription")
+    assert client.get("/api/pricing").json()["mode"] == "subscription"
+    monkeypatch.setenv("AAE_STRIPE_MODE", "payment")
+    assert client.get("/api/pricing").json()["mode"] == "payment"
+
+
+def test_pricing_needs_no_entitlement():
+    # It is a public surface — a prospective customer has no token yet.
+    assert client.get("/api/pricing").status_code == 200

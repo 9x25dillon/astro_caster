@@ -35,6 +35,11 @@ Endpoints:
   GET  /api/tts/voices          – available ElevenLabs voices
   POST /api/tts                 – synthesize speech (MP3); supporter feature
   GET  /api/treasury            – funding allocation + EVM treasury address
+  GET  /api/pricing             – live prices + which payment rails are open
+  POST /api/checkout            – Stripe Checkout session for a tier
+  GET  /api/checkout/{id}       – mint on redirect-return (webhook-lag proof)
+  POST /api/stripe/webhook      – Stripe lifecycle: completed→mint, refund→revoke
+  POST /api/billing/portal      – Stripe Customer Portal (cancel / update card)
   POST /api/donate/verify       – verify a tx hash and mint an entitlement token
   GET  /api/entitlement         – validate an entitlement token (?token=...)
   POST /api/telemetry/event     – ingest a UI feature event (fire-and-forget)
@@ -462,6 +467,28 @@ async def entitlement_relink(req: DonateVerifyRequest):
 # --------------------------------------------------------------------------- #
 # Stripe rail (Phase 4.2) — cards/subscriptions alongside the crypto rail
 # --------------------------------------------------------------------------- #
+
+@app.get("/api/pricing")
+async def get_pricing():
+    """The pricing surface's source of truth. Prices live in env
+    (AAE_STRIPE_*_USD) — the UI must never hardcode them or they drift the
+    moment a price changes. Also reports which rails are actually open, so an
+    instance with no Stripe key (Edition P, or an unconfigured deployment)
+    degrades honestly to the crypto rail instead of showing a dead Buy button."""
+    card = STRIPE.stripe_available()
+    return {
+        "card_available": card,
+        "crypto_available": bool(TR.treasury_info().get("configured")),
+        # payment = one-time unlock, subscription = recurring; the copy differs.
+        "mode": STRIPE.checkout_mode(),
+        "currency": "usd",
+        "tiers": [
+            {"tier": t, "usd": round(STRIPE.price_cents(t) / 100, 2)}
+            for t in ("supporter", "oracle")
+        ],
+        "report_usd": round(STRIPE.report_price_cents() / 100, 2),
+    }
+
 
 class CheckoutRequest(BaseModel):
     tier: str                            # supporter | oracle
