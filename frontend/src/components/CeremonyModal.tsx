@@ -62,10 +62,26 @@ export const CeremonyModal: React.FC<Props> = ({ onClose }) => {
   const set = (fields: Partial<BirthInput>) =>
     setDraft((d) => ({ ...d, ...fields }));
 
-  // Geolocate when the user REACHES the location step — not on mount. The
-  // ceremony auto-opens on first visit, so a mount-time request meant a
-  // permission prompt at first paint (bad first impression for a
-  // privacy-first app, and a Lighthouse best-practices deduction).
+  // Track E-1: the ceremony is entered by choice, so it must be leaveable the
+  // same way. Capture phase + stopImmediatePropagation so Esc means exactly
+  // "close this" and doesn't ALSO fire the App's chapter-home handler.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || casting) return;
+      const t = e.target as HTMLElement | null;
+      if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
+      e.stopImmediatePropagation();
+      onClose();
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [onClose, casting]);
+
+  // Geolocate when the user REACHES the location step — not on mount. A
+  // mount-time request meant a permission prompt at first paint back when this
+  // opened itself (bad first impression for a privacy-first app, and a
+  // Lighthouse best-practices deduction). It is entered by choice now, but the
+  // rule stands: ask at the step that needs it.
   useEffect(() => {
     if (step !== 2) return;
     if (!navigator.geolocation) return;
