@@ -1,7 +1,6 @@
 // B2 (NEXT_ARC): the Bookshelf. Done-when, verbatim: "a report generated
 // last month can be reopened and reprinted offline."
-import { expect, test, mintedTokens, openChapter } from "./helpers";
-import type { Page } from "@playwright/test";
+import { expect, test, mintedTokens, openChapter, seedShelf } from "./helpers";
 
 // A month-old shelved session with a deluxe edition attached. Birth data is
 // the Greenwich default so the offline re-cast is cheap and deterministic.
@@ -30,32 +29,9 @@ const OLD_ENTRY = {
   },
 };
 
-async function seedShelf(page: Page) {
-  await page.evaluate(async (entry) => {
-    await new Promise<void>((resolve, reject) => {
-      const req = indexedDB.open("astra-bookshelf", 2);
-      req.onupgradeneeded = () => {
-        const db = req.result;
-        if (!db.objectStoreNames.contains("sessions")) db.createObjectStore("sessions", { keyPath: "seed" });
-        if (!db.objectStoreNames.contains("journal")) {
-          const j = db.createObjectStore("journal", { keyPath: "id" });
-          j.createIndex("seed", "seed", { unique: false });
-        }
-      };
-      req.onsuccess = () => {
-        const t = req.result.transaction("sessions", "readwrite");
-        t.objectStore("sessions").put(entry);
-        t.oncomplete = () => { req.result.close(); resolve(); };
-        t.onerror = () => reject(t.error);
-      };
-      req.onerror = () => reject(req.error);
-    });
-  }, OLD_ENTRY);
-}
-
 test("a shelved month-old report reopens and reprints offline", async ({ page, context }) => {
   await page.goto("/");
-  await seedShelf(page);
+  await seedShelf(page, OLD_ENTRY);
   // Offline from here: the shelf, the reopen, and the reprint's chart
   // re-cast + plate re-deal are all on-device.
   await context.route((url) => url.pathname.startsWith("/api/"), (r) => r.abort());

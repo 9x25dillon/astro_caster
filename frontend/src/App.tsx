@@ -24,6 +24,8 @@ import { AdminPanel } from "./components/AdminPanel";
 import { InstallPrompt } from "./components/InstallPrompt";
 import { MorningPanel } from "./components/MorningPanel";
 import { ChapterDial, type Chapter, CHAPTERS } from "./components/ChapterDial";
+import { chapterNeed, litChapters } from "./lib/chapterReadiness";
+import { shelfList, journalAll } from "./lib/bookshelf";
 import { deriveSoulProfile } from "./lib/archetypes";
 import { trackEvent } from "./api/client";
 
@@ -58,6 +60,29 @@ export const App: React.FC = () => {
   // The moment the arrival wheel is cast for, in the visitor's own clock —
   // said plainly so "right now" is checkable rather than asserted.
   const showThreshold = chapter === "I" && isCurrentSky;
+
+  // E-2a: what the visitor has so far, which decides which chapters are lit.
+  // Re-read on every chapter change: shelving a reading or saving a second
+  // profile should light its node by the time you look back at the dial.
+  const [library, setLibrary] = useState(false);
+  const [savedCharts, setSavedCharts] = useState(0);
+  useEffect(() => {
+    try {
+      setSavedCharts(JSON.parse(localStorage.getItem("aae.profiles") ?? "[]").length);
+    } catch { setSavedCharts(0); }
+    let live = true;
+    Promise.all([shelfList(), journalAll()])
+      .then(([s, j]) => { if (live) setLibrary(s.length > 0 || j.length > 0); })
+      .catch(() => { /* IDB unavailable — the Library simply stays unlit */ });
+    return () => { live = false; };
+  }, [chapter, chart]);
+
+  const corpus = useMemo(
+    () => ({ hasOwnChart: !!chart && !isCurrentSky, savedCharts, hasLibrary: library }),
+    [chart, isCurrentSky, savedCharts, library],
+  );
+  const lit = useMemo(() => litChapters(corpus), [corpus]);
+  const openNeed = chapterNeed(chapter, corpus);
   const skyMoment = useMemo(
     () =>
       new Date(birth.year, birth.month - 1, birth.day, birth.hour, birth.minute)
@@ -254,6 +279,12 @@ export const App: React.FC = () => {
           // R-4: keyed by chapter — every open is one 240ms bloom (the only
           // motion of the intent; the surfaces' own entrances retire).
           <div className="chapter-host" key={chapter}>
+            {/* E-2a: an unlit chapter still opens — it just says what would
+                light it. One insertion point covers all seven, and each
+                chapter's own empty state still stands behind this. */}
+            {openNeed && (
+              <p className="chapter-needs" role="status">{openNeed}</p>
+            )}
             {/* R-2: chapters are bare surfaces — the modal chrome retired.
                 Esc / the dial navigate home; ForecastPanel's onHome is real
                 navigation (jump/Ask land on the wheel). Distinct keys force
@@ -292,7 +323,12 @@ export const App: React.FC = () => {
             </p>
           </div>
         )}
-        <ChapterDial active={chapter} onSelect={openChapter} />
+        <ChapterDial
+          active={chapter}
+          onSelect={openChapter}
+          lit={lit}
+          need={(ch) => chapterNeed(ch, corpus)}
+        />
       </div>
 
       <DetailPanel />

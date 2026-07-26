@@ -32,7 +32,15 @@ export const CHAPTERS: ChapterDef[] = [
 export const ChapterDial: React.FC<{
   active: Chapter;
   onSelect: (ch: Chapter) => void;
-}> = ({ active, onSelect }) => {
+  /**
+   * E-2a: chapters that currently have material. Unlit nodes keep their exact
+   * position and stay fully operable — illumination is the ONLY difference.
+   * Omit to light everything (the dial's own default is not to editorialise).
+   */
+  lit?: Set<Chapter>;
+  /** What an unlit chapter is waiting for, shown on hover/focus. */
+  need?: (ch: Chapter) => string | null;
+}> = ({ active, onSelect, lit, need }) => {
   const atRest = active === "I";
   return (
     <nav
@@ -42,7 +50,12 @@ export const ChapterDial: React.FC<{
       <div className="dial-orbit">
         {CHAPTERS.map((c, i) => {
           // Fixed compass positions: I north, then clockwise every 45°.
+          // This angle is the ONLY thing that decides where a node sits, and
+          // it depends on nothing but the index — which is what makes "nodes
+          // never move" a property of the code rather than a promise.
           const angle = -90 + i * 45;
+          const waiting = lit ? !lit.has(c.ch) : false;
+          const needs = waiting && need ? need(c.ch) : null;
           return (
             <button
               key={c.ch}
@@ -50,11 +63,17 @@ export const ChapterDial: React.FC<{
               className={
                 "dial-node" +
                 (c.ch === active ? " active" : "") +
-                (c.myst ? " myst" : "")
+                (c.myst ? " myst" : "") +
+                (waiting ? " waiting" : "")
               }
               style={{ "--a": `${angle}deg` } as React.CSSProperties}
-              title={`${c.ch} · ${c.name} — ${c.hint}`}
+              title={needs ?? `${c.ch} · ${c.name} — ${c.hint}`}
+              // The need belongs in the DESCRIPTION, never the name: folding it
+              // into aria-label made every node's accessible name contain its
+              // explanation, and "…what you keep" started matching by-name
+              // queries for the journal's "Keep" button.
               aria-label={`Chapter ${c.ch} · ${c.name}`}
+              aria-description={needs ?? undefined}
               aria-current={c.ch === active ? "page" : undefined}
               onClick={() => onSelect(c.ch)}
             >
