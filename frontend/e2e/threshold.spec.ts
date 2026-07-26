@@ -83,9 +83,9 @@ test("not knowing your birth time is a soft landing, not a dead end", async ({ p
 
   // Move OFF noon first — the ceremony's blank draft already sits at 12:00, so
   // asserting noon without this would pass whether the button works or not.
-  await page.locator(".ceremony-field").filter({ hasText: "Hour" }).locator("input").fill("3");
-  await page.locator(".ceremony-field").filter({ hasText: "Minute" }).locator("input").fill("47");
-  await expect(page.locator(".ceremony-preview")).toContainText(/3:47 AM/);
+  await page.locator(".ceremony-field").filter({ hasText: "Hour" }).locator("input").fill("9");
+  await page.locator(".ceremony-field").filter({ hasText: "Minute" }).locator("input").fill("15");
+  await expect(page.locator(".ceremony-preview")).toContainText(/9:15 AM/);
 
   await page.locator(".ceremony-noon").click();
 
@@ -137,7 +137,7 @@ test("the threshold retires once the wheel is somebody's own chart", async ({ pa
     const raw = localStorage.getItem("aae.last_chart");
     if (!raw) throw new Error("no cached cast to rewrite");
     const parsed = JSON.parse(raw);
-    parsed.birth = { ...parsed.birth, year: 1987, month: 11, day: 11, label: "Mine" };
+    parsed.birth = { ...parsed.birth, year: 1990, month: 6, day: 15, label: "Test person" };
     localStorage.setItem("aae.last_chart", JSON.stringify(parsed));
   });
   await page.reload();

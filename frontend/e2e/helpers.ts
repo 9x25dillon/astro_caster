@@ -41,7 +41,7 @@ export async function pastThreshold(page: import("@playwright/test").Page) {
     const raw = localStorage.getItem("aae.last_chart");
     if (!raw) throw new Error("no cached cast to rewrite — did arrival fail?");
     const parsed = JSON.parse(raw);
-    parsed.birth = { ...parsed.birth, year: 1987, month: 11, day: 11, hour: 15, label: "Mine" };
+    parsed.birth = { ...parsed.birth, year: 1990, month: 6, day: 15, hour: 12, label: "Test person" };
     localStorage.setItem("aae.last_chart", JSON.stringify(parsed));
   });
   await page.reload();
