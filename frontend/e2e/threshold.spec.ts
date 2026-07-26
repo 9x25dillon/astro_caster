@@ -51,6 +51,56 @@ test("the ceremony is a door: entered by action, and Escape returns to the sky",
   await expect(page.locator(".wheel-area svg").first()).toBeVisible();
 });
 
+test("the privacy claim is made at the birth-time field, not on a banner", async ({ page }) => {
+  // E-1.4 — the claim belongs where the hesitation is. A stranger is anxious
+  // at the birth-minute field, not at an arrival bar they dismiss unread.
+  await page.goto("/");
+  await expect(page.locator(".threshold")).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator(".privacy-banner")).toHaveCount(0);
+
+  await page.locator(".threshold-primary").click();
+  await page.getByRole("button", { name: /Begin/ }).click();
+
+  const claim = page.locator(".ceremony-privacy");
+  await expect(claim).toBeVisible();
+  await expect(claim).toContainText(/never leaves this browser/i);
+
+  // The telemetry disclosure survives the banner's retirement — it moved into
+  // the threshold's fine print rather than disappearing.
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".threshold-fine")).toContainText(/no personal identity is stored/i);
+});
+
+test("not knowing your birth time is a soft landing, not a dead end", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.locator(".threshold")).toBeVisible({ timeout: 20_000 });
+  await page.locator(".threshold-primary").click();
+  await page.getByRole("button", { name: /Begin/ }).click();
+
+  // The offer names what noon costs before it is taken.
+  const note = page.locator(".ceremony-unknown");
+  await expect(note).toContainText(/houses and the rising sign/i);
+
+  // Move OFF noon first — the ceremony's blank draft already sits at 12:00, so
+  // asserting noon without this would pass whether the button works or not.
+  await page.locator(".ceremony-field").filter({ hasText: "Hour" }).locator("input").fill("3");
+  await page.locator(".ceremony-field").filter({ hasText: "Minute" }).locator("input").fill("47");
+  await expect(page.locator(".ceremony-preview")).toContainText(/3:47 AM/);
+
+  await page.locator(".ceremony-noon").click();
+
+  // It actually sets the field, and then explains rather than re-offering.
+  await expect(page.locator(".ceremony-preview")).toContainText(/12:00 PM/);
+  await expect(note).toContainText(/Using/);
+  await expect(page.locator(".ceremony-noon")).toHaveCount(0);
+});
+
+test("the morning panel greets people who have a chart, not strangers", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.locator(".threshold")).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator(".morning-panel")).toHaveCount(0);
+});
+
 test("the threshold never widens the layout viewport", async ({ page }) => {
   // Regression guard. A wrapping flex row once left the band's fine print at
   // left:403 on a 412px screen; that lone overflow expanded the mobile LAYOUT

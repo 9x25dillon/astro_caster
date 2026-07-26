@@ -58,6 +58,9 @@ export const CeremonyModal: React.FC<Props> = ({ onClose }) => {
   const [draft, setDraft] = useState<BirthInput>(BLANK);
   const [showMap, setShowMap] = useState(false);
   const [casting, setCasting] = useState(false);
+  // Tracks the unknown-birth-time escape hatch, so the note can switch from
+  // offering noon to explaining what using it means.
+  const [noonUsed, setNoonUsed] = useState(false);
 
   const set = (fields: Partial<BirthInput>) =>
     setDraft((d) => ({ ...d, ...fields }));
@@ -190,6 +193,40 @@ export const CeremonyModal: React.FC<Props> = ({ onClose }) => {
                 </label>
               </div>
             </div>
+
+            {/* E-1b: the privacy claim belongs HERE, at the most private field
+                we ever ask for, not on an arrival banner nobody was anxious at
+                yet. It is also unusually strong and literally true — the
+                deterministic engine runs in this browser. */}
+            <p className="ceremony-privacy">
+              Computed on <em>your</em> device. Your birth data never leaves this
+              browser and we never store it — that is how the engine is built,
+              not a policy we promise.
+            </p>
+
+            {/* E-1b: the unknown-birth-time escape hatch. A large share of
+                people do not know their minute, and until now that stopped them
+                dead at this field. Say what noon costs, then let them past. */}
+            <p className="ceremony-unknown">
+              {noonUsed ? (
+                <>
+                  Using <b>noon</b>. Everything but the houses and the rising
+                  sign still holds — the planets barely move in a day.
+                </>
+              ) : (
+                <>
+                  Don't know the exact time?{" "}
+                  <button
+                    type="button"
+                    className="ceremony-noon"
+                    onClick={() => { set({ hour: 12, minute: 0 }); setNoonUsed(true); }}
+                  >
+                    Use noon
+                  </button>{" "}
+                  — everything but the houses and the rising sign still holds.
+                </>
+              )}
+            </p>
 
             <div className="ceremony-actions">
               <button className="ghost ceremony-btn-sm" onClick={() => setStep(0)}>← Back</button>

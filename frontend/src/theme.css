@@ -1409,6 +1409,39 @@ button.ghost:hover {
   font-family: var(--display);
 }
 
+/* E-1b — the two notes that live at the birth-time field: the privacy claim
+   where the anxiety actually is, and the way past a time nobody remembers. */
+.ceremony-privacy {
+  margin: 14px 0 10px;
+  padding-left: 11px;
+  border-left: 2px solid var(--ion);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ink);
+  text-align: left;
+}
+.ceremony-privacy em { color: var(--parchment); font-style: italic; }
+.ceremony-unknown {
+  margin: 0 0 18px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ink);
+  text-align: left;
+}
+.ceremony-unknown b { color: var(--gold-soft); font-weight: 600; }
+.ceremony-noon {
+  width: auto;
+  padding: 1px 9px;
+  font-family: var(--serif);
+  font-size: 12.5px;
+  border: 1px solid var(--gold);
+  border-radius: 999px;
+  background: rgba(201, 168, 76, 0.1);
+  color: var(--gold-soft);
+  cursor: pointer;
+}
+.ceremony-noon:hover { background: rgba(201, 168, 76, 0.2); }
+
 .ceremony-preview {
   text-align: center;
   font-family: var(--display);

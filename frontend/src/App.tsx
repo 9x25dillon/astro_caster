@@ -50,9 +50,6 @@ export const App: React.FC = () => {
   const [chapter, setChapter] = useState<Chapter>("I");
   const [glossaryOpen, setGlossaryOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
-  const [privacyDismissed, setPrivacyDismissed] = useState(
-    () => !!localStorage.getItem("aae.privacy_ack")
-  );
   // Track E-1: the ceremony is a door, not a toll gate. It no longer opens
   // itself on a first visit — the live sky does the arguing first, and this
   // opens when the visitor asks for their own chart.
@@ -169,28 +166,12 @@ export const App: React.FC = () => {
       {glossaryOpen && <GlossaryPanel onClose={() => setGlossaryOpen(false)} />}
       {adminOpen && <AdminPanel onClose={() => setAdminOpen(false)} />}
 
-      {!privacyDismissed && (
-        <div className="privacy-banner">
-          <span>
-            This observatory collects anonymized usage data (chart patterns, feature interactions)
-            to improve the experience.{" "}
-            <a href="#" onClick={(e) => { e.preventDefault(); }} style={{ color: "var(--gold-soft)" }}>
-              No personal identity is stored.
-            </a>
-          </span>
-          <button
-            className="ghost"
-            style={{ fontSize: 11, padding: "2px 10px", width: "auto", marginLeft: 12 }}
-            onClick={() => {
-              localStorage.setItem("aae.privacy_ack", "1");
-              setPrivacyDismissed(true);
-              trackEvent("privacy_acknowledged");
-            }}
-          >
-            OK
-          </button>
-        </div>
-      )}
+      {/* E-1b: the arrival privacy BANNER retires. The disclosure does not —
+          it moves into the threshold's fine print below, where it is read
+          rather than dismissed, and the birth-data claim (the one people are
+          actually anxious about) moves to the ceremony's birth-time field.
+          The dead `href="#"` link went with it: a link that goes nowhere is
+          worse than plain text. M3 gives these a real /legal page. */}
 
       <Controls
         onOpenGlossary={() => { setGlossaryOpen(true); trackEvent("glossary_opened"); }}
@@ -240,12 +221,17 @@ export const App: React.FC = () => {
             </button>
           </div>
           <p className="threshold-fine">
-            Free forever. The unlock is for the written work, never the maths.
+            Free forever — the unlock is for the written work, never the maths.
+            Usage is counted anonymously (which features get used, never your
+            chart or your questions); no personal identity is stored.
           </p>
         </div>
       )}
 
-      {chapter === "I" && <MorningPanel />}
+      {/* E-1b: not on the threshold. A stranger meeting today's tarot card
+          before they have a chart is the esoteric-first door E-1 exists to
+          move; the panel greets people who have one. */}
+      {chapter === "I" && !isCurrentSky && <MorningPanel />}
 
       <div className={`wheel-area ${chapter !== "I" ? "has-chapter" : ""}`}>
         {chapter === "I" ? (
