@@ -198,10 +198,17 @@ export const CeremonyModal: React.FC<Props> = ({ onClose }) => {
                 we ever ask for, not on an arrival banner nobody was anxious at
                 yet. It is also unusually strong and literally true — the
                 deterministic engine runs in this browser. */}
+            {/* Accuracy matters more here than warmth: this is the claim the
+                privacy policy has to underwrite, made at the moment somebody
+                types the most private thing we ask for. The chart is computed
+                on the SERVER by default (POST /api/generate-chart), so
+                "never leaves this browser" was false. What IS true — and
+                enforced by tests — is that nothing is retained. */}
             <p className="ceremony-privacy">
-              Computed on <em>your</em> device. Your birth data never leaves this
-              browser and we never store it — that is how the engine is built,
-              not a policy we promise.
+              Your birth details are used to draw your chart and then let go:
+              never saved to a database, never written to a log. The same
+              astronomy also runs inside this browser, which is why the
+              observatory keeps working with no connection at all.
             </p>
 
             {/* E-1b: the unknown-birth-time escape hatch. A large share of

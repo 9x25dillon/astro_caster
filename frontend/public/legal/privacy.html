@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy — Astra</title>
+<link rel="stylesheet" href="/legal/legal.css">
+</head>
+<body>
+<div class="wrap">
+
+<header class="masthead">
+  <a class="brand" href="/">☿ Astra · Celestial Observatory</a>
+  <h1>Privacy</h1>
+  <p class="updated">Last updated 26 July 2026</p>
+</header>
+
+<p class="lede">
+  Astra is built so that there is very little about you to keep. Your birth
+  details are used to draw your chart and then let go. Your readings live in
+  your own browser, not in an account on our servers.
+</p>
+
+<h2>The short version</h2>
+<ul>
+  <li><strong>We store no birth data.</strong> Your date, time and place of birth
+    are sent to the server to compute a chart, held in memory while that runs,
+    and discarded. They are never written to a database and never written to a
+    log file.</li>
+  <li><strong>We store no questions.</strong> What you ask the oracle is passed
+    to the model that answers it, and is not retained by us.</li>
+  <li><strong>There are no accounts.</strong> No email address, no password, no
+    profile. Your charts, readings, journal and unlock token live in your own
+    browser's storage.</li>
+  <li><strong>We never sell anything about you</strong>, and we run no
+    advertising or third-party tracking scripts.</li>
+</ul>
+
+<div class="panel">
+  <p>
+    <strong>One honest clarification.</strong> Some of the astronomy runs in your
+    browser, and Astra keeps working with no connection at all. But by default
+    the chart is computed <em>on the server</em>, which means your birth details
+    do travel there over an encrypted connection. The promise is not that they
+    never move — it is that <strong>nothing is kept</strong>. That distinction is
+    deliberate, and this page would rather be accurate than flattering.
+  </p>
+</div>
+
+<h2>What we actually keep</h2>
+
+<h3>Anonymous usage counts</h3>
+<p>
+  So we can tell which parts of the observatory get used, we record events with
+  no identifying content. A chart cast records the time, which house system and
+  zodiac you chose, and whether the account was free or paid. It does
+  <em>not</em> record the birth date, the time, or the coordinates.
+</p>
+
+<h3>Server access records</h3>
+<p>
+  Ordinary web-server records: a random request id, the method, the path, the
+  response status and how long it took. Query strings are stripped before
+  anything is written, so unlock links never appear in logs. There is an
+  automated test in the codebase that drives the chart and forecast endpoints
+  with distinctive birth values and fails the build if any of them appear in
+  any log line.
+</p>
+
+<h3>Purchases and unlocks</h3>
+<p>
+  If you unlock paid features we keep a record of the entitlement: a random
+  identifier, the tier, a payment reference, when it was issued and whether it
+  is still active. If you paid by card we also keep the customer identifier
+  Stripe gives us, so that you can cancel or manage your own subscription
+  without emailing anybody.
+</p>
+
+<h3>What stays in your browser</h3>
+<p>
+  Your saved charts, shelved readings, journal entries and unlock token are held
+  in your browser's local storage — not on our servers. You can export all of it
+  to a single file at any time from the Library, and you can erase it by
+  clearing this site's data in your browser. If you do, it is gone: we have no
+  copy to restore.
+</p>
+
+<h2>Other companies involved</h2>
+<p>
+  Astra uses a small number of outside services, and only when you use the
+  feature that needs one:
+</p>
+<div class="tbl-wrap">
+<table>
+  <thead><tr><th>Service</th><th>When</th><th>What reaches them</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>Stripe</td>
+      <td>Only if you pay</td>
+      <td>Your card details, entered on Stripe's own page — they never touch our
+        servers. For a deluxe report we send a one-way <em>hash</em> of the
+        session, never the question itself.</td>
+    </tr>
+    <tr>
+      <td>AI text providers<br><span style="color:var(--ink)">(Anthropic, OpenRouter)</span></td>
+      <td>Only for written readings</td>
+      <td>The chart positions and your question, so a reading can be written.
+        Not your name — we don't have one.</td>
+    </tr>
+    <tr>
+      <td>OpenAI</td>
+      <td>Only if you render card art</td>
+      <td>The text description of the card to draw.</td>
+    </tr>
+    <tr>
+      <td>ElevenLabs</td>
+      <td>Only if you use premium voice</td>
+      <td>The text to be read aloud.</td>
+    </tr>
+    <tr>
+      <td>Cloudflare</td>
+      <td>Every visit</td>
+      <td>Standard network information as it passes through, to keep the site
+        fast and to block attacks. Cloudflare may set its own security cookie.</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+<p>
+  Each of these has its own privacy policy governing what it does with what it
+  receives. <strong>Astra itself sets no cookies</strong> and loads no fonts,
+  scripts or images from anywhere else — the whole interface is served from this
+  site alone.
+</p>
+
+<h2>Your rights</h2>
+<p>
+  Because there are no accounts, most requests answer themselves: we hold no
+  profile to show you, and nothing tied to your identity to delete. What you can
+  always do:
+</p>
+<ul>
+  <li><strong>Export everything</strong> — the Vault in the Library writes all
+    your local data to one file.</li>
+  <li><strong>Delete everything</strong> — clearing this site's data in your
+    browser removes it permanently.</li>
+  <li><strong>Cancel a subscription</strong> — from inside the app, through
+    Stripe's own portal, with no email required.</li>
+  <li><strong>Ask us anything</strong> — including deletion of a purchase record.
+    Write to the address below and we will answer.</li>
+</ul>
+<p>
+  Depending on where you live you may have additional rights over personal data
+  (for example under the UK/EU GDPR or the CCPA). We will honour any such
+  request we can verify; in most cases the honest answer will be that we hold
+  nothing that identifies you.
+</p>
+
+<h2>Children</h2>
+<p>
+  Astra is not intended for children under 13, and we do not knowingly collect
+  anything from them.
+</p>
+
+<h2>Changes</h2>
+<p>
+  If this policy changes, the date at the top changes with it. Material changes
+  will be noted in the app.
+</p>
+
+<h2>Contact</h2>
+<p>
+  <strong style="background:#3a3320;padding:2px 8px;border-radius:4px">
+    PLACEHOLDER — set the contact address before launch
+  </strong>
+</p>
+
+<nav class="legal-nav">
+  <a href="/legal/privacy.html" aria-current="page">Privacy</a>
+  <a href="/legal/terms.html">Terms</a>
+  <a href="/legal/refunds.html">Refunds</a>
+  <a href="/legal/pricing.html">Pricing</a>
+  <a href="/">← Back to the observatory</a>
+</nav>
+
+<footer class="colophon">
+  <p class="refrain">Nothing Astra produces is a life sentence — it is a life poem.</p>
+  <p>
+    Astra is free software under the GNU Affero General Public Licence v3.
+    You are entitled to the source code.
+  </p>
+</footer>
+
+</div>
+</body>
+</html>

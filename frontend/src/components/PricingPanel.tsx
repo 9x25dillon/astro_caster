@@ -16,6 +16,11 @@ import React, { useEffect, useState } from "react";
 import { useStore } from "../store/useStore";
 import { createCheckout, getPricing, trackEvent, ApiError, type Pricing } from "../api/client";
 
+// AGPL §13: offering this over a network obliges us to offer the source. The
+// URL is a build-time constant so a fork can point it at its own repository.
+export const SOURCE_URL =
+  import.meta.env.VITE_SOURCE_URL ?? "https://github.com/9x25dillon/astro_caster";
+
 const TIER_COPY: Record<string, { label: string; blurb: string }> = {
   supporter: {
     label: "Supporter",
@@ -127,8 +132,18 @@ export const PricingPanel: React.FC = () => {
             ? "☤ …or contribute with crypto"
             : "☤ Support / Unlock"}
       </button>
-      {/* No refrain here — R-4 made it the chapter's running footer, and it
-          runs once. */}
+
+      {/* M3: the policies live as real pages with real URLs, because Stripe
+          links them at the point of sale and a customer must be able to read
+          them before paying. The AGPL source link is a licence obligation, not
+          a courtesy — offering this over a network entitles users to the code. */}
+      <p className="pricing-legal">
+        <a href="/legal/pricing.html">Pricing</a>
+        <a href="/legal/refunds.html">Refunds — 14 days</a>
+        <a href="/legal/terms.html">Terms</a>
+        <a href="/legal/privacy.html">Privacy</a>
+        <a href={SOURCE_URL} rel="noreferrer">Source (AGPL)</a>
+      </p>
     </div>
   );
 };
