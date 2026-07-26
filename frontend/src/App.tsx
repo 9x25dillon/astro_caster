@@ -42,6 +42,8 @@ export const App: React.FC = () => {
   const checkoutNote = useStore((s) => s.checkoutNote);
   const checkoutBusy = useStore((s) => s.checkoutBusy);
   const setCheckoutNote = useStore((s) => s.setCheckoutNote);
+  const isCurrentSky = useStore((s) => s.isCurrentSky);
+  const birth = useStore((s) => s.birth);
   // Track R (R-1): the seven masthead module buttons became the chapter dial.
   // Chapter I = the wheel at home; II–VIII mount the former modals' content
   // in the stage, unchanged (their chrome retires in R-2).
@@ -51,10 +53,20 @@ export const App: React.FC = () => {
   const [privacyDismissed, setPrivacyDismissed] = useState(
     () => !!localStorage.getItem("aae.privacy_ack")
   );
-  const [ceremonyOpen, setCeremonyOpen] = useState(
-    () => !localStorage.getItem("aae.ceremony_shown")
-  );
+  // Track E-1: the ceremony is a door, not a toll gate. It no longer opens
+  // itself on a first visit — the live sky does the arguing first, and this
+  // opens when the visitor asks for their own chart.
+  const [ceremonyOpen, setCeremonyOpen] = useState(false);
   const soulProfile = useMemo(() => (chart ? deriveSoulProfile(chart) : null), [chart]);
+  // The moment the arrival wheel is cast for, in the visitor's own clock —
+  // said plainly so "right now" is checkable rather than asserted.
+  const showThreshold = chapter === "I" && isCurrentSky;
+  const skyMoment = useMemo(
+    () =>
+      new Date(birth.year, birth.month - 1, birth.day, birth.hour, birth.minute)
+        .toLocaleString(undefined, { day: "numeric", month: "long", hour: "numeric", minute: "2-digit" }),
+    [birth],
+  );
 
   // Cast the default chart on first mount so the observatory is alive immediately.
   useEffect(() => {
@@ -123,7 +135,7 @@ export const App: React.FC = () => {
         }}
       />
     )}
-    <div className="app">
+    <div className={`app${showThreshold ? " has-threshold" : ""}`}>
       <header className="masthead">
         <h1>☤ Astra</h1>
         <div className="sub">
@@ -198,6 +210,38 @@ export const App: React.FC = () => {
               OK
             </button>
           )}
+        </div>
+      )}
+
+      {/* Track E-1, the threshold. The instrument is already running below it;
+          this says what it is and offers the one door. It retires the moment
+          the wheel becomes somebody's own chart. */}
+      {showThreshold && (
+        <div className="threshold">
+          <div className="threshold-say">
+            <p className="threshold-title">The sky right now</p>
+            <p className="threshold-sub">
+              Computed on your device — <span className="th-live">live</span>, no
+              account, nothing sent anywhere. This is the real sky over {skyMoment}.
+            </p>
+          </div>
+          <div className="threshold-do">
+            <button
+              className="threshold-primary"
+              onClick={() => { setCeremonyOpen(true); trackEvent("threshold_enter"); }}
+            >
+              Show me my sky →
+            </button>
+            <button
+              className="ghost threshold-second"
+              onClick={() => { setGlossaryOpen(true); trackEvent("threshold_glossary"); }}
+            >
+              What am I looking at?
+            </button>
+          </div>
+          <p className="threshold-fine">
+            Free forever. The unlock is for the written work, never the maths.
+          </p>
         </div>
       )}
 
