@@ -21,8 +21,15 @@ Env:
   AAE_STRIPE_SECRET_KEY      sk_test_.../sk_live_...  (unset => rail 503s)
   AAE_STRIPE_WEBHOOK_SECRET  whsec_...                (unset => webhook 503s)
   AAE_STRIPE_MODE            payment | subscription   (default payment)
-  AAE_STRIPE_SUPPORTER_USD   default 5
-  AAE_STRIPE_ORACLE_USD      default 15
+  AAE_STRIPE_SUPPORTER_USD   default 3   (founding rate)
+  AAE_STRIPE_ORACLE_USD      default 9   (founding rate)
+  AAE_STRIPE_REPORT_USD      default 5   (founding rate, one-time)
+
+Prices are read from env on EVERY call and the checkout session carries an
+inline price_data, so raising them later is an env edit plus a restart — no
+Stripe dashboard work, no migration. It also means existing subscribers keep
+the price their subscription was created with: a founding rate is grandfathered
+unless somebody deliberately migrates it.
 
 Interlock note: any AAE_STRIPE_* key marks the deployment public-facing, so
 the fail-closed personal-mode interlock refuses to boot Edition P with these
@@ -78,8 +85,13 @@ def checkout_mode() -> str:
 
 def price_cents(tier: str) -> int:
     usd = {
-        "supporter": float(os.environ.get("AAE_STRIPE_SUPPORTER_USD", "5")),
-        "oracle": float(os.environ.get("AAE_STRIPE_ORACLE_USD", "15")),
+        # Founding rates (operator decision, 2026-07-26): deliberately cheap
+        # while the physical-media package is unfinished, to be raised after.
+        # The DEFAULTS matter as much as the env: a deploy that forgets a var
+        # must never charge MORE than was decided, so the fallback is the
+        # intended price, not an old placeholder.
+        "supporter": float(os.environ.get("AAE_STRIPE_SUPPORTER_USD", "3")),
+        "oracle": float(os.environ.get("AAE_STRIPE_ORACLE_USD", "9")),
     }.get(tier)
     if usd is None:
         raise ValueError(f"no Stripe price for tier {tier!r}")
@@ -88,7 +100,7 @@ def price_cents(tier: str) -> int:
 
 def report_price_cents() -> int:
     """Price of the one-time deluxe personal-report purchase (Phase 4.3)."""
-    return int(round(float(os.environ.get("AAE_STRIPE_REPORT_USD", "9")) * 100))
+    return int(round(float(os.environ.get("AAE_STRIPE_REPORT_USD", "5")) * 100))
 
 
 def seed_hash(seed: str) -> str:
