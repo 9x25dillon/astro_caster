@@ -22,15 +22,26 @@ from main import app  # noqa: E402
 
 client = TestClient(app)
 
-_PUBLIC_VARS = ["AAE_TREASURY_ETH", "AAE_TREASURY_BTC", "AAE_TREASURY_SOL",
-                "AAE_ETH_RPC", "AAE_ORACLE_MIN_WEI", "AAE_REPORT_MIN_WEI",
-                "AAE_STRIPE_SECRET_KEY"]
+# A canonical Edition P environment is defined by the interlock's OWN rule, not
+# by a hand-written list. The list drifted once already: it named
+# AAE_STRIPE_SECRET_KEY while the interlock matches the whole AAE_STRIPE_*
+# prefix, so an operator whose .env held AAE_STRIPE_MODE / _USD / _WEBHOOK_SECRET
+# (i.e. anyone running the Edition Q test toggle) got a "clean" boot that the
+# interlock correctly refused. Deriving from the interlock means this cannot
+# drift again — the exact lesson the interlock itself learned in Phase 2.
+def _public_vars() -> list[str]:
+    named = [*ENT._PUBLIC_SIGNALS, *ENT._PUBLIC_THRESHOLDS]
+    prefixed = [n for n in os.environ if n.startswith(ENT._PUBLIC_SIGNAL_PREFIXES)]
+    return [*named, *prefixed]
 
 
 def _personal(monkeypatch, clean=True):
     monkeypatch.setenv("AAE_PERSONAL_MODE", "1")
     if clean:  # a canonical Edition P environment: no public-facing signals
-        for name in _PUBLIC_VARS:
+        # NOT delenv: an unset AAE_ENV reads as production, which is itself a
+        # conflict. Edition P is explicitly a non-production build.
+        monkeypatch.setenv("AAE_ENV", "development")
+        for name in _public_vars():
             monkeypatch.delenv(name, raising=False)
 
 

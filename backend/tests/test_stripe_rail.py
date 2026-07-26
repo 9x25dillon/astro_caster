@@ -399,3 +399,44 @@ def test_pricing_reports_checkout_mode(monkeypatch):
 def test_pricing_needs_no_entitlement():
     # It is a public surface — a prospective customer has no token yet.
     assert client.get("/api/pricing").status_code == 200
+
+
+# ── founding rates: the DEFAULTS are a product decision, not a placeholder ───
+
+def test_default_prices_are_the_founding_rates(monkeypatch):
+    # A deployment that forgets to set the price vars must charge the intended
+    # price, never an older, higher placeholder. Pinning the fallbacks here
+    # means changing what customers pay is a deliberate edit to this test too.
+    for var in ("AAE_STRIPE_SUPPORTER_USD", "AAE_STRIPE_ORACLE_USD",
+                "AAE_STRIPE_REPORT_USD"):
+        monkeypatch.delenv(var, raising=False)
+    assert S.price_cents("supporter") == 300
+    assert S.price_cents("oracle") == 900
+    assert S.report_price_cents() == 500
+
+
+def test_prices_are_read_per_call_so_a_raise_needs_no_deploy(monkeypatch):
+    # The "cheap now, raise once the physical package ships" plan depends on
+    # env being read on every call rather than captured at import.
+    monkeypatch.setenv("AAE_STRIPE_ORACLE_USD", "9")
+    assert S.price_cents("oracle") == 900
+    monkeypatch.setenv("AAE_STRIPE_ORACLE_USD", "19")
+    assert S.price_cents("oracle") == 1900
+
+
+def test_checkout_carries_an_inline_price(monkeypatch):
+    # Inline price_data (rather than a pre-made Stripe Price id) is what
+    # grandfathers existing subscribers when the rate goes up later.
+    monkeypatch.setenv("AAE_STRIPE_SECRET_KEY", "sk_test_x")
+    monkeypatch.setenv("AAE_STRIPE_ORACLE_USD", "9")
+    captured = {}
+
+    async def _fake_post(form):
+        captured.update(form)
+        return {"id": "cs_x", "url": "https://checkout.stripe.test/x"}
+
+    monkeypatch.setattr(S, "_post_session", _fake_post)
+    import asyncio
+    asyncio.run(S.create_checkout_session("oracle", "https://a/ok", "https://a/no"))
+    assert captured["line_items[0][price_data][unit_amount]"] == "900"
+    assert not any(k.startswith("line_items[0][price]") for k in captured)
