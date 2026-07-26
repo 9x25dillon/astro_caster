@@ -50,6 +50,49 @@ export async function pastThreshold(page: import("@playwright/test").Page) {
     .toBeGreaterThan(10);
 }
 
+/**
+ * Put one entry on the shelf, for specs that need a populated Library.
+ *
+ * Opens VERSIONLESS on purpose. Three specs each carried their own copy of this
+ * pinned to `astra-bookshelf` version 2 while the app's schema had moved on to
+ * 4 — harmless only for as long as nothing opened the DB before the seed ran,
+ * and the moment something did they all threw VersionError. Versionless attaches
+ * to whatever version exists; the stores are created only if the app somehow
+ * hasn't yet, so this cannot go stale on the next schema bump.
+ */
+export async function seedShelf(page: import("@playwright/test").Page, entry: unknown) {
+  await page.evaluate(async (e) => {
+    const openDb = (version?: number) =>
+      new Promise<IDBDatabase>((resolve, reject) => {
+        const req = version ? indexedDB.open("astra-bookshelf", version)
+                            : indexedDB.open("astra-bookshelf");
+        req.onupgradeneeded = () => {
+          const db = req.result;
+          if (!db.objectStoreNames.contains("sessions")) db.createObjectStore("sessions", { keyPath: "seed" });
+          if (!db.objectStoreNames.contains("journal")) {
+            const j = db.createObjectStore("journal", { keyPath: "id" });
+            j.createIndex("seed", "seed", { unique: false });
+          }
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+
+    let db = await openDb();
+    if (!db.objectStoreNames.contains("sessions")) {
+      const next = db.version + 1;
+      db.close();
+      db = await openDb(next);
+    }
+    await new Promise<void>((resolve, reject) => {
+      const t = db.transaction("sessions", "readwrite");
+      t.objectStore("sessions").put(e);
+      t.oncomplete = () => { db.close(); resolve(); };
+      t.onerror = () => reject(t.error);
+    });
+  }, entry);
+}
+
 /** Track R: navigate via the chapter dial (fixed compass positions). */
 export async function openChapter(
   page: import("@playwright/test").Page,

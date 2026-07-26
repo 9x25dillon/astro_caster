@@ -315,6 +315,31 @@ body::before {
   .threshold-primary { flex: 1 1 auto; }
 }
 
+/* E-2a — depth as state, never as presence. A waiting node keeps its exact
+   position and stays fully operable; only its light changes. Nothing is
+   disabled: pointer-events and keys are untouched on purpose. */
+.dial-node.waiting {
+  opacity: 0.42;
+  border-color: color-mix(in srgb, var(--gold) 22%, transparent);
+}
+.dial-node.waiting .dial-num { color: color-mix(in srgb, var(--gold-soft) 62%, transparent); }
+.dial-node.waiting.myst { border-color: color-mix(in srgb, var(--amethyst) 22%, transparent); }
+.dial-node.waiting:hover,
+.dial-node.waiting:focus-visible { opacity: 0.85; }
+
+/* What a chapter is waiting for, said once at the top of the chapter itself. */
+.chapter-needs {
+  margin: 0 0 14px;
+  padding: 9px 14px;
+  border: 1px dashed color-mix(in srgb, var(--gold) 34%, transparent);
+  border-radius: 8px;
+  font-family: var(--serif);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.015);
+}
+
 .detail { grid-area: detail; }
 .timeline { grid-area: timeline; }
 

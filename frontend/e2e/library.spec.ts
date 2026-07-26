@@ -1,7 +1,6 @@
 // R-3: the Library (chapter VIII) — spine meter, ✦ Generate My Tome, vault &
 // support in residence — and the Reading (chapter II) gathering soul + Oracle.
-import { expect, test, openChapter } from "./helpers";
-import type { Page } from "@playwright/test";
+import { expect, test, openChapter, seedShelf } from "./helpers";
 
 const ENTRY = {
   seed: "e2e-library-seed",
@@ -13,29 +12,6 @@ const ENTRY = {
   report: "# ✦ ORACLE REPORT ✦\n\n## I. Bound\n\nA reading for the tome to bind.",
   birth: null,
 };
-
-async function seedShelf(page: Page) {
-  await page.evaluate(async (entry) => {
-    await new Promise<void>((resolve, reject) => {
-      const req = indexedDB.open("astra-bookshelf", 2);
-      req.onupgradeneeded = () => {
-        const db = req.result;
-        if (!db.objectStoreNames.contains("sessions")) db.createObjectStore("sessions", { keyPath: "seed" });
-        if (!db.objectStoreNames.contains("journal")) {
-          const j = db.createObjectStore("journal", { keyPath: "id" });
-          j.createIndex("seed", "seed", { unique: false });
-        }
-      };
-      req.onsuccess = () => {
-        const t = req.result.transaction("sessions", "readwrite");
-        t.objectStore("sessions").put(entry);
-        t.oncomplete = () => { req.result.close(); resolve(); };
-        t.onerror = () => reject(t.error);
-      };
-      req.onerror = () => reject(req.error);
-    });
-  }, ENTRY);
-}
 
 test("the Library: spine meter, shelf, vault, and support share chapter VIII", async ({ page }) => {
   await page.goto("/");
@@ -68,7 +44,7 @@ test("masthead pill is identity — it walks to the Library, whose button opens 
 test("the tome compiles what exists into one printed volume", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator(".wheel-area svg").first()).toBeVisible();
-  await seedShelf(page);
+  await seedShelf(page, ENTRY);
   await openChapter(page, "VIII");
 
   // Chart (I) + the seeded session (II) are bound.
@@ -86,7 +62,7 @@ test("the tome compiles what exists into one printed volume", async ({ page }) =
 test("phase 0: press interior and cover emit at 6×9 book trim", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator(".wheel-area svg").first()).toBeVisible();
-  await seedShelf(page);
+  await seedShelf(page, ENTRY);
   await openChapter(page, "VIII");
 
   // The interior file carries the tome at press size (6.25×9.25 = trim+bleed).
