@@ -207,6 +207,74 @@ git status --porcelain -b
 
 ---
 
+## 6.5 GAZ — Offline city gazetteer (scoped 2026-08-03, NOT STARTED)
+
+_Scoped at the operator's request on `claude/astro-caster-mobile-test-nnwle1`.
+This is **step 1 of `MOBILE_ROADMAP.md` §4.2.2's proposed staged path** — the
+one item worth doing **before** any H2/store decision, because it pays off even
+if H2 never wakes. §4.2.2 itself is PROPOSED, NOT RATIFIED; this scope inherits
+that status._
+
+**Why:** `LocationPicker.tsx` makes the app's only two remaining per-device
+external calls — CARTO basemap tiles (`:54`) and OSM Nominatim geocoding
+(`:85`). Retiring them (a) removes two third-party usage-policy exposures that
+only bite at store install volumes (`MOBILE_ROADMAP.md` §4.2.1 landmine 2),
+(b) upgrades the "zero external requests" claim from *boot-only* to *always*,
+and (c) makes the privacy claim fully structural rather than procedural.
+
+**Two findings that shape the work (verified 2026-08-03):**
+
+1. ⚠️ **`no-external.spec.ts` only tests boot.** It asserts zero external
+   requests through chart-cast + fonts-settled, and never opens the map — so
+   today's CARTO/Nominatim calls are **invisible to the gate**. Any fix that
+   doesn't also extend this spec will silently regress. GAZ-5 is therefore not
+   optional polish; it is the part that makes the rest hold.
+2. ✅ **Leaflet can be deleted, which pays for much of the data.** `d3-geo@3.1.1`
+   is *already installed* (transitively via `d3`), and the project is already a
+   D3-SVG shop. Rendering a coastline map in D3 removes `leaflet` +
+   `@types/leaflet` + `leaflet.css` — **163,913 B raw / ~50 KB wire** measured
+   in `dist/` (148,818 JS + 15,095 CSS).
+
+**ID** | **Task** | **Size** | **AC / Done When** | **Deps / Notes**
+---|---|---|---|---
+**GAZ-1** | Vendored gazetteer dataset + generator | M | `tools/gen_gazetteer.py` (or `.ts`) transforms an upstream GeoNames dump into a committed, trimmed artifact; `--check` byte-drift tripwire in CI; provenance + licence recorded in a sibling `README.md` | **Follows the `parity/` precedent exactly** (generator → committed artifact → `--check` tripwire), the pattern already proven in §3 of the mobile roadmap. Source: GeoNames `cities*.txt`, **CC-BY 4.0** — attribution required, FOSS-compatible, no F-Droid anti-feature. Fields: name, asciiname, country, admin1, lat, lng, population, IANA tz. Drop everything else. **Coverage tier is an operator decision — see Open questions.**
+**GAZ-2** | Dependency-free search index | S | Diacritic-folded prefix/substring match ("Zurich" → "Zürich"), ranked by population, disambiguated by country + admin1 in the result row; ties resolve deterministically; unit-tested | Linear scan over ~26k rows is <5 ms — **no index library, no new dependency** (matches `@astra/core`'s posture). Determinism matters: same query ⇒ same order, per the project's invariants.
+**GAZ-3** | Offline coastline map replacing Leaflet + CARTO | M | Click-to-place on a D3-rendered world map with **zero network**; visually consistent with the wheel (same dark/gold canon); `leaflet` + `@types/leaflet` removed from `package.json`; the `leaflet` manualChunk entry in `vite.config.ts` deleted | Natural Earth **110m coastline/admin-0, public domain** (~30–100 KB simplified GeoJSON — ship pre-simplified to avoid adding `topojson-client`). Uses the already-present `d3-geo`. Precision note: a 110m coastline is for **coarse placement**; the numeric lat/lng inputs stay authoritative, and search is the precise path.
+**GAZ-4** | Wire into LocationPicker + CeremonyModal | S | `LocationPicker.tsx` has **no `fetch` to any external host**; search resolves against the local gazetteer; "not found" copy stays honest; `⊕ use my location` (pure `navigator.geolocation`, no network) is unchanged | Both call sites already lazy-load the picker (`Controls.tsx:7`, `CeremonyModal.tsx:6`) — keep that. The CARTO attribution control goes with the tiles; **add GeoNames + Natural Earth attribution** wherever the app credits its sources.
+**GAZ-5** | Close the test gap (**the gate**) | S | `no-external.spec.ts` gains a case that **opens the map and runs a search**, asserting zero external requests across that path; green in both desktop + mobile projects | Without this the finding above recurs. Consider asserting on the *whole* ceremony flow rather than just the map, so future surfaces inherit the guarantee.
+
+**Budget (estimates — verify at GAZ-1, do not treat as measured):** a trimmed
+`cities15000` (~26k rows) lands ~1.0–1.2 MB raw / ~350–420 KB wire gzipped.
+Against the ~164 KB raw / ~50 KB wire freed by deleting Leaflet, expect a **net
+~+330 KB wire** and a precache moving ~1.74 MB → ~2.8 MB raw. That is a real
+increase, not a wash — it is the price of the offline claim, and the coverage
+tier below is the dial.
+
+**Open questions — operator decisions, do not default them:**
+
+1. **Coverage vs. size.** `cities15000` (~26k) is the compact choice but
+   **will miss small birth towns** — and birthplaces are exactly where the long
+   tail lives. `cities5000` (~55k) roughly doubles the payload; `cities1000`
+   (~150k) is likely out of budget. This is a product call about how often
+   "I can't find where I was born" is acceptable, not a technical one.
+2. **Precache vs. lazy.** Precaching preserves the offline claim on a user's
+   *first ever* ceremony but spends the budget up front; runtime-caching on
+   first use is cheaper but fails an offline first run. Precedent points at
+   precache — §3 chose exactly that for the WASM Swiss engine (lazy chunk,
+   still in the precache glob).
+
+**Adjacent — flagged, deliberately NOT in scope:** GeoNames rows carry an IANA
+timezone name, and there is a latent correctness bug next door.
+`CeremonyModal.tsx:45` defaults `tz_offset` to `-5`, and `:95` sets it from
+**the browser's current offset** on geolocate — i.e. today's DST state, not the
+DST state at the birth moment, and wrong outright when casting someone else's
+chart in another zone. A gazetteer with tz names is a prerequisite for fixing
+this properly, but the fix itself needs IANA tzdata *rules* on the client and
+is its own initiative with its own parity vectors. **Do not let it ride along
+inside GAZ.**
+
+---
+
 ## 7. Next Steps After Immediate Block
 
 1. Triage remaining R and F items (pick 1-2 highest leverage per sprint).

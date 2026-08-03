@@ -357,6 +357,13 @@ Proposed sequence:
    *boot-only* to *always*, makes the privacy claim fully structural, removes
    the two per-device usage-policy exposures, and **pays off even if H2 never
    wakes** — including in the personal edition.
+   → **Scoped 2026-08-03 as GAZ-1..GAZ-5 in
+   [`COMPREHENSIVE_TASK_SCHEDULE.md`](COMPREHENSIVE_TASK_SCHEDULE.md) §6.5**,
+   including two findings that reshape it: `no-external.spec.ts` currently
+   tests *boot only* (so the map calls are invisible to the gate), and
+   `d3-geo` is already installed — letting Leaflet be deleted to offset the
+   data payload. Two operator decisions are left open there (coverage tier,
+   precache vs lazy).
 2. **If H2 wakes:** build the Capacitor shell once, reader-mode by default.
 3. **Ship the FOSS channels first** — direct download + F-Droid. Zero new
    agreements. This is how we *learn* whether "other people's phones" is real
