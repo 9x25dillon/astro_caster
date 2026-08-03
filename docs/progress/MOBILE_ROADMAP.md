@@ -245,14 +245,38 @@ AGPL-3.0, and so is the vendored Swiss Ephemeris 2.10.03
 
 | Channel | Verdict |
 |---|---|
-| **Google Play** | ✅ Viable. Play's DDA imposes no DRM terms that conflict with AGPL §6; copyleft apps ship there routinely. |
+| **F-Droid** | ✅✅ Best fit. FOSS licensing is an *entry requirement* — AGPL qualifies outright. **No billing policy at all**, so the crypto/Stripe rail survives untouched; no fee, no DDA, no IARC, no data-safety declaration. One build blocker (below). |
+| **Direct download** (our own site) | ✅ No agreements whatsoever. Same APK artifact. |
+| **Google Play** | ✅ Viable. Play's DDA imposes no DRM terms that conflict with AGPL §6; copyleft apps ship there routinely. Costs the 5 agreements + the payments fork. |
 | **Apple App Store** | ❌ Effectively blocked. App Store terms impose device/usage restrictions that conflict with (A)GPLv3 §6 anti-tivoization — the VLC precedent. |
 
-Unblocking iOS requires a **commercial Swiss Ephemeris licence from
-Astrodienst** *and* relicensing our own code off AGPL — a real cost and a
-reversal of the project's stance. **Standing decision: treat iOS as closed.**
-H2, if it wakes, is Android-only. This supersedes the "APK + IPA" phrasing in
-§6's H2 exit criteria.
+**The license cuts both ways, and the two directions are mutually exclusive.**
+AGPL is what closes Apple *and* what qualifies us for F-Droid. Unblocking iOS
+requires a **commercial Swiss Ephemeris licence from Astrodienst** *and*
+relicensing off AGPL — which would simultaneously **disqualify us from
+F-Droid**. There is no combination that buys every channel.
+**Standing decision: treat iOS as closed.** H2, if it wakes, is Android-only.
+This supersedes the "APK + IPA" phrasing in §6's H2 exit criteria.
+
+*"iOS closed" ≠ iPhone users unreachable* — the PWA already runs on iOS Safari
+with the documented degradation (§4.5: no push/badging). Nobody is locked out;
+only the store is.
+
+⚠️ **The one real F-Droid blocker — surfaced 2026-08-03, verify before
+committing:** F-Droid builds everything from source on its own build server,
+and `packages/astra-core/src/vendor/swisseph/swisseph.wasm` (411 KB) is a
+**prebuilt binary with no C source in this repo** — vendored from the
+`@swisseph/browser` npm package (see that dir's README). Prebuilt blobs are a
+standard F-Droid rejection reason. Likely remedies, cheapest first:
+(a) add an Emscripten build step compiling Swiss Ephemeris C → wasm in the
+recipe — note the vendor README records the upstream npm package as *broken*,
+so we cannot simply depend on it; (b) negotiate it as bundled data.
+`seas_18.se1` is ephemeris **data** (not compiled code) and should pass on the
+same footing as a timezone database, though provenance will be asked for.
+Expect F-Droid to flag `NonFreeNet` anti-features for the optional Stripe /
+OpenRouter / ElevenLabs / CARTO / Nominatim calls — anti-features are
+*displayed*, not disqualifying. **Resolve the wasm question before any other
+H2 work; it gates the whole cheapest-path branch.**
 
 **Agreement inventory — ~12 total, ~5 genuinely new to an APK:**
 
@@ -271,11 +295,16 @@ H2, if it wakes, is Android-only. This supersedes the "APK + IPA" phrasing in
 
 1. **The IAP fork** (the §4.2 trap above, now costed). Play requires Play
    Billing for in-app digital goods; *both* our rails — Stripe and crypto —
-   conflict as built, and Play's cut lands on the founding rates
-   ($3/$9/$5, PR #110). The two escapes in §4.2 still hold. ⚠️ This area is
+   conflict as built. The two escapes in §4.2 still hold. ⚠️ This area is
    genuinely in flux post-*Epic v. Google* (alternative billing / external
    links, jurisdiction-dependent) — **verify current terms at H2 entry rather
    than trusting this note or §4.2's original framing.**
+   - **The "Play takes a cut" objection is weaker than intuition suggests.**
+     At the founding rates (PR #110) the fixed-fee floor dominates: on the $3
+     supporter tier, Play Billing at the 15% small-developer rate nets ~$2.55,
+     while Stripe at 2.9% + $0.30 nets ~$2.61 — a ~6¢ difference. The real
+     cost of Play is therefore **the five agreements and permanent policy
+     churn, not the rake.** Weigh it that way.
 2. **Nominatim is the sleeper.** Its usage policy wants an identifiable
    User-Agent, ~1 req/s, and discourages distributed apps hardcoding it as
    sole geocoder. Fine today (lazy-loaded, one call per ceremony); a store app
@@ -288,14 +317,59 @@ H2, if it wakes, is Android-only. This supersedes the "APK + IPA" phrasing in
    framing in ToS" is exactly the required posture.
 
 **Net read:** the APK is more tractable than §0 suggests (the scary part
-shipped), but it buys store discoverability in exchange for a payments
-redesign and five new agreements. Since Edition Q already routes at the web
-channel and the PWA installs and runs fully offline today, that trade only
-pays if "other people's phones" becomes a real goal. **H2 stays parked;
-the wake condition is unchanged.**
+shipped). Play buys discoverability for five agreements and a payments
+redesign; **F-Droid and direct download buy a real downloadable APK for
+neither.** Since Edition Q already routes at the web channel and the PWA
+installs and runs fully offline today, only the FOSS channels are close to
+free. **H2 stays parked; the wake condition is unchanged.**
 
 _Not legal advice — policies move. Re-verify before committing engineering
 time._
+
+#### 4.2.2 Proposed staged path — ⚠️ PROPOSED, NOT RATIFIED (2026-08-03)
+
+_Drafted at the operator's request alongside §4.2.1, to be sat with before
+ratification. **Nothing here is a commitment**; the §4.2.1 standing decision
+(iOS closed) is the only ratified output of that survey. Promote to ratified,
+amend, or discard — but don't let it drift into being treated as settled by
+omission._
+
+**Design principle: one artifact, three destinations, staged by cost.**
+Capacitor emits a single APK. Play, F-Droid and direct download consume the
+*same* artifact — only the **store choice** drags in agreements, so the shell
+work is shared cost and the expensive channel can be deferred until demand is
+proven rather than assumed.
+
+**The highest-leverage single choice is reader-mode**, because it is
+channel-agnostic: all free features, tier import via file/QR, unlock happens
+on the web. One implementation satisfies Play *and* F-Droid *and* direct
+download simultaneously, and the Ed25519 spike (§7.5, already done) is exactly
+the mechanism it needs. Built once, the payments fork stops being a blocker in
+every branch.
+
+Proposed sequence:
+
+0. **Resolve the wasm build-from-source question** (§4.2.1 ⚠️). It gates the
+   cheapest branch; everything below is speculative until it is answered.
+1. **Do the "regardless" work now — the only pre-wake item.** Bundle an
+   offline city gazetteer, retiring the Nominatim *and* CARTO calls
+   (`LocationPicker.tsx:54,85`). This upgrades "zero external requests" from
+   *boot-only* to *always*, makes the privacy claim fully structural, removes
+   the two per-device usage-policy exposures, and **pays off even if H2 never
+   wakes** — including in the personal edition.
+2. **If H2 wakes:** build the Capacitor shell once, reader-mode by default.
+3. **Ship the FOSS channels first** — direct download + F-Droid. Zero new
+   agreements. This is how we *learn* whether "other people's phones" is real
+   instead of guessing.
+4. **Enter Play only if step 3 shows demand.** Reader-mode already satisfies
+   the policy by then, so entry collapses to paperwork rather than a redesign.
+5. **Never the commercial-relicense branch.** It costs money, reverses the
+   licence stance, forfeits F-Droid eligibility (§4.2.1), and buys access to
+   users who already have the PWA.
+
+**Why this ordering:** it preserves options. Every step is reversible, the
+irreversible one (relicensing) is explicitly excluded, and the only work done
+before the wake condition fires is work that stands on its own merits.
 
 ### 4.3 AI layer
 - Keys never touch the device. A thin **relay** (the existing FastAPI app
