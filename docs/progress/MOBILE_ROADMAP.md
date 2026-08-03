@@ -221,6 +221,82 @@ implementations) into a mechanical gate.
   pattern), or (b) native IAP mapped to the same signed tokens. Decide per
   store at H2 entry; the token layer is deliberately agnostic.
 
+#### 4.2.1 H2 entry survey — licensing & third-party terms (2026-08-03)
+
+_Recorded on `claude/astro-caster-mobile-test-nnwle1` after a full mobile
+verification pass (PWA build + 60/60 Pixel 7 e2e green, §6). No H2 work
+started; this is the survey that precedes the decision, so the next person to
+ask "how's the APK looking" doesn't re-derive it._
+
+**Scaffolding state: none.** No `mobile/`, no `android/`, no Capacitor
+dependency — the wake condition (`NEXT_ARC.md` Track 4: *"wakes only for other
+people's phones"*) never fired, and the Edition Q direction of 2026-07-19
+deliberately routed around stores (`PUBLIC_LAUNCH_SCHEDULE.md` §Phase 5:
+app-store AI-content review is contingent on H2 waking).
+
+**Effort estimate is stale in our favour.** §0's "1–2 quarters" assumed H2
+shipped *before* H3's on-device core. H3's substance landed early (§3), so the
+remaining H2 work is shell-only: Capacitor wrapper, share-sheet export,
+haptics, keep-awake, filesystem access.
+
+**The licensing split is the load-bearing constraint.** This repo is
+AGPL-3.0, and so is the vendored Swiss Ephemeris 2.10.03
+(`packages/astra-core/src/vendor/swisseph/`) and the backend's `pyswisseph`:
+
+| Channel | Verdict |
+|---|---|
+| **Google Play** | ✅ Viable. Play's DDA imposes no DRM terms that conflict with AGPL §6; copyleft apps ship there routinely. |
+| **Apple App Store** | ❌ Effectively blocked. App Store terms impose device/usage restrictions that conflict with (A)GPLv3 §6 anti-tivoization — the VLC precedent. |
+
+Unblocking iOS requires a **commercial Swiss Ephemeris licence from
+Astrodienst** *and* relicensing our own code off AGPL — a real cost and a
+reversal of the project's stance. **Standing decision: treat iOS as closed.**
+H2, if it wakes, is Android-only. This supersedes the "APK + IPA" phrasing in
+§6's H2 exit criteria.
+
+**Agreement inventory — ~12 total, ~5 genuinely new to an APK:**
+
+- *New with the APK:* Play Developer Distribution Agreement ($25 one-time),
+  Play Developer Program Policies, **Play Billing/Payments policy**, IARC
+  content rating (astrology/oracle content), Data-safety declaration.
+- *Already live regardless:* Stripe Services Agreement (`stripe_rail.py`),
+  OpenRouter + upstream model terms (`ai.py` defaults to `anthropic/claude-*`),
+  ElevenLabs (`tts.py`), **CARTO basemaps** (`LocationPicker.tsx:54`),
+  **OSM Nominatim usage policy** (`LocationPicker.tsx:85`), SIL OFL for the two
+  Garamonds (attribution only).
+- *Constraining:* AGPL-3.0 itself, incl. §13's network clause — already
+  satisfied, the source is published.
+
+**Three landmines, in order of bite:**
+
+1. **The IAP fork** (the §4.2 trap above, now costed). Play requires Play
+   Billing for in-app digital goods; *both* our rails — Stripe and crypto —
+   conflict as built, and Play's cut lands on the founding rates
+   ($3/$9/$5, PR #110). The two escapes in §4.2 still hold. ⚠️ This area is
+   genuinely in flux post-*Epic v. Google* (alternative billing / external
+   links, jurisdiction-dependent) — **verify current terms at H2 entry rather
+   than trusting this note or §4.2's original framing.**
+2. **Nominatim is the sleeper.** Its usage policy wants an identifiable
+   User-Agent, ~1 req/s, and discourages distributed apps hardcoding it as
+   sole geocoder. Fine today (lazy-loaded, one call per ceremony); a store app
+   with real install numbers changes the calculus. Same for CARTO's free
+   basemap tier. Mitigation if H2 wakes: bundle an offline city gazetteer, or
+   contract a geocoder.
+3. **Astrology content policy.** Both stores have historically scrutinised
+   fortune-telling apps for misleading claims. Already mitigated by the voice
+   canon — `PUBLIC_LAUNCH_SCHEDULE.md` §Phase 5's "reflective-not-predictive
+   framing in ToS" is exactly the required posture.
+
+**Net read:** the APK is more tractable than §0 suggests (the scary part
+shipped), but it buys store discoverability in exchange for a payments
+redesign and five new agreements. Since Edition Q already routes at the web
+channel and the PWA installs and runs fully offline today, that trade only
+pays if "other people's phones" becomes a real goal. **H2 stays parked;
+the wake condition is unchanged.**
+
+_Not legal advice — policies move. Re-verify before committing engineering
+time._
+
 ### 4.3 AI layer
 - Keys never touch the device. A thin **relay** (the existing FastAPI app
   deployed small — Fly/Railway class) does tier routing (Haiku/Sonnet/Opus),
@@ -298,9 +374,11 @@ carries over unchanged.
     deterministic core, full body set) landed ahead of schedule via §3.
 
 **H2 exit (store-ready shell):**
-- Capacitor builds (APK + IPA) from `main` in CI; share-sheet PDF export;
-  signed-token verification working with Ed25519 dual-issue live.
-- Store-policy decision recorded per platform in this file.
+- Capacitor builds (~~APK + IPA~~ **APK only** — iOS closed by the AGPL/Swiss
+  licensing split, §4.2.1 of 2026-08-03) from `main` in CI; share-sheet PDF
+  export; signed-token verification working with Ed25519 dual-issue live.
+- Store-policy decision recorded per platform in this file (§4.2.1 records the
+  survey; the payments fork is still open and must be re-verified at entry).
 
 **H3 exit (true counterpart):**
 - `@astra/core` parity CI green across all engine vectors; chart cast,
