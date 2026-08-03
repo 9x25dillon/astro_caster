@@ -263,15 +263,73 @@ tier below is the dial.
    precache — §3 chose exactly that for the WASM Swiss engine (lazy chunk,
    still in the precache glob).
 
-**Adjacent — flagged, deliberately NOT in scope:** GeoNames rows carry an IANA
-timezone name, and there is a latent correctness bug next door.
-`CeremonyModal.tsx:45` defaults `tz_offset` to `-5`, and `:95` sets it from
-**the browser's current offset** on geolocate — i.e. today's DST state, not the
-DST state at the birth moment, and wrong outright when casting someone else's
-chart in another zone. A gazetteer with tz names is a prerequisite for fixing
-this properly, but the fix itself needs IANA tzdata *rules* on the client and
-is its own initiative with its own parity vectors. **Do not let it ride along
-inside GAZ.**
+**Adjacent — deliberately NOT in scope, now scoped separately as §6.6 (TZ).**
+GeoNames rows carry an IANA timezone name, and there is a latent correctness
+bug next door: `CeremonyModal.tsx:45` defaults `tz_offset` to `-5`, and `:95`
+sets it from **the browser's current offset** on geolocate — i.e. today's DST
+state, not the DST state at the birth moment. GAZ-1's zone-name field is the
+prerequisite; **TZ is a hard dependent of GAZ-1** and must not ride along
+inside GAZ. Note the follow-on examination found it needs *no* tzdata bundle
+(the platform ICU already carries historical rules) and *no* engine change —
+see §6.6.
+
+---
+
+## 6.6 TZ — Historical timezone resolution (scoped 2026-08-03, NOT STARTED)
+
+_Scoped at the operator's request, immediately after §6.5. **Depends on GAZ-1**
+(needs the IANA zone name per city). Flagged as out-of-scope inside GAZ
+precisely so it would not ride along unexamined — this is that examination._
+
+**The bug.** `CeremonyModal.tsx:45` defaults `tz_offset` to `-5`, and `:95`
+sets it from **the browser's current offset** on geolocate. That is today's DST
+state, not the DST state at the birth moment, and it is wrong outright when
+casting someone else's chart in another zone. For an instrument whose identity
+is deterministic accuracy, a silently-wrong offset shifts every house cusp and
+the Ascendant — the most visible numbers on the wheel.
+
+**Three findings that make this far cheaper than it looks (verified 2026-08-03):**
+
+1. ✅ **The engines need no changes at all.** `tz_offset` is a pure *input* on
+   both stacks — `ephemeris.py:95` and `ephemeris.ts:94` each just subtract it
+   to reach UTC, and `models.py:39` already states the contract: *"The frontend
+   resolves this from a place/timezone picker; the backend just [consumes it]."*
+   The fix is **entirely client-side**, and because the offset stays a number on
+   the wire, **no parity vectors need regenerating** and the Python↔TS parity
+   contract is untouched. Keep it that way — see TZ-4.
+2. ✅ **The data costs 0 KB.** The platform ICU tzdb already carries historical
+   transitions, verified empirically in this session via `Intl.DateTimeFormat`
+   + `formatToParts`: Ulm 1879-03-14 resolves to **+00:53:28** (true Berlin LMT,
+   pre-1893-reform), Berlin 1893 → +01:00, New York 1975 → −04:00 summer /
+   −05:00 winter, and Kathmandu 1985 → **+05:30** *not* +05:45 (Nepal's switch
+   was 1986 — a clean proof it applies historical rules rather than modern
+   ones). **No tzdata bundle is required.**
+3. ✅ **Persistence already exists.** `useStore.ts:100` lists `tz_offset` among
+   the persisted keys, so a resolved offset already travels with the profile.
+   That is exactly the determinism guard TZ-3 needs.
+
+**ID** | **Task** | **Size** | **AC / Done When** | **Deps / Notes**
+---|---|---|---|---
+**TZ-1** | Wall-clock → UTC resolver with a documented ambiguity policy | M | `resolveOffset(localWallClock, ianaZone) → hours` using `Intl` only, no new dependency; **fall-back** (local time occurs twice, e.g. 01:30 on DST-end) and **spring-forward** (local time never occurs, e.g. 02:30) each resolve by a policy that is *written down and unit-tested*, not incidental | `Intl` computes an offset **from a UTC instant**, so the wall-clock direction is an inverse solve (2-pass converge). This is precisely where naive implementations break, and **birth times land on DST-change nights in the real world.** Policy suggestion: fall-back → earlier (first) occurrence; spring-forward → shift forward into real time; both surfaced to the user, never silent.
+**TZ-2** | Fractional-offset handling (LMT) | S | A pre-1900 birth carrying an LMT offset such as +00:53:28 (**0.8911 h**) round-trips through the form, the wire, and both engines without loss or visual mangling; `CeremonyModal.tsx:191`'s `step={0.25}` no longer implies quarter-hour granularity; the readout at `:307` renders minutes/seconds, not `UTC +0.8911h` | Backend accepts it already (`models.py:41` is a `float`, `ge=-14 le=14`). ⚠️ Note `useStore.ts:91`'s Ulm reference uses `tz_offset: 0.67` — Ulm's *own* longitude-derived LMT (9.9876°/15 = 0.6658 h), not Berlin's zone. That is a defensible choice for an 1879 birth and is baked into existing fixtures: **do not "correct" it.** See TZ-5.
+**TZ-3** | Determinism guard — resolve once, persist the number | S | A chart cast today reproduces byte-identically on a device with a different tzdb vintage; the resolved offset is persisted (and carried by Vault export) rather than re-derived at render time | ⚠️ **The real risk in this whole item.** ICU tzdb version varies by browser/OS/WebView age (this container: `2025c`), and tzdb releases *do* amend historical data. Re-resolving on every load would mean the same birth data yielding different charts on different devices — a direct violation of the project's core invariant. `useStore.ts:100` already persists `tz_offset`, so the guard is mostly *not regressing* it: **resolve at the ceremony, store the number, never silently re-resolve.** Any later re-resolution must be an explicit, visible user action.
+**TZ-4** | Keep resolution client-side (contract preservation) | XS | The backend still never resolves zones; no IANA zone name is added to `ChartRequest`; `tzdata==2026.3` in `requirements.txt` remains a *server-locale* dependency, not a chart input | Guards finding 1. If a zone name were ever sent and resolved server-side, the client's ICU and the server's `zoneinfo` could disagree and reintroduce Python↔TS drift — the exact class of failure the parity CI (`MOBILE_ROADMAP` §3) exists to prevent.
+**TZ-5** | Migration posture for existing charts | S | Existing profiles, the shelf/bookshelf, and `parity/*.json` fixtures are **untouched**; the new resolution applies to *newly entered* birth data only; if an existing chart's stored offset differs from what resolution would now produce, the user is *offered* a correction, never given one silently | Charts already generated are historical artifacts — the Bookshelf reprints them, and the seed determinism in `parity/tarot-draw.json` and friends depends on inputs not moving under it. **Silent recomputation would corrupt the shelf.**
+
+**Test vectors to pin (suggested, from the 2026-08-03 probe):** Ulm
+1879-03-14 → +00:53:28 · Berlin 1893-06-01 → +01:00 · New York 1975-07-15 →
+−04:00 · New York 1975-01-15 → −05:00 · Kathmandu 1985 → +05:30 (not +05:45) ·
+Kolkata → +05:30. Add one fall-back and one spring-forward case per TZ-1.
+
+**Open question — operator decision, do not default it:** for a pre-standard-time
+birth, which is *correct*: the **zone's LMT** (Berlin +00:53:28, what `Intl`
+returns for `Europe/Berlin`) or the **birthplace's own longitude LMT** (Ulm
++00:39:57, what `useStore.ts:91` uses)? Astrological convention generally
+favours **true local time by longitude** for pre-1900 births, which is *not*
+what a zone lookup returns. This is a domain call, it changes real chart
+output, and the existing Einstein fixture has already implicitly answered it
+one way. Decide before TZ-1, because it determines whether the resolver falls
+back to longitude arithmetic below a cutoff year.
 
 ---
 
