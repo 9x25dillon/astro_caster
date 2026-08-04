@@ -310,7 +310,8 @@ the Ascendant — the most visible numbers on the wheel.
 
 **ID** | **Task** | **Size** | **AC / Done When** | **Deps / Notes**
 ---|---|---|---|---
-**TZ-1** | Wall-clock → UTC resolver with a documented ambiguity policy | M | `resolveOffset(localWallClock, ianaZone) → hours` using `Intl` only, no new dependency; **fall-back** (local time occurs twice, e.g. 01:30 on DST-end) and **spring-forward** (local time never occurs, e.g. 02:30) each resolve by a policy that is *written down and unit-tested*, not incidental | `Intl` computes an offset **from a UTC instant**, so the wall-clock direction is an inverse solve (2-pass converge). This is precisely where naive implementations break, and **birth times land on DST-change nights in the real world.** Policy suggestion: fall-back → earlier (first) occurrence; spring-forward → shift forward into real time; both surfaced to the user, never silent.
+**TZ-1** | Wall-clock → UTC resolver with a documented ambiguity policy | M | `resolveOffset(localWallClock, ianaZone, lng) → hours` using `Intl` only, no new dependency; **fall-back** (local time occurs twice, e.g. 01:30 on DST-end) and **spring-forward** (local time never occurs, e.g. 02:30) each resolve by a policy that is *written down and unit-tested*, not incidental | `Intl` computes an offset **from a UTC instant**, so the wall-clock direction is an inverse solve (2-pass converge). This is precisely where naive implementations break, and **birth times land on DST-change nights in the real world.** Policy suggestion: fall-back → earlier (first) occurrence; spring-forward → shift forward into real time; both surfaced to the user, never silent. **Takes `lng` because of TZ-0** — below the zone's first transition it returns longitude LMT, not the zone offset.
+**TZ-1b** | Pre-standard-time branch (implements TZ-0) | S | `firstTransition(zone)` binary-searches `Intl` for the zone's earliest offset change and is memoized per zone; births before it resolve to `lng / 15`; the substitution is **visible in the UI** with a one-tap switch to the zone offset; the four zones in the TZ-0 table are pinned as unit tests | Deterministic and dependency-free. **Do not gate on a year cutoff**, and do not revive either rejected discriminator (TZ-0). The Cork-1900 over-application is accepted and handled by disclosure, not by more logic.
 **TZ-2** | Fractional-offset handling (LMT) | S | A pre-1900 birth carrying an LMT offset such as +00:53:28 (**0.8911 h**) round-trips through the form, the wire, and both engines without loss or visual mangling; `CeremonyModal.tsx:191`'s `step={0.25}` no longer implies quarter-hour granularity; the readout at `:307` renders minutes/seconds, not `UTC +0.8911h` | Backend accepts it already (`models.py:41` is a `float`, `ge=-14 le=14`). ⚠️ Note `useStore.ts:91`'s Ulm reference uses `tz_offset: 0.67` — Ulm's *own* longitude-derived LMT (9.9876°/15 = 0.6658 h), not Berlin's zone. That is a defensible choice for an 1879 birth and is baked into existing fixtures: **do not "correct" it.** See TZ-5.
 **TZ-3** | Determinism guard — resolve once, persist the number | S | A chart cast today reproduces byte-identically on a device with a different tzdb vintage; the resolved offset is persisted (and carried by Vault export) rather than re-derived at render time | ⚠️ **The real risk in this whole item.** ICU tzdb version varies by browser/OS/WebView age (this container: `2025c`), and tzdb releases *do* amend historical data. Re-resolving on every load would mean the same birth data yielding different charts on different devices — a direct violation of the project's core invariant. `useStore.ts:100` already persists `tz_offset`, so the guard is mostly *not regressing* it: **resolve at the ceremony, store the number, never silently re-resolve.** Any later re-resolution must be an explicit, visible user action.
 **TZ-4** | Keep resolution client-side (contract preservation) | XS | The backend still never resolves zones; no IANA zone name is added to `ChartRequest`; `tzdata==2026.3` in `requirements.txt` remains a *server-locale* dependency, not a chart input | Guards finding 1. If a zone name were ever sent and resolved server-side, the client's ICU and the server's `zoneinfo` could disagree and reintroduce Python↔TS drift — the exact class of failure the parity CI (`MOBILE_ROADMAP` §3) exists to prevent.
@@ -321,15 +322,60 @@ the Ascendant — the most visible numbers on the wheel.
 −04:00 · New York 1975-01-15 → −05:00 · Kathmandu 1985 → +05:30 (not +05:45) ·
 Kolkata → +05:30. Add one fall-back and one spring-forward case per TZ-1.
 
-**Open question — operator decision, do not default it:** for a pre-standard-time
-birth, which is *correct*: the **zone's LMT** (Berlin +00:53:28, what `Intl`
-returns for `Europe/Berlin`) or the **birthplace's own longitude LMT** (Ulm
-+00:39:57, what `useStore.ts:91` uses)? Astrological convention generally
-favours **true local time by longitude** for pre-1900 births, which is *not*
-what a zone lookup returns. This is a domain call, it changes real chart
-output, and the existing Einstein fixture has already implicitly answered it
-one way. Decide before TZ-1, because it determines whether the resolver falls
-back to longitude arithmetic below a cutoff year.
+### TZ-0 — RATIFIED 2026-08-03: longitude LMT before standard time
+
+**Operator decision: use the birthplace's own longitude LMT for
+pre-standard-time births.** Recorded with the reassessment that produced it,
+because the *trigger* was amended in the process.
+
+**Is it warranted? Yes — measured, not assumed.** For the Ulm reference,
+`Europe/Berlin`'s LMT is **+00:53:28** (Berlin's meridian) while Ulm's own
+longitude gives **+00:39:57** — a **13.52-minute** gap. At the MC's 0.25°/min
+that is **~3.38° of Ascendant and Midheaven**: enough to move house cusps and,
+near a boundary, to change the rising sign. Well past noise; the zone's LMT is
+simply the wrong meridian for anyone not born in the zone's reference city.
+
+⚠️ **The trigger is NOT a year cutoff.** "Pre-1900" was the framing in the
+question; it is wrong in both directions, because standardization dates vary
+enormously. Verified by binary-searching `Intl` for each zone's first offset
+transition (2026-08-03), all matching known history:
+
+| Zone | LMT | First transition |
+|---|---|---|
+| `America/New_York` | −04:56:02 | **1883-11-18** (railroad standard time) |
+| `Europe/Berlin` | +00:53:28 | **1893-03-31** |
+| `Europe/Dublin` | −00:25:21 | **1916-05-21** |
+| `Asia/Kathmandu` | +05:41:16 | **1919-12-31** |
+
+**The exact rule: substitute longitude LMT while the birth instant precedes
+the zone's first offset transition.** This is structural, not heuristic —
+**every IANA zone begins with an LMT record by construction**, so "still in the
+first record" *is* "before standard time here." Detection is a binary search
+over `Intl` offsets (~40 calls, memoize per zone; deterministic).
+
+Two discriminators were **tested and rejected** — do not revive them:
+- *"offset is not a multiple of 15 min"* → misclassifies historical **legal**
+  offsets as LMT (`Europe/Dublin` 1900 reads −00:25:21 and is not round, yet
+  Dublin Mean Time was statutory clock time).
+- *"ICU exposes an `LMT` abbreviation"* → it does not; `timeZoneName` returns
+  `"GMT+0:53:28"`, offering no marker to switch on.
+
+⚠️ **Known limit, accepted:** the rule over-applies where a country adopted a
+national mean time *without* an offset change registering. A Cork 1900 birth
+sits before `Europe/Dublin`'s first transition, so the rule substitutes Cork's
+longitude (−00:33:53), but the wall clock legally read Dublin Mean Time
+(−00:25:21) — an ~8.5 min / ~2.1° error. There is **no clean automatic rule
+here**, and birth records of that era are themselves ambiguous about which time
+they recorded. **Mitigation is transparency, not cleverness:** when the
+substitution fires, say so plainly ("before standard time here — using local
+mean time for Ulm, +00:39:57") and offer a one-tap switch to the zone offset.
+Consistent with the project's existing posture — the offline badge and the
+honest `ai_source` are the precedent: never be silently clever.
+
+**Fixture note (not a bug):** the resolver yields **+00:39:57** (0.6658 h) for
+Ulm, while `useStore.ts:91` stores **0.67** — a ~15-second rounding. Per TZ-5
+the fixture stays untouched; expect a newly-entered Ulm birth to differ from
+the stored reference by that hair, and do not "fix" either to match the other.
 
 ---
 
