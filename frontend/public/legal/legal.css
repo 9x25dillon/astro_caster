@@ -1,0 +1,128 @@
+/* Shared skin for the legal pages. Deliberately plain and high-contrast: these
+   are documents to be READ, not surfaces to be admired, and a policy that is
+   hard to read is a policy that hasn't been disclosed. Self-hosted fonts only
+   (the app makes zero external requests and these pages keep that promise). */
+@font-face {
+  font-family: "EB Garamond";
+  font-style: normal;
+  font-weight: 400 800;
+  src: url("/fonts/eb-garamond-latin.woff2") format("woff2");
+  font-display: swap;
+}
+
+:root {
+  --void: #0b0b0f;
+  --panel: #14141b;
+  --gold: #c9a84c;
+  --gold-soft: #e0c578;
+  --parchment: #e8dcc0;
+  --ink: #9a8f78;
+  --rule: #3a3320;
+  --serif: "EB Garamond", Garamond, "Times New Roman", serif;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--void);
+  color: var(--parchment);
+  font-family: var(--serif);
+  font-size: 18px;
+  line-height: 1.7;
+}
+
+.wrap { max-width: 46rem; margin: 0 auto; padding: 0 20px 90px; }
+
+header.masthead {
+  padding: 40px 0 22px;
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: 34px;
+}
+.brand {
+  font-size: 13px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--gold);
+  text-decoration: none;
+}
+h1 {
+  font-size: clamp(30px, 6vw, 44px);
+  font-weight: 500;
+  line-height: 1.1;
+  margin: 14px 0 6px;
+  color: var(--gold-soft);
+}
+.updated { margin: 0; font-size: 14px; color: var(--ink); font-style: italic; }
+
+h2 {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 40px 0 8px;
+  color: var(--gold-soft);
+  line-height: 1.2;
+}
+h3 { font-size: 19px; margin: 26px 0 4px; color: var(--parchment); }
+p, li { margin: 0 0 14px; }
+ul { padding-left: 22px; }
+li { margin-bottom: 8px; }
+strong { color: var(--gold-soft); }
+a { color: var(--gold-soft); }
+code {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 0.86em;
+  color: var(--gold-soft);
+}
+
+.lede {
+  font-size: 20px;
+  line-height: 1.55;
+  color: var(--parchment);
+  border-left: 2px solid var(--gold);
+  padding-left: 18px;
+  margin: 0 0 30px;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  padding: 18px 22px;
+  margin: 24px 0;
+}
+.panel p:last-child { margin-bottom: 0; }
+
+table { border-collapse: collapse; width: 100%; font-size: 16.5px; margin: 18px 0; }
+th, td { text-align: left; padding: 10px 14px 10px 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--gold); font-weight: 400; }
+.tbl-wrap { overflow-x: auto; }
+
+nav.legal-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  margin: 34px 0 0;
+  padding-top: 22px;
+  border-top: 1px solid var(--rule);
+}
+nav.legal-nav a {
+  font-size: 13.5px;
+  padding: 5px 14px;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  text-decoration: none;
+  color: var(--ink);
+}
+nav.legal-nav a:hover { border-color: var(--gold); color: var(--gold-soft); }
+nav.legal-nav a[aria-current] { border-color: var(--gold); color: var(--gold-soft); }
+
+footer.colophon {
+  margin-top: 46px;
+  padding-top: 22px;
+  border-top: 1px solid var(--rule);
+  font-size: 14px;
+  color: var(--ink);
+}
+.refrain { font-style: italic; }
+
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }

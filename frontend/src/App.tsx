@@ -226,9 +226,14 @@ export const App: React.FC = () => {
         <div className="threshold">
           <div className="threshold-say">
             <p className="threshold-title">The sky right now</p>
+            {/* "Computed on your device / nothing sent anywhere" was wrong:
+                the cast goes to the server unless the network is gone. The
+                honest version is still the strong one — a real sky, computed
+                for a real instant, with nothing asked of you. */}
             <p className="threshold-sub">
-              Computed on your device — <span className="th-live">live</span>, no
-              account, nothing sent anywhere. This is the real sky over {skyMoment}.
+              The real sky over {skyMoment} — <span className="th-live">computed
+              live</span>, not a picture. No account, no sign-up, nothing to
+              dismiss.
             </p>
           </div>
           <div className="threshold-do">

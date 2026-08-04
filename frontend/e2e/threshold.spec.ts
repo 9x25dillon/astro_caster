@@ -63,7 +63,10 @@ test("the privacy claim is made at the birth-time field, not on a banner", async
 
   const claim = page.locator(".ceremony-privacy");
   await expect(claim).toBeVisible();
-  await expect(claim).toContainText(/never leaves this browser/i);
+  // The claim must match what the server actually does — the chart is computed
+  // server-side by default, so the promise is RETENTION, not transmission.
+  await expect(claim).toContainText(/never saved to a database, never written to a log/i);
+  await expect(claim).not.toContainText(/never leaves this browser/i);
 
   // The telemetry disclosure survives the banner's retirement — it moved into
   // the threshold's fine print rather than disappearing.

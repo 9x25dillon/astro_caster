@@ -2847,6 +2847,17 @@ h2.section::after {
 .pricing-buy.is-live { color: var(--ion); border-color: var(--ion); }
 .pricing-fine { font-size: 11.5px; line-height: 1.55; opacity: 0.68; margin: 0 0 12px; }
 .pricing-err { font-size: 12px; color: var(--amethyst-soft); margin: 0 0 10px; }
+/* Policy + source links. Quiet, but present on the surface where money is
+   asked for — a customer must be able to read the terms before paying. */
+.pricing-legal {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 14px 0 0;
+  font-size: 11.5px;
+}
+.pricing-legal a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--rule); }
+.pricing-legal a:hover { color: var(--gold-soft); border-bottom-color: var(--gold); }
 /* On wide screens the mini chapter rail floats over the stage's bottom-right
    corner — which is exactly where this panel's Buy buttons and the
    cancel-anytime line land. Measured, not guessed: the rail owns the rightmost
