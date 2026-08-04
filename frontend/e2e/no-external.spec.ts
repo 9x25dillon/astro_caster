@@ -1,9 +1,15 @@
 import { test, expect } from "./helpers";
 
-// The observatory is fully self-contained: fonts are vendored in
+// The observatory's BOOT path is fully self-contained: fonts are vendored in
 // public/fonts/ (MOBILE_ROADMAP §7.2) and every API call is same-origin
 // through the Vite proxy. Any request that leaves 127.0.0.1/localhost is a
 // regression — a privacy leak and an offline-mode break.
+//
+// SCOPE, stated because it was once misread as absolute: this file covered
+// boot and nothing else, so "Astra makes zero external requests" was recorded
+// as proven when only boot had been tested. The birthplace map does leave the
+// origin — Nominatim geocoding and CARTO tiles (LocationPicker.tsx:85,54).
+// GAZ-5 extends coverage to that path; GAZ-4 is what makes it zero.
 test("app boot makes zero external requests", async ({ page }) => {
   const external: string[] = [];
   page.on("request", (req) => {
