@@ -207,6 +207,178 @@ git status --porcelain -b
 
 ---
 
+## 6.5 GAZ — Offline city gazetteer (scoped 2026-08-03, NOT STARTED)
+
+_Scoped at the operator's request on `claude/astro-caster-mobile-test-nnwle1`.
+This is **step 1 of `MOBILE_ROADMAP.md` §4.2.2's proposed staged path** — the
+one item worth doing **before** any H2/store decision, because it pays off even
+if H2 never wakes. §4.2.2 itself is PROPOSED, NOT RATIFIED; this scope inherits
+that status._
+
+**Why:** `LocationPicker.tsx` makes the app's only two remaining per-device
+external calls — CARTO basemap tiles (`:54`) and OSM Nominatim geocoding
+(`:85`). Retiring them (a) removes two third-party usage-policy exposures that
+only bite at store install volumes (`MOBILE_ROADMAP.md` §4.2.1 landmine 2),
+(b) upgrades the "zero external requests" claim from *boot-only* to *always*,
+and (c) makes the privacy claim fully structural rather than procedural.
+
+**Two findings that shape the work (verified 2026-08-03):**
+
+1. ⚠️ **`no-external.spec.ts` only tests boot.** It asserts zero external
+   requests through chart-cast + fonts-settled, and never opens the map — so
+   today's CARTO/Nominatim calls are **invisible to the gate**. Any fix that
+   doesn't also extend this spec will silently regress. GAZ-5 is therefore not
+   optional polish; it is the part that makes the rest hold.
+2. ✅ **Leaflet can be deleted, which pays for much of the data.** `d3-geo@3.1.1`
+   is *already installed* (transitively via `d3`), and the project is already a
+   D3-SVG shop. Rendering a coastline map in D3 removes `leaflet` +
+   `@types/leaflet` + `leaflet.css` — **163,913 B raw / ~50 KB wire** measured
+   in `dist/` (148,818 JS + 15,095 CSS).
+
+**ID** | **Task** | **Size** | **AC / Done When** | **Deps / Notes**
+---|---|---|---|---
+**GAZ-1** | Vendored gazetteer dataset + generator | M | `tools/gen_gazetteer.py` (or `.ts`) transforms an upstream GeoNames dump into a committed, trimmed artifact; `--check` byte-drift tripwire in CI; provenance + licence recorded in a sibling `README.md` | **Follows the `parity/` precedent exactly** (generator → committed artifact → `--check` tripwire), the pattern already proven in §3 of the mobile roadmap. Source: GeoNames `cities*.txt`, **CC-BY 4.0** — attribution required, FOSS-compatible, no F-Droid anti-feature. Fields: name, asciiname, country, admin1, lat, lng, population, IANA tz. Drop everything else. **Coverage tier is an operator decision — see Open questions.**
+**GAZ-2** | Dependency-free search index | S | Diacritic-folded prefix/substring match ("Zurich" → "Zürich"), ranked by population, disambiguated by country + admin1 in the result row; ties resolve deterministically; unit-tested | Linear scan over ~26k rows is <5 ms — **no index library, no new dependency** (matches `@astra/core`'s posture). Determinism matters: same query ⇒ same order, per the project's invariants.
+**GAZ-3** | Offline coastline map replacing Leaflet + CARTO | M | Click-to-place on a D3-rendered world map with **zero network**; visually consistent with the wheel (same dark/gold canon); `leaflet` + `@types/leaflet` removed from `package.json`; the `leaflet` manualChunk entry in `vite.config.ts` deleted | Natural Earth **110m coastline/admin-0, public domain** (~30–100 KB simplified GeoJSON — ship pre-simplified to avoid adding `topojson-client`). Uses the already-present `d3-geo`. Precision note: a 110m coastline is for **coarse placement**; the numeric lat/lng inputs stay authoritative, and search is the precise path.
+**GAZ-4** | Wire into LocationPicker + CeremonyModal | S | `LocationPicker.tsx` has **no `fetch` to any external host**; search resolves against the local gazetteer; "not found" copy stays honest; `⊕ use my location` (pure `navigator.geolocation`, no network) is unchanged | Both call sites already lazy-load the picker (`Controls.tsx:7`, `CeremonyModal.tsx:6`) — keep that. The CARTO attribution control goes with the tiles; **add GeoNames + Natural Earth attribution** wherever the app credits its sources.
+**GAZ-5** | Close the test gap (**the gate**) | S | `no-external.spec.ts` gains a case that **opens the map and runs a search**, asserting zero external requests across that path; green in both desktop + mobile projects | Without this the finding above recurs. Consider asserting on the *whole* ceremony flow rather than just the map, so future surfaces inherit the guarantee.
+
+**Budget (estimates — verify at GAZ-1, do not treat as measured):** a trimmed
+`cities15000` (~26k rows) lands ~1.0–1.2 MB raw / ~350–420 KB wire gzipped.
+Against the ~164 KB raw / ~50 KB wire freed by deleting Leaflet, expect a **net
+~+330 KB wire** and a precache moving ~1.74 MB → ~2.8 MB raw. That is a real
+increase, not a wash — it is the price of the offline claim, and the coverage
+tier below is the dial.
+
+**Open questions — operator decisions, do not default them:**
+
+1. **Coverage vs. size.** `cities15000` (~26k) is the compact choice but
+   **will miss small birth towns** — and birthplaces are exactly where the long
+   tail lives. `cities5000` (~55k) roughly doubles the payload; `cities1000`
+   (~150k) is likely out of budget. This is a product call about how often
+   "I can't find where I was born" is acceptable, not a technical one.
+2. **Precache vs. lazy.** Precaching preserves the offline claim on a user's
+   *first ever* ceremony but spends the budget up front; runtime-caching on
+   first use is cheaper but fails an offline first run. Precedent points at
+   precache — §3 chose exactly that for the WASM Swiss engine (lazy chunk,
+   still in the precache glob).
+
+**Adjacent — deliberately NOT in scope, now scoped separately as §6.6 (TZ).**
+GeoNames rows carry an IANA timezone name, and there is a latent correctness
+bug next door: `CeremonyModal.tsx:45` defaults `tz_offset` to `-5`, and `:95`
+sets it from **the browser's current offset** on geolocate — i.e. today's DST
+state, not the DST state at the birth moment. GAZ-1's zone-name field is the
+prerequisite; **TZ is a hard dependent of GAZ-1** and must not ride along
+inside GAZ. Note the follow-on examination found it needs *no* tzdata bundle
+(the platform ICU already carries historical rules) and *no* engine change —
+see §6.6.
+
+---
+
+## 6.6 TZ — Historical timezone resolution (scoped 2026-08-03, NOT STARTED)
+
+_Scoped at the operator's request, immediately after §6.5. **Depends on GAZ-1**
+(needs the IANA zone name per city). Flagged as out-of-scope inside GAZ
+precisely so it would not ride along unexamined — this is that examination._
+
+**The bug.** `CeremonyModal.tsx:45` defaults `tz_offset` to `-5`, and `:95`
+sets it from **the browser's current offset** on geolocate. That is today's DST
+state, not the DST state at the birth moment, and it is wrong outright when
+casting someone else's chart in another zone. For an instrument whose identity
+is deterministic accuracy, a silently-wrong offset shifts every house cusp and
+the Ascendant — the most visible numbers on the wheel.
+
+**Three findings that make this far cheaper than it looks (verified 2026-08-03):**
+
+1. ✅ **The engines need no changes at all.** `tz_offset` is a pure *input* on
+   both stacks — `ephemeris.py:95` and `ephemeris.ts:94` each just subtract it
+   to reach UTC, and `models.py:39` already states the contract: *"The frontend
+   resolves this from a place/timezone picker; the backend just [consumes it]."*
+   The fix is **entirely client-side**, and because the offset stays a number on
+   the wire, **no parity vectors need regenerating** and the Python↔TS parity
+   contract is untouched. Keep it that way — see TZ-4.
+2. ✅ **The data costs 0 KB.** The platform ICU tzdb already carries historical
+   transitions, verified empirically in this session via `Intl.DateTimeFormat`
+   + `formatToParts`: Ulm 1879-03-14 resolves to **+00:53:28** (true Berlin LMT,
+   pre-1893-reform), Berlin 1893 → +01:00, New York 1975 → −04:00 summer /
+   −05:00 winter, and Kathmandu 1985 → **+05:30** *not* +05:45 (Nepal's switch
+   was 1986 — a clean proof it applies historical rules rather than modern
+   ones). **No tzdata bundle is required.**
+3. ✅ **Persistence already exists.** `useStore.ts:100` lists `tz_offset` among
+   the persisted keys, so a resolved offset already travels with the profile.
+   That is exactly the determinism guard TZ-3 needs.
+
+**ID** | **Task** | **Size** | **AC / Done When** | **Deps / Notes**
+---|---|---|---|---
+**TZ-1** | Wall-clock → UTC resolver with a documented ambiguity policy | M | `resolveOffset(localWallClock, ianaZone, lng) → hours` using `Intl` only, no new dependency; **fall-back** (local time occurs twice, e.g. 01:30 on DST-end) and **spring-forward** (local time never occurs, e.g. 02:30) each resolve by a policy that is *written down and unit-tested*, not incidental | `Intl` computes an offset **from a UTC instant**, so the wall-clock direction is an inverse solve (2-pass converge). This is precisely where naive implementations break, and **birth times land on DST-change nights in the real world.** Policy suggestion: fall-back → earlier (first) occurrence; spring-forward → shift forward into real time; both surfaced to the user, never silent. **Takes `lng` because of TZ-0** — below the zone's first transition it returns longitude LMT, not the zone offset.
+**TZ-1b** | Pre-standard-time branch (implements TZ-0) | S | `firstTransition(zone)` binary-searches `Intl` for the zone's earliest offset change and is memoized per zone; births before it resolve to `lng / 15`; the substitution is **visible in the UI** with a one-tap switch to the zone offset; the four zones in the TZ-0 table are pinned as unit tests | Deterministic and dependency-free. **Do not gate on a year cutoff**, and do not revive either rejected discriminator (TZ-0). The Cork-1900 over-application is accepted and handled by disclosure, not by more logic.
+**TZ-2** | Fractional-offset handling (LMT) | S | A pre-1900 birth carrying an LMT offset such as +00:53:28 (**0.8911 h**) round-trips through the form, the wire, and both engines without loss or visual mangling; `CeremonyModal.tsx:191`'s `step={0.25}` no longer implies quarter-hour granularity; the readout at `:307` renders minutes/seconds, not `UTC +0.8911h` | Backend accepts it already (`models.py:41` is a `float`, `ge=-14 le=14`). ⚠️ Note `useStore.ts:91`'s Ulm reference uses `tz_offset: 0.67` — Ulm's *own* longitude-derived LMT (9.9876°/15 = 0.6658 h), not Berlin's zone. That is a defensible choice for an 1879 birth and is baked into existing fixtures: **do not "correct" it.** See TZ-5.
+**TZ-3** | Determinism guard — resolve once, persist the number | S | A chart cast today reproduces byte-identically on a device with a different tzdb vintage; the resolved offset is persisted (and carried by Vault export) rather than re-derived at render time | ⚠️ **The real risk in this whole item.** ICU tzdb version varies by browser/OS/WebView age (this container: `2025c`), and tzdb releases *do* amend historical data. Re-resolving on every load would mean the same birth data yielding different charts on different devices — a direct violation of the project's core invariant. `useStore.ts:100` already persists `tz_offset`, so the guard is mostly *not regressing* it: **resolve at the ceremony, store the number, never silently re-resolve.** Any later re-resolution must be an explicit, visible user action.
+**TZ-4** | Keep resolution client-side (contract preservation) | XS | The backend still never resolves zones; no IANA zone name is added to `ChartRequest`; `tzdata==2026.3` in `requirements.txt` remains a *server-locale* dependency, not a chart input | Guards finding 1. If a zone name were ever sent and resolved server-side, the client's ICU and the server's `zoneinfo` could disagree and reintroduce Python↔TS drift — the exact class of failure the parity CI (`MOBILE_ROADMAP` §3) exists to prevent.
+**TZ-5** | Migration posture for existing charts | S | Existing profiles, the shelf/bookshelf, and `parity/*.json` fixtures are **untouched**; the new resolution applies to *newly entered* birth data only; if an existing chart's stored offset differs from what resolution would now produce, the user is *offered* a correction, never given one silently | Charts already generated are historical artifacts — the Bookshelf reprints them, and the seed determinism in `parity/tarot-draw.json` and friends depends on inputs not moving under it. **Silent recomputation would corrupt the shelf.**
+
+**Test vectors to pin (suggested, from the 2026-08-03 probe):** Ulm
+1879-03-14 → +00:53:28 · Berlin 1893-06-01 → +01:00 · New York 1975-07-15 →
+−04:00 · New York 1975-01-15 → −05:00 · Kathmandu 1985 → +05:30 (not +05:45) ·
+Kolkata → +05:30. Add one fall-back and one spring-forward case per TZ-1.
+
+### TZ-0 — RATIFIED 2026-08-03: longitude LMT before standard time
+
+**Operator decision: use the birthplace's own longitude LMT for
+pre-standard-time births.** Recorded with the reassessment that produced it,
+because the *trigger* was amended in the process.
+
+**Is it warranted? Yes — measured, not assumed.** For the Ulm reference,
+`Europe/Berlin`'s LMT is **+00:53:28** (Berlin's meridian) while Ulm's own
+longitude gives **+00:39:57** — a **13.52-minute** gap. At the MC's 0.25°/min
+that is **~3.38° of Ascendant and Midheaven**: enough to move house cusps and,
+near a boundary, to change the rising sign. Well past noise; the zone's LMT is
+simply the wrong meridian for anyone not born in the zone's reference city.
+
+⚠️ **The trigger is NOT a year cutoff.** "Pre-1900" was the framing in the
+question; it is wrong in both directions, because standardization dates vary
+enormously. Verified by binary-searching `Intl` for each zone's first offset
+transition (2026-08-03), all matching known history:
+
+| Zone | LMT | First transition |
+|---|---|---|
+| `America/New_York` | −04:56:02 | **1883-11-18** (railroad standard time) |
+| `Europe/Berlin` | +00:53:28 | **1893-03-31** |
+| `Europe/Dublin` | −00:25:21 | **1916-05-21** |
+| `Asia/Kathmandu` | +05:41:16 | **1919-12-31** |
+
+**The exact rule: substitute longitude LMT while the birth instant precedes
+the zone's first offset transition.** This is structural, not heuristic —
+**every IANA zone begins with an LMT record by construction**, so "still in the
+first record" *is* "before standard time here." Detection is a binary search
+over `Intl` offsets (~40 calls, memoize per zone; deterministic).
+
+Two discriminators were **tested and rejected** — do not revive them:
+- *"offset is not a multiple of 15 min"* → misclassifies historical **legal**
+  offsets as LMT (`Europe/Dublin` 1900 reads −00:25:21 and is not round, yet
+  Dublin Mean Time was statutory clock time).
+- *"ICU exposes an `LMT` abbreviation"* → it does not; `timeZoneName` returns
+  `"GMT+0:53:28"`, offering no marker to switch on.
+
+⚠️ **Known limit, accepted:** the rule over-applies where a country adopted a
+national mean time *without* an offset change registering. A Cork 1900 birth
+sits before `Europe/Dublin`'s first transition, so the rule substitutes Cork's
+longitude (−00:33:53), but the wall clock legally read Dublin Mean Time
+(−00:25:21) — an ~8.5 min / ~2.1° error. There is **no clean automatic rule
+here**, and birth records of that era are themselves ambiguous about which time
+they recorded. **Mitigation is transparency, not cleverness:** when the
+substitution fires, say so plainly ("before standard time here — using local
+mean time for Ulm, +00:39:57") and offer a one-tap switch to the zone offset.
+Consistent with the project's existing posture — the offline badge and the
+honest `ai_source` are the precedent: never be silently clever.
+
+**Fixture note (not a bug):** the resolver yields **+00:39:57** (0.6658 h) for
+Ulm, while `useStore.ts:91` stores **0.67** — a ~15-second rounding. Per TZ-5
+the fixture stays untouched; expect a newly-entered Ulm birth to differ from
+the stored reference by that hair, and do not "fix" either to match the other.
+
+---
+
 ## 7. Next Steps After Immediate Block
 
 1. Triage remaining R and F items (pick 1-2 highest leverage per sprint).
