@@ -139,6 +139,16 @@ def validate_chart(chart: dict) -> None:
 
 def _format_value(value) -> str:
     if isinstance(value, (int, float)) and not isinstance(value, bool):
+        # The domain check lives HERE as well as in validate_chart, because
+        # canonicalize_chart() is public and callable without validating —
+        # and it is the canonical STRING, not the seed, that has to be
+        # substrate-identical. Guarding only derive_natal_seed() left
+        # canonicalize_chart({'sun': 1e21}) still diverging across languages.
+        if abs(value) >= FORMAT_DOMAIN_LIMIT:
+            raise ChartValidationError(
+                "value is outside the cross-substrate domain "
+                "(|value| must be < 1e21)"
+            )
         # +0.0 normalizes -0.0; fixed 6 decimals matches JS toFixed(6)
         return f"{float(value) + 0.0:.6f}"
     return str(value)

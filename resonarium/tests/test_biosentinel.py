@@ -469,6 +469,26 @@ class TestCrossSubstrateDomain(unittest.TestCase):
                 self.assertEqual(js["seed_hex"], ns.seed_to_hex(seed),
                                  f"{name}: SEED DIVERGED across substrates")
 
+    def test_canonicalize_alone_is_guarded(self):
+        """The guard must live in the formatter, not only in derive_natal_seed.
+
+        canonicalize_chart is public and callable without validating, and it is
+        the canonical STRING that has to be substrate-identical — the seed is
+        just its digest. Guarding only the derive path left
+        canonicalize_chart({'sun': 1e21}) returning the full decimal expansion
+        in Python and "1e+21" in JS.
+        """
+        with self.assertRaises(ns.ChartValidationError):
+            ns.canonicalize_chart({"sun": ns.FORMAT_DOMAIN_LIMIT})
+        js = subprocess.run(
+            [NODE, "-e",
+             "const N=require('./natal_seed.js');"
+             "try{N.canonicalizeChart({sun:1e21});console.log('ACCEPTED');}"
+             "catch(e){console.log('REJECTED');}"],
+            capture_output=True, text=True, cwd=str(ROOT))
+        self.assertEqual(js.stdout.strip(), "REJECTED",
+                         "JS canonicalizeChart accepted an out-of-domain value")
+
     def test_domain_limit_is_the_documented_toFixed_threshold(self):
         """The bound is not arbitrary: it is exactly where ECMA-262 changes
         toFixed's behaviour. Just inside must work; at the limit must reject."""
