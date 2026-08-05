@@ -278,6 +278,30 @@ class TestBrowserParity(unittest.TestCase):
                 bedrock[i % len(bedrock)], i, sentinel, rand)
             self.assertTrue(math.isclose(js_f, py_f, abs_tol=1e-9))
 
+    def test_placement_bit_exact_on_identical_input(self):
+        """Placement uses only * and /, so given the SAME bedrock it must agree
+        exactly. The full chain does not, because bedrock_frequencies uses
+        pow() and transcendentals are not bit-identical across libm — that
+        boundary is pre-existing and is covered by tolerance below."""
+        REF = [190.5, 148.75, 252.625, 366.375]
+        for key, n, sp in [("placement_ref_s0", 8, 0.0),
+                           ("placement_ref_s1", 12, 1.0),
+                           ("placement_ref_s10", 16, 10.0)]:
+            self.assertEqual(self.js[key], ns.ghost_placement(REF, n, sp), key)
+
+    def test_placement_full_chain_within_tolerance(self):
+        bed = ns.bedrock_frequencies(ns.TEST_CHART)
+        for key, n, sp in [("placement_s0", 8, 0.0), ("placement_s1", 12, 1.0),
+                           ("placement_s10", 16, 10.0)]:
+            for a, b in zip(self.js[key], ns.ghost_placement(bed, n, sp),
+                            strict=True):
+                self.assertTrue(math.isclose(a, b, abs_tol=1e-9), key)
+
+    def test_word_and_defect_parity(self):
+        self.assertEqual(self.js["word"], ns.substitution_word(64))
+        self.assertEqual(float(self.js["sturmian_defect"]),
+                         ns.sturmian_defect(ns.substitution_word(200)))
+
     def test_js_off_baseline_pure(self):
         self.assertTrue(self.js["off_equals_bedrock"])
 
@@ -288,6 +312,39 @@ class TestBrowserParity(unittest.TestCase):
             self.js["clamped"],
             ns.clamp_sentinel_params(
                 {"n": 9999, "k": -5, "perturb": 1e9, "spread": 100}))
+
+
+class TestSubstitutionPlacement(unittest.TestCase):
+    """Ghost bank as a substitution-ordered quasiperiodic lattice."""
+
+    REF = [190.5, 148.75, 252.625, 366.375]
+
+    def test_word_is_sturmian(self):
+        self.assertEqual(ns.sturmian_defect(ns.substitution_word(200)), 0.0)
+        w = ns.substitution_word(200)
+        for n in range(1, 7):
+            self.assertEqual(ns.factor_complexity(w, n), n + 1)
+
+    def test_spread_zero_reproduces_legacy_placement(self):
+        """spread = 0 must be bit-identical to the former bedrock cycling."""
+        bed = ns.bedrock_frequencies(ns.TEST_CHART)
+        legacy = [ns.clamp_frequency(bed[i % len(bed)]) for i in range(16)]
+        self.assertEqual(ns.ghost_placement(bed, 16, 0.0), legacy)
+
+    def test_all_outputs_clamped(self):
+        for sp in (0.0, 1.0, 5.0, 10.0):
+            for f in ns.ghost_placement(self.REF, 64, sp):
+                self.assertGreaterEqual(f, ns.FREQ_MIN_HZ)
+                self.assertLessEqual(f, ns.FREQ_MAX_HZ)
+
+    def test_bedrock_never_mutated(self):
+        bed = list(self.REF)
+        ns.ghost_placement(bed, 32, 7.0)
+        self.assertEqual(bed, self.REF)
+
+    def test_degenerate_inputs(self):
+        self.assertEqual(ns.ghost_placement(self.REF, 0, 1.0), [])
+        self.assertEqual(ns.ghost_placement([], 8, 1.0), [])
 
 
 class TestNoNetworkCalls(unittest.TestCase):
@@ -325,6 +382,120 @@ class TestNoNetworkCalls(unittest.TestCase):
         html = (ROOT / "resonarium-enhanced.html").read_text(encoding="utf-8")
         self.assertIn("connect-src 'none'", html)
         self.assertIn("default-src 'none'", html)
+
+
+# --------------------------------------------------------------------------
+# Cross-substrate domain — the seed's ABSOLUTE-level invariance claim
+# --------------------------------------------------------------------------
+#
+# Borrowed method, from the invariance-group framework in the substrate-comm
+# work: *levels are verified, not asserted.* There, a renderer declares an
+# invariance group and the harness samples random elements of it, demanding
+# zero bit-error; one counterexample demotes the renderer.
+#
+# The seed pipeline sits at the bottom of that hierarchy — its invariance group
+# is {id} alone (ABSOLUTE). For a hash that is correct and deliberate: we WANT
+# no two distinct charts to collide. But ABSOLUTE is also the most fragile
+# level there is, because every representational detail is load-bearing, and
+# "bit-exact across Python and JS" is a claim quantified over ALL charts while
+# TestBrowserParity only ever evidenced ONE.
+#
+# Two real divergences lived in that gap and survived every green run
+# (found 2026-08-04):
+#
+#   1. |value| >= 1e21 — ECMA-262 makes toFixed() defer to ToString(), so JS
+#      emitted "1e+21" where Python emitted the full decimal expansion.
+#      Seeds 0x8624dc5976199acd (py) vs 0xa92d292aa0cd8803 (js).
+#   2. Chart keys outside the BMP — Array.prototype.sort orders by UTF-16 code
+#      UNIT, Python's sorted() by code POINT, so "😀" and "�" came out in
+#      opposite order. Seeds 0x3fc7be78418c6fca vs 0x5cdbf5512214e514.
+#
+# Neither was caught by the finiteness check, because 1e21 is finite and an
+# emoji is a perfectly good dict key.
+BATTERY = [
+    # (name, chart, intention)
+    ("baseline", {"sun": 142.73, "moon": 78.41, "asc": 215.92, "mc": 312.44}, "clarity"),
+    ("negative-zero", {"sun": -0.0, "moon": 78.41, "asc": 215.92, "mc": 0.0}, ""),
+    ("subnormal-rounding", {"sun": 2.6755e-7, "moon": 78.41, "asc": 215.92, "mc": 1.0000005}, ""),
+    ("float-repr-trap", {"sun": 0.1 + 0.2, "moon": 78.41, "asc": 215.92, "mc": 1.005}, ""),
+    ("large-but-in-domain", {"sun": 142.73, "moon": 78.41, "asc": 215.92, "aspects_sum": 9.99e20}, ""),
+    ("astral-plane-keys", {"sun": 142.73, "moon": 78.41, "asc": 215.92, "�": 1.0, "\U0001F600": 2.0}, ""),
+    ("bmp-boundary-keys", {"sun": 142.73, "moon": 78.41, "asc": 215.92, "￿": 1.0, "\U00010000": 2.0}, ""),
+    ("string-values", {"sun": 142.73, "moon": 78.41, "asc": 215.92, "note": "z\U0001F600"}, ""),
+    ("unicode-intention", {"sun": 142.73, "moon": 78.41, "asc": 215.92}, "ясность 😀"),
+    # Rejected identically on both sides — the declared domain boundary.
+    ("out-of-domain-high", {"sun": 142.73, "moon": 78.41, "asc": 215.92, "aspects_sum": 1e21}, ""),
+    ("out-of-domain-low", {"sun": 142.73, "moon": 78.41, "asc": 215.92, "aspects_sum": -1e21}, ""),
+]
+
+
+@unittest.skipIf(NODE is None, "node not available")
+class TestCrossSubstrateDomain(unittest.TestCase):
+    """Every chart in BATTERY must seed identically in Python and JS, or be
+    rejected identically by both. One counterexample demotes the claim."""
+
+    @classmethod
+    def setUpClass(cls):
+        cases = [{"chart": c, "intention": i} for _, c, i in BATTERY]
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False,
+                                         encoding="utf-8") as fh:
+            json.dump(cases, fh, ensure_ascii=False)
+            path = fh.name
+        result = subprocess.run(
+            [NODE, str(ROOT / "parity_check.cjs"), "--battery", path],
+            capture_output=True, text=True, cwd=str(ROOT))
+        assert result.returncode == 0, result.stderr
+        cls.js = json.loads(result.stdout)
+        Path(path).unlink(missing_ok=True)
+
+    def test_battery_agrees_case_by_case(self):
+        self.assertEqual(len(self.js), len(BATTERY), "battery length drifted")
+        for (name, chart, intention), js in zip(BATTERY, self.js, strict=True):
+            with self.subTest(case=name):
+                try:
+                    seed = ns.derive_natal_seed(chart, intention)
+                except ns.ChartValidationError:
+                    self.assertFalse(
+                        js["ok"],
+                        f"{name}: Python rejected the chart but JS accepted it "
+                        f"and produced seed {js.get('seed_hex')}")
+                    continue
+                self.assertTrue(
+                    js["ok"],
+                    f"{name}: Python produced a seed but JS rejected it "
+                    f"({js.get('error')})")
+                self.assertEqual(js["canonical"], ns.canonicalize_chart(chart),
+                                 f"{name}: canonical string diverged")
+                self.assertEqual(js["seed_hex"], ns.seed_to_hex(seed),
+                                 f"{name}: SEED DIVERGED across substrates")
+
+    def test_canonicalize_alone_is_guarded(self):
+        """The guard must live in the formatter, not only in derive_natal_seed.
+
+        canonicalize_chart is public and callable without validating, and it is
+        the canonical STRING that has to be substrate-identical — the seed is
+        just its digest. Guarding only the derive path left
+        canonicalize_chart({'sun': 1e21}) returning the full decimal expansion
+        in Python and "1e+21" in JS.
+        """
+        with self.assertRaises(ns.ChartValidationError):
+            ns.canonicalize_chart({"sun": ns.FORMAT_DOMAIN_LIMIT})
+        js = subprocess.run(
+            [NODE, "-e",
+             "const N=require('./natal_seed.js');"
+             "try{N.canonicalizeChart({sun:1e21});console.log('ACCEPTED');}"
+             "catch(e){console.log('REJECTED');}"],
+            capture_output=True, text=True, cwd=str(ROOT))
+        self.assertEqual(js.stdout.strip(), "REJECTED",
+                         "JS canonicalizeChart accepted an out-of-domain value")
+
+    def test_domain_limit_is_the_documented_toFixed_threshold(self):
+        """The bound is not arbitrary: it is exactly where ECMA-262 changes
+        toFixed's behaviour. Just inside must work; at the limit must reject."""
+        base = {"sun": 142.73, "moon": 78.41, "asc": 215.92}
+        ns.derive_natal_seed({**base, "aspects_sum": 9.99e20})  # must not raise
+        with self.assertRaises(ns.ChartValidationError):
+            ns.derive_natal_seed({**base, "aspects_sum": ns.FORMAT_DOMAIN_LIMIT})
 
 
 if __name__ == "__main__":
