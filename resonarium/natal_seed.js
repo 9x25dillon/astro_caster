@@ -40,6 +40,11 @@
   const MAX_INTENTION_LENGTH = 256;
   const MIN_LONGITUDE_FIELDS = 3;
 
+  // Above this magnitude toFixed(6) defers to ToString(x) per ECMA-262 and
+  // emits "1e+21", while Python's ".6f" emits the full decimal expansion —
+  // two canonical strings, two seeds. Mirrored in natal_seed.py.
+  const FORMAT_DOMAIN_LIMIT = 1e21;
+
   // --- Safety limits (mirrored in natal_seed.py) ---
   const FREQ_MIN_HZ = 20.0;
   const FREQ_MAX_HZ = 18000.0;
@@ -173,6 +178,13 @@
           throw new ChartValidationError(
             `chart field '${key}' must be a finite number`);
         }
+        // Cross-substrate domain bound — see FORMAT_DOMAIN_LIMIT. Finiteness
+        // alone did not catch this, because 1e21 is perfectly finite.
+        if (Math.abs(value) >= FORMAT_DOMAIN_LIMIT) {
+          throw new ChartValidationError(
+            `chart field '${key}' is outside the cross-substrate domain ` +
+            "(|value| must be < 1e21)");
+        }
         if (LONGITUDE_KEYS.includes(key)) longitudeCount += 1;
       }
     }
@@ -188,6 +200,23 @@
     return String(value);
   }
 
+  /**
+   * Compare two strings by Unicode code point, reproducing Python's `sorted()`
+   * on str. Spreading a string iterates code points (surrogate pairs come out
+   * whole), so this is lexicographic on code points with the shorter string
+   * first on a common prefix — exactly Python's rule.
+   */
+  function compareCodePoints(a, b) {
+    const A = [...a];
+    const B = [...b];
+    const n = Math.min(A.length, B.length);
+    for (let i = 0; i < n; i++) {
+      const d = A[i].codePointAt(0) - B[i].codePointAt(0);
+      if (d !== 0) return d;
+    }
+    return A.length - B.length;
+  }
+
   function canonicalizeChart(chart) {
     const parts = [];
     const seen = new Set();
@@ -197,7 +226,14 @@
         seen.add(key);
       }
     }
-    const extras = Object.keys(chart).filter((k) => !seen.has(k)).sort();
+    // MUST be code-point order, to match Python's sorted(). The default
+    // Array.prototype.sort compares UTF-16 code UNITS, which disagrees with
+    // code-point order for anything outside the BMP: "😀" (U+1F600) sorts
+    // before "�" in JS (lead surrogate 0xD83D < 0xFFFD) and after it in
+    // Python. Different key order, different canonical string, different seed.
+    const extras = Object.keys(chart)
+      .filter((k) => !seen.has(k))
+      .sort(compareCodePoints);
     for (const key of extras) parts.push(`${key}:${formatValue(chart[key])}`);
     return parts.join("|");
   }

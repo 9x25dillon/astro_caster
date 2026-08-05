@@ -327,5 +327,99 @@ class TestNoNetworkCalls(unittest.TestCase):
         self.assertIn("default-src 'none'", html)
 
 
+# --------------------------------------------------------------------------
+# Cross-substrate domain — the seed's ABSOLUTE-level invariance claim
+# --------------------------------------------------------------------------
+#
+# Borrowed method, from the invariance-group framework in the substrate-comm
+# work: *levels are verified, not asserted.* There, a renderer declares an
+# invariance group and the harness samples random elements of it, demanding
+# zero bit-error; one counterexample demotes the renderer.
+#
+# The seed pipeline sits at the bottom of that hierarchy — its invariance group
+# is {id} alone (ABSOLUTE). For a hash that is correct and deliberate: we WANT
+# no two distinct charts to collide. But ABSOLUTE is also the most fragile
+# level there is, because every representational detail is load-bearing, and
+# "bit-exact across Python and JS" is a claim quantified over ALL charts while
+# TestBrowserParity only ever evidenced ONE.
+#
+# Two real divergences lived in that gap and survived every green run
+# (found 2026-08-04):
+#
+#   1. |value| >= 1e21 — ECMA-262 makes toFixed() defer to ToString(), so JS
+#      emitted "1e+21" where Python emitted the full decimal expansion.
+#      Seeds 0x8624dc5976199acd (py) vs 0xa92d292aa0cd8803 (js).
+#   2. Chart keys outside the BMP — Array.prototype.sort orders by UTF-16 code
+#      UNIT, Python's sorted() by code POINT, so "😀" and "�" came out in
+#      opposite order. Seeds 0x3fc7be78418c6fca vs 0x5cdbf5512214e514.
+#
+# Neither was caught by the finiteness check, because 1e21 is finite and an
+# emoji is a perfectly good dict key.
+BATTERY = [
+    # (name, chart, intention)
+    ("baseline", {"sun": 142.73, "moon": 78.41, "asc": 215.92, "mc": 312.44}, "clarity"),
+    ("negative-zero", {"sun": -0.0, "moon": 78.41, "asc": 215.92, "mc": 0.0}, ""),
+    ("subnormal-rounding", {"sun": 2.6755e-7, "moon": 78.41, "asc": 215.92, "mc": 1.0000005}, ""),
+    ("float-repr-trap", {"sun": 0.1 + 0.2, "moon": 78.41, "asc": 215.92, "mc": 1.005}, ""),
+    ("large-but-in-domain", {"sun": 142.73, "moon": 78.41, "asc": 215.92, "aspects_sum": 9.99e20}, ""),
+    ("astral-plane-keys", {"sun": 142.73, "moon": 78.41, "asc": 215.92, "�": 1.0, "\U0001F600": 2.0}, ""),
+    ("bmp-boundary-keys", {"sun": 142.73, "moon": 78.41, "asc": 215.92, "￿": 1.0, "\U00010000": 2.0}, ""),
+    ("string-values", {"sun": 142.73, "moon": 78.41, "asc": 215.92, "note": "z\U0001F600"}, ""),
+    ("unicode-intention", {"sun": 142.73, "moon": 78.41, "asc": 215.92}, "ясность 😀"),
+    # Rejected identically on both sides — the declared domain boundary.
+    ("out-of-domain-high", {"sun": 142.73, "moon": 78.41, "asc": 215.92, "aspects_sum": 1e21}, ""),
+    ("out-of-domain-low", {"sun": 142.73, "moon": 78.41, "asc": 215.92, "aspects_sum": -1e21}, ""),
+]
+
+
+@unittest.skipIf(NODE is None, "node not available")
+class TestCrossSubstrateDomain(unittest.TestCase):
+    """Every chart in BATTERY must seed identically in Python and JS, or be
+    rejected identically by both. One counterexample demotes the claim."""
+
+    @classmethod
+    def setUpClass(cls):
+        cases = [{"chart": c, "intention": i} for _, c, i in BATTERY]
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False,
+                                         encoding="utf-8") as fh:
+            json.dump(cases, fh, ensure_ascii=False)
+            path = fh.name
+        result = subprocess.run(
+            [NODE, str(ROOT / "parity_check.cjs"), "--battery", path],
+            capture_output=True, text=True, cwd=str(ROOT))
+        assert result.returncode == 0, result.stderr
+        cls.js = json.loads(result.stdout)
+        Path(path).unlink(missing_ok=True)
+
+    def test_battery_agrees_case_by_case(self):
+        self.assertEqual(len(self.js), len(BATTERY), "battery length drifted")
+        for (name, chart, intention), js in zip(BATTERY, self.js, strict=True):
+            with self.subTest(case=name):
+                try:
+                    seed = ns.derive_natal_seed(chart, intention)
+                except ns.ChartValidationError:
+                    self.assertFalse(
+                        js["ok"],
+                        f"{name}: Python rejected the chart but JS accepted it "
+                        f"and produced seed {js.get('seed_hex')}")
+                    continue
+                self.assertTrue(
+                    js["ok"],
+                    f"{name}: Python produced a seed but JS rejected it "
+                    f"({js.get('error')})")
+                self.assertEqual(js["canonical"], ns.canonicalize_chart(chart),
+                                 f"{name}: canonical string diverged")
+                self.assertEqual(js["seed_hex"], ns.seed_to_hex(seed),
+                                 f"{name}: SEED DIVERGED across substrates")
+
+    def test_domain_limit_is_the_documented_toFixed_threshold(self):
+        """The bound is not arbitrary: it is exactly where ECMA-262 changes
+        toFixed's behaviour. Just inside must work; at the limit must reject."""
+        base = {"sun": 142.73, "moon": 78.41, "asc": 215.92}
+        ns.derive_natal_seed({**base, "aspects_sum": 9.99e20})  # must not raise
+        with self.assertRaises(ns.ChartValidationError):
+            ns.derive_natal_seed({**base, "aspects_sum": ns.FORMAT_DOMAIN_LIMIT})
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

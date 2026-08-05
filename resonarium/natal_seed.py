@@ -45,6 +45,11 @@ LONGITUDE_KEYS = [
 MAX_INTENTION_LENGTH = 256
 MIN_LONGITUDE_FIELDS = 3
 
+# Above this magnitude Python's ".6f" and JS's toFixed(6) disagree by
+# construction (ECMA-262: toFixed defers to ToString at |x| >= 1e21), so the
+# bit-exact seed claim does not hold there. Mirrored in natal_seed.js.
+FORMAT_DOMAIN_LIMIT = 1e21
+
 # --- Safety limits (mirrored in natal_seed.js) ---
 FREQ_MIN_HZ = 20.0
 FREQ_MAX_HZ = 18000.0
@@ -106,6 +111,22 @@ def validate_chart(chart: dict) -> None:
             if not math.isfinite(value):
                 raise ChartValidationError(
                     f"chart field '{key}' must be a finite number"
+                )
+            # The cross-substrate domain bound. JS Number.prototype.toFixed is
+            # specified to fall back to ToString(x) once |x| >= 1e21, so it
+            # emits "1e+21" where Python's f"{x:.6f}" emits the full decimal
+            # expansion. Same chart, two canonical strings, two seeds — the
+            # bit-exactness claim silently fails. Finiteness alone did not
+            # catch it, because 1e21 is perfectly finite.
+            #
+            # We reject rather than reconcile: chart fields are longitudes and
+            # their sums, so |v| >= 1e21 is meaningless input, and declaring the
+            # domain is honest where matching a JS formatting quirk would be
+            # fragile. See tests/test_biosentinel.py::TestCrossSubstrateDomain.
+            if abs(value) >= FORMAT_DOMAIN_LIMIT:
+                raise ChartValidationError(
+                    f"chart field '{key}' is outside the cross-substrate "
+                    f"domain (|value| must be < 1e21)"
                 )
             if key in LONGITUDE_KEYS:
                 longitude_count += 1

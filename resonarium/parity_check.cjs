@@ -10,6 +10,32 @@ const fs = require("fs");
 const path = require("path");
 const NS = require(path.join(__dirname, "natal_seed.js"));
 
+// Battery mode: `node parity_check.cjs --battery cases.json` reads
+// [{chart, intention}, ...] and emits one result per case — either the
+// canonical string + seed, or the validation error the case was rejected with.
+// Python owns the case list (tests/test_biosentinel.py), so the two sides
+// cannot drift apart by editing only one of them.
+//
+// This exists because a single fixed TEST_CHART cannot establish
+// substrate-independence: it proves the two implementations agree on ONE
+// point, which is the weakest possible evidence for a claim quantified over
+// all charts. Both divergences found on 2026-08-04 (JS toFixed deferring to
+// exponential at 1e21; Array.sort ordering by UTF-16 code unit rather than
+// code point) sat outside that single point and survived every green run.
+if (process.argv[2] === "--battery") {
+  const cases = JSON.parse(fs.readFileSync(process.argv[3], "utf8"));
+  const out = cases.map((c) => {
+    try {
+      const s = NS.deriveNatalSeed(c.chart, c.intention || "");
+      return { ok: true, canonical: NS.canonicalizeChart(c.chart), seed_hex: NS.seedToHex(s) };
+    } catch (e) {
+      return { ok: false, error: String(e.message || e) };
+    }
+  });
+  process.stdout.write(JSON.stringify(out) + "\n");
+  process.exit(0);
+}
+
 let chart = NS.TEST_CHART;
 let intention = NS.TEST_INTENTION;
 if (process.argv[2]) chart = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
