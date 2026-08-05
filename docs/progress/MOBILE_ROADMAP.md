@@ -10,9 +10,14 @@ _Status: **Living** — owner-reviewed roadmap. Created 2026-07-04 on
 Astra already runs on a phone — but as a *hosted web app inside Termux*, which
 is a developer posture, not a product. The mobile counterpart is not "a mobile
 app that calls our server." Astra's identity is **deterministic, offline-first,
-privacy-absolute** (birth data never leaves the device). The only mobile
-architecture that *keeps the claims true* is one where the deterministic core
-runs **on the device itself**.
+privacy-first** — today that means *nothing is retained* (birth details are
+computed with and discarded), NOT that they never leave the device: the web app
+computes server-side by default, and the on-device engine is the offline
+fallback. "Never leaves the device" is the destination, not the current state —
+it was briefly asserted as fact and retracted in #120/#122. The only mobile
+architecture that finally *makes that claim literal* is one where the
+deterministic core runs **on the device itself** — which is the argument of
+this whole document.
 
 The strategy is therefore a three-horizon **compute gradient** — each horizon
 ships a usable product while funding the next:

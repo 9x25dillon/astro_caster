@@ -32,9 +32,14 @@ Personae*.
 
 ## 3. The privacy tension — and its resolution
 
-The brand's core claim is *"birth data never leaves your device."* A printed
-book of that data is the maximal exception. This must be a **feature, not a
-leak**:
+The brand's core claim is *"nothing is retained"* — birth details are used to
+draw the chart and then let go, never written to a database or a log. (It is
+**not** "never leaves your device": the chart is computed server-side by
+default, and `frontend/public/legal/privacy.html` says so outright. That older,
+stronger-sounding phrasing was false and was retracted in #120/#122; it is
+recorded here because this document is where it kept being quoted from.) A
+printed book of that data is the maximal exception. This must be a **feature,
+not a leak**:
 
 - The print bundle is compiled **locally** (the same posture as printReport
   today) and leaves the device **once, explicitly, at the customer's
