@@ -1,4 +1,4 @@
-import { test, expect } from "./helpers";
+import { test, expect, pastThreshold } from "./helpers";
 
 // Morning panel (NEXT_ARC Track 3, P2): the at-a-glance boot surface — today's
 // transit arcana card + the day's tightest transits — shown above the wheel,
@@ -8,7 +8,7 @@ import { test, expect } from "./helpers";
 const isApiCall = (url: URL) => url.pathname.startsWith("/api/");
 
 test("greets the day with a card and today's transits", async ({ page }) => {
-  await page.goto("/");
+  await pastThreshold(page);
 
   const panel = page.locator(".morning-panel");
   await expect(panel).toBeVisible();
@@ -23,7 +23,7 @@ test("greets the day with a card and today's transits", async ({ page }) => {
 });
 
 test("dismissal is remembered for the local day", async ({ page }) => {
-  await page.goto("/");
+  await pastThreshold(page);
 
   const panel = page.locator(".morning-panel");
   await expect(panel).toBeVisible();
@@ -37,8 +37,11 @@ test("dismissal is remembered for the local day", async ({ page }) => {
 });
 
 test("computes the card and transits on-device with the backend offline", async ({ page, context }) => {
+  // Get a real chart cached for a personal birth FIRST, then sever the API:
+  // the panel only greets people who already have a chart (E-1b).
+  await pastThreshold(page);
   await context.route(isApiCall, (route) => route.abort());
-  await page.goto("/");
+  await page.reload();
 
   const panel = page.locator(".morning-panel");
   await expect(panel).toBeVisible();

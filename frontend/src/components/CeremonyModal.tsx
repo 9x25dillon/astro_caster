@@ -58,14 +58,33 @@ export const CeremonyModal: React.FC<Props> = ({ onClose }) => {
   const [draft, setDraft] = useState<BirthInput>(BLANK);
   const [showMap, setShowMap] = useState(false);
   const [casting, setCasting] = useState(false);
+  // Tracks the unknown-birth-time escape hatch, so the note can switch from
+  // offering noon to explaining what using it means.
+  const [noonUsed, setNoonUsed] = useState(false);
 
   const set = (fields: Partial<BirthInput>) =>
     setDraft((d) => ({ ...d, ...fields }));
 
-  // Geolocate when the user REACHES the location step — not on mount. The
-  // ceremony auto-opens on first visit, so a mount-time request meant a
-  // permission prompt at first paint (bad first impression for a
-  // privacy-first app, and a Lighthouse best-practices deduction).
+  // Track E-1: the ceremony is entered by choice, so it must be leaveable the
+  // same way. Capture phase + stopImmediatePropagation so Esc means exactly
+  // "close this" and doesn't ALSO fire the App's chapter-home handler.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || casting) return;
+      const t = e.target as HTMLElement | null;
+      if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
+      e.stopImmediatePropagation();
+      onClose();
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [onClose, casting]);
+
+  // Geolocate when the user REACHES the location step — not on mount. A
+  // mount-time request meant a permission prompt at first paint back when this
+  // opened itself (bad first impression for a privacy-first app, and a
+  // Lighthouse best-practices deduction). It is entered by choice now, but the
+  // rule stands: ask at the step that needs it.
   useEffect(() => {
     if (step !== 2) return;
     if (!navigator.geolocation) return;
@@ -174,6 +193,47 @@ export const CeremonyModal: React.FC<Props> = ({ onClose }) => {
                 </label>
               </div>
             </div>
+
+            {/* E-1b: the privacy claim belongs HERE, at the most private field
+                we ever ask for, not on an arrival banner nobody was anxious at
+                yet. It is also unusually strong and literally true — the
+                deterministic engine runs in this browser. */}
+            {/* Accuracy matters more here than warmth: this is the claim the
+                privacy policy has to underwrite, made at the moment somebody
+                types the most private thing we ask for. The chart is computed
+                on the SERVER by default (POST /api/generate-chart), so
+                "never leaves this browser" was false. What IS true — and
+                enforced by tests — is that nothing is retained. */}
+            <p className="ceremony-privacy">
+              Your birth details are used to draw your chart and then let go:
+              never saved to a database, never written to a log. The same
+              astronomy also runs inside this browser, which is why the
+              observatory keeps working with no connection at all.
+            </p>
+
+            {/* E-1b: the unknown-birth-time escape hatch. A large share of
+                people do not know their minute, and until now that stopped them
+                dead at this field. Say what noon costs, then let them past. */}
+            <p className="ceremony-unknown">
+              {noonUsed ? (
+                <>
+                  Using <b>noon</b>. Everything but the houses and the rising
+                  sign still holds — the planets barely move in a day.
+                </>
+              ) : (
+                <>
+                  Don't know the exact time?{" "}
+                  <button
+                    type="button"
+                    className="ceremony-noon"
+                    onClick={() => { set({ hour: 12, minute: 0 }); setNoonUsed(true); }}
+                  >
+                    Use noon
+                  </button>{" "}
+                  — everything but the houses and the rising sign still holds.
+                </>
+              )}
+            </p>
 
             <div className="ceremony-actions">
               <button className="ghost ceremony-btn-sm" onClick={() => setStep(0)}>← Back</button>

@@ -2,7 +2,7 @@
 
 <p align="center"><i>Read the sky. Draw the cards. Know your timing.</i></p>
 
-<p align="center">A modern fortune-telling app that actually does the math — natal astrology, tarot, and predictive timing, computed to arc-second precision and running <b>entirely on your device</b>. Your birthday never leaves your phone.</p>
+<p align="center">A modern fortune-telling app that actually does the math — natal astrology, tarot, and predictive timing, computed to arc-second precision. Your birth details draw the chart and are then let go — <b>never written to a database, never written to a log</b>.</p>
 
 <p align="center"><a href="https://github.com/9x25dillon/astro_caster/actions/workflows/ci.yml"><img src="https://github.com/9x25dillon/astro_caster/actions/workflows/ci.yml/badge.svg" alt="CI"></a></p>
 
@@ -30,7 +30,7 @@ Astra is a divination workbench built on real ephemeris math — the same celest
 
 Most horoscope apps fake it — canned text keyed off your sun sign. Astra computes everything from scratch, and it does three things almost nothing else does:
 
-- **🔒 Private by construction.** Your birth data — the most personal number you have — is never *retained* by a server. The entire deterministic engine runs **on your device**; when you do use the optional backend (AI readings), requests are processed in memory and the server keeps no birth data and no question text. Telemetry stores only anonymous counters.
+- **🔒 Private by construction.** Your birth data — the most personal number you have — is never *retained*. By default the chart is computed **on the server**, so your details do travel there over an encrypted connection; they are held in memory for that computation and discarded. The promise is not that they never move — it is that **nothing is kept**: no database row, no log line, and a test (`test_no_birth_data_reaches_the_log_stream`) fails the build if that stops being true. Question text is not retained either, and telemetry stores only anonymous counters.
 - **📴 Works fully offline.** No signal, no backend, no problem: charts, tarot, forecasts, relationship math, predictive timing, and eclipses all compute locally. Astra is an installable PWA.
 - **🎯 Provably correct.** The on-device TypeScript engine (`@astra/core`) is **drift-locked to the Python/Swiss-Ephemeris backend** by golden-vector parity tests that run on every commit — so the fast local math and the reference math can never silently disagree.
 

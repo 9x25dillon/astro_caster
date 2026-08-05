@@ -37,10 +37,10 @@ import { trackEvent } from "../api/client";
 import { toDatetimeLocal } from "../lib/datetime";
 import { decodeBirthShare, extractChartToken } from "../lib/shareChart";
 
-// Default chart — an obviously-synthetic sample (Y2K noon, Greenwich) so the
-// observatory is never empty on first visit. Carries no personal data, and is
-// distinct from PLACEHOLDER_BIRTH so personal forecast features stay active for
-// the loaded demo chart.
+// The neutral settings a chart falls back to when nobody has chosen any:
+// Greenwich, UTC, Placidus, tropical. Kept as the base for the arrival sky
+// below (Track E-1) — it is also still an obviously-synthetic sample moment,
+// distinct from PLACEHOLDER_BIRTH so personal forecast features stay active.
 export const DEFAULT_BIRTH: BirthInput = {
   year: 2000,
   month: 1,
@@ -56,6 +56,32 @@ export const DEFAULT_BIRTH: BirthInput = {
   ayanamsha: 1,
   label: "Sample · 2000-01-01",
 };
+
+// Track E-1, the threshold: a first-time visitor meets the instrument already
+// running rather than a form. "The sky right now" is just a chart whose moment
+// is the present one — no new engine, no new endpoint, the same cast the
+// observatory always did.
+//
+// Quantised to the minute on purpose. The moment doubles as the offline
+// cache key (sameBirth), and a to-the-second moment would miss its own cache on
+// every reload; to-the-minute means a reload inside the same minute is a hit.
+// Local clock fields + the browser's real offset, so the instant is genuinely
+// now and the displayed time matches the visitor's own clock.
+export const SKY_LABEL = "The sky right now";
+
+export function currentSkyBirth(now: Date = new Date()): BirthInput {
+  return {
+    ...DEFAULT_BIRTH,
+    year: now.getFullYear(),
+    month: now.getMonth() + 1,
+    day: now.getDate(),
+    hour: now.getHours(),
+    minute: now.getMinutes(),
+    second: 0,
+    tz_offset: -now.getTimezoneOffset() / 60,
+    label: SKY_LABEL,
+  };
+}
 
 // A distinct reference chart (Einstein — public natal data) used only to detect
 // the "no personal chart cast yet" state. The synthetic default above differs
@@ -94,6 +120,9 @@ interface AstroState {
   layers: LayerState;
 
   // Data
+  // Track E-1: true while the wheel is showing the live sky rather than a chart
+  // anyone asked for — the threshold state, before any birth data exists.
+  isCurrentSky: boolean;
   chart: ChartResponse | null;
   chartFromCache: boolean; // chart from offline fallback (cache or on-device), not the API
   chartFromLocal: boolean; // chart computed on-device by @astra/core
@@ -253,8 +282,20 @@ const SHARED_BIRTH: BirthInput | null = (() => {
   }
 })();
 
+// What the observatory opens on, in order of precedence: a shared chart link,
+// then whatever this browser last cast (a returning visitor keeps their sky —
+// and it keeps the offline cache key stable across a reload), and only on a
+// genuinely new browser, the sky as it is right now.
+const ARRIVAL: { birth: BirthInput; isSky: boolean } = (() => {
+  if (SHARED_BIRTH) return { birth: SHARED_BIRTH, isSky: false };
+  const last = readLastChart();
+  if (last?.birth) return { birth: last.birth, isSky: last.birth.label === SKY_LABEL };
+  return { birth: currentSkyBirth(), isSky: true };
+})();
+
 export const useStore = create<AstroState>((set, get) => ({
-  birth: SHARED_BIRTH ?? DEFAULT_BIRTH,
+  birth: ARRIVAL.birth,
+  isCurrentSky: ARRIVAL.isSky,
   lens: "psychological",
   layers: {
     zodiac: true,
@@ -290,7 +331,13 @@ export const useStore = create<AstroState>((set, get) => ({
   checkoutNote: null,
   checkoutBusy: false,
 
-  setBirth: (b) => set((s) => ({ birth: { ...s.birth, ...b } })),
+  // Any birth data someone actually chose ends the threshold state — the wheel
+  // stops being "the sky right now" the moment it becomes somebody's chart.
+  setBirth: (b) =>
+    set((s) => {
+      const birth = { ...s.birth, ...b };
+      return { birth, isCurrentSky: birth.label === SKY_LABEL };
+    }),
   setLens: (lens) => { set({ lens }); trackEvent("lens_changed", { lens }); },
   toggleLayer: (k) =>
     set((s) => ({ layers: { ...s.layers, [k]: !s.layers[k] } })),

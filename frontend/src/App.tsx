@@ -24,6 +24,8 @@ import { AdminPanel } from "./components/AdminPanel";
 import { InstallPrompt } from "./components/InstallPrompt";
 import { MorningPanel } from "./components/MorningPanel";
 import { ChapterDial, type Chapter, CHAPTERS } from "./components/ChapterDial";
+import { chapterNeed, litChapters } from "./lib/chapterReadiness";
+import { shelfList, journalAll } from "./lib/bookshelf";
 import { deriveSoulProfile } from "./lib/archetypes";
 import { trackEvent } from "./api/client";
 
@@ -48,13 +50,43 @@ export const App: React.FC = () => {
   const [chapter, setChapter] = useState<Chapter>("I");
   const [glossaryOpen, setGlossaryOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
-  const [privacyDismissed, setPrivacyDismissed] = useState(
-    () => !!localStorage.getItem("aae.privacy_ack")
-  );
-  const [ceremonyOpen, setCeremonyOpen] = useState(
-    () => !localStorage.getItem("aae.ceremony_shown")
-  );
+  // Track E-1: the ceremony is a door, not a toll gate. It no longer opens
+  // itself on a first visit — the live sky does the arguing first, and this
+  // opens when the visitor asks for their own chart.
+  const [ceremonyOpen, setCeremonyOpen] = useState(false);
   const soulProfile = useMemo(() => (chart ? deriveSoulProfile(chart) : null), [chart]);
+  // The moment the arrival wheel is cast for, in the visitor's own clock —
+  // said plainly so "right now" is checkable rather than asserted.
+  const showThreshold = chapter === "I" && isCurrentSky;
+
+  // E-2a: what the visitor has so far, which decides which chapters are lit.
+  // Re-read on every chapter change: shelving a reading or saving a second
+  // profile should light its node by the time you look back at the dial.
+  const [library, setLibrary] = useState(false);
+  const [savedCharts, setSavedCharts] = useState(0);
+  useEffect(() => {
+    try {
+      setSavedCharts(JSON.parse(localStorage.getItem("aae.profiles") ?? "[]").length);
+    } catch { setSavedCharts(0); }
+    let live = true;
+    Promise.all([shelfList(), journalAll()])
+      .then(([s, j]) => { if (live) setLibrary(s.length > 0 || j.length > 0); })
+      .catch(() => { /* IDB unavailable — the Library simply stays unlit */ });
+    return () => { live = false; };
+  }, [chapter, chart]);
+
+  const corpus = useMemo(
+    () => ({ hasOwnChart: !!chart && !isCurrentSky, savedCharts, hasLibrary: library }),
+    [chart, isCurrentSky, savedCharts, library],
+  );
+  const lit = useMemo(() => litChapters(corpus), [corpus]);
+  const openNeed = chapterNeed(chapter, corpus);
+  const skyMoment = useMemo(
+    () =>
+      new Date(birth.year, birth.month - 1, birth.day, birth.hour, birth.minute)
+        .toLocaleString(undefined, { day: "numeric", month: "long", hour: "numeric", minute: "2-digit" }),
+    [birth],
+  );
 
   // Cast the default chart on first mount so the observatory is alive immediately.
   useEffect(() => {
@@ -123,7 +155,7 @@ export const App: React.FC = () => {
         }}
       />
     )}
-    <div className="app">
+    <div className={`app${showThreshold ? " has-threshold" : ""}`}>
       <header className="masthead">
         <h1>☤ Astra</h1>
         <div className="sub">
@@ -157,28 +189,12 @@ export const App: React.FC = () => {
       {glossaryOpen && <GlossaryPanel onClose={() => setGlossaryOpen(false)} />}
       {adminOpen && <AdminPanel onClose={() => setAdminOpen(false)} />}
 
-      {!privacyDismissed && (
-        <div className="privacy-banner">
-          <span>
-            This observatory collects anonymized usage data (chart patterns, feature interactions)
-            to improve the experience.{" "}
-            <a href="#" onClick={(e) => { e.preventDefault(); }} style={{ color: "var(--gold-soft)" }}>
-              No personal identity is stored.
-            </a>
-          </span>
-          <button
-            className="ghost"
-            style={{ fontSize: 11, padding: "2px 10px", width: "auto", marginLeft: 12 }}
-            onClick={() => {
-              localStorage.setItem("aae.privacy_ack", "1");
-              setPrivacyDismissed(true);
-              trackEvent("privacy_acknowledged");
-            }}
-          >
-            OK
-          </button>
-        </div>
-      )}
+      {/* E-1b: the arrival privacy BANNER retires. The disclosure does not —
+          it moves into the threshold's fine print below, where it is read
+          rather than dismissed, and the birth-data claim (the one people are
+          actually anxious about) moves to the ceremony's birth-time field.
+          The dead `href="#"` link went with it: a link that goes nowhere is
+          worse than plain text. M3 gives these a real /legal page. */}
 
       <Controls
         onOpenGlossary={() => { setGlossaryOpen(true); trackEvent("glossary_opened"); }}
@@ -201,7 +217,49 @@ export const App: React.FC = () => {
         </div>
       )}
 
-      {chapter === "I" && <MorningPanel />}
+      {/* Track E-1, the threshold. The instrument is already running below it;
+          this says what it is and offers the one door. It retires the moment
+          the wheel becomes somebody's own chart. */}
+      {showThreshold && (
+        <div className="threshold">
+          <div className="threshold-say">
+            <p className="threshold-title">The sky right now</p>
+            {/* "Computed on your device / nothing sent anywhere" was wrong:
+                the cast goes to the server unless the network is gone. The
+                honest version is still the strong one — a real sky, computed
+                for a real instant, with nothing asked of you. */}
+            <p className="threshold-sub">
+              The real sky over {skyMoment} — <span className="th-live">computed
+              live</span>, not a picture. No account, no sign-up, nothing to
+              dismiss.
+            </p>
+          </div>
+          <div className="threshold-do">
+            <button
+              className="threshold-primary"
+              onClick={() => { setCeremonyOpen(true); trackEvent("threshold_enter"); }}
+            >
+              Show me my sky →
+            </button>
+            <button
+              className="ghost threshold-second"
+              onClick={() => { setGlossaryOpen(true); trackEvent("threshold_glossary"); }}
+            >
+              What am I looking at?
+            </button>
+          </div>
+          <p className="threshold-fine">
+            Free forever — the unlock is for the written work, never the maths.
+            Usage is counted anonymously (which features get used, never your
+            chart or your questions); no personal identity is stored.
+          </p>
+        </div>
+      )}
+
+      {/* E-1b: not on the threshold. A stranger meeting today's tarot card
+          before they have a chart is the esoteric-first door E-1 exists to
+          move; the panel greets people who have one. */}
+      {chapter === "I" && !isCurrentSky && <MorningPanel />}
 
       <div className={`wheel-area ${chapter !== "I" ? "has-chapter" : ""}`}>
         {chapter === "I" ? (
@@ -224,6 +282,12 @@ export const App: React.FC = () => {
           // R-4: keyed by chapter — every open is one 240ms bloom (the only
           // motion of the intent; the surfaces' own entrances retire).
           <div className="chapter-host" key={chapter}>
+            {/* E-2a: an unlit chapter still opens — it just says what would
+                light it. One insertion point covers all seven, and each
+                chapter's own empty state still stands behind this. */}
+            {openNeed && (
+              <p className="chapter-needs" role="status">{openNeed}</p>
+            )}
             {/* R-2: chapters are bare surfaces — the modal chrome retired.
                 Esc / the dial navigate home; ForecastPanel's onHome is real
                 navigation (jump/Ask land on the wheel). Distinct keys force
@@ -262,7 +326,12 @@ export const App: React.FC = () => {
             </p>
           </div>
         )}
-        <ChapterDial active={chapter} onSelect={openChapter} />
+        <ChapterDial
+          active={chapter}
+          onSelect={openChapter}
+          lit={lit}
+          need={(ch) => chapterNeed(ch, corpus)}
+        />
       </div>
 
       <DetailPanel />

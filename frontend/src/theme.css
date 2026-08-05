@@ -226,6 +226,120 @@ body::before {
 .checkout-note.is-live { color: var(--ion); border-color: var(--ion); }
 .checkout-note-ok { width: auto; font-size: 11px; padding: 2px 12px; }
 
+/* Track E-1 — the threshold band. Sits above the wheel on a first visit and
+   retires for good once the wheel is somebody's own chart. Deliberately quiet:
+   the instrument behind it is doing the arguing. */
+/* The band gets its own full-width row between masthead and stage — added ONLY
+   while it exists, so the grid is byte-identical for everyone past the
+   threshold. It must not live inside .wheel-area: the chapter dial's at-rest
+   ring is absolutely centred on that box, so a flex child there pushes the
+   wheel down while the dial stays put, and node I lands on top of the band's
+   own buttons (measured — the first attempt did exactly that). */
+.app.has-threshold {
+  grid-template-areas:
+    "header header header"
+    "threshold threshold threshold"
+    "controls wheel detail"
+    "controls timeline detail";
+  grid-template-rows: auto auto 1fr auto;
+}
+@media (max-width: 1100px) {
+  .app.has-threshold {
+    grid-template-areas: "header" "threshold" "wheel" "timeline" "controls" "detail";
+  }
+}
+/* Grid, not flex-wrap. A wrapping flex row put the fine print at left:403 on a
+   412px screen instead of breaking to its own line — and that single overflow
+   expanded the mobile LAYOUT VIEWPORT to 688px, which took the fixed thumb arc
+   with it and pushed half the chapter nodes off-screen. Explicit tracks can't
+   do that. */
+.threshold {
+  grid-area: threshold;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 10px 28px;
+  margin: 0;
+  padding: 14px 18px;
+  border: 1px solid var(--rule);
+  border-left: 2px solid var(--gold);
+  border-radius: 0 8px 8px 0;
+  background: linear-gradient(180deg, var(--glass-hi), var(--glass-lo));
+}
+.threshold-say { min-width: 0; }
+.threshold-title {
+  margin: 0 0 3px;
+  font-family: var(--display);
+  font-size: 22px;
+  letter-spacing: 0.01em;
+  color: var(--gold-soft);
+}
+.threshold-sub {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink);
+  max-width: 58ch;
+}
+/* The ion trace stays rationed to live computation — this genuinely is one. */
+.th-live { color: var(--ion); }
+.threshold-do {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.threshold-primary {
+  width: auto;
+  padding: 8px 20px;
+  font-family: var(--serif);
+  font-size: 14px;
+  border-radius: 999px;
+  border: 1px solid var(--gold);
+  background: rgba(201, 168, 76, 0.12);
+  color: var(--gold-soft);
+  cursor: pointer;
+}
+.threshold-primary:hover { background: rgba(201, 168, 76, 0.22); }
+.threshold-second { width: auto; font-size: 12.5px; padding: 5px 14px; }
+.threshold-fine {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--ink);
+  opacity: 0.75;
+}
+@media (max-width: 700px) {
+  .threshold { grid-template-columns: minmax(0, 1fr); }
+  .threshold-do { flex-wrap: wrap; }
+  .threshold-primary { flex: 1 1 auto; }
+}
+
+/* E-2a — depth as state, never as presence. A waiting node keeps its exact
+   position and stays fully operable; only its light changes. Nothing is
+   disabled: pointer-events and keys are untouched on purpose. */
+.dial-node.waiting {
+  opacity: 0.42;
+  border-color: color-mix(in srgb, var(--gold) 22%, transparent);
+}
+.dial-node.waiting .dial-num { color: color-mix(in srgb, var(--gold-soft) 62%, transparent); }
+.dial-node.waiting.myst { border-color: color-mix(in srgb, var(--amethyst) 22%, transparent); }
+.dial-node.waiting:hover,
+.dial-node.waiting:focus-visible { opacity: 0.85; }
+
+/* What a chapter is waiting for, said once at the top of the chapter itself. */
+.chapter-needs {
+  margin: 0 0 14px;
+  padding: 9px 14px;
+  border: 1px dashed color-mix(in srgb, var(--gold) 34%, transparent);
+  border-radius: 8px;
+  font-family: var(--serif);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.015);
+}
+
 .detail { grid-area: detail; }
 .timeline { grid-area: timeline; }
 
@@ -1319,6 +1433,39 @@ button.ghost:hover {
   margin: 0 0 24px;
   font-family: var(--display);
 }
+
+/* E-1b — the two notes that live at the birth-time field: the privacy claim
+   where the anxiety actually is, and the way past a time nobody remembers. */
+.ceremony-privacy {
+  margin: 14px 0 10px;
+  padding-left: 11px;
+  border-left: 2px solid var(--ion);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ink);
+  text-align: left;
+}
+.ceremony-privacy em { color: var(--parchment); font-style: italic; }
+.ceremony-unknown {
+  margin: 0 0 18px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ink);
+  text-align: left;
+}
+.ceremony-unknown b { color: var(--gold-soft); font-weight: 600; }
+.ceremony-noon {
+  width: auto;
+  padding: 1px 9px;
+  font-family: var(--serif);
+  font-size: 12.5px;
+  border: 1px solid var(--gold);
+  border-radius: 999px;
+  background: rgba(201, 168, 76, 0.1);
+  color: var(--gold-soft);
+  cursor: pointer;
+}
+.ceremony-noon:hover { background: rgba(201, 168, 76, 0.2); }
 
 .ceremony-preview {
   text-align: center;
@@ -2700,6 +2847,17 @@ h2.section::after {
 .pricing-buy.is-live { color: var(--ion); border-color: var(--ion); }
 .pricing-fine { font-size: 11.5px; line-height: 1.55; opacity: 0.68; margin: 0 0 12px; }
 .pricing-err { font-size: 12px; color: var(--amethyst-soft); margin: 0 0 10px; }
+/* Policy + source links. Quiet, but present on the surface where money is
+   asked for — a customer must be able to read the terms before paying. */
+.pricing-legal {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 14px 0 0;
+  font-size: 11.5px;
+}
+.pricing-legal a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--rule); }
+.pricing-legal a:hover { color: var(--gold-soft); border-bottom-color: var(--gold); }
 /* On wide screens the mini chapter rail floats over the stage's bottom-right
    corner — which is exactly where this panel's Buy buttons and the
    cancel-anytime line land. Measured, not guessed: the rail owns the rightmost
