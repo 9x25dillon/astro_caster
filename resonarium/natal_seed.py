@@ -331,3 +331,66 @@ TEST_CHART = {
     "aspects_sum": 1247.8,
 }
 TEST_INTENTION = "clarity"
+
+
+# --- Substitution-ordered ghost placement -----------------------------------
+# The ghost bank was a PERIODIC index map (bedrock[i % len]). A substitution
+# order makes it a 1-D quasiperiodic lattice instead: the Fibonacci word is
+# Pisot (eigenvalues tau, -1/tau), so the resulting frequency set has pure
+# point diffraction with tau-power peak ratios. Mirrors natal_seed.js exactly.
+#
+# Invariants preserved: bedrock is read, never written; every output passes
+# clamp_frequency; spread = 0 reproduces the legacy placement bit-for-bit.
+
+FIBONACCI_RULES = {"L": "LS", "S": "L"}
+TAU = (1.0 + 5.0 ** 0.5) / 2.0
+
+
+def substitution_word(length: int, rules: dict | None = None,
+                      seed: str = "L") -> str:
+    """Generate at least `length` symbols of the substitution fixed point."""
+    rules = rules or FIBONACCI_RULES
+    s = seed
+    while len(s) < max(length, 1):
+        s = "".join(rules[c] for c in s)
+    return s[:max(length, 1)]
+
+
+def factor_complexity(word: str, n: int) -> int:
+    """p(n): number of distinct length-n factors. Sturmian => p(n) = n+1. [L0]"""
+    if n <= 0 or n > len(word):
+        return 0
+    return len({word[i:i + n] for i in range(len(word) - n + 1)})
+
+
+def sturmian_defect(word: str, nmax: int = 6) -> float:
+    """Mean |p(n) - (n+1)| over n=1..nmax. Zero iff Sturmian over that range."""
+    if len(word) < nmax + 2:
+        return float(nmax)
+    return sum(abs(factor_complexity(word, n) - (n + 1))
+               for n in range(1, nmax + 1)) / nmax
+
+
+def ghost_placement(bedrock, n: int, spread: float,
+                    word: str | None = None) -> list[float]:
+    """Base frequencies for n ghost voices, ordered by the substitution word.
+
+    Step ratios: L -> 1 + 0.04*spread, S -> 1 + 0.04*spread/tau. The cumulative
+    product is normalised by its middle element so the bank is centred on the
+    bedrock anchor rather than only ascending, which keeps it bounded.
+
+    spread = 0 gives every ratio 1.0, i.e. exactly bedrock[i % len] — the
+    legacy placement — so this is backwards compatible at the low end.
+    """
+    n = max(int(n), 0)
+    if n == 0 or not bedrock:
+        return []
+    word = word or substitution_word(n)
+    rL = 1.0 + 0.04 * float(spread)
+    rS = 1.0 + 0.04 * float(spread) / TAU
+    ratios = [1.0]
+    for j in range(n - 1):
+        ratios.append(ratios[j] * (rL if word[j % len(word)] == "L" else rS))
+    mid = ratios[n // 2]
+    return [clamp_frequency(bedrock[i % len(bedrock)] * ratios[i] / mid)
+            for i in range(n)]
