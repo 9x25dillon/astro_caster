@@ -278,6 +278,30 @@ class TestBrowserParity(unittest.TestCase):
                 bedrock[i % len(bedrock)], i, sentinel, rand)
             self.assertTrue(math.isclose(js_f, py_f, abs_tol=1e-9))
 
+    def test_placement_bit_exact_on_identical_input(self):
+        """Placement uses only * and /, so given the SAME bedrock it must agree
+        exactly. The full chain does not, because bedrock_frequencies uses
+        pow() and transcendentals are not bit-identical across libm — that
+        boundary is pre-existing and is covered by tolerance below."""
+        REF = [190.5, 148.75, 252.625, 366.375]
+        for key, n, sp in [("placement_ref_s0", 8, 0.0),
+                           ("placement_ref_s1", 12, 1.0),
+                           ("placement_ref_s10", 16, 10.0)]:
+            self.assertEqual(self.js[key], ns.ghost_placement(REF, n, sp), key)
+
+    def test_placement_full_chain_within_tolerance(self):
+        bed = ns.bedrock_frequencies(ns.TEST_CHART)
+        for key, n, sp in [("placement_s0", 8, 0.0), ("placement_s1", 12, 1.0),
+                           ("placement_s10", 16, 10.0)]:
+            for a, b in zip(self.js[key], ns.ghost_placement(bed, n, sp),
+                            strict=True):
+                self.assertTrue(math.isclose(a, b, abs_tol=1e-9), key)
+
+    def test_word_and_defect_parity(self):
+        self.assertEqual(self.js["word"], ns.substitution_word(64))
+        self.assertEqual(float(self.js["sturmian_defect"]),
+                         ns.sturmian_defect(ns.substitution_word(200)))
+
     def test_js_off_baseline_pure(self):
         self.assertTrue(self.js["off_equals_bedrock"])
 
@@ -288,6 +312,39 @@ class TestBrowserParity(unittest.TestCase):
             self.js["clamped"],
             ns.clamp_sentinel_params(
                 {"n": 9999, "k": -5, "perturb": 1e9, "spread": 100}))
+
+
+class TestSubstitutionPlacement(unittest.TestCase):
+    """Ghost bank as a substitution-ordered quasiperiodic lattice."""
+
+    REF = [190.5, 148.75, 252.625, 366.375]
+
+    def test_word_is_sturmian(self):
+        self.assertEqual(ns.sturmian_defect(ns.substitution_word(200)), 0.0)
+        w = ns.substitution_word(200)
+        for n in range(1, 7):
+            self.assertEqual(ns.factor_complexity(w, n), n + 1)
+
+    def test_spread_zero_reproduces_legacy_placement(self):
+        """spread = 0 must be bit-identical to the former bedrock cycling."""
+        bed = ns.bedrock_frequencies(ns.TEST_CHART)
+        legacy = [ns.clamp_frequency(bed[i % len(bed)]) for i in range(16)]
+        self.assertEqual(ns.ghost_placement(bed, 16, 0.0), legacy)
+
+    def test_all_outputs_clamped(self):
+        for sp in (0.0, 1.0, 5.0, 10.0):
+            for f in ns.ghost_placement(self.REF, 64, sp):
+                self.assertGreaterEqual(f, ns.FREQ_MIN_HZ)
+                self.assertLessEqual(f, ns.FREQ_MAX_HZ)
+
+    def test_bedrock_never_mutated(self):
+        bed = list(self.REF)
+        ns.ghost_placement(bed, 32, 7.0)
+        self.assertEqual(bed, self.REF)
+
+    def test_degenerate_inputs(self):
+        self.assertEqual(ns.ghost_placement(self.REF, 0, 1.0), [])
+        self.assertEqual(ns.ghost_placement([], 8, 1.0), [])
 
 
 class TestNoNetworkCalls(unittest.TestCase):

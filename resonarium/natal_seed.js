@@ -341,6 +341,63 @@
     return out;
   }
 
+
+  // --- Substitution-ordered ghost placement ---------------------------------
+  // The ghost bank was a PERIODIC index map (bedrock[i % len]). A substitution
+  // order makes it a 1-D quasiperiodic lattice: the Fibonacci word is Pisot
+  // (eigenvalues tau, -1/tau), so the frequency set has pure point diffraction
+  // with tau-power peak ratios. Mirrors natal_seed.py exactly.
+  //
+  // Invariants: bedrock is read, never written; every output passes
+  // clampFrequency; spread = 0 reproduces the legacy placement bit-for-bit.
+  const FIBONACCI_RULES = { L: "LS", S: "L" };
+  const TAU = (1.0 + Math.sqrt(5)) / 2.0;
+
+  function substitutionWord(length, rules, seed) {
+    rules = rules || FIBONACCI_RULES;
+    let s = seed || "L";
+    const want = Math.max(length, 1);
+    while (s.length < want) {
+      let next = "";
+      for (const c of s) next += rules[c];
+      s = next;
+    }
+    return s.slice(0, want);
+  }
+
+  function factorComplexity(word, n) {
+    if (n <= 0 || n > word.length) return 0;
+    const set = new Set();
+    for (let i = 0; i + n <= word.length; i++) set.add(word.slice(i, i + n));
+    return set.size;
+  }
+
+  function sturmianDefect(word, nmax) {
+    nmax = nmax || 6;
+    if (word.length < nmax + 2) return nmax;
+    let d = 0;
+    for (let n = 1; n <= nmax; n++) d += Math.abs(factorComplexity(word, n) - (n + 1));
+    return d / nmax;
+  }
+
+  function ghostPlacement(bedrock, n, spread, word) {
+    n = Math.max(n | 0, 0);
+    if (n === 0 || !bedrock || bedrock.length === 0) return [];
+    word = word || substitutionWord(n);
+    const rL = 1.0 + 0.04 * Number(spread);
+    const rS = 1.0 + 0.04 * Number(spread) / TAU;
+    const ratios = [1.0];
+    for (let j = 0; j < n - 1; j++) {
+      ratios.push(ratios[j] * (word[j % word.length] === "L" ? rL : rS));
+    }
+    const mid = ratios[Math.floor(n / 2)];
+    const out = [];
+    for (let i = 0; i < n; i++) {
+      out.push(clampFrequency(bedrock[i % bedrock.length] * ratios[i] / mid));
+    }
+    return out;
+  }
+
   // --- Shared cross-platform test vector ---
   const TEST_CHART = Object.freeze({
     sun: 142.73, moon: 78.41, asc: 215.92, mc: 312.44, aspects_sum: 1247.8,
@@ -374,6 +431,10 @@
     bedrockFrequencies,
     binauralConfig,
     modulateFrequency,
+    substitutionWord,
+    factorComplexity,
+    sturmianDefect,
+    ghostPlacement,
     makeTraceEntry,
     redactState,
     TEST_CHART,
