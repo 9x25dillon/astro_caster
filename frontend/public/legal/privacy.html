@@ -118,6 +118,20 @@
       <td>The text to be read aloud.</td>
     </tr>
     <tr>
+      <td>OpenStreetMap<br><span style="color:var(--ink)">(Nominatim)</span></td>
+      <td>Only if you search for a birthplace by name</td>
+      <td>The place name you type, and your device's network address. We treat
+        this as personal — a search for your birthplace usually <em>is</em> your
+        birthplace. Typing coordinates directly, or dropping a pin, sends them
+        nothing.</td>
+    </tr>
+    <tr>
+      <td>CARTO</td>
+      <td>Only if you open the map</td>
+      <td>Requests for map tiles, which reveal the part of the world you are
+        looking at, and your network address.</td>
+    </tr>
+    <tr>
       <td>Cloudflare</td>
       <td>Every visit</td>
       <td>Standard network information as it passes through, to keep the site
@@ -128,9 +142,13 @@
 </div>
 <p>
   Each of these has its own privacy policy governing what it does with what it
-  receives. <strong>Astra itself sets no cookies</strong> and loads no fonts,
-  scripts or images from anywhere else — the whole interface is served from this
-  site alone.
+  receives. <strong>Astra itself sets no cookies</strong>, and every font and
+  script in the interface is served from this site alone — with one exception:
+  the map tiles, which are images fetched from CARTO when you open the
+  birthplace map. We are replacing both the map and the place-name search with
+  data shipped inside the app, so that finding where you were born asks nothing
+  of anyone else. Until that lands, this paragraph says so rather than rounding
+  down to "no outside requests".
 </p>
 
 <h2>Your rights</h2>

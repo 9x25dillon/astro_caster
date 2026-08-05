@@ -40,6 +40,11 @@
   const MAX_INTENTION_LENGTH = 256;
   const MIN_LONGITUDE_FIELDS = 3;
 
+  // Above this magnitude toFixed(6) defers to ToString(x) per ECMA-262 and
+  // emits "1e+21", while Python's ".6f" emits the full decimal expansion —
+  // two canonical strings, two seeds. Mirrored in natal_seed.py.
+  const FORMAT_DOMAIN_LIMIT = 1e21;
+
   // --- Safety limits (mirrored in natal_seed.py) ---
   const FREQ_MIN_HZ = 20.0;
   const FREQ_MAX_HZ = 18000.0;
@@ -173,6 +178,13 @@
           throw new ChartValidationError(
             `chart field '${key}' must be a finite number`);
         }
+        // Cross-substrate domain bound — see FORMAT_DOMAIN_LIMIT. Finiteness
+        // alone did not catch this, because 1e21 is perfectly finite.
+        if (Math.abs(value) >= FORMAT_DOMAIN_LIMIT) {
+          throw new ChartValidationError(
+            `chart field '${key}' is outside the cross-substrate domain ` +
+            "(|value| must be < 1e21)");
+        }
         if (LONGITUDE_KEYS.includes(key)) longitudeCount += 1;
       }
     }
@@ -188,6 +200,23 @@
     return String(value);
   }
 
+  /**
+   * Compare two strings by Unicode code point, reproducing Python's `sorted()`
+   * on str. Spreading a string iterates code points (surrogate pairs come out
+   * whole), so this is lexicographic on code points with the shorter string
+   * first on a common prefix — exactly Python's rule.
+   */
+  function compareCodePoints(a, b) {
+    const A = [...a];
+    const B = [...b];
+    const n = Math.min(A.length, B.length);
+    for (let i = 0; i < n; i++) {
+      const d = A[i].codePointAt(0) - B[i].codePointAt(0);
+      if (d !== 0) return d;
+    }
+    return A.length - B.length;
+  }
+
   function canonicalizeChart(chart) {
     const parts = [];
     const seen = new Set();
@@ -197,7 +226,14 @@
         seen.add(key);
       }
     }
-    const extras = Object.keys(chart).filter((k) => !seen.has(k)).sort();
+    // MUST be code-point order, to match Python's sorted(). The default
+    // Array.prototype.sort compares UTF-16 code UNITS, which disagrees with
+    // code-point order for anything outside the BMP: "😀" (U+1F600) sorts
+    // before "�" in JS (lead surrogate 0xD83D < 0xFFFD) and after it in
+    // Python. Different key order, different canonical string, different seed.
+    const extras = Object.keys(chart)
+      .filter((k) => !seen.has(k))
+      .sort(compareCodePoints);
     for (const key of extras) parts.push(`${key}:${formatValue(chart[key])}`);
     return parts.join("|");
   }
@@ -341,6 +377,63 @@
     return out;
   }
 
+
+  // --- Substitution-ordered ghost placement ---------------------------------
+  // The ghost bank was a PERIODIC index map (bedrock[i % len]). A substitution
+  // order makes it a 1-D quasiperiodic lattice: the Fibonacci word is Pisot
+  // (eigenvalues tau, -1/tau), so the frequency set has pure point diffraction
+  // with tau-power peak ratios. Mirrors natal_seed.py exactly.
+  //
+  // Invariants: bedrock is read, never written; every output passes
+  // clampFrequency; spread = 0 reproduces the legacy placement bit-for-bit.
+  const FIBONACCI_RULES = { L: "LS", S: "L" };
+  const TAU = (1.0 + Math.sqrt(5)) / 2.0;
+
+  function substitutionWord(length, rules, seed) {
+    rules = rules || FIBONACCI_RULES;
+    let s = seed || "L";
+    const want = Math.max(length, 1);
+    while (s.length < want) {
+      let next = "";
+      for (const c of s) next += rules[c];
+      s = next;
+    }
+    return s.slice(0, want);
+  }
+
+  function factorComplexity(word, n) {
+    if (n <= 0 || n > word.length) return 0;
+    const set = new Set();
+    for (let i = 0; i + n <= word.length; i++) set.add(word.slice(i, i + n));
+    return set.size;
+  }
+
+  function sturmianDefect(word, nmax) {
+    nmax = nmax || 6;
+    if (word.length < nmax + 2) return nmax;
+    let d = 0;
+    for (let n = 1; n <= nmax; n++) d += Math.abs(factorComplexity(word, n) - (n + 1));
+    return d / nmax;
+  }
+
+  function ghostPlacement(bedrock, n, spread, word) {
+    n = Math.max(n | 0, 0);
+    if (n === 0 || !bedrock || bedrock.length === 0) return [];
+    word = word || substitutionWord(n);
+    const rL = 1.0 + 0.04 * Number(spread);
+    const rS = 1.0 + 0.04 * Number(spread) / TAU;
+    const ratios = [1.0];
+    for (let j = 0; j < n - 1; j++) {
+      ratios.push(ratios[j] * (word[j % word.length] === "L" ? rL : rS));
+    }
+    const mid = ratios[Math.floor(n / 2)];
+    const out = [];
+    for (let i = 0; i < n; i++) {
+      out.push(clampFrequency(bedrock[i % bedrock.length] * ratios[i] / mid));
+    }
+    return out;
+  }
+
   // --- Shared cross-platform test vector ---
   const TEST_CHART = Object.freeze({
     sun: 142.73, moon: 78.41, asc: 215.92, mc: 312.44, aspects_sum: 1247.8,
@@ -374,6 +467,10 @@
     bedrockFrequencies,
     binauralConfig,
     modulateFrequency,
+    substitutionWord,
+    factorComplexity,
+    sturmianDefect,
+    ghostPlacement,
     makeTraceEntry,
     redactState,
     TEST_CHART,

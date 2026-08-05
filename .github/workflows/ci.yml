@@ -65,6 +65,40 @@ jobs:
               raise SystemExit('boot guard FAILED to refuse insecure production config')
           "
 
+  resonarium:
+    name: Resonarium — Python↔JS seed parity
+    runs-on: ubuntu-latest
+    # The suite asserts that natal_seed.py and natal_seed.js derive identical
+    # seeds. Until now nothing ran it automatically, so the claim was only ever
+    # as true as the last time somebody remembered — and two real divergences
+    # (JS toFixed going exponential at 1e21; Array.sort ordering by UTF-16 code
+    # unit rather than code point) lived in it undetected. A cross-language
+    # invariant that no job enforces is a comment, not a contract.
+    #
+    # Needs BOTH runtimes in one job: the parity tests shell out to node and
+    # skip themselves silently when it is absent, which would turn a red build
+    # into a quiet pass — the exact failure mode being closed here.
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+      - name: Run the suite (stdlib only — no dependencies to install)
+        run: python -m unittest discover -s resonarium/tests -v
+      - name: Assert the node parity tests did NOT skip
+        # A skip here means node went missing and the cross-substrate half of
+        # the suite silently stopped running. Fail loudly instead.
+        run: |
+          python -m unittest discover -s resonarium/tests -v 2>&1 | tee /tmp/res.log
+          if grep -qi "skipped" /tmp/res.log; then
+            echo "::error::resonarium parity tests SKIPPED — node missing?"
+            exit 1
+          fi
+          echo "ok: no skips, both substrates exercised"
+
   frontend:
     name: Frontend — tsc + vite build
     runs-on: ubuntu-latest
