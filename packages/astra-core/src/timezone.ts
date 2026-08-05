@@ -88,7 +88,21 @@ function formatterFor(zone: string): Intl.DateTimeFormat {
  * matters: LMT offsets are things like +00:53:28.
  */
 export function zoneOffsetMsAt(utcMs: number, zone: string): number {
-  const parts = formatterFor(zone).formatToParts(new Date(utcMs));
+  // Snap the probe to a whole second BEFORE asking Intl. formatToParts reports
+  // the local wall clock truncated to seconds, so subtracting a probe instant
+  // that carries milliseconds yields a fractional-second "offset" — e.g.
+  // -17762.5s where the zone's real offset is -17762s.
+  //
+  // That is not cosmetic. firstTransition() binary-searches on exact equality
+  // with the LMT offset, and its midpoints land on arbitrary millisecond
+  // values, so the predicate flipped false while still inside the LMT era and
+  // the search converged on 1881-05-07 for America/New_York instead of the
+  // true 1883-11-18 — every zone's transition date came out years early.
+  //
+  // Offsets in tzdb change only on whole seconds, so flooring the probe is
+  // lossless.
+  const probe = Math.floor(utcMs / 1000) * 1000;
+  const parts = formatterFor(zone).formatToParts(new Date(probe));
   const get = (t: string): number => {
     const p = parts.find((x) => x.type === t);
     return p ? Number(p.value) : 0;
@@ -98,17 +112,34 @@ export function zoneOffsetMsAt(utcMs: number, zone: string): number {
   const bc = parts.find((x) => x.type === "era")?.value?.startsWith("B");
   const year = bc ? 1 - get("year") : get("year");
 
-  const asIfUtc = Date.UTC(year, get("month") - 1, get("day"), get("hour"), get("minute"), get("second"));
-  // Date.UTC maps years 0-99 into 1900-1999; undo that for historical dates.
-  const corrected = year >= 0 && year < 100 ? asIfUtc - MS_PER_DAY * 0 + yearShiftMs(year) : asIfUtc;
-  return corrected - utcMs;
+  return utcFromParts(year, get("month"), get("day"), get("hour"), get("minute"), get("second")) - probe;
 }
 
-/** Date.UTC(0..99) means 1900..1999; recover the true year for historical data. */
-function yearShiftMs(year: number): number {
-  const d = new Date(Date.UTC(year, 0, 1));
-  d.setUTCFullYear(year);
-  return d.getTime() - Date.UTC(year, 0, 1);
+/**
+ * Date.UTC() maps two-digit years 0-99 onto 1900-1999, which would silently
+ * relocate an early-CE date by nineteen centuries. setUTCFullYear has no such
+ * remapping, so it recovers the intended year.
+ *
+ * Both callers go through here. They previously each did their own variant —
+ * one guarded on `year < 100`, the other applied an unconditional shift — which
+ * happened to agree only because the shift is zero above 99. One function, one
+ * rule.
+ */
+function utcFromParts(
+  year: number,
+  month: number,
+  day: number,
+  hour: number,
+  minute: number,
+  second: number
+): number {
+  const ms = Date.UTC(year, month - 1, day, hour, minute, second);
+  if (year >= 0 && year < 100) {
+    const d = new Date(ms);
+    d.setUTCFullYear(year);
+    return d.getTime();
+  }
+  return ms;
 }
 
 const firstTransitionCache = new Map<string, number | null>();
@@ -177,14 +208,14 @@ export function longitudeLmtHours(lng: number): number {
  * birthplace's own longitude LMT is the right answer, not the zone's.
  */
 export function resolveOffset(local: WallClock, zone: string, lng: number): OffsetResolution {
-  const wallAsUtc = Date.UTC(
+  const wallAsUtc = utcFromParts(
     local.year,
-    local.month - 1,
+    local.month,
     local.day,
     local.hour,
     local.minute,
     local.second ?? 0
-  ) + yearShiftMs(local.year);
+  );
 
   const offBefore = zoneOffsetMsAt(wallAsUtc - MS_PER_DAY, zone);
   const offAfter = zoneOffsetMsAt(wallAsUtc + MS_PER_DAY, zone);
