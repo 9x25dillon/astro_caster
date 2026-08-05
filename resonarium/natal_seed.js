@@ -196,7 +196,17 @@
   }
 
   function formatValue(value) {
-    if (typeof value === "number") return (value + 0).toFixed(6);
+    if (typeof value === "number") {
+      // Mirrors natal_seed.py._format_value: the domain check lives here as
+      // well as in validateChart, because canonicalizeChart() is public and
+      // callable without validating — and it is the canonical STRING, not the
+      // seed, that has to be substrate-identical.
+      if (Math.abs(value) >= FORMAT_DOMAIN_LIMIT) {
+        throw new ChartValidationError(
+          "value is outside the cross-substrate domain (|value| must be < 1e21)");
+      }
+      return (value + 0).toFixed(6);
+    }
     return String(value);
   }
 

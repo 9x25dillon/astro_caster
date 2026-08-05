@@ -98,6 +98,24 @@ jobs:
             exit 1
           fi
           echo "ok: no skips, both substrates exercised"
+      - name: Run the suite (stdlib only) and prove both substrates ran
+        shell: bash
+        run: |
+          # pipefail is REQUIRED: piping into tee makes the pipeline's status
+          # tee's, so without it a genuinely failing suite would exit 0 and
+          # this gate would pass while the tests were red.
+          set -o pipefail
+          python -m unittest discover -s resonarium/tests -v 2>&1 | tee /tmp/res.log
+          # Assert the cross-substrate test actually EXECUTED, rather than
+          # grepping for the word "skipped" anywhere — that would false-trip on
+          # any unrelated skip added later. The parity classes are gated on
+          # `node` being present and skip themselves silently when it is not,
+          # which would turn a red build into a quiet pass. Name the test.
+          if ! grep -qE "test_battery_agrees_case_by_case.*ok" /tmp/res.log; then
+            echo "::error::cross-substrate battery did not run (node missing?)"
+            exit 1
+          fi
+          echo "ok: Python↔JS battery executed in both substrates"
 
   frontend:
     name: Frontend — tsc + vite build
