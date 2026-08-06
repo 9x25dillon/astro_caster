@@ -5,6 +5,83 @@ PR bodies; this is the story. Started session 15 at the operator's request._
 
 ---
 
+## Session 21 · 2026-08-06 — everything unlocked, refusing to start
+
+The operator's words were "a personal app is useless if I have to frikin pay
+for its use." Fair, and it sounds like a paywall problem. It wasn't one. There
+was no paywall anywhere near him.
+
+Edition P — the unrestricted personal build — already existed, complete, and
+had for weeks. `./run.sh --personal` grants oracle tier to every request with
+no tokens, no purchase gates, no rate limits, no telemetry. The problem was
+that it had been *refusing to boot*. Six live `AAE_STRIPE_*` keys sat in
+`backend/.env`, and the fail-closed interlock in `assert_safe_boot()` does
+exactly what it was built to do: it will not let the unrestricted build start
+on a configuration that looks public-facing. Edition P must never be reachable
+by paying strangers, so it fails closed rather than trusting anyone's
+discipline. Correct design. Working perfectly. And the practical result was
+that the operator's own machine quietly fell back to the gated public edition,
+because the interlock only speaks once, at process start, into a log nobody
+reads.
+
+The trail was in our own handoff. Session 19 documented the Stripe live-test
+toggle in careful detail and ended the instruction with *"Reverse the toggle
+after."* A later session flipped it and never flipped it back. Two toggles left
+in the Edition Q position, and a month of a personal instrument that wouldn't
+open. The `.env` file's own comment block said what to do. Nobody re-read it,
+because nothing failed loudly enough to send anyone back to it.
+
+That is the shape of the whole day, in both repos: not locks, but things unable
+to start. The Resonarium suite was the same story in a different mechanism —
+twenty-four HTML files that are really sixteen instruments, eleven of them
+loading three.js and p5 and Tone from cdnjs and their fonts from Google. Not
+gated, not paid, just quietly dependent on somebody else's uptime, and
+announcing his IP to Cloudflare and Google on every launch. An instrument you
+can't play on a plane. So the libraries came local, and `serve.py` rewrites the
+CDN references *in flight* — the HTML on disk is never touched, which means the
+change is undone by simply not running it. Verified in a real browser rather
+than by grep: `THREE.REVISION === 134` resolving from `vendor/`, canvas
+rendering, zero off-host requests.
+
+Then the part that wasn't asked for. Checking my own exclusions with a
+`git add -A --dry-run`, the output ran long — `AURIC_OCTITRICE/`, eighty-four
+gigabytes, eighteen embedded git repositories, model weights, private research,
+sitting untracked in a working tree whose remote is public. One careless
+`git add -A` from being published, with a broken gitlink for every embedded
+repo on the way in. Ten seconds of dry-run on work I'd already finished. The
+habit worth keeping isn't the fix, it's running the check after you think
+you're done.
+
+I also cut a hole and caught it in the same hour. Splitting the Stripe keys
+into `backend/.env.public` created a secret file that `.gitignore` did not
+cover, because the rule was the literal path `backend/.env` and matched that
+one filename only. Globbed it, verified every sibling, committed it — and then,
+switching branches, watched the secrets reappear as untracked, because
+`.gitignore` is per-branch content and protects nothing on a branch that
+predates it. The committed fix is the right fix; the thing that actually
+protects him today is four lines in `.git/info/exclude`, which is
+branch-independent and never leaves the machine. Which is also why the
+Resonarium tooling lives there and not in `.gitignore` — a `.gitignore` rule is
+itself a committed file, and "this should exist only on this machine" is not
+satisfied by a rule that travels.
+
+The morning had been elsewhere, in `substrate-comm`, and its best output was
+subtraction. Three claims died under measurement: that the payload's structure
+lives beyond the power spectrum (a composition-matched iAAFT surrogate is not
+separated by the grammar statistic — which is what pure point diffraction
+*means*, so the honest claim is the weaker one); that four unrelated codes had
+been tested (four decoder/signal pairs read each other at zero error, sharing a
+framing layer); and that the count code is clean at 0 dB (single-seed luck; the
+ensemble says marginal). A harness whose headline numbers only ever go up isn't
+measuring anything. Retiring three of them in one session is the day's actual
+result, and both the report and the spec now lead with them rather than bury
+them.
+
+Servers down. Nothing pushed in either repo. The one branch worth merging is
+four lines of `.gitignore`.
+
+---
+
 ## Session 19 · 2026-07-24 — a label that lied, and a door that opens outward
 
 The session began "let's pick up from yesterday," and the handoff said clean

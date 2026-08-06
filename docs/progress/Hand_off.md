@@ -1,7 +1,155 @@
 # Hand_off.md
 
+_Last updated: 2026-08-06 (session 21 — personal-mode unblocked, Resonarium
+suite made offline-runnable, two secret-exposure holes closed. Working tree
+clean on `tz-resolver-parked`; nothing pushed.)_
+
+---
+
+# SESSION 21 — 2026-08-06
+
+**Read this section first. The session-19 handoff below is still the live work
+order for the LAUNCH path — it was not touched today and remains valid.**
+
+## TL;DR
+
+Today was not launch work. It was three things the operator asked for directly:
+make the personal edition actually run, make the Resonarium suite runnable, and
+keep both off GitHub.
+
+1. **Edition P was dead and nobody knew.** `./run.sh --personal` had been
+   *refusing to boot* — six live `AAE_STRIPE_*` keys in `backend/.env` tripped
+   the fail-closed interlock in `entitlements.assert_safe_boot()`. The
+   session-19 handoff (below) documents this toggle as reversible and says
+   "reverse the toggle after"; a later session exercised it and never did. The
+   operator's experience was *"my personal app still makes me pay"* — because
+   the unrestricted build wouldn't start, so he fell back to the gated one on
+   his own machine. **Fixed:** Stripe block moved to `backend/.env.public`
+   (loaded by nothing), `AAE_PERSONAL_MODE=1` uncommented, timestamped backup
+   at `backend/.env.bak.*`. Verified: an anonymous request with no token now
+   resolves to tier `oracle`, verified, all premium features, rate limiter off,
+   telemetry suppressed. `/api/health` → `personal_mode: true`. **346 backend
+   tests pass.**
+
+2. **Resonarium runs offline now.** 24 HTML files are **16 distinct
+   instruments**; **11 of them loaded three.js / p5.js / Tone.js from cdnjs and
+   fonts from Google**, so they did not open without a network and announced
+   the operator's IP to Cloudflare + Google on every launch. Libraries and 18
+   woff2 files are vendored into `resonarium/vendor/`, and
+   **`resonarium/serve.py` rewrites the CDN references in flight** — the HTML
+   files on disk are never modified. Verified in a real browser: `THREE.REVISION
+   === 134` and `Tone.version === 14.8.49` resolving locally, canvas rendering,
+   **zero off-host requests**. 38 resonarium tests pass.
+
+3. **Two secret-exposure holes closed** (see "Security" below). One of them I
+   created and caught; the other predates the session and is large.
+
+## Security — read before any `git add -A`
+
+- **`.gitignore` had `backend/.env` as a LITERAL path.** It matched that one
+  filename and nothing else, so `backend/.env.public` (Stripe keys) and
+  `.env.bak.*` were fully visible to git. Fixed by globbing `backend/.env*` +
+  `!backend/.env.example` — committed on branch **`gitignore-env-glob`** (off
+  `main`, commit `dc7f3b7`, **not yet merged**).
+- **`.gitignore` is per-branch content**, so that fix protects only the branch
+  carrying it. Until it is merged, every other branch is unprotected. Covered
+  in the meantime by `.git/info/exclude`, which is branch-independent.
+- **`AURIC_OCTITRICE/` is 84 GB containing 18 embedded git repositories**
+  (`numbskull`, `bigLIMp`, `qwen-code`, model weights, …) and `services/` is
+  354 MB — both were untracked in a working tree whose remote is **public**. A
+  single `git add -A` would have tried to sweep them in, creating broken
+  gitlinks for every embedded repo. Both are now in `.git/info/exclude`.
+- **Current state: `git add -A` stages 0 paths on every branch.** If that ever
+  changes, stop and look at why.
+
+## Local-only posture (`.git/info/exclude`, NOT `.gitignore`)
+
+The operator's instruction was *"this one should exist only on this machine."*
+A `.gitignore` rule is itself a committed file and would travel to
+`github.com/9x25dillon/astro_caster`, which is public — so the exclusions live
+in `.git/info/exclude`, which never leaves the machine. Excluded:
+
+`resonarium/vendor/` · `resonarium/serve.py` · `resonarium/LOCAL.md` ·
+the downloaded instrument variants · `resonarium/resonarium/` ·
+`AURIC_OCTITRICE/` · `services/` · secret env siblings.
+
+**Consequence for the next session: `resonarium/serve.py` and `vendor/` are
+invisible to git and will NOT survive a fresh clone.** They exist only here.
+`resonarium/README.md` was deliberately reverted so the public repo does not
+document a tool it does not contain; the instructions live in
+`resonarium/LOCAL.md` (also local-only).
+
+## Repo state
+
+| where | state |
+|---|---|
+| `astro-aae` @ `tz-resolver-parked` | clean; 2 parked WIP tz commits ahead of main |
+| branch `gitignore-env-glob` | `dc7f3b7`, off main, **unmerged, unpushed** |
+| `backend/.env` | Edition P: `AAE_PERSONAL_MODE=1`, Stripe commented |
+| `backend/.env.public` | the 6 Stripe keys, gitignored, loaded by nothing |
+| server | `python3 resonarium/serve.py` was left RUNNING on 127.0.0.1:8777 |
+| `~/substrate-comm` @ `consolidation` | 3 commits, **unpushed**, 41 tests green |
+
+## Open decisions for the operator
+
+1. **Merge `gitignore-env-glob`** — worth doing soon; until then the shared
+   repo only has the literal-path rule for anyone who clones it.
+2. **Two duplicate instruments are already public in this repo:**
+   `resonarium/resonarium_hologram enhanced.html` (note the space) and
+   `resonarium/resonarium_hologram_cymatic_nodal_4D.html` are byte-identical
+   copies of *Cymatic Nodal 4D*. Remove from the repo, or leave.
+3. **Pre-existing bug, left alone deliberately:** `biosentinel-field.html`
+   references `g_correct` / `g_total` / `g_streak` in `updateScore()` but has
+   no elements with those ids → `ReferenceError` on every call, scoring readout
+   dead. The instrument itself renders and plays fine.
+4. **`substrate-comm`** — push `consolidation` + open a PR, or leave local.
+
+## Gotchas learned today (all cost real time)
+
+- **`pkill -f "serve.py --port 8777"` kills its own shell** — the pattern
+  matches the `bash -c` wrapper's cmdline. This repo already recorded the
+  `pgrep -f` version of this trap; it applies to `pkill` identically. Kill by
+  port instead: `ss -Htlnp 'sport = :8777' | grep -oP 'pid=\K[0-9]+'`.
+- **Anything that inspects code must parse it, not grep it.** A grep-based
+  "does this repo reach the network" audit flagged its own docstring (the
+  sentence *"no code path that opens a socket"* contains the word `socket`).
+  Rewrote as an AST walk over import statements — prose cannot trigger it.
+- **Auditing the file on disk answers the wrong question** when something
+  rewrites at serve time. The first `--check` reported 8 instruments as
+  "unresolved remote" by scanning the originals rather than the served bytes,
+  i.e. it flagged exactly the references the rewrite exists to remove.
+- **Diagnose before you tune.** ~5 parameter sweeps were spent on a decoder
+  before one diagnostic print showed detection was near-perfect (121–123 of 123
+  events) and the *clustering* was the failure. See `substrate-comm`
+  `CountTopology.decode` — the fix was to cluster in log space, because the
+  design invariant is a ratio and a ratio is a distance only after a log.
+
+## Verify the session-21 claims in ~60 seconds
+
+```bash
+cd backend && ./.venv/bin/python -c "
+from dotenv import load_dotenv; load_dotenv('.env')
+import entitlements as E
+print('conflicts:', E._personal_mode_conflicts() or 'clean')
+print('anon tier:', E.entitlement_status(None)['tier'])"      # -> clean / oracle
+
+cd resonarium && python3 serve.py --check                      # -> exit 0
+python3 -m unittest discover -s tests                          # -> 38 OK
+cd .. && git add -A --dry-run | wc -l                          # -> 0
+```
+
+---
+
+# SESSION 19 — 2026-07-24 (still the live LAUNCH work order)
+
 _Last updated: 2026-07-24 (session 19 CLOSED — main @ b300c7b; #104 + #105
 MERGED, servers down, .env back in personal mode, working tree clean)_
+
+> **Correction from session 21:** the line above says ".env back in personal
+> mode". That was true on 2026-07-24 but was **not** true by 2026-08-06 — a
+> later session ran the live-test toggle documented below and did not reverse
+> it, which silently disabled Edition P. If you use that toggle, reverse it in
+> the same session, and verify with `E._personal_mode_conflicts()`.
 
 ## TL;DR for next session
 
