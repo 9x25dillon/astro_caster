@@ -1,8 +1,10 @@
 # Hand_off.md
 
-_Last updated: 2026-08-06 (session 21 — personal-mode unblocked, Resonarium
-suite made offline-runnable, two secret-exposure holes closed. Working tree
-clean on `tz-resolver-parked`; nothing pushed.)_
+_Last updated: 2026-08-06 (session 21 CLOSED — personal-mode unblocked,
+Resonarium suite made offline-runnable, two secret-exposure holes closed.
+**`main` is ahead of `origin/main` and NOT pushed** — run
+`git log --oneline origin/main..main` for the exact set. Working tree clean,
+servers down.)_
 
 ---
 
@@ -49,11 +51,13 @@ keep both off GitHub.
 - **`.gitignore` had `backend/.env` as a LITERAL path.** It matched that one
   filename and nothing else, so `backend/.env.public` (Stripe keys) and
   `.env.bak.*` were fully visible to git. Fixed by globbing `backend/.env*` +
-  `!backend/.env.example` — committed on branch **`gitignore-env-glob`** (off
-  `main`, commit `dc7f3b7`, **not yet merged**).
-- **`.gitignore` is per-branch content**, so that fix protects only the branch
-  carrying it. Until it is merged, every other branch is unprotected. Covered
-  in the meantime by `.git/info/exclude`, which is branch-independent.
+  `!backend/.env.example` — **merged to `main`** (`dc7f3b7`, fast-forward).
+- **`.gitignore` is per-branch content**, so that fix protects only branches
+  that contain it. It is on `main` now, but **not on `tz-resolver-parked`,
+  `gaz5-external-guardrail`, `privacy-third-parties`, or
+  `resonarium-substrate-parity`** until each merges main. Covered on all of
+  them meanwhile by `.git/info/exclude`, which is branch-independent — do not
+  remove that block until every live branch carries the rule.
 - **`AURIC_OCTITRICE/` is 84 GB containing 18 embedded git repositories**
   (`numbskull`, `bigLIMp`, `qwen-code`, model weights, …) and `services/` is
   354 MB — both were untracked in a working tree whose remote is **public**. A
@@ -83,17 +87,20 @@ document a tool it does not contain; the instructions live in
 
 | where | state |
 |---|---|
-| `astro-aae` @ `tz-resolver-parked` | clean; 2 parked WIP tz commits ahead of main |
-| branch `gitignore-env-glob` | `dc7f3b7`, off main, **unmerged, unpushed** |
+| `astro-aae` @ `main` | clean; **ahead of `origin/main`, unpushed** (`git log origin/main..main`) |
+| branch `gitignore-env-glob` | merged to main; safe to delete |
+| branch `tz-resolver-parked` | 2 parked WIP tz commits; predates the ignore fix |
 | `backend/.env` | Edition P: `AAE_PERSONAL_MODE=1`, Stripe commented |
 | `backend/.env.public` | the 6 Stripe keys, gitignored, loaded by nothing |
-| server | `python3 resonarium/serve.py` was left RUNNING on 127.0.0.1:8777 |
+| servers | ALL DOWN (8777/8787/5173 verified free). Restart the suite with `cd resonarium && python3 serve.py` |
 | `~/substrate-comm` @ `consolidation` | 3 commits, **unpushed**, 41 tests green |
 
 ## Open decisions for the operator
 
-1. **Merge `gitignore-env-glob`** — worth doing soon; until then the shared
-   repo only has the literal-path rule for anyone who clones it.
+1. **Push `main`** (the ignore glob + these docs). Until it is
+   pushed, anyone cloning `github.com/9x25dillon/astro_caster` still gets only
+   the literal-path `backend/.env` rule — the fix protects this machine, not
+   the repo. This is the one outstanding item with a security consequence.
 2. **Two duplicate instruments are already public in this repo:**
    `resonarium/resonarium_hologram enhanced.html` (note the space) and
    `resonarium/resonarium_hologram_cymatic_nodal_4D.html` are byte-identical
