@@ -3,10 +3,17 @@ backend/.venv/
 __pycache__/
 *.pyc
 .pytest_cache/
-backend/.env
+# Every backend env file, not just `.env` exactly. `backend/.env` matched that
+# one filename only, so any sibling — .env.public, .env.local, a timestamped
+# .env.bak.* taken before editing secrets — was NOT ignored and `git add -A`
+# would stage it. Glob first, then re-allow the committed template.
+backend/.env*
+!backend/.env.example
 
 # Docker Compose env (secrets) — commit .env.example instead
 /.env
+.env.public
+.env.bak.*
 
 # Node / Vite
 frontend/node_modules/
