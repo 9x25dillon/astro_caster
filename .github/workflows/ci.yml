@@ -43,6 +43,13 @@ jobs:
         run: python -m pytest -q
       - name: Parity vectors byte-drift tripwire
         run: python tools/gen_parity_vectors.py --check
+      - name: Gazetteer drift tripwire
+        # Offline mode by design: the full check regenerates from a 5.4 MB
+        # GeoNames dump, and making CI download it every run would be flaky and
+        # rude. Without --source this re-derives the artifact's invariants and
+        # content digest from the file itself, which catches the drift that
+        # actually happens to a committed data file — corruption and hand-edits.
+        run: python tools/gen_gazetteer.py --check
       - name: Boot smoke check (app imports, routes registered)
         run: |
           python -c "
@@ -140,6 +147,8 @@ jobs:
         working-directory: packages/astra-core
       - name: Typecheck + build
         run: npm run build
+      - name: Unit tests (offline gazetteer search)
+        run: npm test
 
   astra-core:
     name: "@astra/core — parity vs golden vectors"

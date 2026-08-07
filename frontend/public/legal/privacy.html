@@ -118,20 +118,6 @@
       <td>The text to be read aloud.</td>
     </tr>
     <tr>
-      <td>OpenStreetMap<br><span style="color:var(--ink)">(Nominatim)</span></td>
-      <td>Only if you search for a birthplace by name</td>
-      <td>The place name you type, and your device's network address. We treat
-        this as personal — a search for your birthplace usually <em>is</em> your
-        birthplace. Typing coordinates directly, or dropping a pin, sends them
-        nothing.</td>
-    </tr>
-    <tr>
-      <td>CARTO</td>
-      <td>Only if you open the map</td>
-      <td>Requests for map tiles, which reveal the part of the world you are
-        looking at, and your network address.</td>
-    </tr>
-    <tr>
       <td>Cloudflare</td>
       <td>Every visit</td>
       <td>Standard network information as it passes through, to keep the site
@@ -142,13 +128,24 @@
 </div>
 <p>
   Each of these has its own privacy policy governing what it does with what it
-  receives. <strong>Astra itself sets no cookies</strong>, and every font and
-  script in the interface is served from this site alone — with one exception:
-  the map tiles, which are images fetched from CARTO when you open the
-  birthplace map. We are replacing both the map and the place-name search with
-  data shipped inside the app, so that finding where you were born asks nothing
-  of anyone else. Until that lands, this paragraph says so rather than rounding
-  down to "no outside requests".
+  receives. <strong>Astra itself sets no cookies</strong>, and every font, script
+  and image in the interface is served from this site alone — with no exception.
+</p>
+<p>
+  <strong>Finding where you were born now asks nothing of anyone else.</strong>
+  An earlier version of this page disclosed two more recipients: OpenStreetMap's
+  Nominatim received the place name you typed, and CARTO received requests for
+  map tiles that revealed the part of the world you were looking at. Both are
+  gone. The place list and the map outline are now shipped inside the app and
+  searched on your device, so a birthplace — which we treat as personal, because
+  a search for your birthplace usually <em>is</em> your birthplace — never
+  leaves it.
+</p>
+<p>
+  This is enforced rather than promised: an automated test opens the birthplace
+  map, runs a search, and fails the build if <em>any</em> request leaves this
+  site. That test was deliberately written while the leak still existed, and
+  kept failing, so the fix had to be real before it could pass.
 </p>
 
 <h2>Your rights</h2>

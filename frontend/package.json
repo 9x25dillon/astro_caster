@@ -9,25 +9,23 @@
     "preview": "vite preview",
     "e2e": "playwright test",
     "e2e:headed": "playwright test --headed",
-    "e2e:report": "playwright show-report"
+    "e2e:report": "playwright show-report",
+    "test": "tsx --test test/*.test.ts"
   },
   "dependencies": {
     "@react-spring/web": "^10.1.2",
-    "@types/leaflet": "^1.9.22",
-    "d3": "^7.9.0",
-    "leaflet": "^1.9.4",
+    "d3-geo": "^3.1.1",
     "react": "^19.2.7",
     "react-dom": "^19.2.8",
     "zustand": "^5.0.2"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",
-    "@types/d3": "^7.4.3",
+    "@types/d3-geo": "^3.1.1",
     "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.4",
-    "@vitejs/plugin-react": "^6.0.4",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.5",
+    "tsx": "^4.23.11",
     "typescript": "^7.0.2",
     "vite": "^8.1.5",
     "vite-plugin-pwa": "^1.3.0"

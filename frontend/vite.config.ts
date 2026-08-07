@@ -35,8 +35,19 @@ export default defineConfig(({ command }) => {
       // only) — the offline app shell must not fall back to system serifs.
       // wasm + se1 are the on-device Swiss Ephemeris (extended chart bodies);
       // precaching them keeps the full body set available offline.
+      // json covers the offline gazetteer (GAZ): public/gazetteer/cities.json
+      // is the vendored GeoNames extract that replaced the Nominatim geocoding
+      // call, and land.json the Natural Earth outline that replaced CARTO
+      // tiles. Precached rather than runtime-cached (operator decision) so a
+      // visitor's FIRST ceremony works offline — a birthplace search that
+      // needs the network would contradict the claim the whole change exists
+      // to make true.
       workbox: {
-        globPatterns: ["**/*.{js,css,html,svg,woff2,wasm,se1}"],
+        globPatterns: ["**/*.{js,css,html,svg,woff2,wasm,se1,json}"],
+        // cities.json is ~3.1 MB, over workbox's 2 MiB default, and would be
+        // silently DROPPED from the precache manifest without this — the
+        // failure mode being an app that looks fine until it is offline.
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
       },
       manifest: {
         name: "Astra — Natal Observatory",
@@ -69,8 +80,7 @@ export default defineConfig(({ command }) => {
         // (the object form throws "Expected Function but received Object").
         manualChunks(id) {
           if (!id.includes("node_modules")) return;
-          if (/[\\/](d3|d3-[^\\/]+|internmap|delaunator|robust-predicates)[\\/]/.test(id)) return "d3";
-          if (id.includes("/leaflet/")) return "leaflet";
+          if (/[\\/](d3-[^\\/]+|internmap)[\\/]/.test(id)) return "d3";
           if (/[\\/](react|react-dom|scheduler|zustand|@react-spring)[\\/]/.test(id)) return "vendor";
         },
       },
