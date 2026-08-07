@@ -10,9 +10,14 @@ _Status: **Living** — owner-reviewed roadmap. Created 2026-07-04 on
 Astra already runs on a phone — but as a *hosted web app inside Termux*, which
 is a developer posture, not a product. The mobile counterpart is not "a mobile
 app that calls our server." Astra's identity is **deterministic, offline-first,
-privacy-absolute** (birth data never leaves the device). The only mobile
-architecture that *keeps the claims true* is one where the deterministic core
-runs **on the device itself**.
+privacy-first** — today that means *nothing is retained* (birth details are
+computed with and discarded), NOT that they never leave the device: the web app
+computes server-side by default, and the on-device engine is the offline
+fallback. "Never leaves the device" is the destination, not the current state —
+it was briefly asserted as fact and retracted in #120/#122. The only mobile
+architecture that finally *makes that claim literal* is one where the
+deterministic core runs **on the device itself** — which is the argument of
+this whole document.
 
 The strategy is therefore a three-horizon **compute gradient** — each horizon
 ships a usable product while funding the next:
@@ -429,8 +434,13 @@ carries over unchanged.
     predictive / advanced all degrade to on-device engines, proven by the
     route-severed e2e specs (the in-CI equivalent of airplane mode); AI asks
     queue offline and flush on reconnect (`queued-ask.spec.ts`).
-  - ✅ Zero external requests (`no-external.spec.ts`, fonts + all assets
-    self-hosted and SW-precached).
+  - ⚠️ Zero external requests — **recorded ✅ in error; true of BOOT only.**
+    `no-external.spec.ts` asserts the claim across app boot (fonts + all assets
+    self-hosted and SW-precached) and never opens the birthplace map, which is
+    the one surface that leaves the origin: Nominatim geocoding
+    (`LocationPicker.tsx:85`) and CARTO tiles (`:54`). The test passing was read
+    as the claim holding. Corrected 2026-08-04; the gate re-opens and closes for
+    real at GAZ-4, with GAZ-5 extending the spec so it cannot be misread again.
   - ✅ Mobile-viewport e2e suite (Pixel 7 project) green in CI, including the
     touch pass (pinch-zoom, long-press popover, responsive wheel).
   - ⚠️ *"Lighthouse PWA ≥ 95" is unmeasurable as written* — Lighthouse

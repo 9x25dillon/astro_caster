@@ -21,9 +21,12 @@ Configure via environment (all optional):
     KGIRL_MIN_COHERENCE    default 0.75
     KGIRL_MAX_ENERGY       default 0.40
     KGIRL_USE_RAG          default true  (use ChaosRAG grounding)
+    KGIRL_TIMEOUT          default 300   (seconds; consensus costs the slowest
+                           model in the pool, so local pools need far longer
+                           than a single cloud call)
     AAE_OLLAMA_URL         default http://localhost:11434
     AAE_OLLAMA_MODEL       default qwen2.5:3b
-    AAE_OLLAMA_MODEL_DEEP  default kwangsuklee/Qwen3.5-9B-Claude-4.6-Opus-Reasoning-Distilled-GGUF:latest
+    AAE_OLLAMA_MODEL_DEEP  default qwen2.5:3b (see note at _OLLAMA_MODEL_DEEP)
     AAE_AI_BASE_URL        default https://openrouter.ai/api/v1
     AAE_AI_API_KEY         cloud key (enables the openai provider)
     AAE_AI_MODEL           default anthropic/claude-haiku-4-5
@@ -53,14 +56,30 @@ _KGIRL_URL = os.environ.get("KGIRL_URL", "http://localhost:8000").rstrip("/")
 _KGIRL_MIN_COH = float(os.environ.get("KGIRL_MIN_COHERENCE", "0.75"))
 _KGIRL_MAX_ENERGY = float(os.environ.get("KGIRL_MAX_ENERGY", "0.40"))
 _KGIRL_USE_RAG = os.environ.get("KGIRL_USE_RAG", "true").lower() in ("1", "true", "yes")
+# Consensus fans out to every model in kgirl's pool, so a reading costs the
+# SLOWEST model, not the fastest. Local CPU pools need far longer than a
+# single cloud call; 180s was not enough for two 3B models and every request
+# died on ReadTimeout.
+_KGIRL_TIMEOUT = float(os.environ.get("KGIRL_TIMEOUT", "300"))
+# kgirl latency is dominated by PROMPT PREFILL, not generation: every model in
+# the pool prefills the whole prompt, and on a local CPU pool that is brutal.
+# Measured with two 3B models at an identical 120-token output cap:
+#     8.7k-char prompt (a full chart reading) -> 4m52s
+#      44-char prompt (a targeted question)   -> 12s
+# So route only short prompts to consensus and let longer ones fall through to
+# the next provider immediately, rather than stalling for minutes and then
+# timing out into the offline compiler. Raise this if your pool is GPU-backed.
+_KGIRL_MAX_PROMPT_CHARS = int(os.environ.get("KGIRL_MAX_PROMPT_CHARS", "4000"))
 
 # --- Ollama (local, OpenAI-compatible) ------------------------------------- #
 _OLLAMA_URL = os.environ.get("AAE_OLLAMA_URL", "http://localhost:11434").rstrip("/")
 _OLLAMA_MODEL = os.environ.get("AAE_OLLAMA_MODEL", "qwen2.5:3b")
-_OLLAMA_MODEL_DEEP = os.environ.get(
-    "AAE_OLLAMA_MODEL_DEEP",
-    "kwangsuklee/Qwen3.5-9B-Claude-4.6-Opus-Reasoning-Distilled-GGUF:latest",
-)
+# NOTE: this previously defaulted to
+# kwangsuklee/Qwen3.5-9B-Claude-4.6-Opus-Reasoning-Distilled-GGUF:latest, which
+# ollama <= 0.12.11 cannot load ("unknown model architecture: 'qwen35'"), so
+# every deep reading on the ollama path failed and fell back to the offline
+# compiler. Point this back at the Qwen3.5 distill once ollama is upgraded.
+_OLLAMA_MODEL_DEEP = os.environ.get("AAE_OLLAMA_MODEL_DEEP", "qwen2.5:3b")
 
 # --- Cloud (OpenRouter / OpenAI / Nous) ------------------------------------ #
 _BASE_URL = os.environ.get("AAE_AI_BASE_URL", "https://openrouter.ai/api").rstrip("/").removesuffix("/v1")
@@ -142,6 +161,21 @@ def _resolve_provider_for_tier(tier: str) -> str:
     if tier in ("supporter", "oracle") and _API_KEY:
         return "openai"
     return _resolve_provider()
+
+
+def _demote_kgirl_if_prompt_too_long(provider: str, system: str, user: str) -> str:
+    """Send only short prompts to consensus — see _KGIRL_MAX_PROMPT_CHARS.
+
+    Returns the next-best provider when the prompt is too large for kgirl to
+    answer in reasonable time, otherwise the provider unchanged.
+    """
+    if provider != "kgirl" or len(system) + len(user) <= _KGIRL_MAX_PROMPT_CHARS:
+        return provider
+    if _reachable("ollama"):
+        return "ollama"
+    if _API_KEY:
+        return "openai"
+    return "offline"
 
 # --------------------------------------------------------------------------- #
 # System prompt — "Astra"
@@ -310,6 +344,12 @@ async def interpret(
     system, user, model, budget = _build_prompts(
         query, context, lens, selected_type, selected_id, depth, provider, tier
     )
+    demoted = _demote_kgirl_if_prompt_too_long(provider, system, user)
+    if demoted != provider:
+        provider = demoted
+        system, user, model, budget = _build_prompts(
+            query, context, lens, selected_type, selected_id, depth, provider, tier
+        )
     if provider == "offline":
         return {
             "interpretation": _offline_interpretation(query, context, selected_type, selected_id),
@@ -318,7 +358,7 @@ async def interpret(
 
     try:
         if provider == "kgirl":
-            text, meta = await _chat_kgirl(system, user)
+            text, meta = await _chat_kgirl(system, user, budget)
             return {"interpretation": text, "source": "llm", "provider": "kgirl",
                     "model": "kgirl-consensus", **meta}
         if provider == "ollama":
@@ -359,12 +399,13 @@ async def interpret_arcana(
     """
     # The liveness probe inside can block ~1.5s — keep it off the event loop.
     provider = await asyncio.to_thread(_resolve_provider_for_tier, tier)
+    provider = _demote_kgirl_if_prompt_too_long(provider, system, user)
     if provider == "offline":
         return {"text": "", "source": "offline", "provider": "offline", "model": ""}
     budget = _ARCANA_BUDGET.get(tier, _ARCANA_BUDGET["free"])
     try:
         if provider == "kgirl":
-            text, _meta = await _chat_kgirl(system, user)
+            text, _meta = await _chat_kgirl(system, user, budget)
             return {"text": text, "source": "llm", "provider": "kgirl", "model": "kgirl-consensus"}
         if provider == "ollama":
             model = _OLLAMA_MODEL_DEEP if tier in ("supporter", "oracle") else _OLLAMA_MODEL
@@ -410,6 +451,12 @@ async def interpret_stream(
     system, user, model, budget = _build_prompts(
         query, context, lens, selected_type, selected_id, depth, provider, tier
     )
+    demoted = _demote_kgirl_if_prompt_too_long(provider, system, user)
+    if demoted != provider:
+        provider = demoted
+        system, user, model, budget = _build_prompts(
+            query, context, lens, selected_type, selected_id, depth, provider, tier
+        )
     label = {"ollama": model, "openai": model, "kgirl": "kgirl-consensus",
              "offline": "aae-reflective-fallback"}[provider]
     yield ("meta", {"provider": provider, "model": label})
@@ -422,7 +469,7 @@ async def interpret_stream(
     emitted = False
     try:
         if provider == "kgirl":
-            text, meta = await _chat_kgirl(system, user)
+            text, meta = await _chat_kgirl(system, user, budget)
             yield ("chunk", text)
             yield ("done", {"source": "llm", "provider": "kgirl", "model": label, **meta})
             return
@@ -544,7 +591,7 @@ async def _chat_openai_compat(
         return data["choices"][0]["message"]["content"].strip()
 
 
-async def _chat_kgirl(system: str, user: str) -> Tuple[str, dict]:
+async def _chat_kgirl(system: str, user: str, max_tokens: Optional[int] = None) -> Tuple[str, dict]:
     """
     Route through kgirl's topological-consensus /ask. Returns (answer, metadata)
     where metadata carries coherence/energy/decision for display in the UI.
@@ -557,8 +604,12 @@ async def _chat_kgirl(system: str, user: str) -> Tuple[str, dict]:
         "return_all": False,
         "use_rag": _KGIRL_USE_RAG,
         "rag_k": 5,
+        # Every other provider path honours the tier/depth token budget; this
+        # one used to drop it, so local models generated until they chose to
+        # stop and a single reading took minutes.
+        "max_tokens": max_tokens,
     }
-    async with httpx.AsyncClient(timeout=180.0) as client:
+    async with httpx.AsyncClient(timeout=_KGIRL_TIMEOUT) as client:
         r = await client.post(f"{_KGIRL_URL}/ask", json=payload)
         r.raise_for_status()
         data = r.json()

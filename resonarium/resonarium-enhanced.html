@@ -388,17 +388,30 @@
   function buildGhosts() {
     const n = sentinel.n;
     const per = n > 0 ? GHOST_GAIN_TOTAL / Math.max(n, 8) : 0;
+    // Substitution-ordered placement: the ghost bank is a 1-D quasiperiodic
+    // lattice (Fibonacci word, Pisot => pure point diffraction) rather than a
+    // periodic index map. spread = 0 reproduces the former bedrock cycling
+    // exactly, so this is backwards compatible at the low end. Bedrock is
+    // read, never written; every base frequency passes clampFrequency.
+    const word = NS.substitutionWord(Math.max(n, 1));
+    const bases = NS.ghostPlacement(bedrock, n, sentinel.spread, word);
     for (let i = 0; i < n; i++) {
       const osc = ctx.createOscillator();
       osc.type = "triangle";
-      osc.frequency.value = NS.clampFrequency(bedrock[i % bedrock.length]);
+      osc.frequency.value = bases[i];
       const g = ctx.createGain();
       g.gain.value = 0;
       g.gain.linearRampToValueAtTime(per, ctx.currentTime + 0.8);
       osc.connect(g).connect(master);
       osc.start();
-      ghostNodes.push({ osc, g, base: bedrock[i % bedrock.length], current: 0 });
+      ghostNodes.push({ osc, g, base: bases[i], current: 0, sym: word[i % word.length] });
     }
+    logEvent("ghost_placement", {
+      voices: n,
+      order: "fibonacci",
+      sturmian_defect: NS.sturmianDefect(NS.substitutionWord(200)),
+      span_hz: n ? Number((Math.max(...bases) - Math.min(...bases)).toFixed(3)) : 0,
+    });
   }
 
   function retargetGhosts() {

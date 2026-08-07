@@ -60,3 +60,12 @@ astra-vault-*.json
 # file is encrypted, but never track it; ship it to off-box storage
 backups/
 *.enc
+
+# kgirl — the topological-consensus service ai.py routes to as its
+# first-choice provider (KGIRL_URL). It is its OWN git repo
+# (github.com/9x25dillon/kgirl) cloned here for convenience, so it must
+# never be tracked from this side: committing a nested repo records a
+# bare gitlink that looks like a normal directory and silently loses the
+# contents. Clone it yourself with:
+#   git clone https://github.com/9x25dillon/kgirl.git services/kgirl
+services/kgirl/
