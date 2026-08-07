@@ -44,6 +44,8 @@ export const App: React.FC = () => {
   const checkoutNote = useStore((s) => s.checkoutNote);
   const checkoutBusy = useStore((s) => s.checkoutBusy);
   const setCheckoutNote = useStore((s) => s.setCheckoutNote);
+  const isCurrentSky = useStore((s) => s.isCurrentSky);
+  const birth = useStore((s) => s.birth);
   // Track R (R-1): the seven masthead module buttons became the chapter dial.
   // Chapter I = the wheel at home; II–VIII mount the former modals' content
   // in the stage, unchanged (their chrome retires in R-2).
