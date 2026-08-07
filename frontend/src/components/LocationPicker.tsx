@@ -1,7 +1,16 @@
 // LocationPicker.tsx — click-on-map or city-search lat/lng selector.
+//
+// GAZ-4: this component used to make the app's only two per-device external
+// calls — CARTO basemap tiles and OSM Nominatim geocoding. Both are gone. The
+// map is a vendored Natural Earth outline (WorldMap.tsx) and search resolves
+// against a vendored GeoNames extract (lib/gazetteer.ts), so a birthplace —
+// the most sensitive thing this app is told — never leaves the device.
+//
+// `⊕ use my location` is unchanged: navigator.geolocation is a device API and
+// touches no network.
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
+import { WorldMap } from "./WorldMap";
+import { loadGazetteer, type City, type Gazetteer } from "../lib/gazetteer";
 
 interface Props {
   lat: number;
@@ -9,105 +18,67 @@ interface Props {
   onChange: (lat: number, lng: number) => void;
 }
 
-function makeIcon() {
-  return L.divIcon({
-    className: "",
-    html: `<div style="width:12px;height:12px;background:#c9a84c;border:2px solid #e0c578;border-radius:50%;box-shadow:0 0 10px rgba(201,168,76,0.7);"></div>`,
-    iconSize: [12, 12],
-    iconAnchor: [6, 6],
-  });
-}
-
 function round4(n: number) {
   return Math.round(n * 10000) / 10000;
 }
 
+/** "Ulm · BW, DE" — enough to tell same-named cities apart. */
+function placeLabel(c: City) {
+  return [c.admin1, c.country].filter(Boolean).join(", ");
+}
+
 export const LocationPicker: React.FC<Props> = ({ lat, lng, onChange }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<L.Map | null>(null);
-  const markerRef = useRef<L.Marker | null>(null);
   const [query, setQuery] = useState("");
+  const [results, setResults] = useState<City[]>([]);
   const [searching, setSearching] = useState(false);
   const [notFound, setNotFound] = useState(false);
+  const [attribution, setAttribution] = useState("");
+  const gazRef = useRef<Gazetteer | null>(null);
 
-  const placeMarker = useCallback((newLat: number, newLng: number) => {
-    const map = mapRef.current;
-    if (!map) return;
-    if (markerRef.current) {
-      markerRef.current.setLatLng([newLat, newLng]);
-    } else {
-      markerRef.current = L.marker([newLat, newLng], { icon: makeIcon() }).addTo(map);
-    }
+  // Warm the gazetteer as soon as the picker mounts: the visitor has already
+  // signalled intent by opening it, and this is the only slow step.
+  useEffect(() => {
+    let live = true;
+    loadGazetteer()
+      .then((g) => {
+        if (!live) return;
+        gazRef.current = g;
+        setAttribution(g.attribution);
+      })
+      .catch(() => { /* search reports it honestly when used */ });
+    return () => { live = false; };
   }, []);
 
-  // Init map once on mount.
-  useEffect(() => {
-    if (!containerRef.current || mapRef.current) return;
-    const initLat = lat || 40;
-    const initLng = lng || 0;
-    const map = L.map(containerRef.current, {
-      center: [initLat, initLng],
-      zoom: lat ? 6 : 2,
-      attributionControl: false,
-      zoomControl: true,
-    });
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-      maxZoom: 19,
-    }).addTo(map);
-    L.control.attribution({ position: "bottomright", prefix: false })
-      .addAttribution('<a href="https://carto.com/attributions" style="color:#555">© CARTO</a>')
-      .addTo(map);
-    map.on("click", (e: L.LeafletMouseEvent) => {
-      onChange(round4(e.latlng.lat), round4(e.latlng.lng));
-    });
-    mapRef.current = map;
-    if (lat && lng) placeMarker(lat, lng);
-    return () => {
-      map.remove();
-      mapRef.current = null;
-      markerRef.current = null;
-    };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Keep marker in sync when lat/lng change.
-  useEffect(() => {
-    if (!mapRef.current || (!lat && !lng)) return;
-    placeMarker(lat, lng);
-  }, [lat, lng, placeMarker]);
-
-  const search = async () => {
+  const search = useCallback(async () => {
     const q = query.trim();
     if (!q) return;
     setSearching(true);
     setNotFound(false);
     try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1`,
-        { headers: { "Accept-Language": "en" } }
-      );
-      const data = await res.json();
-      if (data[0]) {
-        const newLat = round4(parseFloat(data[0].lat));
-        const newLng = round4(parseFloat(data[0].lon));
-        onChange(newLat, newLng);
-        mapRef.current?.flyTo([newLat, newLng], 8);
-      } else {
-        setNotFound(true);
-      }
+      const gaz = gazRef.current ?? (await loadGazetteer());
+      gazRef.current = gaz;
+      const hits = gaz.search(q);
+      setResults(hits);
+      setNotFound(hits.length === 0);
     } catch {
+      setResults([]);
       setNotFound(true);
     } finally {
       setSearching(false);
     }
+  }, [query]);
+
+  const choose = (c: City) => {
+    onChange(round4(c.lat), round4(c.lng));
+    setResults([]);
+    setQuery(c.name);
   };
 
   const geolocate = () => {
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition((pos) => {
-      const newLat = round4(pos.coords.latitude);
-      const newLng = round4(pos.coords.longitude);
-      onChange(newLat, newLng);
-      mapRef.current?.flyTo([newLat, newLng], 8);
+      onChange(round4(pos.coords.latitude), round4(pos.coords.longitude));
+      setResults([]);
     });
   };
 
@@ -138,22 +109,51 @@ export const LocationPicker: React.FC<Props> = ({ lat, lng, onChange }) => {
           ⊕
         </button>
       </div>
+
+      {results.length > 0 && (
+        <ul
+          style={{
+            listStyle: "none", margin: "0 0 6px", padding: 0,
+            border: "1px solid var(--rule)", borderRadius: 6, overflow: "hidden",
+          }}
+        >
+          {results.map((c, i) => (
+            <li key={`${c.name}-${c.country}-${c.admin1}-${i}`}>
+              <button
+                className="ghost"
+                onClick={() => choose(c)}
+                style={{
+                  width: "100%", textAlign: "left", padding: "5px 9px",
+                  fontSize: 12, border: "none", borderRadius: 0,
+                  display: "flex", justifyContent: "space-between", gap: 8,
+                }}
+              >
+                <span>{c.name}</span>
+                <span style={{ color: "var(--ink)", opacity: 0.7 }}>{placeLabel(c)}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
       {notFound && (
+        // Honest copy: the offline gazetteer covers cities of 5,000+, so a very
+        // small birthplace genuinely may be absent. Say that, and point at the
+        // path that always works, rather than implying the name was wrong.
         <p style={{ fontSize: 11, color: "var(--danger)", margin: "0 0 6px" }}>
-          Place not found — try a different name.
+          Not in the offline gazetteer (it covers towns of ~5,000+). Try a nearby
+          larger town, or click the map to place it directly.
         </p>
       )}
-      <div
-        ref={containerRef}
-        style={{
-          height: 180,
-          borderRadius: 8,
-          border: "1px solid var(--rule)",
-          overflow: "hidden",
-        }}
-      />
+
+      <WorldMap lat={lat} lng={lng} onPick={onChange} />
+
       <p style={{ fontSize: 11, color: "var(--ink)", margin: "5px 0 0" }}>
         Click the map or search to set coordinates · ⊕ uses your device location
+      </p>
+      <p style={{ fontSize: 10, color: "var(--ink)", opacity: 0.65, margin: "3px 0 0" }}>
+        Places {attribution || "© GeoNames (CC BY 4.0)"} · outline Natural Earth
+        (public domain) · both stored on your device, searched offline
       </p>
     </div>
   );

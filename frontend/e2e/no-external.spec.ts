@@ -48,14 +48,18 @@ test("serif fonts actually load from the local vendored files", async ({ page })
 // It is deliberately TWO tests, because they answer different questions.
 
 /**
- * A LEDGER OF DEBT, not an allow-list. Every entry is a promise GAZ-4 retires;
- * nothing may be added without retiring something. Suffix-matched because
- * Leaflet shards tiles across {a,b,c,d}.basemaps.cartocdn.com.
+ * The ledger is EMPTY, and that is the point.
+ *
+ * It used to carry two entries — `nominatim.openstreetmap.org` (geocoding,
+ * which received the typed place name) and `basemaps.cartocdn.com` (tiles,
+ * which revealed the region being examined). GAZ-4 retired both: search now
+ * resolves against a vendored GeoNames extract and the map is a vendored
+ * Natural Earth outline, so the birthplace never leaves the device.
+ *
+ * Keep it empty. An entry added here is a privacy regression wearing a
+ * comment, and the debt it represents has already been paid once.
  */
-const KNOWN_EXTERNAL = [
-  "nominatim.openstreetmap.org", // geocoding — receives the typed place name
-  "basemaps.cartocdn.com", // map tiles — reveal the region being examined
-];
+const KNOWN_EXTERNAL: string[] = [];
 
 const isLocal = (host: string) => host === "127.0.0.1" || host === "localhost";
 const onLedger = (host: string) => KNOWN_EXTERNAL.some((k) => host === k || host.endsWith(`.${k}`));
@@ -78,46 +82,44 @@ async function externalHostsDuringMapUse(page: import("@playwright/test").Page):
   await expect(page.locator(".wheel-area svg").first()).toBeVisible({ timeout: 20_000 });
 
   await page.getByRole("button", { name: /pick on map/ }).first().click();
-  await expect(page.locator(".leaflet-container")).toBeVisible({ timeout: 15_000 });
+  // The offline map is an inline SVG, not a Leaflet tile container. Only this
+  // HANDLE changed at GAZ-4 — the assertions below are untouched, which is what
+  // makes the red→green flip meaningful rather than a rewritten goalpost.
+  await expect(page.getByRole("img", { name: /world map/i })).toBeVisible({ timeout: 15_000 });
 
-  // Tiles are fired by the map as it lays itself out; give them a bounded beat.
-  // `.catch` because after GAZ-4 there will be no tile request to wait for, and
-  // that is a pass, not a hang.
-  await page.waitForRequest((r) => /cartocdn/.test(r.url()), { timeout: 5_000 }).catch(() => null);
-
-  const geocode = page
-    .waitForRequest((r) => /nominatim/.test(r.url()), { timeout: 8_000 })
-    .catch(() => null);
+  // Drive a real search and wait for a real RESULT, not for a request. The old
+  // version waited on a Nominatim call; there is no call to wait for now, so
+  // waiting on the rendered hit is both stronger and honest — it proves search
+  // still works, rather than only that nothing was sent.
   await page.getByPlaceholder(/city or place name/i).fill("Ulm");
   await page.getByRole("button", { name: "Find" }).click();
-  await geocode;
+  await expect(page.getByRole("button", { name: /^Ulm/ }).first()).toBeVisible({ timeout: 15_000 });
+
+  // A beat for anything fired late (tiles used to arrive during layout), so
+  // "zero requests" is measured after the surface has fully settled.
+  await page.waitForTimeout(1_000);
 
   return [...hosts];
 }
 
-// GREEN NOW, and the actual guardrail during the GAZ-1..GAZ-4 rewrite: the
-// picker may reach the two hosts we already owe, and NOTHING else. A new CDN,
-// a new geocoder, a stray analytics beacon — any of them fails this instantly,
-// which is the regression class most likely to slip in while the map is being
-// replaced wholesale.
-test("the birthplace map reaches no host outside the known ledger", async ({ page }) => {
-  const strays = (await externalHostsDuringMapUse(page)).filter((h) => !onLedger(h));
-  expect(strays, `unledgered external hosts: ${strays.join(", ") || "(none)"}`).toHaveLength(0);
-});
-
-// ⚠️ THIS TEST IS RED ON PURPOSE. It must stay red until GAZ-4 lands.
+// RETIRED at GAZ-4, as this file's own instruction required: with the ledger
+// empty, "reaches no host outside the ledger" and "reaches no host" are the
+// same assertion, and keeping both would only make the suite slower. The
+// `onLedger` helper stays as the single place a future entry would have to be
+// justified — and there should never be one.
 //
-// It was written against the unmodified site, BEFORE any line of GAZ-1..GAZ-4
-// existed — and that ordering is the whole point. A test written after the fix
-// gets unconsciously shaped until it passes; a test written before it can only
-// describe what is actually true. The failing CI run on the commit that merges
-// this is the objective baseline: the recorded proof that the map really did
-// leave the origin, before anyone claims it stopped.
+// ✅ GREEN AS OF GAZ-4. This test was RED ON PURPOSE from the commit that
+// introduced it until the commit that fixed it, and that ordering was the whole
+// point: it was written against the unmodified site, so it could only describe
+// what was actually true. Its failing CI runs are the recorded, objective
+// baseline that the map really did leave the origin before anyone claimed it
+// stopped.
 //
-// GAZ-4 is the gate. At that exact commit this flips red → green with NO edit
-// to the assertion — which is the only kind of green worth having here.
-//
-// When it flips: empty KNOWN_EXTERNAL, which retires the ledger test above too.
+// It flipped with NO edit to the assertion below. The only thing GAZ-4 changed
+// in this file was the DOM handle used to open the map (`.leaflet-container` →
+// the inline SVG), because the map is a different component now. If you find
+// yourself editing the assertion to keep this green, the app regressed — fix
+// the app.
 test("the birthplace map makes zero external requests", async ({ page }) => {
   const external = await externalHostsDuringMapUse(page);
   expect(external, `external hosts: ${external.join(", ") || "(none)"}`).toHaveLength(0);
