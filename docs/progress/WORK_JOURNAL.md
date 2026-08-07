@@ -5,6 +5,67 @@ PR bodies; this is the story. Started session 15 at the operator's request._
 
 ---
 
+## Session 22 · 2026-08-07 — the summaries that outlived their evidence
+
+The session was asked for as housekeeping: push main, delete a duplicate, fix a
+small dead readout, start the purchase UI. Four of those were done in the first
+twenty minutes. The fifth turned into the whole day, because starting the
+purchase UI meant first checking whether it existed — and it did, and the app
+it was supposed to live in did not run.
+
+`main` had been rendering a blank page for about thirty commits. `App.tsx` read
+`isCurrentSky` and `birth` and declared neither: bare identifiers, no binding in
+any scope, `ReferenceError` on the first render. Not a subtle degradation — a
+white screen. PR #107 had added those two lines on its branch, and the merge
+that brought it in kept every usage it introduced and dropped the declarations.
+Nobody removed them, which is why every removal-shaped search comes back empty;
+`git log -S` finds the commit that *introduced* them and no commit that took
+them away. You can only find it by bisecting the state.
+
+The build gate had been reporting this on every single run. Nobody saw it,
+because the CI badge was already red for a reason everyone knew: a test that was
+deliberately failing. `no-external.spec.ts:121` had been written on purpose
+against the unfixed site, to record that the birthplace map really did leave the
+origin before anyone claimed it had stopped. That is good practice — it is the
+only kind of green worth having — and it worked exactly as designed. But it sat
+red for weeks, and a red dot next to a red dot is one red dot. The intentional
+failure gave the real failure somewhere to hide.
+
+So the second half of the day was making red mean red again, which meant
+actually paying the debt the test existed to record. Typing a birthplace into
+Astra sent it to Nominatim. Opening the map told CARTO which part of the world
+you were looking at. For a birthplace picker those are not incidental requests;
+a search for where you were born usually *is* where you were born, and the app
+had been telling two companies about it while a published privacy policy said
+zero external requests. That claim was never a lie. It was a true statement
+about boot that got summarised without its scope and then quoted into a legal
+document.
+
+Retiring it took a vendored gazetteer — 69,577 cities from GeoNames, searched
+on-device with diacritic folding so `tromso` finds Tromsø — and a world map
+drawn from a Natural Earth outline instead of tiles fetched from a CDN. Leaflet
+came out. The guardrail flipped red to green with no edit to its assertion; the
+only thing that changed in that file was the handle used to open the map,
+because the map is a different component now. The whole e2e suite is green for
+the first time: 138 of 138, nothing red on purpose, no noise left for the next
+real failure to hide in.
+
+Two things worth keeping from the way it went. The scoping doc had labelled its
+size estimates *"do not treat as measured"* — so they were measured, and they
+were low by half, and the operator got to make the coverage call against real
+numbers instead of optimistic ones. That one clause did its whole job. Against
+it, the same doc asserted the project was "already a D3-SVG shop"; `d3` was
+declared in `package.json` and imported nowhere at all.
+
+Nine of the ten discrepancies catalogued today are the same shape. Something
+was verified once, correctly. Then it was summarised. Then the summary outlived
+the conditions that made it true. The two that survived contact — the size
+estimate and the handoff's branch state — both carried instructions for
+re-deriving themselves, which is a defence that costs one clause and would have
+caught most of the rest.
+
+---
+
 ## Session 21 · 2026-08-06 — everything unlocked, refusing to start
 
 The operator's words were "a personal app is useless if I have to frikin pay

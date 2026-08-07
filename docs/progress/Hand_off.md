@@ -1,10 +1,125 @@
 # Hand_off.md
 
-_Last updated: 2026-08-06 (session 21 CLOSED — personal-mode unblocked,
-Resonarium suite made offline-runnable, two secret-exposure holes closed.
-**`main` is ahead of `origin/main` and NOT pushed** — run
-`git log --oneline origin/main..main` for the exact set. Working tree clean,
-servers down.)_
+_Last updated: 2026-08-07 (session 22 CLOSED — `main` pushed and SYNCED with
+`origin/main` @ `d8e392a`, 0 open PRs, working tree clean, servers down. The
+blank-page bug on `main` is fixed and the birthplace no longer leaves the
+device. Re-derive before trusting any of this: `git fetch && git status -sb`.)_
+
+---
+
+# SESSION 22 — 2026-08-07
+
+**Read this section first.** The session-19 LAUNCH work order below is still
+live, but **M1 is done** — see "Where production actually sits".
+
+## TL;DR
+
+Asked for housekeeping; found `main` unbuildable and shipped the privacy fix
+the repo had been promising.
+
+1. **`main` was pushed — and was 48 commits BEHIND, not just 3 ahead.** The
+   session-21 note said "ahead 3, unpushed"; true when written, stale by the
+   time it was read. Merged `origin/main` (clean, no conflicts), pushed as
+   `95a5f1a`. The globbed `backend/.env*` ignore rule is now on the public repo,
+   verified: `.env`, `.env.public`, `.env.bak.*` all ignored, `.env.example`
+   still trackable, `git add -A` stages 0.
+2. **`main` had rendered a BLANK PAGE for ~30 commits** (#144). `App.tsx` used
+   `isCurrentSky` and `birth` while declaring neither → `ReferenceError` on
+   first render. PR #107 added them on its branch; the merge kept the usages and
+   dropped the declarations. **No commit removed them**, so `git log -S` finds
+   only the one that introduced them — bisect the *state*, not the diff.
+3. **The birthplace no longer leaves the device** (#145, GAZ-1..GAZ-5). Nominatim
+   geocoding and CARTO tiles are gone, replaced by a vendored 69,577-city
+   GeoNames extract + a Natural Earth outline. `no-external.spec.ts` flipped red
+   → green **with no edit to its assertion**; its host ledger is empty.
+4. **The whole e2e suite is green: 138/138.** No red-on-purpose left.
+5. Stale duplicate instrument removed (#143); discrepancy record + APK/i18n
+   roadmap written (#146); `substrate-comm` pushed; PR #133 closed by operator.
+
+## ⚠️ Red no longer hides red — keep it that way
+
+The deliberately-failing `no-external` test was correct practice and worked. But
+it sat red for weeks, so the CI badge was red for weeks, and **the genuinely
+broken frontend build (#144) was indistinguishable from the accepted noise.**
+
+**Rule going forward:** a test expected to fail must not fail the *build*. Use
+`test.fail()` (Playwright inverts it — it goes red the moment the fix lands) or
+skip with a tracking issue. Intentional red is a fine TDD device for one commit
+and a broken smoke alarm after a week.
+
+## Repo state
+
+| where | state |
+|---|---|
+| `astro-aae` @ `main` | `d8e392a`, **synced with origin**, clean, `git add -A` stages 0 |
+| open PRs | **none** |
+| suites | backend **346** · frontend unit **12** · e2e **138/138** · build clean |
+| tripwires | `gen_parity_vectors.py --check` and `gen_gazetteer.py --check` both green |
+| `backend/.env` | Edition P: `AAE_PERSONAL_MODE=1`, Stripe commented — unchanged |
+| Stripe keys locally | **all `sk_test`/`whsec`.** The live key exists only in the Stripe dashboard, not this machine |
+| servers | ALL DOWN (8787/5173/8791 verified free) |
+| `~/substrate-comm` @ `consolidation` | **pushed**; 41 tests green. `data/raw_measurements.json` left dirty on purpose — see below |
+
+**`substrate-comm` dirty file:** the change is provenance-only (`git_rev`,
+`generated_utc`) plus a key reorder. **Zero measurement values differ** —
+verified structurally, and the three `nan -> nan` "differences" are Python's
+NaN inequality, not real. Left uncommitted because re-stamping provenance onto a
+commit that changed no data would claim a regeneration that did not happen.
+`git checkout data/raw_measurements.json` to clear it.
+
+## New this session, worth knowing
+
+- **`frontend/` now has unit tests**: `npm test` (tsx + `node:test`, matching the
+  `@astra/core` precedent). 12 gazetteer tests. Wired into the frontend CI job.
+- **`backend/tools/gen_gazetteer.py`** — two-tier `--check`. Offline (what CI
+  runs) re-derives invariants + a SHA-256 content digest from the artifact
+  itself; `--source <cities5000.txt>` adds the full regeneration compare. CI
+  deliberately does NOT download from GeoNames.
+- **Precache grew 1.77 MB → 4.78 MB.** `maximumFileSizeToCacheInBytes` is raised
+  to 5 MiB because `cities.json` (3.14 MB) exceeds workbox's 2 MiB default and
+  would otherwise be **silently dropped** — an app that looks fine until offline.
+- **`d3` and `@types/d3` were removed**: declared but imported nowhere, no chunk
+  ever emitted. `d3-geo` is now a direct dependency. `npm audit`: **0**.
+- **`docs/audits/DATA_DISCREPANCIES.md`** — ten recorded-vs-true gaps with the
+  check that would have caught each. Read it before trusting a summary in here.
+
+## Open decisions for the operator
+
+1. **Production is blocked on you, not on code** — domain + VPS. See below.
+2. **GAZ-5's sibling work** (`TZ-1..TZ-5`, historical timezone resolution) is now
+   unblocked: `COMPREHENSIVE_TASK_SCHEDULE` §6.6 notes TZ is a hard dependent of
+   GAZ-1, and GAZ-1 shipped with the IANA zone name per city. `CeremonyModal`
+   still defaults `tz_offset` to `-5` and sets it from *today's* DST on
+   geolocate — a real latent correctness bug for historical births.
+3. **APK + translation** — both tracks scoped in `APK_I18N_ROADMAP.md`, both
+   still PROPOSED and parked. `A0` (F-Droid build-from-source for the 404 KB
+   `swisseph.wasm`) is the blocker and is small.
+
+## Where production actually sits
+
+Against `LAUNCH_ENGINEERING_ROADMAP.md`:
+
+| | milestone | state |
+|---|---|---|
+| **M0** | validate rail in test mode | ⚠️ **the human click-through is still unverified** |
+| **M1** | Track E-3 purchase UI + pricing | ✅ **DONE** (shipped before this session; verified here — 16/16 checkout e2e) |
+| **M2** | Track E-1/E-2 threshold + depth | ✅ largely landed (E-1a/E-1b/E-2a merged) |
+| **M3** | policies & copy | ✅ `/legal` shipped: privacy, terms, refunds, pricing + tests. Privacy updated this session to match GAZ |
+| **M4** | deploy to VPS + live webhook | ⛔ **BLOCKED — needs your domain + box** |
+| **M5** | go live (test→live keys) | ⛔ gated on M4 |
+
+Phase 3.5 (backups) is also done — `backend/tools/backup.py` plus a **restore
+drill actually performed 2026-07-20**, logged in `DEPLOY.md` §7.
+
+**The honest read: the software is production-ready and the deployment is not
+started, because it cannot be.** The single external dependency is the one you
+named — a domain and a machine. Everything M4 needs is written down (compose
+stack, Cloudflare TLS, secrets on the host, webhook endpoint, the two deferred
+edge checks: securityheaders.com scan + Prometheus alert rules).
+
+**When the box exists, the remaining path is short:** M0's click-through (~30
+min, test mode, needs `stripe listen`), then M4, then M5. No further feature
+work is required to take money.
 
 ---
 
@@ -85,7 +200,16 @@ document a tool it does not contain; the instructions live in
 
 ## Repo state
 
-| where | state |
+> ⛔ **SUPERSEDED — this table is a historical record of 2026-08-06, not current
+> state.** Both "unpushed" rows are now false: `main` was pushed and
+> `substrate-comm` was pushed on 2026-08-07. Use session 22's table above.
+>
+> Kept rather than corrected in place, because reading a stale state table as
+> current is exactly the failure this document keeps producing — see
+> `docs/audits/DATA_DISCREPANCIES.md` §E1. **Re-derive with `git fetch && git
+> status -sb` regardless of which table you are reading.**
+
+| where | state (as of 2026-08-06) |
 |---|---|
 | `astro-aae` @ `main` | clean; **ahead of `origin/main`, unpushed** (`git log origin/main..main`) |
 | branch `gitignore-env-glob` | merged to main; safe to delete |
