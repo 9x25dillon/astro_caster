@@ -97,19 +97,34 @@ document a tool it does not contain; the instructions live in
 
 ## Open decisions for the operator
 
-1. **Push `main`** (the ignore glob + these docs). Until it is
-   pushed, anyone cloning `github.com/9x25dillon/astro_caster` still gets only
-   the literal-path `backend/.env` rule — the fix protects this machine, not
-   the repo. This is the one outstanding item with a security consequence.
-2. **Two duplicate instruments are already public in this repo:**
-   `resonarium/resonarium_hologram enhanced.html` (note the space) and
-   `resonarium/resonarium_hologram_cymatic_nodal_4D.html` are byte-identical
-   copies of *Cymatic Nodal 4D*. Remove from the repo, or leave.
-3. **Pre-existing bug, left alone deliberately:** `biosentinel-field.html`
-   references `g_correct` / `g_total` / `g_streak` in `updateScore()` but has
-   no elements with those ids → `ReferenceError` on every call, scoring readout
-   dead. The instrument itself renders and plays fine.
+1. ~~**Push `main`**~~ — **DONE 2026-08-07.** `main` was 3 ahead / **48 behind**
+   (the operator merged heavily after session 21 closed). Merged `origin/main`
+   in — clean, no conflicts — and pushed as `95a5f1a`. The public repo now
+   carries the globbed `backend/.env*` rule; verified `backend/.env`,
+   `.env.public` and `.env.bak.*` all resolve as ignored while
+   `.env.example` stays trackable, and `git add -A` still stages 0 paths.
+2. ~~**Two duplicate instruments are already public**~~ — **RESOLVED
+   2026-08-07.** Removed `resonarium/resonarium_hologram enhanced.html`; kept
+   `resonarium_hologram_cymatic_nodal_4D.html`. The removed file was the stale
+   one on every axis: a space in the filename, a name claiming "enhanced" while
+   its own `<title>` reads *Resonarium • Cymatic Nodal 4D*, and a single
+   web-UI `Create …` commit — whereas the survivor arrived through a
+   deliberate `Update and rename rhe.html to …`. Byte-identity was confirmed by
+   md5 (`1f59baee…`) **before** deleting, so no content was lost.
+3. ~~**Pre-existing bug:** `biosentinel-field.html` scoring readout~~ —
+   **FIXED 2026-08-07.** The diagnosis in the original note was half right: the
+   ids *do* exist, but they are **hyphenated** in the markup (`g-correct`,
+   `g-total`, `g-streak`) while `updateScore()` referenced **underscored** bare
+   identifiers (`g_correct`, …). A hyphenated id is not a valid JS identifier,
+   so the named-element-global shorthand can never resolve it. Rewritten to the
+   `document.getElementById(...)` form the rest of the file already uses.
+   Proven fail-before/pass-after in a real browser: the old body still raises
+   `ReferenceError: g_correct is not defined`, the new one drives
+   guess → reveal → counter 0 → 1 with zero console errors.
+   **Note: this file is local-only** (`.git/info/exclude`), so the repair lives
+   on this machine and is NOT in any PR — it will not survive a fresh clone.
 4. **`substrate-comm`** — push `consolidation` + open a PR, or leave local.
+   *(Still open.)*
 
 ## Gotchas learned today (all cost real time)
 
