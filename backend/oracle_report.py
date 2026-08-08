@@ -56,6 +56,18 @@ _MAX_TOKENS = int(os.environ.get("AAE_ORACLE_REPORT_MAX_TOKENS", "16000"))
 _EFFORT = os.environ.get("AAE_ORACLE_REPORT_EFFORT", "high")
 _TIMEOUT_S = float(os.environ.get("AAE_ORACLE_REPORT_TIMEOUT", "600"))
 
+
+def ai_configured() -> bool:
+    """True when the Fable layer has a key to call.
+
+    Shared by the Oracle report, the Course and the Personal Report, all three
+    of which route through `_call_fable` and therefore through this one key.
+    Callers use it to tell "offline because nothing is set up" from "offline
+    because the call failed" — see `metrics.observe_ai_fallback`, which alarms
+    on only the second.
+    """
+    return bool(_ANTHROPIC_KEY)
+
 REPORT_SYSTEM = ARCANA_SYSTEM + """
 
 You are writing the ORACLE REPORT — the deepest reading this observatory

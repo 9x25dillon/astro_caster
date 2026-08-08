@@ -120,3 +120,50 @@ def test_a_real_request_shows_up_in_metrics(monkeypatch):
     client.post("/api/v1/generate-chart", json=_BIRTH)
     body = client.get("/metrics", headers={"X-AAE-Token": "op-secret"}).text
     assert 'path="/api/generate-chart"' in body
+
+
+# ── degraded-service visibility (the flat-counter trap) ─────────────────────
+
+
+def test_a_dead_provider_is_counted_rather_than_leaving_the_counter_flat():
+    """The bug this exists to prevent.
+
+    `aae_ai_calls_total` only counts SUCCESSES, so when the provider dies it
+    stops incrementing — which is byte-for-byte what "nobody used the product"
+    looks like. Those two readings call for opposite actions (top up the
+    balance vs. fix the marketing), so a flat success counter alone cannot be
+    acted on. This pins that a failure leaves a positive, findable trace.
+    """
+    MET.reset()
+    MET.observe_ai_fallback("oracle", "degraded")
+    MET.observe_ai_fallback("oracle", "degraded")
+
+    assert MET.ai_fallback_snapshot() == {"degraded": {"oracle": 2}}
+    assert 'aae_ai_fallback_total{kind="oracle",reason="degraded"} 2' in MET.render()
+
+
+def test_the_three_reasons_stay_distinct():
+    """`capped` must never read as an outage.
+
+    On a tight daily cap the guard fires routinely and by design. If that were
+    folded into `degraded` the alarm would cry wolf every day, and a real
+    exhausted balance would be lost inside the noise.
+    """
+    MET.reset()
+    MET.observe_ai_fallback("ask", "degraded")
+    MET.observe_ai_fallback("ask", "capped")
+    MET.observe_ai_fallback("ask", "unconfigured")
+
+    snap = MET.ai_fallback_snapshot()
+    assert snap == {"degraded": {"ask": 1}, "capped": {"ask": 1}, "unconfigured": {"ask": 1}}
+
+
+def test_fallbacks_are_not_counted_as_spend():
+    """A fallback costs nothing — that is the entire point of the offline
+    compiler. Counting one as a provider call would inflate the spend proxy
+    the budget guard reads."""
+    MET.reset()
+    MET.observe_ai_fallback("deluxe", "degraded")
+    body = MET.render()
+    assert 'aae_ai_calls_total{kind="deluxe"}' not in body
+    assert 'aae_ai_response_chars_total{kind="deluxe"}' not in body

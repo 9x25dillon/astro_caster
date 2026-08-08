@@ -384,6 +384,10 @@ async def ai_ask(req: AIRequest, request: Request):
     ))
     if result.get("source") == "llm":
         MET.observe_ai_call("ask", len(result.get("interpretation", "")))
+    else:
+        # `note` is set only by ai.py's exception path, so its presence is the
+        # difference between "the provider broke" and "there is no provider".
+        MET.observe_ai_fallback("ask", "degraded" if result.get("note") else "unconfigured")
     return result
 
 
@@ -840,6 +844,8 @@ async def ai_ask_stream(req: AIRequest, request: Request):
         ))
         if final.get("source") == "llm":
             MET.observe_ai_call("ask", char_count)
+        else:
+            MET.observe_ai_fallback("ask", "degraded" if final.get("note") else "unconfigured")
 
     return StreamingResponse(
         gen(),
@@ -878,6 +884,11 @@ async def admin_stats(token: Optional[str] = None,
     summary = await asyncio.to_thread(TEL.summary)
     summary["caches"] = CACHE.all_stats()  # Phase 3.4 hit-rate visibility
     summary["budget"] = BUDGET.snapshot()  # Phase 4.4 AI spend visibility
+    # Degraded-service visibility. `budget` above answers "what did I spend";
+    # this answers "how many people got the lesser product because I couldn't
+    # spend it" — the question a flat spend figure cannot distinguish from
+    # nobody having shown up.
+    summary["ai_fallbacks"] = MET.ai_fallback_snapshot()
     return summary
 
 
@@ -1041,6 +1052,8 @@ async def tarot_reading(req: TarotReadingRequest, request: Request):
             MET.observe_ai_call("tarot", len(reading.interpretation))
         else:
             reading.ai_source = "offline"
+            MET.observe_ai_fallback(
+                "tarot", "degraded" if ai.get("note") else "unconfigured")
         _spawn(TEL.log_ai(
             tier=tier, lens="arcana", depth="deep", query=req.question,
             provider=str(ai.get("provider", "")), model=str(ai.get("model", "")),
@@ -1109,6 +1122,13 @@ async def oracle_report(req: OracleReportRequest, request: Request):
     if result.ai_source == "llm":
         MET.observe_ai_call("oracle", len(result.report))
         BUDGET.record(req.entitlement, "oracle", len(result.report))
+    elif not allow_ai:
+        # The spend guard did this on purpose. Separated from `degraded` so a
+        # tight cap doing its job never reads as an outage.
+        MET.observe_ai_fallback("oracle", "capped")
+    else:
+        MET.observe_ai_fallback(
+            "oracle", "degraded" if ORACLE.ai_configured() else "unconfigured")
     return result
 
 
@@ -1141,6 +1161,11 @@ async def course(req: CourseRequest, request: Request):
     if result.ai_source == "llm":
         MET.observe_ai_call("course", len(result.course))
         BUDGET.record(req.entitlement, "course", len(result.course))
+    elif not allow_ai:
+        MET.observe_ai_fallback("course", "capped")
+    else:
+        MET.observe_ai_fallback(
+            "course", "degraded" if ORACLE.ai_configured() else "unconfigured")
     return result
 
 
@@ -1189,6 +1214,11 @@ async def personal_report(req: PersonalReportRequest, request: Request):
     if result.ai_source == "llm":
         MET.observe_ai_call("deluxe", len(result.report_markdown))
         BUDGET.record(req.entitlement, "deluxe", len(result.report_markdown))
+    elif not allow_ai:
+        MET.observe_ai_fallback("deluxe", "capped")
+    else:
+        MET.observe_ai_fallback(
+            "deluxe", "degraded" if ORACLE.ai_configured() else "unconfigured")
     return result
 
 

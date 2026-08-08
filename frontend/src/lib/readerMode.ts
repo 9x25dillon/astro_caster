@@ -42,4 +42,17 @@ export const READER_MODE: boolean = (() => {
  * than an in-app flow: the moment the app opens a purchase surface it owns, it
  * is selling, and the whole reader-mode argument collapses.
  */
+// `#support` is load-bearing and deliberately survives BOTH deploy layouts,
+// which is why it is not simply `#pricing`:
+//
+//   * app served at `/`      → App.tsx routes `#support` to the Support panel,
+//                              which is the buy surface. (Today's nginx.conf.)
+//   * landing served at `/`  → `landing/index.html` carries an `id="support"`
+//                              anchor on its pricing section for exactly this.
+//
+// The deploy layout is still undecided (M4), so a link that only works under
+// one of them is a coin flip baked into a distributed binary — and an APK is
+// the one artifact you cannot quietly re-point later. Nothing checks an anchor
+// at build time, so if you rename either target, rename the other in the same
+// commit.
 export const PURCHASE_URL = "https://astra-arcana.com/#support";
