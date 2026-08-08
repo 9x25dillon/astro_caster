@@ -69,6 +69,14 @@ class AIRequest(BaseModel):
     # feature — pass the entitlement token to unlock it.
     depth: Literal["quick", "deep"] = "quick"
     entitlement: Optional[str] = None
+    # FREE-1 — the client's claim that this free reading is still inside today's
+    # allowance of premium-model readings. Honoured for the FREE TIER ONLY, and
+    # only to pick a better writer at a short length; it can never unlock a paid
+    # feature, raise a paid tier's budget, or bypass budget.py's server-side
+    # spend cap. It is counted on the device precisely so no identifier has to
+    # be minted, stored, or disclosed — the tradeoff is that it is resettable,
+    # which is acceptable for a ~$0.03 call behind a hard global ceiling.
+    free_premium: bool = False
 
 
 # --------------------------------------------------------------------------- #

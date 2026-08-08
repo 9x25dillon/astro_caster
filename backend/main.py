@@ -370,6 +370,10 @@ async def ai_ask(req: AIRequest, request: Request):
         selected_id=req.selected_id,
         depth=req.depth,
         tier=tier,
+        # FREE-1: the allowance only ever applies to the free tier. Anding it
+        # here rather than trusting the flag means a paid tier can never be
+        # talked into a different model by a crafted request body.
+        free_premium=bool(req.free_premium) and tier == "free",
     )
     _spawn(TEL.log_ai(
         tier=tier, lens=req.lens, depth=req.depth, query=req.query,
