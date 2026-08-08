@@ -15,7 +15,13 @@ import { loadGazetteer, type City, type Gazetteer } from "../lib/gazetteer";
 interface Props {
   lat: number;
   lng: number;
-  onChange: (lat: number, lng: number) => void;
+  /**
+   * `tz` is the chosen city's IANA zone name, present only when the coordinates
+   * came from the gazetteer (TZ-2). A map click or a device-location fix has no
+   * zone, and the caller must not guess one — see CeremonyModal, which keeps the
+   * previous offset rather than inventing a zone from the browser's own clock.
+   */
+  onChange: (lat: number, lng: number, tz?: string) => void;
 }
 
 function round4(n: number) {
@@ -69,7 +75,9 @@ export const LocationPicker: React.FC<Props> = ({ lat, lng, onChange }) => {
   }, [query]);
 
   const choose = (c: City) => {
-    onChange(round4(c.lat), round4(c.lng));
+    // The gazetteer row carries the IANA zone, which is what makes a historical
+    // birth resolvable at all — pass it up with the coordinates.
+    onChange(round4(c.lat), round4(c.lng), c.tz);
     setResults([]);
     setQuery(c.name);
   };
