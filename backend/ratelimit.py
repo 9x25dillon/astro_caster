@@ -35,6 +35,7 @@ from typing import Deque, Dict, Optional, Tuple
 
 from fastapi import HTTPException, Request
 
+import clientip as CLIENTIP
 import entitlements as ENT
 
 _TRUTHY = {"1", "true", "yes", "on"}
@@ -82,9 +83,12 @@ _MAX_KEYS = 10_000
 
 
 def _key(request: Optional[Request], entitlement: Optional[str]) -> str:
-    ip = "unknown"
-    if request is not None and request.client is not None:
-        ip = request.client.host or "unknown"
+    # Via clientip so this honours forwarding headers when (and only when)
+    # AAE_TRUST_PROXY says the proxy in front is trustworthy. Reading
+    # request.client.host directly made every visitor behind the shipped nginx
+    # share ONE window keyed on the proxy's address — a per-IP limit that was
+    # really a global one, and that a Sybil attacker disappeared into.
+    ip = CLIENTIP.client_ip(request) or "unknown"
     tok = ""
     if entitlement:
         tok = ":" + hashlib.sha256(entitlement.encode()).hexdigest()[:12]

@@ -94,9 +94,36 @@ That is the worst case — 2 premium readings every day, every device. The real
 protections, in order:
 
 1. **`budget.py`'s global daily cap** — server-side, no client can move it. This
-   is the actual ceiling and it already exists.
+   is the actual ceiling.
+
+   > ⚠️ **This was FALSE when written, and is true as of 2026-08-07.** The cap
+   > existed, but `/api/ai-ask` — the free tier, the subject of this very
+   > section — never called `budget.allow_call` or `budget.record`. Neither did
+   > the streamed ask or the tarot reading. `budget.py` even defined the `ask`
+   > and `tarot` kinds in `_NOMINAL_CHARS`; nothing ever asked it. So the one
+   > path this section calls "the only real leak" was the one path the ceiling
+   > did not cover, and setting `AAE_GLOBAL_DAILY_USD` would not have bounded
+   > it. All three are gated now, pinned by
+   > `test_the_free_ask_path_is_actually_capped`.
+   >
+   > Two lessons, both cheap next time: a cost control is not verified by
+   > reading the module that implements it, only by finding its call site on
+   > the path you care about; and `_NOMINAL_CHARS` listing a kind was mistaken
+   > for that kind being wired, when it was only ever a price list.
 2. The 700-token free cap, which is a third of supporter's room.
 3. The offline compiler, which costs nothing and always answers.
+4. **Per-IP anonymous budget buckets** (2026-08-07). Tokenless callers used to
+   share one bucket named `anon`, so the per-user cap was a single collective
+   allowance for the whole internet: one abuser clearing local storage in a
+   loop drained the day and every honest visitor got the offline compiler. Each
+   address now gets its own daily slice, keyed by a salted hash that rotates
+   daily and never leaves memory. Not a security boundary — many addresses
+   still buy many buckets — but it makes abuse self-limiting instead of free,
+   and the global cap remains the real ceiling.
+
+   **This depends on `AAE_TRUST_PROXY=1` behind a reverse proxy.** Without it
+   every visitor resolves to the proxy's address and both this and the rate
+   limiter collapse back into one shared bucket — silently, and looking fine.
 
 **The highest-leverage cost work is not the output cap — it is the 5,646-token
 chart payload.** Sending a condensed chart summary for short free readings would

@@ -365,11 +365,22 @@ async def interpret(
     depth: str = "quick",
     tier: str = "free",
     free_premium: bool = False,
+    allow_ai: bool = True,
 ) -> Dict[str, object]:
-    """Return {"interpretation": str, "source": "llm"|"offline", "model": str}."""
+    """Return {"interpretation": str, "source": "llm"|"offline", "model": str}.
+
+    `allow_ai=False` (the spend guard said no) short-circuits to the offline
+    compiler. It is checked BEFORE resolving a provider so a capped call also
+    skips the ~1.5s liveness probe — under a cap that path is the common one,
+    and paying a probe to be told "no" would make the degraded experience
+    slower than the real one.
+    """
     context = _build_context(chart, selected_type, selected_id)
     # The liveness probe inside can block ~1.5s — keep it off the event loop.
-    provider = await asyncio.to_thread(_resolve_provider_for_tier, tier)
+    provider = (
+        await asyncio.to_thread(_resolve_provider_for_tier, tier)
+        if allow_ai else "offline"
+    )
     system, user, model, budget = _build_prompts(
         query, context, lens, selected_type, selected_id, depth, provider, tier, free_premium
     )
@@ -418,6 +429,7 @@ async def interpret_arcana(
     system: str,
     user: str,
     tier: str = "free",
+    allow_ai: bool = True,
 ) -> Dict[str, object]:
     """
     Card-aware Astra Arcana reading. The caller (tarot endpoint) builds the
@@ -425,9 +437,14 @@ async def interpret_arcana(
     same provider/tier machinery as interpret(). Returns
     {"text": str, "source": "llm"|"offline", "provider": str, "model": str}.
     On any failure source == "offline" and the caller keeps its deterministic prose.
+
+    `allow_ai=False` means the spend guard refused; see interpret().
     """
     # The liveness probe inside can block ~1.5s — keep it off the event loop.
-    provider = await asyncio.to_thread(_resolve_provider_for_tier, tier)
+    provider = (
+        await asyncio.to_thread(_resolve_provider_for_tier, tier)
+        if allow_ai else "offline"
+    )
     provider = _demote_kgirl_if_prompt_too_long(provider, system, user)
     if provider == "offline":
         return {"text": "", "source": "offline", "provider": "offline", "model": ""}
@@ -464,6 +481,7 @@ async def interpret_stream(
     depth: str = "quick",
     tier: str = "free",
     free_premium: bool = False,
+    allow_ai: bool = True,
 ):
     """
     Async generator yielding (event, payload) tuples:
@@ -477,7 +495,10 @@ async def interpret_stream(
     """
     context = _build_context(chart, selected_type, selected_id)
     # The liveness probe inside can block ~1.5s — keep it off the event loop.
-    provider = await asyncio.to_thread(_resolve_provider_for_tier, tier)
+    provider = (
+        await asyncio.to_thread(_resolve_provider_for_tier, tier)
+        if allow_ai else "offline"      # spend guard refused; see interpret()
+    )
     system, user, model, budget = _build_prompts(
         query, context, lens, selected_type, selected_id, depth, provider, tier, free_premium
     )

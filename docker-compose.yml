@@ -28,6 +28,14 @@ services:
       # Premium voice + ephemeris data files (optional).
       ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY:-}
       SE_EPHE_PATH: ${SE_EPHE_PATH:-}
+      # Cost control. Defaults ($100/day) suit a funded deployment, not a fixed
+      # prepaid balance — see .env.example before going live.
+      AAE_GLOBAL_DAILY_USD: ${AAE_GLOBAL_DAILY_USD:-}
+      AAE_USER_DAILY_USD: ${AAE_USER_DAILY_USD:-}
+      # Safe to default ON here specifically: the backend below uses `expose:`,
+      # never `ports:`, so nothing outside this compose network can reach it and
+      # forge a forwarding header. Publish the backend and this must be revisited.
+      AAE_TRUST_PROXY: ${AAE_TRUST_PROXY:-1}
     extra_hosts:
       # Lets AAE_OLLAMA_URL=host.docker.internal reach an Ollama on the host.
       - "host.docker.internal:host-gateway"
