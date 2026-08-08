@@ -5,6 +5,111 @@ PR bodies; this is the story. Started session 15 at the operator's request._
 
 ---
 
+## Session 23 · 2026-08-08 — a price list mistaken for a wiring diagram
+
+The session was asked to finish two things a closed terminal had interrupted: a
+landing page and an APK. Both finished. The day's actual work started with a
+question the operator asked in passing — what happens when the API calls fail —
+and ended with three cost controls that were present, plausible, documented, and
+doing nothing.
+
+The APK first, because it was supposed to be impossible. #150 had recorded that
+no APK could be built on this machine: java and adb, no SDK, no gradle. That was
+true when written and had quietly stopped being true — the SDK was installed at
+22:25 the previous night, `cap add android` ran at 22:28, and then the terminal
+died before anything was built. So the work was less "build an APK" than "notice
+that the blocker had already been removed."
+
+What stood between here and a signed artifact was the JDK, which fails in three
+different ways depending on which one you have. JDK 17 says `invalid source
+release: 21`, which at least names the problem. JDK 26 gets further, launches
+Gradle fine, and then dies inside AGP's `JdkImageTransform` running `jlink`
+against `android-36` — an error that names `jlink` and reads like a corrupt SDK.
+The machine had 17 and 26 and neither works; 21 does. Two failed builds to learn
+one number, which is now written down in three places.
+
+Then the part worth being embarrassed about. The reader-mode shell hardcodes
+where a user goes to subscribe, and it pointed at `astra-arcana.com/#support`.
+The landing page's only anchor was `#pricing`. That is a dead link, obviously,
+so it was fixed to `#pricing`, the bundle rebuilt, the project re-synced, the
+release APK rebuilt, and the whole thing re-signed — and then `App.tsx:101`
+turned up, routing `#support` to the Support panel, which is the buy surface.
+The original link was correct. Two full build-and-sign cycles spent on a `grep`
+that would have taken four seconds.
+
+The recovery was better than either starting position, which is the only
+consolation on offer. Whether `#support` or `#pricing` resolves depends entirely
+on the deploy layout, and the deploy layout is an M4 decision nobody has made:
+today's nginx serves the *app* at `/`, while the landing page assumes it lives
+there itself. Neither anchor was safe, and an APK is the one artifact you cannot
+quietly re-point after it is distributed. So the landing page grew an
+`id="support"` anchor and the URL stayed, and now the link works under both
+layouts. A signed binary no longer depends on an unmade decision.
+
+Then the operator asked how he would know when to top up the AI balance, and the
+answer turned out to be that he wouldn't. `metrics.py` counts successful
+provider calls — deliberately, with a comment explaining that the point is
+spend, which is correct for a spend metric. The consequence is that when the
+provider dies, the counter stops going up. A counter that stops going up is
+byte-for-byte what "nobody used the product" looks like. Those two readings
+demand opposite responses — fix your billing, or fix your marketing — and the
+ambiguity is sharpest exactly when it is most expensive, in the days after a
+launch when traffic is high and an exhausted balance is likely. Every visitor in
+that window silently receives the offline compiler instead of the product, and
+nothing anywhere records that it happened.
+
+Pulling that thread found the real thing. `budget.py` defines `"ask": 3000` and
+`"tarot": 1200` in its nominal-cost table. The kinds are there. They were
+designed in. Nothing has ever called them: `/api/ai-ask` never invoked
+`allow_call`, and neither did the streamed ask or the tarot reading. So the
+global daily cap — which `PRICING_MODEL` §6 names "the actual ceiling and it
+already exists", in a section titled *the free tier is the only real leak* — did
+not cover the free tier. The one path with no revenue against it was the one
+path the ceiling missed, and setting `AAE_GLOBAL_DAILY_USD` would not have
+bounded a cent of it.
+
+Two more of the same shape sat underneath. Every tokenless caller keyed to the
+literal string `"anon"`, so the *per-user* cap behaved as one collective
+allowance for the entire internet — bounding the bill but not the damage, since
+one abuser clearing local storage in a loop drains the day and every honest
+visitor gets the offline compiler. And the address that both that bucket and the
+rate limiter key on was, in production, the proxy's. nginx sets
+`X-Forwarded-For`; the backend runs as a bare `uvicorn main:app --host 0.0.0.0`,
+and uvicorn only believes forwarding headers from `127.0.0.1`. Under compose
+nginx connects from the bridge network, so the header arrives, is correct, and
+is ignored. The per-IP sliding window was one global window that a Sybil
+attacker simply disappeared into. That one was already broken before today; it
+was only found because it would have made the new bucketing pointless.
+
+The unifying disease is one layer deeper than session 22's. That day the
+*summaries* had outlived their evidence. Today the summaries were fine and the
+*code* was the thing describing a system more finished than it was — a nominal
+cost table read as a wiring diagram, an env var read as a ceiling. A cost
+control is not verified by reading the module that implements it. It is verified
+by finding its call site on the path you care about.
+
+The payload work at the end was supposed to be the day's multiplier and turned
+out to be a correction. `PRICING_MODEL` §1 measured the chart at 5,646 tokens
+from `parity/natal-chart.json` — the full chart, which the prompt never carried,
+since `_build_context` discards 72% of it first. And §6 predicted trimming would
+bring a free reading "to well under a cent", which no input optimisation could
+ever do: 700 output tokens cost $0.0105 by themselves. Output was already about
+three quarters of the cost and the prediction was arithmetically impossible. The
+real result is a 73% smaller chart block and a 24% cheaper reading — worth
+having, not the fivefold thing the document implied. The first attempt at
+measuring it was made against the same wrong file, which is a good argument for
+writing the lesson down in the imperative: measure the string the model
+receives, not the file it was derived from.
+
+The day closed on a merge conflict that was not one. PR #152 was squash-merged
+while three more commits were still being pushed to the branch, so main received
+a *prefix* of the work and the next merge conflicted in six places. All six had
+the same shape — our side a strict superset, because main's version of those
+lines came from our own earlier commits. The tempting resolution was the
+dangerous one: accepting both sides on three of them would have kept two copies
+of `BUDGET.record(...)`, charging every paid call twice and halving the very cap
+the day had been spent installing.
+
 ## Session 22 · 2026-08-07 — the summaries that outlived their evidence
 
 The session was asked for as housekeeping: push main, delete a duplicate, fix a
