@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Astra — the Celestial Observatory</title>
+<meta name="description" content="Natal astrology, tarot and predictive timing, computed to arc-second precision. The mathematics is free forever and runs in your browser. Your birthplace never leaves your device.">
+
+<!--
+  This page makes ZERO external requests — no font CDN, no analytics, no
+  embeds. That is not a performance flourish: the product's central claim is
+  that it doesn't send your data anywhere, and a marketing page that phoned
+  home while saying so would be the most embarrassing possible contradiction.
+  Everything here is inline or same-origin. Keep it that way.
+
+  ⚠️ DEPLOY LAYOUT — THIS PAGE IS NOT SERVEABLE AS-IS. It assumes it lives at
+  `/` with the app at `/app/`. `frontend/nginx.conf` currently does the
+  opposite: `root /usr/share/nginx/html` with `location /` falling back to the
+  APP's index.html, so today `/app/` 404s and this file has nowhere to sit.
+  One of the two has to move, and that is an M4 deployment decision, not a
+  copy edit — it was deliberately NOT made here. Whoever does M4:
+
+    * `/legal/privacy.html` (and terms/refunds/pricing) DO resolve under the
+      current config — the app build emits them at `dist/legal/`, so those four
+      footer links are already correct and must stay at that path if the app
+      moves.
+    * `/app/` is the only broken link, and it is broken in EVERY layout until
+      nginx gains a location for it.
+    * Whatever you change, re-check `test_edge_headers.py` — nginx's
+      add_header inheritance breaks the moment a new location sets its own,
+      and that test exists because it already happened once.
+-->
+
+<meta property="og:title" content="Astra — the Celestial Observatory">
+<meta property="og:description" content="A fortune-telling app that actually does the math. The mathematics is free forever; the unlock is for the writing.">
+<meta property="og:image" content="img/01-threshold-first-visit.png">
+<meta property="og:type" content="website">
+
+<style>
+  :root{
+    --bg:#0b0b0f; --panel:#12121a; --gold:#c9a84c; --gold-soft:#e0c578;
+    --gold-bright:#f2dca0; --ink:#9a8f78; --rule:#3a3320; --amethyst:#8e7cc3;
+    --ion:#7fe7dc; --text:#e8e3d6;
+    --serif: "Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--bg); color:var(--text); font-family:var(--serif);
+    line-height:1.65; -webkit-font-smoothing:antialiased;
+  }
+  /* A quiet starfield, drawn with gradients so it costs no request. */
+  body::before{
+    content:""; position:fixed; inset:0; pointer-events:none; z-index:0; opacity:.55;
+    background:
+      radial-gradient(1.4px 1.4px at 12% 18%, #fff8 50%, transparent 51%),
+      radial-gradient(1.2px 1.2px at 74% 12%, #fff6 50%, transparent 51%),
+      radial-gradient(1.6px 1.6px at 43% 62%, #fff7 50%, transparent 51%),
+      radial-gradient(1.1px 1.1px at 88% 71%, #fff5 50%, transparent 51%),
+      radial-gradient(1.3px 1.3px at 26% 84%, #fff6 50%, transparent 51%),
+      radial-gradient(1px 1px at 61% 34%, #fff4 50%, transparent 51%);
+  }
+  .wrap{position:relative; z-index:1; max-width:1080px; margin:0 auto; padding:0 24px}
+  a{color:var(--gold-soft)}
+  a:hover{color:var(--gold-bright)}
+
+  header{padding:70px 0 30px; text-align:center}
+  .mark{font-size:15px; letter-spacing:.34em; color:var(--gold); text-transform:uppercase}
+  h1{
+    font-size:clamp(40px,7vw,68px); margin:.28em 0 .12em; font-weight:500;
+    letter-spacing:.012em;
+    background:linear-gradient(180deg,var(--gold-bright),var(--gold));
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .tagline{font-size:clamp(18px,2.4vw,23px); color:var(--gold-soft); font-style:italic; margin:0 0 20px}
+  .lede{max-width:60ch; margin:0 auto 30px; color:var(--text); font-size:17px}
+
+  .cta{display:flex; gap:14px; justify-content:center; flex-wrap:wrap; margin:32px 0 8px}
+  .btn{
+    display:inline-block; padding:13px 26px; border-radius:9px; text-decoration:none;
+    font-size:16px; border:1px solid var(--gold); transition:transform .12s ease;
+  }
+  .btn:hover{transform:translateY(-1px)}
+  .btn-primary{background:linear-gradient(180deg,var(--gold-soft),var(--gold)); color:#191400; font-weight:600}
+  .btn-ghost{color:var(--gold-soft); border-color:var(--rule)}
+  .cta-note{font-size:13.5px; color:var(--ink); margin-top:10px}
+
+  figure{margin:44px 0}
+  figure img{
+    width:100%; height:auto; display:block; border:1px solid var(--rule);
+    border-radius:11px; box-shadow:0 22px 60px #0009;
+  }
+  figcaption{font-size:14px; color:var(--ink); text-align:center; margin-top:12px; font-style:italic}
+
+  section{padding:52px 0; border-top:1px solid var(--rule)}
+  h2{font-size:clamp(26px,3.6vw,34px); color:var(--gold-soft); margin:0 0 8px; font-weight:500}
+  .sub{color:var(--ink); margin:0 0 28px; font-size:16.5px}
+
+  .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:22px}
+  .card{background:var(--panel); border:1px solid var(--rule); border-radius:11px; padding:22px}
+  .card h3{margin:0 0 8px; font-size:19px; color:var(--gold-soft); font-weight:500}
+  .card p{margin:0; font-size:15.5px; color:var(--text)}
+  .card .glyph{font-size:22px; color:var(--gold); display:block; margin-bottom:8px}
+
+  .two{display:grid; grid-template-columns:1.15fr .85fr; gap:38px; align-items:center}
+  @media(max-width:860px){.two{grid-template-columns:1fr}}
+
+  table{width:100%; border-collapse:collapse; margin-top:20px; font-size:15.5px}
+  th,td{padding:13px 12px; text-align:left; border-bottom:1px solid var(--rule); vertical-align:top}
+  th{color:var(--gold); font-weight:600; font-size:13px; letter-spacing:.09em; text-transform:uppercase}
+  .price{color:var(--gold-bright); font-weight:600; white-space:nowrap}
+  .free-row td{background:#12121a55}
+
+  blockquote{
+    margin:0; padding:22px 26px; border-left:2px solid var(--amethyst);
+    background:#12121a88; border-radius:0 10px 10px 0; font-style:italic;
+    color:var(--text); font-size:17.5px;
+  }
+  .attest{color:var(--ion); font-size:14px; margin-top:14px}
+  code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:13.5px; color:var(--gold-soft); background:#0006; padding:1px 6px; border-radius:4px}
+
+  footer{padding:44px 0 66px; border-top:1px solid var(--rule); color:var(--ink); font-size:14.5px}
+  footer a{margin-right:16px}
+  .refrain{color:var(--gold-soft); font-style:italic; margin-bottom:18px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="mark">☿ Astra</div>
+  <h1>The Celestial Observatory</h1>
+  <p class="tagline">Read the sky. Draw the cards. Know your timing.</p>
+  <p class="lede">
+    Natal astrology, tarot and predictive timing — computed from the Swiss
+    Ephemeris to arc-second precision, not generated from a template. Open it and
+    the real sky over you is already drawn.
+  </p>
+  <div class="cta">
+    <a class="btn btn-primary" href="/app/">Open the observatory →</a>
+    <a class="btn btn-ghost" href="#pricing">What it costs</a>
+  </div>
+  <p class="cta-note">No account. No sign-up. Nothing to dismiss.</p>
+</header>
+
+<figure>
+  <img src="img/01-threshold-first-visit.png" alt="Astra on first visit: the live sky computed now, with the chart wheel, birth-data panel and detail column" width="1280" height="720">
+  <figcaption>A first visit lands on the real sky above you, computed live — not a stock chart, and not a form to fill in first.</figcaption>
+</figure>
+
+<section>
+  <h2>The mathematics is free. Forever.</h2>
+  <p class="sub">Not a trial, not a teaser tier. The engine is the part we refuse to charge for.</p>
+  <div class="grid">
+    <div class="card">
+      <span class="glyph">☉</span>
+      <h3>Your chart, at full precision</h3>
+      <p>Seventeen bodies from the Swiss Ephemeris, houses, aspects, patterns, dignities, elements and modalities.</p>
+    </div>
+    <div class="card">
+      <span class="glyph">☾</span>
+      <h3>Timing you can act on</h3>
+      <p>Transits, a sixty-day forecast, progressions, solar returns, eclipse timelines and their natal activations.</p>
+    </div>
+    <div class="card">
+      <span class="glyph">✦</span>
+      <h3>The cards, drawn from your chart</h3>
+      <p>A natal arcana signature and chart-weighted spreads — deterministic, so the same question and sky always draw the same cards.</p>
+    </div>
+    <div class="card">
+      <span class="glyph">◈</span>
+      <h3>Relationships and depths</h3>
+      <p>Synastry, composite and Davison charts; harmonics, midpoint trees and fixed stars.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="two">
+    <div>
+      <h2>Your birthplace never leaves your device</h2>
+      <p class="sub">
+        Most astrology apps send the place you were born to a geocoding service and
+        the map you're looking at to a tile CDN. Astra used to as well. It doesn't now.
+      </p>
+      <p>
+        Searching for where you were born runs against <strong>69,577 cities stored
+        on your device</strong>, over a world map that ships inside the app. Choosing
+        your birthplace makes <strong>no network requests at all</strong>.
+      </p>
+      <p class="attest">
+        ✓ Enforced by an automated test that opens the map, runs a search, and
+        fails the build if a single request leaves the origin.
+      </p>
+    </div>
+    <figure style="margin:0">
+      <img src="img/09-birthplace-offline-gazetteer.png" alt="The birthplace picker searching an offline gazetteer over a vendored world map" width="1280" height="720">
+    </figure>
+  </div>
+</section>
+
+<section>
+  <h2>What we keep: almost nothing</h2>
+  <p class="sub">Said plainly, including the part that is less flattering.</p>
+  <div class="grid">
+    <div class="card">
+      <h3>No birth data stored</h3>
+      <p>Your date, time and place compute a chart and are then let go — never written to a database, never written to a log. There is a test that fails the build if they appear in one.</p>
+    </div>
+    <div class="card">
+      <h3>No accounts</h3>
+      <p>No email, no password, no profile. Your charts, readings, journal and unlock token live in your own browser, and you can export or erase all of it.</p>
+    </div>
+    <div class="card">
+      <h3>No tracking, no ads</h3>
+      <p>Anonymous counts of which features get used — never your chart, never your questions. Nothing is sold, and there are no third-party scripts.</p>
+    </div>
+    <div class="card">
+      <h3>The honest caveat</h3>
+      <p>By default the chart is computed on our server, so your birth details do travel there over an encrypted connection. The promise isn't that they never move — it's that nothing is kept.</p>
+    </div>
+  </div>
+</section>
+
+<figure>
+  <img src="img/04-reading-arcana.png" alt="The Reading chapter: natal arcana signature, tarot draw and the oracle report" width="1280" height="720">
+  <figcaption>Chapter II · Reading — your natal arcana signature, chart-weighted draws, and the long-form Oracle report.</figcaption>
+</figure>
+
+<!--
+  Two names, one destination, on purpose. The Android app's PURCHASE_URL sends
+  people to `/#support`, which resolves to the app's Support panel when the APP
+  is served at `/` and must resolve HERE when the LANDING PAGE is served at `/`.
+  That layout is still undecided (M4), and the APK is already signed and
+  distributable — so this anchor is what stops a shipped binary from depending
+  on a decision nobody has made. Do not delete it. See frontend/src/lib/readerMode.ts.
+-->
+<span id="support" aria-hidden="true"></span>
+<section id="pricing">
+  <h2>What unlocking buys</h2>
+  <p class="sub">Room, not a better mind — the same writer, given space to finish a thought.</p>
+
+  <table>
+    <thead>
+      <tr><th>Tier</th><th>Price</th><th>What it opens</th></tr>
+    </thead>
+    <tbody>
+      <tr class="free-row">
+        <td><strong>Free</strong></td>
+        <td class="price">—</td>
+        <td>Everything the engine computes, forever. Plus two written readings a day
+            from the same model subscribers get — kept short, but not watered down.</td>
+      </tr>
+      <tr>
+        <td><strong>Supporter</strong></td>
+        <td class="price">$3.25&nbsp;/&nbsp;mo</td>
+        <td>In-depth written readings at full length, premium narrated voice, and the daily transit reading.</td>
+      </tr>
+      <tr>
+        <td><strong>Oracle</strong></td>
+        <td class="price">$9.99&nbsp;/&nbsp;mo</td>
+        <td>Everything above, plus the full Oracle Report, the Course, and the deck-art studio.</td>
+      </tr>
+      <tr>
+        <td><strong>Deluxe report</strong></td>
+        <td class="price">$5.50&nbsp;once</td>
+        <td>One Oracle session expanded into a long, research-paper-style personal report, ready to print. Bought per session, not a subscription.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p style="margin-top:22px; color:var(--ink); font-size:15px">
+    Cancel any time from your own billing portal — no email required. Refunds
+    within fourteen days. You can also contribute with crypto instead of a card.
+  </p>
+</section>
+
+<section>
+  <div class="two">
+    <figure style="margin:0; max-width:300px">
+      <img src="img/15-mobile-chart.png" alt="Astra running on a phone" width="390" height="844">
+    </figure>
+    <div>
+      <h2>It works with the network unplugged</h2>
+      <p class="sub">Install it to your home screen and the deterministic half keeps running.</p>
+      <p>
+        The chart engine is compiled into the app itself, so a cast, a tarot draw
+        and a forecast all still work in airplane mode. That isn't a degraded
+        offline mode bolted on afterwards — it's the same engine, and the parity
+        between it and the server is pinned by tests.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!--
+  ⚠️ BEFORE THIS PAGE GOES LIVE: publish the GitHub release that the download
+  button points at, or this section ships a dead link — the exact defect this
+  page's own APK had (its "subscribe" signpost pointed at an anchor that did
+  not exist). The checksum and certificate fingerprint below belong to
+  astra-1.0-reader.apk built 2026-08-07.
+
+  THE CHECKSUM CHANGES ON EVERY REBUILD. APK signing embeds timestamps, so two
+  builds of identical source do NOT produce identical bytes — this checksum
+  already had to be replaced once within this session. It must therefore be
+  taken from the EXACT file that gets uploaded, as the last step before
+  publishing, not from any earlier local build. A stale checksum is worse than
+  no checksum: it fails verification on a genuine file and teaches people to
+  skip the step. The certificate fingerprint below is stable across rebuilds —
+  it changes only if the signing key does.
+-->
+<section id="android">
+  <h2>Take it with you</h2>
+  <p class="sub">An Android app, installed directly. No store account, no in-app purchases, nothing to sign into.</p>
+
+  <div class="two">
+    <div>
+      <p>
+        The app is the observatory, packaged whole — the chart engine, the
+        69,577-city gazetteer and the world map all travel <em>inside</em> the
+        download. It never fetches code from us, which is why it still casts a
+        chart with the network switched off.
+      </p>
+      <p>
+        <strong>It sells nothing.</strong> There is no billing code in the app at
+        all: every free feature works, and if you subscribe, you do it
+        <a href="#pricing">on the web</a> and import the key. That is a deliberate
+        design choice rather than a missing feature — an app that cannot take
+        payment is an app that needs no permission from a store to exist.
+      </p>
+      <p class="attest">
+        ✓ Signed, and the certificate fingerprint is published below — so you can
+        confirm an update came from us and not from someone else.
+      </p>
+    </div>
+
+    <div class="card">
+      <h3>Astra 1.0 · reader build</h3>
+      <p style="margin-bottom:14px">
+        <a class="btn btn-primary" href="https://github.com/9x25dillon/astro_caster/releases" style="display:block; text-align:center">Download the APK</a>
+      </p>
+      <p style="font-size:14px; color:var(--ink)">
+        5.3&nbsp;MB · Android 7.0 and later · works offline<br>
+        Not on Google Play or F-Droid yet.
+      </p>
+      <p style="font-size:13.5px; margin-top:14px">
+        <strong style="color:var(--gold-soft)">Verify it before you install</strong><br>
+        <code style="display:block; margin-top:8px; white-space:pre-wrap; word-break:break-all; line-height:1.5">sha256sum astra-1.0-reader.apk</code>
+        <span style="display:block; margin-top:8px; color:var(--ink)">should print</span>
+        <code style="display:block; margin-top:4px; white-space:pre-wrap; word-break:break-all; line-height:1.5">b462f85e649a1a87b707f7ebea8fa5ab9b923b1f2ca2a7d638c7e9555d30eacd</code>
+        <span style="display:block; margin-top:10px; color:var(--ink)">signing certificate (SHA-256)</span>
+        <code style="display:block; margin-top:4px; white-space:pre-wrap; word-break:break-all; line-height:1.5">c568d41d45af616f034819320640f1a7368dbdaeb04346bda72ab203b2d0a82e</code>
+      </p>
+    </div>
+  </div>
+
+  <p style="margin-top:22px; color:var(--ink); font-size:15px">
+    Android will warn you that this came from outside the Play Store. It did —
+    that is what a direct download is. The checksum above is how you check the
+    file is the one we built; the source it was built from is
+    <a href="https://github.com/9x25dillon/astro_caster">public</a>.
+  </p>
+</section>
+
+<section>
+  <h2>What Astra will not do</h2>
+  <p class="sub">A reading should hand you something you can use, not a verdict you have to live under.</p>
+  <blockquote>
+    Nothing Astra produces is a life sentence. It is a life poem.
+  </blockquote>
+  <p style="margin-top:20px">
+    No predictions of death, illness or catastrophe. No fatalism dressed up as
+    insight. Every reading carries that disclaimer with it — not as a footnote in
+    the interface, but as a field on the data itself, so it travels wherever the
+    reading goes.
+  </p>
+</section>
+
+<footer>
+  <p class="refrain">Read the sky. Draw the cards. Know your timing.</p>
+  <p>
+    <a href="/legal/privacy.html">Privacy</a>
+    <a href="/legal/terms.html">Terms</a>
+    <a href="/legal/refunds.html">Refunds</a>
+    <a href="/legal/pricing.html">Pricing</a>
+    <a href="https://github.com/9x25dillon/astro_caster">Source</a>
+  </p>
+  <p style="margin-top:14px">
+    Astra is free software under the <strong>GNU Affero General Public Licence v3</strong> —
+    the source above is the source that runs here. Positions computed with the
+    Swiss Ephemeris. Places © GeoNames (CC BY 4.0); world outline from Natural
+    Earth (public domain).
+  </p>
+  <p style="margin-top:14px; font-size:13.5px">
+    For reflection and self-understanding. Not medical, legal, financial or
+    psychological advice.
+  </p>
+</footer>
+
+</div>
+</body>
+</html>
