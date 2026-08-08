@@ -88,3 +88,15 @@ export {
   type OverlayEvent,
   type ReadingDrawnCard,
 } from "./tarot.js";
+
+// TZ-2 — historical wall-clock → UTC offset resolution for the birth-time
+// input. Resolves an INPUT only; `tz_offset` stays numeric on the wire, so the
+// deterministic engine and the Python↔TS parity contract are untouched.
+export {
+  resolveOffset,
+  zoneOffsetMsAt,
+  firstTransition,
+  type WallClock,
+  type Ambiguity,
+  type OffsetResolution,
+} from "./timezone.js";

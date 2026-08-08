@@ -1,11 +1,12 @@
 // CeremonyModal.tsx — ritual multi-step birth data entry.
 // Replaces the "tax form" experience with something ceremonial.
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useStore } from "../store/useStore";
-// Lazy for the same reason as Controls: leaflet only loads on map open.
+// Lazy for the same reason as Controls: the picker pulls in the map + gazetteer.
 const LocationPicker = React.lazy(() =>
   import("./LocationPicker").then((m) => ({ default: m.LocationPicker }))
 );
+import { resolveOffset } from "@astra/core";
 import type { BirthInput } from "../types";
 
 const STEPS = [
@@ -61,9 +62,42 @@ export const CeremonyModal: React.FC<Props> = ({ onClose }) => {
   // Tracks the unknown-birth-time escape hatch, so the note can switch from
   // offering noon to explaining what using it means.
   const [noonUsed, setNoonUsed] = useState(false);
+  // TZ-2: the birthplace's IANA zone, once we know it. `null` means we don't,
+  // and the visitor's own ±h entry stands untouched — the previous code filled
+  // this gap with the browser's CURRENT offset, which is the bug being closed.
+  const [zone, setZone] = useState<string | null>(null);
 
   const set = (fields: Partial<BirthInput>) =>
     setDraft((d) => ({ ...d, ...fields }));
+
+  // TZ-2 — resolve the offset from the ZONE at the BIRTH MOMENT.
+  //
+  // The bug this closes: `tz_offset` was seeded from the browser's current
+  // offset, so a July birth entered in January (or any birth before a zone
+  // changed its rules) was cast an hour or more wrong. Nothing errored — the
+  // wheel simply described a different sky, which is the worst kind of wrong
+  // for this product.
+  //
+  // Recomputed on every date/time change, not just on city pick, because the
+  // right answer depends on both: the same city gives a different offset in
+  // June than in December, and a different one again in 1979 than in 2026.
+  const resolution = useMemo(() => {
+    if (!zone) return null;
+    try {
+      return resolveOffset(
+        { year: draft.year, month: draft.month, day: draft.day, hour: draft.hour, minute: draft.minute },
+        zone,
+        draft.lng,
+      );
+    } catch {
+      return null; // an unknown zone must not break the ceremony
+    }
+  }, [zone, draft.year, draft.month, draft.day, draft.hour, draft.minute, draft.lng]);
+
+  useEffect(() => {
+    if (!resolution) return;
+    setDraft((d) => (d.tz_offset === resolution.hours ? d : { ...d, tz_offset: resolution.hours }));
+  }, [resolution]);
 
   // Track E-1: the ceremony is entered by choice, so it must be leaveable the
   // same way. Capture phase + stopImmediatePropagation so Esc means exactly
@@ -91,9 +125,14 @@ export const CeremonyModal: React.FC<Props> = ({ onClose }) => {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const { latitude: lat, longitude: lng } = pos.coords;
-        // Rough UTC offset from the browser as a fallback for timezone.
-        const tz_offset = -new Date().getTimezoneOffset() / 60;
-        setDraft((d) => ({ ...d, lat: parseFloat(lat.toFixed(4)), lng: parseFloat(lng.toFixed(4)), tz_offset }));
+        // TZ-2: take the device's IANA ZONE NAME, never its current offset. The
+        // offset is today's DST state; the zone is a rule set that can be
+        // evaluated at the birth moment instead (see the resolver effect below).
+        // Guessing the birthplace from where you stand now is still a guess —
+        // but it is a guess the visitor can see and correct, and the arithmetic
+        // on top of it is right.
+        setZone(Intl.DateTimeFormat().resolvedOptions().timeZone || null);
+        setDraft((d) => ({ ...d, lat: parseFloat(lat.toFixed(4)), lng: parseFloat(lng.toFixed(4)) }));
       },
       () => undefined, // silently ignore denial
       { timeout: 5000 }
@@ -189,9 +228,33 @@ export const CeremonyModal: React.FC<Props> = ({ onClose }) => {
                 <label className="ceremony-field">
                   <span>Timezone ±h</span>
                   <input type="number" step={0.25} value={draft.tz_offset}
-                    onChange={(e) => set({ tz_offset: Number(e.target.value) })} />
+                    onChange={(e) => { setZone(null); set({ tz_offset: Number(e.target.value) }); }} />
                 </label>
               </div>
+              {/* TZ-2 disclosure. The project's posture is never to be silently
+                  clever, so a resolution that did something non-obvious — took
+                  the first of a doubled hour, moved a nonexistent one forward,
+                  or fell back to local mean time — says so in plain words. */}
+              {zone && (
+                <p className="dim" style={{ fontSize: 11, margin: "6px 0 0" }}>
+                  {resolution?.note
+                    ? resolution.note
+                    : `Resolved from ${zone} for ${draft.year} — historical rules included.`}
+                  {resolution?.kind === "lmt" && resolution.zoneAlternativeHours !== undefined && (
+                    <>
+                      {" "}
+                      <button
+                        className="ghost"
+                        style={{ width: "auto", padding: "1px 7px", fontSize: 11 }}
+                        onClick={() => { setZone(null); set({ tz_offset: resolution.zoneAlternativeHours! }); }}
+                      >
+                        use {resolution.zoneAlternativeHours >= 0 ? "+" : ""}
+                        {resolution.zoneAlternativeHours}h instead
+                      </button>
+                    </>
+                  )}
+                </p>
+              )}
             </div>
 
             {/* E-1b: the privacy claim belongs HERE, at the most private field
@@ -274,7 +337,12 @@ export const CeremonyModal: React.FC<Props> = ({ onClose }) => {
                     <LocationPicker
                       lat={draft.lat}
                       lng={draft.lng}
-                      onChange={(lat, lng) => set({ lat, lng })}
+                      onChange={(lat, lng, tz) => {
+                        set({ lat, lng });
+                        // Only a gazetteer pick carries a zone. A bare map click
+                        // leaves the previous one alone rather than guessing.
+                        if (tz) setZone(tz);
+                      }}
                     />
                   </React.Suspense>
                 </div>
