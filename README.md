@@ -8,6 +8,41 @@
 
 ---
 
+## What it looks like
+
+<p align="center">
+  <img src="docs/screenshots/01-threshold-first-visit.png" alt="A first visit: the live sky, computed now — no account, nothing to dismiss" width="90%">
+</p>
+
+<p align="center"><i>A first visit lands on the real sky over you, computed live. No account, no sign-up, nothing to dismiss.</i></p>
+
+| | |
+|---|---|
+| ![The natal chart wheel](docs/screenshots/03-chart-wheel.png) | ![Reading — natal arcana and the oracle](docs/screenshots/04-reading-arcana.png) |
+| **Chapter I · Chart** — the wheel, aspects, patterns and dignities. | **Chapter II · Reading** — the natal arcana signature, tarot draws, the Oracle report. |
+| ![Timing — forecast, returns, eclipses](docs/screenshots/05-timing-forecast.png) | ![The Library — shelf, journal, vault](docs/screenshots/08-library-shelf-journal-vault.png) |
+| **Chapter III · Timing** — transits, a sixty-day forecast, returns and eclipses. | **Chapter VIII · Library** — your shelf, journal and vault, all exportable. |
+| ![Study — learning path and the Course](docs/screenshots/12-study-course-and-path.png) | ![Studio — deck art and plates](docs/screenshots/13-studio-deck-art.png) |
+| **Chapter VI · Study** — the constellation learning path and the Course. | **Chapter VII · Studio** — deck-art prompts and rendered plates. |
+
+<p align="center">
+  <img src="docs/screenshots/09-birthplace-offline-gazetteer.png" alt="The birthplace picker: an offline gazetteer and a vendored world outline" width="70%">
+</p>
+
+<p align="center"><i>The birthplace picker searches <b>69,577 cities on your device</b> against a vendored GeoNames extract, over a Natural Earth outline. Choosing where you were born makes <b>zero network requests</b> — enforced by <code>e2e/no-external.spec.ts</code>.</i></p>
+
+<p align="center">
+  <img src="docs/screenshots/15-mobile-chart.png" alt="The observatory on a phone" width="30%">
+  &nbsp;&nbsp;
+  <img src="docs/screenshots/16-mobile-reading.png" alt="A reading on a phone" width="30%">
+</p>
+
+<p align="center"><i>Installable as a PWA, and the deterministic half keeps working in airplane mode.</i></p>
+
+<sub>Screenshots are captured by driving the real app — <code>CAPTURE_SCREENSHOTS=1 npx playwright test e2e/capture-screenshots.spec.ts --project=desktop-chromium</code> — so they cannot drift from the product without someone noticing.</sub>
+
+---
+
 ## What you can do
 
 Astra is a divination workbench built on real ephemeris math — the same celestial mechanics professional astrologers use, wrapped in an interface you can actually enjoy.
@@ -187,11 +222,32 @@ Create `backend/.env` (gitignored). **Every variable is optional — the app run
 
 ## Tiers, unlocking & payments
 
-| Tier | Model | Unlocked by |
-|---|---|---|
-| free | haiku / local ollama | default |
-| supporter | claude-sonnet | a contribution (crypto **or** Stripe) |
-| oracle | claude-opus / **Fable 5** reports | `AAE_DEV_TOKEN`, a verified contribution, or a Stripe purchase |
+> ⚠️ **The prices and free-tier shape below land with PR #149** (`FREE-1 +
+> pricing`). Until that merges, `main` still charges $3 / $9 / $5 and has no
+> daily premium allowance. This note exists because a README that quietly
+> describes an unmerged branch is the exact drift catalogued in
+> [`docs/audits/DATA_DISCREPANCIES.md`](docs/audits/DATA_DISCREPANCIES.md) —
+> delete it when #149 is in.
+
+
+| Tier | Price | Model | Written length | Unlocked by |
+|---|---|---|---|---|
+| **free** | — | Sonnet 5 for the first **2 readings a day**, then Haiku 4.5, then the on-device engine | 700 tokens | default |
+| **supporter** | $3.25 / mo | Sonnet 5 | 3,000 tokens | a contribution (crypto **or** Stripe) |
+| **oracle** | $9.99 / mo | Opus 5 · **Fable 5** for reports | 6,000 tokens | `AAE_DEV_TOKEN`, a verified contribution, or a Stripe purchase |
+| **deluxe report** | $5.50 once | Fable 5 | 32,000 tokens | one-time, bound to a single Oracle session |
+
+**The free tier's daily two are written by the same model supporters get.** What
+an upgrade buys is *room* — the same reading with space to finish its thought —
+not a better mind. The daily count lives on your device, so no identifier is
+minted to enforce it; it therefore resets if you clear browser data, which the
+pricing page says out loud. The real spend ceiling is the server-side global
+daily cap in `budget.py`.
+
+Everything the engine computes — charts, transits, forecasts, tarot draws,
+relationship and predictive work — is free forever and mostly runs in your
+browser. The unlock is for the *writing*, never the mathematics. Costs and
+margins behind these prices: [`docs/progress/PRICING_MODEL.md`](docs/progress/PRICING_MODEL.md).
 
 **Entitlements** are stateless signed tokens (HMAC or Ed25519) backed by a `jti`-keyed ledger that adds the lifecycle a real product needs: **revocation** (a refund kills the token), **renewal** (fresh expiry), and **device re-link** (recover access on a new device from the payment reference).
 
