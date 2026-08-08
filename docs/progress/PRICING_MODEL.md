@@ -13,7 +13,7 @@ was a guess that hardened into a fact (`docs/audits/DATA_DISCREPANCIES.md` §B).
 
 | quantity | value | how |
 |---|---|---|
-| Chart JSON in the prompt | **5,646 tokens** | `parity/natal-chart.json`, one case, indented as sent |
+| Chart JSON in the prompt | **5,646 tokens** | `parity/natal-chart.json`, one case, indented as sent — ⚠️ see below |
 | System prompt (free) | 458 tokens | `SYSTEM_PROMPT` |
 | System prompt (+ Oracle extension) | 731 tokens | `+ ORACLE_EXTENSION` |
 | Question | ≤ 400 tokens | 1,500-char cap in `_build_prompts` |
@@ -21,6 +21,18 @@ was a guess that hardened into a fact (`docs/audits/DATA_DISCREPANCIES.md` §B).
 
 The chart payload dominates input cost — it is ~87% of a free-tier prompt. Any
 future cost work should start there, not with the output cap.
+
+> ⚠️ **The 5,646-token figure measures the wrong artifact** (found 2026-08-07).
+> It was taken from `parity/natal-chart.json` — the FULL chart. The prompt never
+> carried that: `ai._build_context` trims to planets, ≤18 aspects, patterns and
+> the element/modality balances, discarding **72%** of the chart before it is
+> serialised. What was actually sent measured 5,784 *characters*, so roughly
+> 1,900–2,900 tokens, not 5,646 — the chart's share of prompt cost was
+> overstated by about 3×, and "~87% of a free-tier prompt" with it.
+>
+> The direction held (the payload was still the largest input term, and
+> trimming it was still the right work — see §6), but the magnitude did not.
+> **Measure the string the model receives, not the file it was derived from.**
 
 ## 2. Model rates (Anthropic first-party, $/MTok)
 
@@ -125,10 +137,38 @@ protections, in order:
    every visitor resolves to the proxy's address and both this and the rate
    limiter collapse back into one shared bucket — silently, and looking fine.
 
-**The highest-leverage cost work is not the output cap — it is the 5,646-token
-chart payload.** Sending a condensed chart summary for short free readings would
-cut free-tier input ~80% and bring a premium free reading from $0.024 to well
-under a cent. That is not done yet.
+**The highest-leverage cost work is not the output cap — it is the chart
+payload.** Sending a condensed chart for short free readings cuts free-tier
+input ~80%.
+
+> ✅ **DONE 2026-08-07**, and the second half of the original sentence was
+> WRONG. It predicted this would "bring a premium free reading from $0.024 to
+> well under a cent." It cannot, and no input optimisation could: a free
+> reading's 700 output tokens cost $0.0105 on their own at $15/MTok, so a cent
+> is the floor before a single input token is counted. **Output was already
+> ~74% of the cost and the prediction was arithmetically impossible.**
+>
+> Measured on a real computed chart (`ai._chart_block`):
+>
+> | | chars | vs before |
+> |---|---|---|
+> | before (`indent=2`) | 5,784 | — |
+> | free tier (compact text) | 1,566 | **−73%** |
+> | paid tiers (compact JSON) | 3,533 | −39% |
+>
+> Effect: a free premium reading **$0.0189 → $0.0142 (−24%)**; a supporter
+> reading −4%. $100 of credit buys ~5,300 → ~7,000 free premium readings, a
+> **+32% extension — not the 5× that "well under a cent" implied.**
+>
+> Three separate wastes, in descending size: eighteen aspects and JSON
+> scaffolding a 700-token reading cannot use; `indent=2` pretty-printing that
+> no human ever read; and `ensure_ascii=True` expanding every degree sign and
+> en-dash into a six-character `\uXXXX` escape. The last two are pure
+> saving at every tier — not one character of meaning is lost.
+>
+> **Where the lever actually is now: the output budget, and the number of free
+> readings per device.** Input is no longer the dominant term, so further
+> prompt-trimming has little left to give.
 
 ## 7. Re-run the numbers
 
