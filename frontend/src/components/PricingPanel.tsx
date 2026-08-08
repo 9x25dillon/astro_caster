@@ -15,6 +15,7 @@
 import React, { useEffect, useState } from "react";
 import { useStore } from "../store/useStore";
 import { createCheckout, getPricing, trackEvent, ApiError, type Pricing } from "../api/client";
+import { READER_MODE, PURCHASE_URL } from "../lib/readerMode";
 
 // AGPL §13: offering this over a network obliges us to offer the source. The
 // URL is a build-time constant so a fork can point it at its own repository.
@@ -50,6 +51,7 @@ export const PricingPanel: React.FC = () => {
   // Stripe checkout is a redirect flow — we leave the app entirely and come
   // back to `?checkout=<session_id>`, which the store settles on mount.
   const buy = async (tier: "supporter" | "oracle") => {
+    if (READER_MODE) return;   // belt and braces; `cards` is already empty
     setBusyTier(tier);
     setErr(null);
     try {
@@ -67,7 +69,12 @@ export const PricingPanel: React.FC = () => {
   };
 
   const recurring = pricing?.mode === "subscription";
-  const cards = pricing?.card_available ? pricing.tiers : [];
+  // A1 reader mode: the Android shell never offers a card rail, regardless of
+  // what the server reports. `READER_MODE` is build-time, so no runtime input
+  // can turn the shell into a shop. (It does NOT strip the checkout code from
+  // the bundle — measured; see lib/readerMode.ts. The guarantee is that no
+  // purchase UI is reachable, not that the bytes are gone.)
+  const cards = pricing?.card_available && !READER_MODE ? pricing.tiers : [];
 
   return (
     <div className="lib-support pricing-panel">
@@ -106,6 +113,18 @@ export const PricingPanel: React.FC = () => {
             })}
           </div>
 
+          {READER_MODE && (
+            // The reader build still has to answer "how do I get this?" — it
+            // just answers with a signpost instead of a checkout. Saying it
+            // plainly is also the honest version of the store-policy argument:
+            // nothing is sold here, and we are not pretending otherwise.
+            <p className="pricing-fine">
+              This app doesn't sell subscriptions. Unlock on the web and bring
+              the key back — open <a href={PURCHASE_URL}>{PURCHASE_URL.replace(/^https:\/\//, "")}</a>,
+              subscribe there, then import your entitlement here. Everything the
+              engine computes stays free either way.
+            </p>
+          )}
           <p className="pricing-fine">
             {recurring
               ? "Cancel any time, from inside the app — the ✦ Supporter panel opens Stripe's portal, no email to us required. Cancelling keeps your access until the period you paid for ends."
