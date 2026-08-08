@@ -48,7 +48,9 @@ class _FakeAI:
         self.result = result
         self.calls = []
 
-    async def __call__(self, system, user, tier):
+    async def __call__(self, system, user, tier, allow_ai=True):
+        # allow_ai arrives from the 4.4 spend gate; the tarot path passes it
+        # through so a capped call never reaches a provider.
         self.calls.append(tier)
         return self.result
 

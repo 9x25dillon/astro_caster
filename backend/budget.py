@@ -30,8 +30,10 @@ Env:
 """
 from __future__ import annotations
 
+import hashlib
 import logging
 import os
+import secrets
 import threading
 from datetime import datetime, timezone
 
@@ -43,6 +45,9 @@ _user_spend: dict[tuple[str, str], float] = {}
 _global_spend: dict[str, float] = {}
 _alarm_fired: dict[str, bool] = {}          # one alarm log per day
 _TRUTHY = {"1", "true", "yes", "on"}
+
+# {utc_date: salt} — holds exactly one day's salt, ever.
+_anon_salt: dict[str, bytes] = {}
 
 
 def _today() -> str:
@@ -89,12 +94,49 @@ def estimate_cost(kind: str, chars: int) -> float:
     return char_cost                   # oracle / course / deluxe / tarot
 
 
-def user_key(token: str | None) -> str:
+def _anon_bucket(client_ip: str) -> str:
+    """A per-visitor budget bucket for anonymous traffic, derived from the IP.
+
+    WHY THIS IS NOT JUST 'anon'. Every tokenless caller used to share a single
+    bucket, so the per-user daily cap behaved as one collective allowance for
+    the entire internet. That bounds the bill, but it means ONE abuser clearing
+    local storage in a loop drains the day's allowance and every honest free
+    visitor is served the offline compiler instead of the product. The cap was
+    protecting the wallet and not the users.
+
+    WHY IT IS SAFE TO DO THIS HERE. The salt is random per process and holds
+    for one UTC day only, so the same visitor keys differently tomorrow and
+    differently after a restart — the value cannot be used to recognise anyone
+    over time, which is the property that would make it tracking. It stays in
+    memory, is never written to a log, a database or a response, and the raw IP
+    is hashed immediately rather than stored. `ratelimit.py` already keys its
+    sliding window on the client IP, so this processes nothing the server was
+    not already handling; it only widens the window from a minute to a day.
+
+    NOT a security boundary. Anyone with many addresses gets many buckets —
+    the global cap is what makes that bounded, and it is the real ceiling.
+    This makes abuse *expensive and self-limiting* rather than impossible,
+    which is the correct goal for a product with no accounts to police.
+    """
+    day = _today()
+    with _lock:
+        salt = _anon_salt.get(day)
+        if salt is None:
+            salt = secrets.token_bytes(32)
+            _anon_salt.clear()      # yesterday's salt is unrecoverable by design
+            _anon_salt[day] = salt
+    return "ip:" + hashlib.blake2s(
+        client_ip.encode("utf-8", "replace"), key=salt, digest_size=8
+    ).hexdigest()
+
+
+def user_key(token: str | None, client_ip: str | None = None) -> str:
     """A stable per-user id from an entitlement token: its jti (or payment ref)
-    if decodable, else a hash of the token, else 'anon'. Never the token
-    itself (would leak into any structure that logs the key)."""
+    if decodable, else a hash of the token, else a per-IP anonymous bucket (or
+    'anon' when no address is available). Never the token itself (would leak
+    into any structure that logs the key)."""
     if not token:
-        return "anon"
+        return _anon_bucket(client_ip) if client_ip else "anon"
     try:
         import entitlements as _ENT
         p = _ENT.verify_token(token)
@@ -106,14 +148,20 @@ def user_key(token: str | None) -> str:
     return "h:" + hashlib.sha256(token.encode()).hexdigest()[:16]
 
 
-def allow_call(token: str | None, kind: str) -> tuple[bool, str]:
+def allow_call(token: str | None, kind: str,
+               client_ip: str | None = None) -> tuple[bool, str]:
     """(allowed, reason). A conservative PRE-call check using a nominal output
     size for `kind`. reason is '' | 'user' | 'global' — the caller degrades to
-    offline (or refuses, for image-only paths) when not allowed."""
+    offline (or refuses, for image-only paths) when not allowed.
+
+    Pass `client_ip` for anonymous callers so they get their own daily bucket
+    instead of sharing one with every other tokenless visitor — see
+    `_anon_bucket`. Omitting it is safe but collapses them back into 'anon'.
+    """
     if not enabled():
         return True, ""
     est = estimate_cost(kind, _NOMINAL_CHARS.get(kind, 8000))
-    uk = user_key(token)
+    uk = user_key(token, client_ip)
     day = _today()
     with _lock:
         u = _user_spend.get((day, uk), 0.0)
@@ -125,13 +173,18 @@ def allow_call(token: str | None, kind: str) -> tuple[bool, str]:
     return True, ""
 
 
-def record(token: str | None, kind: str, chars: int) -> float:
+def record(token: str | None, kind: str, chars: int,
+           client_ip: str | None = None) -> float:
     """Record the ACTUAL spend of a completed provider call (post-call, real
-    output size). Fires the global alarm once per day when crossed."""
+    output size). Fires the global alarm once per day when crossed.
+
+    `client_ip` must match whatever was passed to `allow_call` for the same
+    request, or the pre-check and the record land in different buckets.
+    """
     if not enabled():
         return 0.0
     cost = estimate_cost(kind, chars)
-    uk = user_key(token)
+    uk = user_key(token, client_ip)
     day = _today()
     with _lock:
         _user_spend[(day, uk)] = _user_spend.get((day, uk), 0.0) + cost

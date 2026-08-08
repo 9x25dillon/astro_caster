@@ -79,6 +79,7 @@ import uuid
 import cache as CACHE
 import ephemeris as E
 import budget as BUDGET
+import clientip as CLIENTIP
 import entitlements as ENT
 import stripe_rail as STRIPE
 import logsetup as LOG
@@ -362,6 +363,13 @@ async def ai_ask(req: AIRequest, request: Request):
     if req.depth == "deep":
         _require_supporter(req.entitlement)
     tier = ENT.entitlement_status(req.entitlement).get("tier", "free")
+    # 4.4 cost control. This path was NOT gated until now, so the global cap did
+    # not actually cap the cheapest and highest-volume caller — which is the one
+    # PRICING_MODEL §6 calls the only real leak, since a free reading earns
+    # nothing against it. `budget.py` already knew the "ask" kind; nothing here
+    # ever asked it.
+    ip = CLIENTIP.client_ip(request)
+    allow_ai, _cap = BUDGET.allow_call(req.entitlement, "ask", ip)
     result = await interpret(
         query=req.query,
         chart=req.chart.model_dump(),
@@ -370,6 +378,7 @@ async def ai_ask(req: AIRequest, request: Request):
         selected_id=req.selected_id,
         depth=req.depth,
         tier=tier,
+        allow_ai=allow_ai,
         # FREE-1: the allowance only ever applies to the free tier. Anding it
         # here rather than trusting the flag means a paid tier can never be
         # talked into a different model by a crafted request body.
@@ -384,6 +393,9 @@ async def ai_ask(req: AIRequest, request: Request):
     ))
     if result.get("source") == "llm":
         MET.observe_ai_call("ask", len(result.get("interpretation", "")))
+        BUDGET.record(req.entitlement, "ask", len(result.get("interpretation", "")), ip)
+    elif not allow_ai:
+        MET.observe_ai_fallback("ask", "capped")
     else:
         # `note` is set only by ai.py's exception path, so its presence is the
         # difference between "the provider broke" and "there is no provider".
@@ -815,6 +827,11 @@ async def ai_ask_stream(req: AIRequest, request: Request):
         _require_supporter(req.entitlement)  # in-depth reading is a supporter feature
 
     tier = ENT.entitlement_status(req.entitlement).get("tier", "free")
+    # Same 4.4 gate as the non-streamed path — resolved out here because the
+    # Request object must not be touched from inside the generator, which runs
+    # after the handler has returned.
+    ip = CLIENTIP.client_ip(request)
+    allow_ai, _cap = BUDGET.allow_call(req.entitlement, "ask", ip)
 
     async def gen():
         final: dict = {}
@@ -823,7 +840,7 @@ async def ai_ask_stream(req: AIRequest, request: Request):
             async for event, payload in interpret_stream(
                 query=req.query, chart=req.chart.model_dump(), lens=req.lens,
                 selected_type=req.selected_type, selected_id=req.selected_id,
-                depth=req.depth, tier=tier,
+                depth=req.depth, tier=tier, allow_ai=allow_ai,
             ):
                 if event == "chunk":
                     char_count += len(payload)
@@ -844,6 +861,9 @@ async def ai_ask_stream(req: AIRequest, request: Request):
         ))
         if final.get("source") == "llm":
             MET.observe_ai_call("ask", char_count)
+            BUDGET.record(req.entitlement, "ask", char_count, ip)
+        elif not allow_ai:
+            MET.observe_ai_fallback("ask", "capped")
         else:
             MET.observe_ai_fallback("ask", "degraded" if final.get("note") else "unconfigured")
 
@@ -1045,15 +1065,21 @@ async def tarot_reading(req: TarotReadingRequest, request: Request):
             signature_lines=[l.note for l in sig.links], drawn=drawn,
             source_lens=TAROT.source_meta(req.source)["lens"],
         )
-        ai = await interpret_arcana(ARCANA_SYSTEM, user, tier=tier)
+        t_ip = CLIENTIP.client_ip(request)
+        t_allow, _t_cap = BUDGET.allow_call(req.entitlement, "tarot", t_ip)
+        ai = await interpret_arcana(ARCANA_SYSTEM, user, tier=tier, allow_ai=t_allow)
         if ai.get("source") == "llm" and ai.get("text"):
             reading.interpretation = ai["text"]
             reading.ai_source = "llm"
             MET.observe_ai_call("tarot", len(reading.interpretation))
+            BUDGET.record(req.entitlement, "tarot", len(reading.interpretation), t_ip)
         else:
             reading.ai_source = "offline"
-            MET.observe_ai_fallback(
-                "tarot", "degraded" if ai.get("note") else "unconfigured")
+            if not t_allow:
+                MET.observe_ai_fallback("tarot", "capped")
+            else:
+                MET.observe_ai_fallback(
+                    "tarot", "degraded" if ai.get("note") else "unconfigured")
         _spawn(TEL.log_ai(
             tier=tier, lens="arcana", depth="deep", query=req.question,
             provider=str(ai.get("provider", "")), model=str(ai.get("model", "")),
@@ -1108,7 +1134,8 @@ async def oracle_report(req: OracleReportRequest, request: Request):
             status_code=402,
             detail="oracle entitlement required — the Oracle Report is a paid reading",
         )
-    allow_ai, _cap = BUDGET.allow_call(req.entitlement, "oracle")  # 4.4 cost control
+    ip = CLIENTIP.client_ip(request)
+    allow_ai, _cap = BUDGET.allow_call(req.entitlement, "oracle", ip)  # 4.4 cost control
     try:
         result = await ORACLE.generate_oracle_report(req, allow_ai=allow_ai)
     except Exception as exc:
@@ -1121,7 +1148,7 @@ async def oracle_report(req: OracleReportRequest, request: Request):
     ))
     if result.ai_source == "llm":
         MET.observe_ai_call("oracle", len(result.report))
-        BUDGET.record(req.entitlement, "oracle", len(result.report))
+        BUDGET.record(req.entitlement, "oracle", len(result.report), ip)
     elif not allow_ai:
         # The spend guard did this on purpose. Separated from `degraded` so a
         # tight cap doing its job never reads as an outage.
@@ -1147,7 +1174,8 @@ async def course(req: CourseRequest, request: Request):
             detail="oracle entitlement required — the Course is a premium "
                    "curriculum composed for your chart",
         )
-    allow_ai, _cap = BUDGET.allow_call(req.entitlement, "course")  # 4.4 cost control
+    ip = CLIENTIP.client_ip(request)
+    allow_ai, _cap = BUDGET.allow_call(req.entitlement, "course", ip)  # 4.4 cost control
     try:
         result = await COURSE.generate_course(req, allow_ai=allow_ai)
     except Exception as exc:
@@ -1160,7 +1188,7 @@ async def course(req: CourseRequest, request: Request):
     ))
     if result.ai_source == "llm":
         MET.observe_ai_call("course", len(result.course))
-        BUDGET.record(req.entitlement, "course", len(result.course))
+        BUDGET.record(req.entitlement, "course", len(result.course), ip)
     elif not allow_ai:
         MET.observe_ai_fallback("course", "capped")
     else:
@@ -1197,7 +1225,8 @@ async def personal_report(req: PersonalReportRequest, request: Request):
                    "one-time purchase per Oracle session; verify your "
                    "contribution at /api/personal-report/purchase to unlock it",
         )
-    allow_ai, _cap = BUDGET.allow_call(req.entitlement, "deluxe")  # 4.4 cost control
+    ip = CLIENTIP.client_ip(request)
+    allow_ai, _cap = BUDGET.allow_call(req.entitlement, "deluxe", ip)  # 4.4 cost control
     try:
         result = await PERSONAL.generate_personal_report(req, allow_ai=allow_ai)
     except ValueError as exc:
@@ -1213,7 +1242,7 @@ async def personal_report(req: PersonalReportRequest, request: Request):
     ))
     if result.ai_source == "llm":
         MET.observe_ai_call("deluxe", len(result.report_markdown))
-        BUDGET.record(req.entitlement, "deluxe", len(result.report_markdown))
+        BUDGET.record(req.entitlement, "deluxe", len(result.report_markdown), ip)
     elif not allow_ai:
         MET.observe_ai_fallback("deluxe", "capped")
     else:
@@ -1261,7 +1290,8 @@ async def deck_art_image(req: PLATE.PlateRequest, request: Request):
         )
     # 4.4 cost control: images have no offline compiler, so an over-budget
     # plate is refused (429) rather than degraded — the prompt stays free.
-    allow_ai, why = BUDGET.allow_call(req.entitlement, "plate")
+    ip = CLIENTIP.client_ip(request)
+    allow_ai, why = BUDGET.allow_call(req.entitlement, "plate", ip)
     if not allow_ai:
         raise HTTPException(
             status_code=429,
@@ -1286,7 +1316,7 @@ async def deck_art_image(req: PLATE.PlateRequest, request: Request):
     # An image call is a flat cost — count the call, leave chars 0 (the
     # base64 payload isn't a text-spend proxy).
     MET.observe_ai_call("plate", 0)
-    BUDGET.record(req.entitlement, "plate", 0)
+    BUDGET.record(req.entitlement, "plate", 0, ip)
     return result
 
 

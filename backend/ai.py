@@ -274,24 +274,34 @@ def _compact_context_text(ctx: Dict) -> str:
     is explicitly labelled (degree, sign, house, dignity) so a 3B model cannot
     confuse, e.g., a planet's sign with its dignity sign.
     """
+    # Every field is fetched defensively. `_build_context` always emits all of
+    # them, but this now renders the FREE TIER's cloud prompt as well as the
+    # local one, so a partial context reaching it must degrade to a shorter
+    # reading rather than raise — a KeyError here would be a 500 on the highest
+    # -volume path in the product, in exchange for nothing.
     lines = ["CHART FACTS (do not alter these):"]
-    for p in ctx["planets"]:
-        retro = ", retrograde" if p["retrograde"] else ""
+    for p in ctx.get("planets") or []:
+        retro = ", retrograde" if p.get("retrograde") else ""
         lines.append(
-            f"- {p['id']}: {p['pos']}, house {p['house']}, "
-            f"{p['dignity'].lower()} dignity{retro}"
+            f"- {p.get('id')}: {p.get('pos')}, house {p.get('house')}, "
+            f"{str(p.get('dignity', '')).lower()} dignity{retro}"
         )
-    if ctx["aspects"]:
+    if ctx.get("aspects"):
         asp = "; ".join(
-            f"{a['between']} {a['type']} (orb {a['orb']}°)" for a in ctx["aspects"][:8]
+            f"{a.get('between')} {a.get('type')} (orb {a.get('orb')}°)"
+            for a in ctx["aspects"][:8]
         )
         lines.append(f"Aspects: {asp}.")
-    if ctx["patterns"]:
-        pat = "; ".join(f"{p['type']} of {', '.join(p['planets'])}" for p in ctx["patterns"])
+    if ctx.get("patterns"):
+        pat = "; ".join(
+            f"{p.get('type')} of {', '.join(p.get('planets') or [])}"
+            for p in ctx["patterns"]
+        )
         lines.append(f"Patterns: {pat}.")
-    el = ", ".join(f"{k} {v}" for k, v in ctx["elements"].items())
-    mo = ", ".join(f"{k} {v}" for k, v in ctx["modalities"].items())
-    lines.append(f"Element balance: {el}. Modality balance: {mo}.")
+    el = ", ".join(f"{k} {v}" for k, v in (ctx.get("elements") or {}).items())
+    mo = ", ".join(f"{k} {v}" for k, v in (ctx.get("modalities") or {}).items())
+    if el or mo:
+        lines.append(f"Element balance: {el}. Modality balance: {mo}.")
     return "\n".join(lines)
 
 
@@ -351,9 +361,49 @@ def _build_prompts(query, context, lens, selected_type, selected_id, depth, prov
         f"User question:\n{PS.quarantine(query, 'question', 1500)}\n\n"
         f"Focused selection: {selected_type or 'whole chart'}"
         f"{' — ' + selected_id if selected_id else ''}\n\n"
-        f"Chart data (JSON):\n{json.dumps(context, indent=2)}"
+        f"{_chart_block(context, tier)}"
     )
     return system, user, model, budget
+
+
+def _chart_block(context: Dict, tier: str) -> str:
+    """The chart as sent to a cloud model — the dominant cost in every prompt.
+
+    PRICING_MODEL §1 measured the chart payload at 5,646 tokens, about 87% of a
+    free-tier prompt, and named it the highest-leverage cost work in the system:
+    the output cap was already tuned, the INPUT never was. Two things were
+    paying for nothing.
+
+    INDENTATION. This was `json.dumps(context, indent=2)`. Pretty-printing is
+    for humans reading a diff, and no human reads this string — every space and
+    newline was billed on every request, at every tier, forever. Compact
+    separators are pure saving: not one character of meaning is lost.
+
+    VERBOSITY AT THE FREE TIER. A free reading gets a 700-token output budget —
+    roughly one screen — and cannot use eighteen aspects or the JSON scaffolding
+    around each placement. `_compact_context_text` already rendered exactly this
+    for small local models, where the same pressure applied for a different
+    reason; it simply was never pointed at the cloud path. Reusing it keeps ONE
+    definition of "the chart, briefly" rather than inventing a second that can
+    drift from the first.
+
+    WHY PAID TIERS KEEP THE FULL JSON. Supporter and Oracle buy room to finish a
+    thought (3,000 and 6,000 tokens), and a six-section Oracle reading genuinely
+    works the long tail of aspects that the compact form drops. Trimming their
+    input to save fractions of a cent on a reading that already earns its margin
+    would be optimising the wrong side of the ledger. The saving is taken
+    precisely where there is no revenue to protect.
+
+    ESCAPES. `json.dumps` defaults to ensure_ascii=True, which rewrites every
+    non-ASCII character as a six-character \\uXXXX escape. This payload is full
+    of them — every degree sign and every en-dash in an aspect name — so the
+    default was inflating the densest part of the string and handing the model
+    escape sequences to decode instead of the characters themselves.
+    """
+    if tier in ("oracle", "supporter"):
+        return "Chart data (JSON):\n" + json.dumps(
+            context, separators=(",", ":"), ensure_ascii=False)
+    return _compact_context_text(context)
 
 
 async def interpret(
@@ -365,11 +415,22 @@ async def interpret(
     depth: str = "quick",
     tier: str = "free",
     free_premium: bool = False,
+    allow_ai: bool = True,
 ) -> Dict[str, object]:
-    """Return {"interpretation": str, "source": "llm"|"offline", "model": str}."""
+    """Return {"interpretation": str, "source": "llm"|"offline", "model": str}.
+
+    `allow_ai=False` (the spend guard said no) short-circuits to the offline
+    compiler. It is checked BEFORE resolving a provider so a capped call also
+    skips the ~1.5s liveness probe — under a cap that path is the common one,
+    and paying a probe to be told "no" would make the degraded experience
+    slower than the real one.
+    """
     context = _build_context(chart, selected_type, selected_id)
     # The liveness probe inside can block ~1.5s — keep it off the event loop.
-    provider = await asyncio.to_thread(_resolve_provider_for_tier, tier)
+    provider = (
+        await asyncio.to_thread(_resolve_provider_for_tier, tier)
+        if allow_ai else "offline"
+    )
     system, user, model, budget = _build_prompts(
         query, context, lens, selected_type, selected_id, depth, provider, tier, free_premium
     )
@@ -418,6 +479,7 @@ async def interpret_arcana(
     system: str,
     user: str,
     tier: str = "free",
+    allow_ai: bool = True,
 ) -> Dict[str, object]:
     """
     Card-aware Astra Arcana reading. The caller (tarot endpoint) builds the
@@ -425,9 +487,14 @@ async def interpret_arcana(
     same provider/tier machinery as interpret(). Returns
     {"text": str, "source": "llm"|"offline", "provider": str, "model": str}.
     On any failure source == "offline" and the caller keeps its deterministic prose.
+
+    `allow_ai=False` means the spend guard refused; see interpret().
     """
     # The liveness probe inside can block ~1.5s — keep it off the event loop.
-    provider = await asyncio.to_thread(_resolve_provider_for_tier, tier)
+    provider = (
+        await asyncio.to_thread(_resolve_provider_for_tier, tier)
+        if allow_ai else "offline"
+    )
     provider = _demote_kgirl_if_prompt_too_long(provider, system, user)
     if provider == "offline":
         return {"text": "", "source": "offline", "provider": "offline", "model": ""}
@@ -464,6 +531,7 @@ async def interpret_stream(
     depth: str = "quick",
     tier: str = "free",
     free_premium: bool = False,
+    allow_ai: bool = True,
 ):
     """
     Async generator yielding (event, payload) tuples:
@@ -477,7 +545,10 @@ async def interpret_stream(
     """
     context = _build_context(chart, selected_type, selected_id)
     # The liveness probe inside can block ~1.5s — keep it off the event loop.
-    provider = await asyncio.to_thread(_resolve_provider_for_tier, tier)
+    provider = (
+        await asyncio.to_thread(_resolve_provider_for_tier, tier)
+        if allow_ai else "offline"      # spend guard refused; see interpret()
+    )
     system, user, model, budget = _build_prompts(
         query, context, lens, selected_type, selected_id, depth, provider, tier, free_premium
     )

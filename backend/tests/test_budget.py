@@ -126,9 +126,87 @@ def test_report_generator_skips_provider_when_disallowed(monkeypatch):
 def test_plate_429_when_over_budget(monkeypatch):
     monkeypatch.setattr(ENT, "_DEV_TOKEN", "op")
     monkeypatch.setattr(PLATE, "plates_available", lambda: True)
-    monkeypatch.setattr(B, "allow_call", lambda tok, kind: (False, "user"))
+    monkeypatch.setattr(B, "allow_call",
+                        lambda tok, kind, client_ip=None: (False, "user"))
     chart = client.post("/api/generate-chart", json=_BIRTH).json()
     r = client.post("/api/deck-art-image",
                     json={"chart": chart, "card_id": "the_star", "entitlement": "op"})
     assert r.status_code == 429
     assert "Retry-After" in r.headers
+
+
+# ── anonymous bucketing + the free-tier gate (Sybil defence) ────────────────
+
+
+def test_anonymous_visitors_do_not_share_one_bucket(monkeypatch):
+    """The bug this exists to prevent.
+
+    Every tokenless caller used to key to the literal string 'anon', so the
+    PER-USER daily cap behaved as a single collective allowance for the whole
+    internet. That bounds the bill but not the damage: one abuser clearing
+    local storage in a loop drains the day and every honest free visitor is
+    served the offline compiler instead of the product.
+    """
+    B.reset()
+    monkeypatch.setenv("AAE_USER_DAILY_USD", "0.02")
+
+    # One address burns its own allowance...
+    while B.allow_call(None, "ask", "203.0.113.7")[0]:
+        B.record(None, "ask", 3000, "203.0.113.7")
+    assert B.allow_call(None, "ask", "203.0.113.7")[0] is False
+
+    # ...and a different visitor is untouched by it.
+    assert B.allow_call(None, "ask", "198.51.100.4")[0] is True
+
+
+def test_the_anon_bucket_is_not_the_raw_address():
+    """The key is salted and hashed, so nothing that could re-identify a
+    visitor is held even in memory. A raw IP sitting in a dict is one
+    accidental log line away from being retention."""
+    k = B.user_key(None, "203.0.113.7")
+    assert "203.0.113.7" not in k
+    assert k.startswith("ip:")
+
+
+def test_the_same_visitor_keys_differently_after_the_salt_rotates():
+    """The salt is per-process and per-UTC-day, so the bucket cannot be used
+    to recognise anyone across days — which is the property that separates
+    abuse control from tracking."""
+    first = B.user_key(None, "203.0.113.7")
+    B._anon_salt.clear()          # simulate the day turning over
+    assert B.user_key(None, "203.0.113.7") != first
+
+
+def test_a_missing_address_never_invents_a_specific_bucket():
+    """Unknown address falls back to the shared bucket rather than to a name
+    that LOOKS per-user while quietly pooling strangers together."""
+    assert B.user_key(None, None) == "anon"
+
+
+def test_the_free_ask_path_is_actually_capped(monkeypatch):
+    """The gap this closes.
+
+    PRICING_MODEL §6 named budget.py's global cap "the actual ceiling and it
+    already exists" for the free tier. It did not cover it: /api/ai-ask never
+    consulted budget.py at all, so the cheapest, highest-volume caller — the
+    only one with no revenue against it — was the single path the ceiling
+    missed. budget.py even defined the "ask" kind; nothing ever asked it.
+    """
+    seen = {"provider_reached": False}
+
+    async def fake_interpret(*a, allow_ai=True, **k):
+        seen["provider_reached"] = allow_ai
+        return {"interpretation": "offline reflection", "source": "offline",
+                "model": "aae-reflective-fallback", "provider": "offline"}
+
+    monkeypatch.setattr(main, "interpret", fake_interpret)
+    monkeypatch.setattr(B, "allow_call",
+                        lambda tok, kind, client_ip=None: (False, "global"))
+
+    chart = client.post("/api/generate-chart", json=_BIRTH).json()
+    r = client.post("/api/ai-ask",
+                    json={"query": "what now?", "chart": chart, "lens": "psychological"})
+
+    assert r.status_code == 200
+    assert r.json()["source"] == "offline"      # degraded, never an error
+    assert seen["provider_reached"] is False    # and the provider was not reached
