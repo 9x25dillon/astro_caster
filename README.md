@@ -222,13 +222,6 @@ Create `backend/.env` (gitignored). **Every variable is optional — the app run
 
 ## Tiers, unlocking & payments
 
-> ⚠️ **The prices and free-tier shape below land with PR #149** (`FREE-1 +
-> pricing`). Until that merges, `main` still charges $3 / $9 / $5 and has no
-> daily premium allowance. This note exists because a README that quietly
-> describes an unmerged branch is the exact drift catalogued in
-> [`docs/audits/DATA_DISCREPANCIES.md`](docs/audits/DATA_DISCREPANCIES.md) —
-> delete it when #149 is in.
-
 
 | Tier | Price | Model | Written length | Unlocked by |
 |---|---|---|---|---|

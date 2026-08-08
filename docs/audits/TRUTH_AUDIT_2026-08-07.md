@@ -36,12 +36,12 @@ change what it should say, and both already carry the matching copy edits:
 
 | pending | changes | copy already updated in that PR? |
 |---|---|---|
-| **#149** FREE-1 + pricing | $3/$9/$5 → **$3.25/$9.99/$5.50**; free tier gains 2 premium readings/day | ✅ yes — including the device-side-count disclosure |
-| **#148** TZ-2 | nothing user-facing on `/legal` | n/a |
+| **#149** FREE-1 + pricing | $3/$9/$5 → **$3.25/$9.99/$5.50**; free tier gains 2 premium readings/day | ✅ **MERGED 2026-08-08** — page and prices moved together, as required |
+| **#148** TZ-2 | nothing user-facing on `/legal` | ✅ merged; n/a |
 
-⚠️ **Do not publish the current pricing page alongside the new Stripe prices.**
-Either merge #149 (page and prices move together) or leave both. Split-merging
-those two halves is the one way this audit's clean result becomes false.
+The risk that mattered here was **split-merging** #149: the Stripe prices and the
+pricing-page copy live in the same PR precisely so they cannot separate. They
+merged together, so the pricing page is accurate as shipped.
 
 ## 3. Refunds — policy-only, correctly
 
