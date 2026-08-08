@@ -40,6 +40,10 @@ _durations: Dict[Tuple[str, str], list] = defaultdict(lambda: [0.0, 0])
 _ai_calls: Dict[str, int] = defaultdict(int)
 # {kind: chars} — response size proxy for spend tracking
 _ai_chars: Dict[str, int] = defaultdict(int)
+# {(kind, reason): count} — calls that were ELIGIBLE for a provider and did not
+# get one. See observe_ai_fallback for why this is not merely the inverse of
+# _ai_calls.
+_ai_fallbacks: Dict[Tuple[str, str], int] = defaultdict(int)
 
 # Bound label cardinality: only paths that exist in the route table get
 # their own series; everything else (scans, typos, /api/v2 probes) folds
@@ -70,6 +74,48 @@ def observe_ai_call(kind: str, chars: int = 0) -> None:
         _ai_chars[kind] += max(chars, 0)
 
 
+def observe_ai_fallback(kind: str, reason: str = "degraded") -> None:
+    """One call that was eligible for a provider and served offline instead.
+
+    WHY THIS EXISTS SEPARATELY FROM `observe_ai_call`. A counter that only
+    counts successes goes FLAT when the provider dies — and flat is exactly
+    what "nobody used the product" looks like. Those two readings are opposite
+    (one means fix your billing, the other means fix your marketing) and
+    without this series they are indistinguishable. That ambiguity is most
+    dangerous precisely when it costs most: just after a launch or an ad push,
+    when traffic is unusually high and an exhausted API balance is unusually
+    likely.
+
+    `reason` separates the two cases worth telling apart:
+
+      degraded      a provider WAS configured and the call failed — an expired
+                    key, an exhausted balance, a rate limit, an outage. Real,
+                    and every one of these was a visitor served a lesser
+                    product. This is the one to alarm on.
+      unconfigured  no provider is set up at all, so offline is the intended
+                    and correct answer (personal builds, CI). Never an alarm.
+
+    Deliberately NOT a spend metric: these calls cost nothing, which is the
+    whole point. It measures degraded EXPERIENCES, not dollars.
+    """
+    with _lock:
+        _ai_fallbacks[(kind, reason)] += 1
+
+
+def ai_fallback_snapshot() -> Dict[str, Dict[str, int]]:
+    """{reason: {kind: count}} for the admin summary.
+
+    Keyed by reason first because the reason is what decides whether to act:
+    `degraded` means go top up the balance, `capped` means the guard is
+    working, `unconfigured` means nothing is wrong.
+    """
+    out: Dict[str, Dict[str, int]] = {}
+    with _lock:
+        for (kind, reason), n in _ai_fallbacks.items():
+            out.setdefault(reason, {})[kind] = n
+    return out
+
+
 def reset() -> None:
     """Test hook."""
     with _lock:
@@ -77,6 +123,7 @@ def reset() -> None:
         _durations.clear()
         _ai_calls.clear()
         _ai_chars.clear()
+        _ai_fallbacks.clear()
 
 
 def _esc(v: str) -> str:
@@ -118,6 +165,14 @@ def render() -> str:
         ]
         for kind, n in sorted(_ai_chars.items()):
             lines.append(f'aae_ai_response_chars_total{{kind="{_esc(kind)}"}} {n}')
+        lines += [
+            "# HELP aae_ai_fallback_total Calls served by the offline compiler instead of a provider.",
+            "# TYPE aae_ai_fallback_total counter",
+        ]
+        for (kind, reason), n in sorted(_ai_fallbacks.items()):
+            lines.append(
+                f'aae_ai_fallback_total{{kind="{_esc(kind)}",reason="{_esc(reason)}"}} {n}'
+            )
     # Phase 4.4 AI-spend gauges (estimated USD; the scraper alarms on these).
     try:
         import budget as _budget
