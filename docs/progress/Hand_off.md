@@ -1,9 +1,171 @@
 # Hand_off.md
 
-_Last updated: 2026-08-07 (session 22 CLOSED — `main` pushed and SYNCED with
-`origin/main` @ `d8e392a`, 0 open PRs, working tree clean, servers down. The
-blank-page bug on `main` is fixed and the birthplace no longer leaves the
-device. Re-derive before trusting any of this: `git fetch && git status -sb`.)_
+_Last updated: 2026-08-08 (session 23 CLOSED — a signed APK exists, three cost
+controls that did nothing now work, servers down, tree clean. **6 commits are
+pushed on `landing-page-and-apk` with NO OPEN PR — read item 1 below first.**
+Re-derive before trusting any of this: `git fetch && git status -sb`.)_
+
+---
+
+# SESSION 23 — 2026-08-08
+
+## TL;DR
+
+Asked to finish the landing page and APK; both are done. Then, following a
+question about what happens when the API calls fail, found three cost controls
+that were present, plausible, and doing nothing.
+
+1. **The APK exists and is signed.** #150 said no APK could be built here; the
+   SDK is installed now. `astra-1.0-reader.apk`, 5.3 MB, v2+v3 signed, RSA 4096.
+   Reader mode verified **inside the signed artifact**, not in the source.
+2. **The free tier was never gated.** `/api/ai-ask`, the streamed ask and tarot
+   never called `budget.allow_call`. The global cap did not cap the one path
+   with no revenue against it.
+3. **Every anonymous visitor shared one budget bucket** (`user_key(None)` →
+   `"anon"`), so one abuser starved every free user.
+4. **The "per-IP" rate limiter was keyed on the proxy's IP** in production —
+   one shared window for the whole internet.
+5. **Chart payload trimmed**: free-tier chart block −73%, a free premium reading
+   −24%.
+6. Landing page written and claim-checked; `uuid` advisory fixed.
+
+## ⚠️ 1. There is no open PR for 6 commits — do this first
+
+PR #152 was **squash-merged mid-work** (2026-08-08 06:33Z) while three more
+commits were already on the branch. `main` got the APK/landing work and the
+metrics counter; it did **not** get the budget gating, the chart-payload work,
+the `uuid` override, or the merge commit.
+
+```
+git fetch && git rev-list --left-right --count origin/main...landing-page-and-apk
+# -> 0   6      (main has nothing we lack; we have 6 main lacks)
+```
+
+**Those 6 commits are pushed and reviewed by nobody.** This is exactly the
+orphan trap in [[stacked-pr-orphan-trap]]. Open a PR for them.
+
+`git cherry` reported all 5 original commits as `+` (absent from main) even
+though main demonstrably had two of them — **a squash changes the patch-id, so
+`git cherry` cannot see through one.** What actually answered the question was
+grepping main for symbols: `git show origin/main:backend/metrics.py | grep
+observe_ai_fallback`. Use content probes, not patch-ids, against a squashed main.
+
+## The APK
+
+| | |
+|---|---|
+| path | `frontend/android/app/build/outputs/apk/release/astra-1.0-reader.apk` |
+| sha256 | `b462f85e649a1a87b707f7ebea8fa5ab9b923b1f2ca2a7d638c7e9555d30eacd` |
+| cert sha256 | `c568d41d45af616f034819320640f1a7368dbdaeb04346bda72ab203b2d0a82e` |
+| build | `JAVA_HOME=$HOME/.jdks/jdk-21.0.12+8` — **21. Not 17, not 26.** |
+
+**JDK 17 fails** (`invalid source release: 21`). **JDK 26 fails later and more
+misleadingly**, inside AGP's `JdkImageTransform` running `jlink` — the error
+names `jlink`, so it reads as a corrupt SDK rather than a too-new JDK. Full
+recipe and the `apksigner --ks-pass file:` EOF gotcha in `APK_A0_FINDINGS.md`.
+
+**The APK is not reproducible byte-for-byte** — signing embeds timestamps, so
+the checksum changes on every rebuild. Publish the checksum of the *uploaded*
+file. The web bundle underneath IS reproducible (`index-CYz-p5vB.js` reproduced
+across three builds hours apart), which is what makes the `var ml=!0` check mean
+anything.
+
+## 🔑 The signing key — the one unrecoverable thing here
+
+`~/.astra-signing/` — keystore, password file, and `BACKUP-README.txt`.
+**Outside every git repo, by design. It will NOT survive a fresh clone or this
+disk dying, and nothing in the project can regenerate it.** Lose it and no
+future build can ever update an installed Astra. Operator was asked to back it
+up on 2026-08-07; **confirm that actually happened before shipping anything.**
+
+`frontend/android/.gitignore` ships Capacitor's `*.jks`/`*.keystore` rules
+commented out — uncommented here, since the remote is public.
+
+## Cost controls — READ BEFORE GOING LIVE
+
+The operator has **$300 total** for the rest of the build. Defaults are wrong
+for that: `AAE_GLOBAL_DAILY_USD` defaults to **$100/day**, so three busy days
+spend everything. Set in `.env` (documented in `.env.example`):
+
+```bash
+AAE_GLOBAL_DAILY_USD=3.00
+AAE_USER_DAILY_USD=0.25
+AAE_TRUST_PROXY=1      # ONLY while the backend is expose:, never ports:
+```
+
+**`AAE_TRUST_PROXY` is load-bearing in both directions.** Unset behind a proxy →
+every visitor resolves to the proxy and both the rate limiter and the per-IP
+budget collapse into one shared bucket. Set while directly reachable → anyone
+forges a header and gets unlimited buckets, which is worse because it looks like
+it works.
+
+**How to tell a dead balance from a quiet day:** `GET /api/admin/stats` →
+`ai_fallbacks`, keyed by reason. `degraded` = go top up. `capped` = the guard
+working. `unconfigured` = nothing wrong. Before this session a dead provider
+just made `aae_ai_calls_total` go flat, which is indistinguishable from nobody
+showing up — the worst possible ambiguity right after an ad push.
+
+## Blocked on the operator
+
+1. **`astra-arcana.com` does not resolve** (checked: no DNS). It is baked into
+   the signed APK's "subscribe here" signpost. **Register it before the APK is
+   distributed** — the URL is immutable in a shipped binary.
+2. **No GitHub release exists**, so the landing page's download button points at
+   an empty releases page. Publishing it is what makes that section true.
+3. **Three device checks close A1**: install, cast in airplane mode, import an
+   entitlement. `adb devices` was empty. Command in `APK_A0_FINDINGS.md`.
+4. **Deploy layout unresolved (M4).** `landing/index.html` assumes it sits at `/`
+   with the app at `/app/`; `nginx.conf` serves the app at `/`. The four
+   `/legal/*` links are already correct; `/app/` is broken in every layout until
+   nginx gains a location. Changing nginx → re-check `test_edge_headers.py`.
+5. **LLC** — discussed, not decided. The line is the first *live* payment (M5),
+   not launch. State choice dominates recurring cost (CA $800/yr vs ~$50
+   elsewhere), which matters against a $300 budget.
+6. **Dependabot #9** (`uuid`) is fixed on the branch; it closes when the branch
+   merges. `main` never had the vulnerable dep — it arrived with `@capacitor/cli`.
+
+## Docs corrected this session — don't re-trust the old numbers
+
+- **`PRICING_MODEL.md` §1**: the "5,646 tokens" chart figure measured
+  `parity/natal-chart.json`, the **full** chart. `_build_context` discards 72%
+  before serialising. Overstated ~3×, and "~87% of a free-tier prompt" with it.
+- **`PRICING_MODEL.md` §6**: predicted trimming would take a free reading "to
+  well under a cent". **Arithmetically impossible** — 700 output tokens cost
+  $0.0105 alone. Real: $0.0189 → $0.0142 (−24%). $100 buys ~5,300 → ~7,000
+  readings, a +32% extension, not 5×. **Input is no longer the lever; output
+  budget and readings-per-device are.**
+- **`APK_A0_FINDINGS.md`**: "no APK was produced" is superseded, marked in place.
+
+## Gotchas learned today (each cost real time)
+
+- **Never call a symbol unused until you have grepped for it.** `PURCHASE_URL`
+  pointed at `#support` with no such anchor on the landing page — it looked
+  dead, was "fixed" to `#pricing`, and rebuilt and re-signed twice before
+  `App.tsx:101` turned up, routing `#support` to the Support panel. Cost two
+  full build-and-sign cycles. Resolution: `#support` now works under **both**
+  deploy layouts, so a signed binary does not depend on an unmade decision.
+- **Measure the string the model receives, not the file it came from.** Cost a
+  wasted benchmark, and it is the same error `PRICING_MODEL` §1 had made.
+- **A cost control is verified by finding its call site, not by reading the
+  module that implements it.** `budget.py` defined `"ask"` and `"tarot"` in
+  `_NOMINAL_CHARS` and nothing ever called it — a price list mistaken for wiring.
+- **On a conflict, "accept both" is a real hazard, not a safe default.** Three
+  of today's six would have kept two copies of `BUDGET.record(...)`, charging
+  every paid call twice and silently halving the cap.
+- **`pkill -f` still kills its own shell** (hit again, exit 144). Kill by port:
+  `ss -Htlnp 'sport = :PORT' | grep -oP 'pid=\K[0-9]+'`.
+
+## Verify the session-23 claims in ~90 seconds
+
+```bash
+cd backend && .venv/bin/pytest -q                      # -> 366 passed
+cd ../frontend && npm test && npm audit                # -> 25 pass / 0 vulns
+unzip -p android/app/build/outputs/apk/release/astra-1.0-reader.apk \
+  assets/public/assets/index-CYz-p5vB.js | grep -ao "var ml=![01]"   # -> var ml=!0
+~/Android/Sdk/build-tools/35.0.0/apksigner verify \
+  android/app/build/outputs/apk/release/astra-1.0-reader.apk         # -> Verifies
+cd .. && git rev-list --left-right --count origin/main...HEAD        # -> 0  6
+```
 
 ---
 
