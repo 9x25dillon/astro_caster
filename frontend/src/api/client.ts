@@ -18,6 +18,7 @@ function core(): Promise<typeof import("@astra/core")> {
     return m;
   }));
 }
+import { premiumAvailable, consumePremium } from "../lib/freeAllowance";
 import type {
   BirthInput,
   ChartResponse,
@@ -116,6 +117,11 @@ export function aiAsk(
   depth: "quick" | "deep" = "quick",
   entitlement?: string | null
 ): Promise<AIResult> {
+  // FREE-1 — claim today's premium allowance if any is left. The server honours
+  // this for the FREE TIER ONLY and only to pick a better writer at a short
+  // length; it can never unlock a paid feature or raise a paid tier's budget.
+  // Spent on SUCCESS only (below), so a failed or offline reading costs nothing.
+  const claimed = premiumAvailable();
   return post<AIResult>("/ai-ask", {
     query,
     chart,
@@ -124,6 +130,12 @@ export function aiAsk(
     entitlement: entitlement ?? null,
     selected_type: selection?.type ?? null,
     selected_id: selection?.id ?? null,
+    free_premium: claimed,
+  }).then((r) => {
+    // Only a real provider call spends the allowance. The offline compiler is
+    // free to run, so a reading that fell back to it must not cost a turn.
+    if (claimed && !entitlement && r.source === "llm") consumePremium();
+    return r;
   });
 }
 

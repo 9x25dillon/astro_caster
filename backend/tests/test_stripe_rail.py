@@ -410,9 +410,12 @@ def test_default_prices_are_the_founding_rates(monkeypatch):
     for var in ("AAE_STRIPE_SUPPORTER_USD", "AAE_STRIPE_ORACLE_USD",
                 "AAE_STRIPE_REPORT_USD"):
         monkeypatch.delenv(var, raising=False)
-    assert S.price_cents("supporter") == 300
-    assert S.price_cents("oracle") == 900
-    assert S.report_price_cents() == 500
+    # Raised 2026-08-07 from 3/9/5. The targets came from measured unit costs
+    # (docs/progress/PRICING_MODEL.md), not a round-number guess: at 20 readings
+    # per subscriber-month these lift profit +13.5% / +15.0% / +12.7%.
+    assert S.price_cents("supporter") == 325
+    assert S.price_cents("oracle") == 999
+    assert S.report_price_cents() == 550
 
 
 def test_prices_are_read_per_call_so_a_raise_needs_no_deploy(monkeypatch):

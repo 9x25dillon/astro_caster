@@ -30,9 +30,10 @@ Configure via environment (all optional):
     AAE_AI_BASE_URL        default https://openrouter.ai/api/v1
     AAE_AI_API_KEY         cloud key (enables the openai provider)
     AAE_AI_MODEL           default anthropic/claude-haiku-4-5
-    AAE_AI_MODEL_DEEP      default anthropic/claude-sonnet-4-6
-    AAE_AI_MODEL_SUPPORTER default anthropic/claude-sonnet-4-6
-    AAE_AI_MODEL_ORACLE    default anthropic/claude-opus-4-8
+    AAE_AI_MODEL_DEEP      default anthropic/claude-sonnet-5
+    AAE_AI_MODEL_SUPPORTER default anthropic/claude-sonnet-5
+    AAE_AI_MODEL_ORACLE    default anthropic/claude-opus-5
+    AAE_AI_MODEL_FREE_PREMIUM default anthropic/claude-sonnet-5 (FREE-1 daily taste)
 """
 
 from __future__ import annotations
@@ -84,11 +85,21 @@ _OLLAMA_MODEL_DEEP = os.environ.get("AAE_OLLAMA_MODEL_DEEP", "qwen2.5:3b")
 # --- Cloud (OpenRouter / OpenAI / Nous) ------------------------------------ #
 _BASE_URL = os.environ.get("AAE_AI_BASE_URL", "https://openrouter.ai/api").rstrip("/").removesuffix("/v1")
 _API_KEY = os.environ.get("AAE_AI_API_KEY", "").strip()
+# Current-generation models across every tier. The upgrade from
+# sonnet-4-6/opus-4-8 was FREE: Anthropic prices Sonnet 5 and Opus 5 identically
+# to the models they replace ($3/$15 and $5/$25 per MTok), so every tier got a
+# better writer at the same unit cost. Verify before assuming that still holds
+# on any future bump — a model swap that changes the rate changes the margins in
+# docs/progress/PRICING_MODEL.md.
 _MODEL = os.environ.get("AAE_AI_MODEL", "anthropic/claude-haiku-4-5")
-_MODEL_DEEP = os.environ.get("AAE_AI_MODEL_DEEP", "anthropic/claude-sonnet-4-6")
+_MODEL_DEEP = os.environ.get("AAE_AI_MODEL_DEEP", "anthropic/claude-sonnet-5")
 # Tier-based cloud models — supporter gets Sonnet, Oracle gets Opus.
-_MODEL_SUPPORTER = os.environ.get("AAE_AI_MODEL_SUPPORTER", "anthropic/claude-sonnet-4-6")
-_MODEL_ORACLE = os.environ.get("AAE_AI_MODEL_ORACLE", "anthropic/claude-opus-4-8")
+_MODEL_SUPPORTER = os.environ.get("AAE_AI_MODEL_SUPPORTER", "anthropic/claude-sonnet-5")
+_MODEL_ORACLE = os.environ.get("AAE_AI_MODEL_ORACLE", "anthropic/claude-opus-5")
+# Free tier's daily taste of the good model (FREE-1). Same writer the supporter
+# tier gets, deliberately — what the free allowance withholds is LENGTH, not
+# quality, so the upgrade sells more room rather than a better mind.
+_MODEL_FREE_PREMIUM = os.environ.get("AAE_AI_MODEL_FREE_PREMIUM", "anthropic/claude-sonnet-5")
 
 # Reachability probe cache: provider -> (reachable, checked_at).
 _PROBE_TTL = 20.0  # seconds
@@ -289,7 +300,7 @@ def _compact_context_text(ctx: Dict) -> str:
 # --------------------------------------------------------------------------- #
 
 
-def _build_prompts(query, context, lens, selected_type, selected_id, depth, provider, tier="free"):
+def _build_prompts(query, context, lens, selected_type, selected_id, depth, provider, tier="free", free_premium=False):
     """Return (system, user, model, budget) tuned for the given provider and tier."""
     lens_line = _LENS_GUIDANCE.get(lens, _LENS_GUIDANCE["psychological"])
     if provider == "ollama":
@@ -315,9 +326,26 @@ def _build_prompts(query, context, lens, selected_type, selected_id, depth, prov
         system = f"{SYSTEM_PROMPT}{ORACLE_EXTENSION}\n\nActive interpretive lens: {lens}. {lens_line}"
         budget = 3000   # ORACLE_EXTENSION demands depth, but kept clearly below oracle's ceiling
     else:
-        model = _MODEL_DEEP if depth == "deep" else _MODEL
+        # FREE-1 — the free tier gets a daily taste of the good model, then the
+        # cheap one, and the deterministic engine underneath both. What the
+        # allowance withholds is LENGTH: `free_premium` buys the same writer the
+        # supporter tier uses, but at a third of the room, so the reading is
+        # genuinely good and genuinely short. Upgrading buys space to finish a
+        # thought, which is an honest thing to sell.
+        #
+        # The allowance is a COURTESY, not a security boundary — it is counted
+        # on the device (no account, no identifier, nothing to retain), so it is
+        # trivially resettable. That is deliberate: the real spend ceiling is
+        # budget.py's server-side global daily cap, which no client can move.
+        # Guarding a $0.03 call with a tracking identifier would cost more in
+        # privacy than it saves in tokens.
+        if free_premium:
+            model = _MODEL_FREE_PREMIUM
+            budget = 700
+        else:
+            model = _MODEL_DEEP if depth == "deep" else _MODEL
+            budget = 700
         system = f"{SYSTEM_PROMPT}\n\nActive interpretive lens: {lens}. {lens_line}"
-        budget = 1000
     system += PS.SYSTEM_NOTE
     user = (
         f"User question:\n{PS.quarantine(query, 'question', 1500)}\n\n"
@@ -336,19 +364,20 @@ async def interpret(
     selected_id: Optional[str] = None,
     depth: str = "quick",
     tier: str = "free",
+    free_premium: bool = False,
 ) -> Dict[str, object]:
     """Return {"interpretation": str, "source": "llm"|"offline", "model": str}."""
     context = _build_context(chart, selected_type, selected_id)
     # The liveness probe inside can block ~1.5s — keep it off the event loop.
     provider = await asyncio.to_thread(_resolve_provider_for_tier, tier)
     system, user, model, budget = _build_prompts(
-        query, context, lens, selected_type, selected_id, depth, provider, tier
+        query, context, lens, selected_type, selected_id, depth, provider, tier, free_premium
     )
     demoted = _demote_kgirl_if_prompt_too_long(provider, system, user)
     if demoted != provider:
         provider = demoted
         system, user, model, budget = _build_prompts(
-            query, context, lens, selected_type, selected_id, depth, provider, tier
+            query, context, lens, selected_type, selected_id, depth, provider, tier, free_premium
         )
     if provider == "offline":
         return {
@@ -434,6 +463,7 @@ async def interpret_stream(
     selected_id: Optional[str] = None,
     depth: str = "quick",
     tier: str = "free",
+    free_premium: bool = False,
 ):
     """
     Async generator yielding (event, payload) tuples:
@@ -449,13 +479,13 @@ async def interpret_stream(
     # The liveness probe inside can block ~1.5s — keep it off the event loop.
     provider = await asyncio.to_thread(_resolve_provider_for_tier, tier)
     system, user, model, budget = _build_prompts(
-        query, context, lens, selected_type, selected_id, depth, provider, tier
+        query, context, lens, selected_type, selected_id, depth, provider, tier, free_premium
     )
     demoted = _demote_kgirl_if_prompt_too_long(provider, system, user)
     if demoted != provider:
         provider = demoted
         system, user, model, budget = _build_prompts(
-            query, context, lens, selected_type, selected_id, depth, provider, tier
+            query, context, lens, selected_type, selected_id, depth, provider, tier, free_premium
         )
     label = {"ollama": model, "openai": model, "kgirl": "kgirl-consensus",
              "offline": "aae-reflective-fallback"}[provider]
