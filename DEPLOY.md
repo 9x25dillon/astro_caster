@@ -148,8 +148,19 @@ rewrites `X-Forwarded-For` but passes `CF-Connecting-IP` through untouched, and
 `client_ip()` prefers it precisely because it is a single address that does not
 shift when the proxy chain grows a link.
 
-With two origins, set `AAE_CORS` to the **app** origin only
-(`https://app.astra-arcana.com`) — the landing page never calls the API.
+With two origins, set `AAE_CORS` to the **app** origin **and the Android
+WebView's origin**:
+
+```
+AAE_CORS=https://app.astra-arcana.com,https://localhost
+```
+
+The landing page never calls the API, so it is deliberately absent. The
+`https://localhost` entry is not a development leftover: Capacitor serves the
+APK's bundle from that origin (`androidScheme: "https"`), so every request the
+Android app makes carries `Origin: https://localhost`. Omit it and the app's
+API calls fail CORS — which presents as the app silently falling back to
+on-device compute, not as an error.
 
 ### 3.2 The live infrastructure (provisioned 2026-08-11)
 
