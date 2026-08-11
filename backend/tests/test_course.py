@@ -1,8 +1,15 @@
 """
 The Course — Fable-designed personal curriculum (oracle tier).
 
-Tests exercise the DETERMINISTIC layer (no Anthropic key in the test env, so
-generate_course always takes the offline path) and the endpoint's tier gate.
+Tests exercise the DETERMINISTIC layer and the endpoint's tier gate.
+
+generate_course takes the offline path because conftest.py BLANKS the paid
+provider keys for the whole session. That used to be phrased here as "no
+Anthropic key in the test env" — an assumption about the environment rather
+than a guarantee, and it was false on any machine with a funded backend/.env:
+the five _generate() calls below each billed a live Fable-5 course before
+failing on `ai_source == "offline"`. If you need the live path, set the key
+explicitly with monkeypatch so the cost is visible at the call site.
 """
 import asyncio
 import os
