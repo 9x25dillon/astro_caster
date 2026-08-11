@@ -13,22 +13,21 @@
   home while saying so would be the most embarrassing possible contradiction.
   Everything here is inline or same-origin. Keep it that way.
 
-  ⚠️ DEPLOY LAYOUT — THIS PAGE IS NOT SERVEABLE AS-IS. It assumes it lives at
-  `/` with the app at `/app/`. `frontend/nginx.conf` currently does the
-  opposite: `root /usr/share/nginx/html` with `location /` falling back to the
-  APP's index.html, so today `/app/` 404s and this file has nowhere to sit.
-  One of the two has to move, and that is an M4 deployment decision, not a
-  copy edit — it was deliberately NOT made here. Whoever does M4:
+  DEPLOY LAYOUT — RESOLVED 2026-08-11 (M4). This page is served at the APEX,
+  `https://astra-arcana.com/`, and the app lives on its OWN ORIGIN at
+  `https://app.astra-arcana.com/`. Two hostnames, one nginx, two server
+  blocks — see the layout note at the top of `frontend/nginx.conf` for why
+  same-origin `/app/` was rejected (the app's service worker claims scope `/`
+  and would serve its shell over this page; and `frontend/dist` doubles as
+  Capacitor's webDir inside the signed APK, which a Vite base change breaks).
 
-    * `/legal/privacy.html` (and terms/refunds/pricing) DO resolve under the
-      current config — the app build emits them at `dist/legal/`, so those four
-      footer links are already correct and must stay at that path if the app
-      moves.
-    * `/app/` is the only broken link, and it is broken in EVERY layout until
-      nginx gains a location for it.
-    * Whatever you change, re-check `test_edge_headers.py` — nginx's
-      add_header inheritance breaks the moment a new location sets its own,
-      and that test exists because it already happened once.
+    * `/legal/*.html` resolve here via an nginx alias onto the app build's
+      `dist/legal/` — ONE source of truth, both hosts. Keep the paths as-is.
+    * The "Open the observatory" CTA is an absolute cross-origin URL. It has
+      to be: the app is not on this host.
+    * `test_edge_headers.py` now gates the header set PER SERVER BLOCK. Adding
+      a location that sets any add_header of its own means repeating that
+      server's full set verbatim, or the test fails.
 -->
 
 <meta property="og:title" content="Astra — the Celestial Observatory">
@@ -137,7 +136,7 @@
     the real sky over you is already drawn.
   </p>
   <div class="cta">
-    <a class="btn btn-primary" href="/app/">Open the observatory →</a>
+    <a class="btn btn-primary" href="https://app.astra-arcana.com/">Open the observatory →</a>
     <a class="btn btn-ghost" href="#pricing">What it costs</a>
   </div>
   <p class="cta-note">No account. No sign-up. Nothing to dismiss.</p>
@@ -228,12 +227,15 @@
 </figure>
 
 <!--
-  Two names, one destination, on purpose. The Android app's PURCHASE_URL sends
-  people to `/#support`, which resolves to the app's Support panel when the APP
-  is served at `/` and must resolve HERE when the LANDING PAGE is served at `/`.
-  That layout is still undecided (M4), and the APK is already signed and
-  distributable — so this anchor is what stops a shipped binary from depending
-  on a decision nobody has made. Do not delete it. See frontend/src/lib/readerMode.ts.
+  Two names, one destination, on purpose. The Android app's PURCHASE_URL is the
+  immutable string `https://astra-arcana.com/#support`, compiled into a SIGNED
+  binary. Under the M4 layout the apex is this page, so that link lands right
+  here, just above the pricing table — which is the correct destination for a
+  reader-mode build that cannot sell anything in-app.
+
+  This anchor is now load-bearing for a shipped artifact. Deleting it, or
+  moving this page off the apex, silently breaks every installed APK's only
+  route to purchasing. See frontend/src/lib/readerMode.ts.
 -->
 <span id="support" aria-hidden="true"></span>
 <section id="pricing">

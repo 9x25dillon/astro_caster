@@ -22,6 +22,10 @@ RUN cd frontend && npm run build
 FROM nginx:1.27-alpine
 COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /repo/frontend/dist /usr/share/nginx/html
+# The marketing page is served on its own hostname from its own root — see the
+# M4 layout note at the top of nginx.conf. It is plain HTML with no build step,
+# so it is copied straight from the repo rather than through the build stage.
+COPY landing/ /usr/share/nginx/landing/
 
 EXPOSE 80
 HEALTHCHECK --interval=15s --timeout=5s --retries=5 \
