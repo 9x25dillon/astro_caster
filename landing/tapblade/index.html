@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0b0d1a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="robots" content="noindex">
+<title>TAPBLADE</title>
+
+<!--
+  PROVENANCE. The game is the operator's own work, taken from
+  github.com/9x25dillon/Badnono (branch ccr-b49ae8a6-lg224i, index.html) on
+  2026-08-11. tapblade.js and tapblade.css are that file's single inline
+  <script> and <style>, extracted verbatim and otherwise unmodified — so they
+  can be diffed against the upstream file if it ever moves.
+
+  What this is doing here.
+
+  astra-arcana.com is a static pitch: with no network it has nothing to say, so
+  the browser shows its own error page. This is what sits there instead — the
+  same trick Chrome plays with the dinosaur. sw.js precaches this page and
+  serves it whenever a navigation to the site fails.
+
+  It deliberately lives on the LANDING origin and not on app.astra-arcana.com.
+  The app works completely offline by design — the chart engine, the ephemeris
+  and the gazetteer all run on-device — so there is no void to fill there, and
+  putting a game in front of a working observatory would be replacing something
+  with nothing.
+
+  The script and style are separate files rather than inline, which is what lets
+  the whole page run under `script-src 'self'` with no 'unsafe-inline' anywhere.
+  Keep them external; inlining them would force a CSP relaxation that would
+  apply to the marketing page too.
+
+  `user-scalable=no` is kept here on purpose (a pinch-zoom mid-swipe ruins the
+  input) and is NOT how the observatory itself is configured — that dropped the
+  same attribute to reach a Lighthouse a11y score of 100.
+-->
+
+<link rel="stylesheet" href="/tapblade/tapblade.css">
+</head>
+<body>
+<div id="wrap"><canvas id="c"></canvas></div>
+<script src="/tapblade/tapblade.js"></script>
+</body>
+</html>

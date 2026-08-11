@@ -1,0 +1,32 @@
+/* touch-action is NOT inherited, so every element in the chain needs it or
+     the browser will happily double-tap-zoom on whatever slipped through. */
+  html, body, #wrap, canvas {
+    touch-action: none;
+    -ms-touch-action: none;
+  }
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: #0b0d1a;
+    overflow: hidden;
+    overscroll-behavior: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+  #wrap {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  canvas {
+    display: block;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    box-shadow: 0 0 0 2px #23264a, 0 0 40px rgba(60, 90, 200, .25);
+  }
