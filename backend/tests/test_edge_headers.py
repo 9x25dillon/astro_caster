@@ -110,11 +110,17 @@ def test_header_copies_identical_within_each_server_block():
 # PURCHASE_URL points at the apex. These lock the shape in.
 
 def test_app_and_landing_are_separate_hosts():
-    hosts = _server_blocks()
-    assert "app.astra-arcana.com" in hosts, "the app host is gone"
-    assert "astra-arcana.com" in hosts, (
-        "the apex host is gone — the signed APK's PURCHASE_URL "
-        "(https://astra-arcana.com/#support) has nowhere to land"
+    # Written as a set difference, not `"host" in hosts`, on purpose. The
+    # membership form is exact dict-key equality here and perfectly correct,
+    # but it is textually identical to the `if "example.com" in url` auth-bypass
+    # bug, so CodeQL flags it high (py/incomplete-url-substring-sanitization)
+    # and fails the check. This form is unambiguous to the scanner AND names
+    # which host went missing. Don't "simplify" it back.
+    missing = {"astra-arcana.com", "app.astra-arcana.com"} - set(_server_blocks())
+    assert not missing, (
+        f"deploy layout lost a host: {sorted(missing)}. The apex must serve the "
+        "landing page — the signed APK's PURCHASE_URL "
+        "(https://astra-arcana.com/#support) has nowhere else to land."
     )
 
 
