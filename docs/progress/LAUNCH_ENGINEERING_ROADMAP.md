@@ -48,7 +48,26 @@ revenue is three things, none of which are backend engine work:
 
 ---
 
-## M0 — Test-mode validation (the gate)
+## M0 — Test-mode validation (the gate) · ✅ **PASSED 2026-08-11**
+
+Run against the real production deployment (`app.astra-arcana.com`), not
+localhost, with `sk_test` keys and a real Stripe webhook endpoint:
+
+| step | result |
+|---|---|
+| checkout session | `success_url` = the APP origin (not the `127.0.0.1:5173` default) |
+| payment (4242…) | `status: complete`, `payment_status: paid`, $3.25 subscription |
+| webhook → mint | `POST /api/stripe/webhook 200 31ms` |
+| entitlement | 241-char token, `verified: true`, `exp - iat` = 365 days |
+| token grants access | `GET /api/entitlement` → `tier: supporter` |
+| refund alone | **access survived** — see the M5 warning below, this is why |
+| cancel → revoke | `POST … 200 3ms` → `tier: free` |
+
+Four defects had to be fixed to get here, none of them in the rail itself:
+compose never forwarded `AAE_STRIPE_*`; it never forwarded `AAE_PUBLIC_URL`
+(whose default would have redirected paying customers to localhost); the
+passthrough then crash-looped the backend because `${VAR:-}` sets a variable to
+empty and `float("")` raises at import; and the M5 refund step below was wrong.
 
 **Goal:** prove the rail end-to-end with test keys + test cards before building
 any UI on top of it. ~30 minutes, jointly (operator clicks the browser bits).
@@ -241,7 +260,25 @@ Legally load-bearing for real money; can partly parallelize M1/M2.
 - Swap `sk_test_`→`sk_live_` **and** the live `whsec_` **in the host's secret
   store only** — never chat, never the repo. Set live `AAE_STRIPE_*_USD`.
 - One tiny **real-money** smoke: buy the cheapest tier on a real card, confirm
-  mint, then refund it from the dashboard and confirm revoke.
+  mint, then **cancel the subscription** and confirm revoke — then refund the
+  charge to return the money.
+
+  ⚠️ **Cancel is the revoke trigger, not refund.** This step used to read
+  "refund it and confirm revoke", which M0 proved would fail. The mint stores
+  `ref = payment_intent OR subscription OR session_id`, so for a subscription
+  the ref is `sub_…`; `charge.refunded` resolves `ref = payment_intent OR
+  charge_id`, i.e. `py_…`. Different namespaces, so the revoke lookup cannot
+  match and access survives the refund.
+
+  That is defensible — refunding an invoice does not cancel a subscription in
+  Stripe either — and it is NOT a problem for **one-time** purchases (the
+  deluxe report), where the mint ref *is* the payment_intent and refund→revoke
+  works. But doing it in the wrong order on live money means debugging the rail
+  during your first real transaction. Cancel, verify `tier: free`, then refund.
+
+  **Verified in test mode 2026-08-11 (M0):** mint via webhook (200, 31ms),
+  token grants `tier=supporter verified=true`, refund alone left access intact,
+  `customer.subscription.deleted` revoked it to `tier: free`.
 - **Soft launch → soak:** watch the `aae_ai_spend_alarm` gauge, error rate, and
   the funnel; keep the offline-degrade path as the safety net. Announce when the
   soak is quiet.
