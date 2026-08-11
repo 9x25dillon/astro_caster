@@ -1,9 +1,118 @@
 # Hand_off.md
 
-_Last updated: 2026-08-08 (session 23 CLOSED — a signed APK exists, three cost
-controls that did nothing now work, servers down, tree clean. **6 commits are
-pushed on `landing-page-and-apk` with NO OPEN PR — read item 1 below first.**
-Re-derive before trusting any of this: `git fetch && git status -sb`.)_
+_Last updated: 2026-08-11 (session 24 CLOSED — **Astra is LIVE at
+https://astra-arcana.com**. M0-M4 done, M5 is all that remains. Payment rail
+deliberately PARKED. Tree clean, 0 open PRs, 0 stale branches.)
+Re-derive before trusting any of this: `git fetch && git status -sb`._
+
+---
+
+# SESSION 24 — 2026-08-11
+
+## TL;DR
+
+Went live. The product was never the hard part; four things that looked like
+they worked were.
+
+1. **Astra is serving the public** — landing page at the apex, the observatory
+   at `app.astra-arcana.com`, TLS `strict`, real Fable readings verified.
+2. **M0 PASSED** at last (five sessions late), against the real deployment.
+3. **`pytest` was spending your money** — live Fable-5 calls on every run.
+4. **Chiron was missing from every chart in production.**
+5. **A timezone bug was live on main**, recovered from a parked branch.
+6. **M5 is the only milestone left**, and it is gated on decisions, not code.
+
+## Where production actually sits
+
+| | |
+|---|---|
+| landing | https://astra-arcana.com (+ `www`) |
+| app + API | https://app.astra-arcana.com |
+| origin | Hetzner cpx22, Nuremberg — IP in `ops/origin.env` (gitignored) |
+| access | `ssh -i ~/.ssh/astra_hetzner astra@$ORIGIN_IP` |
+| TLS | Cloudflare `strict` + Origin CA cert (2041), nginx 443 |
+| firewall | 22 = operator IP; 80/443 = Cloudflare ranges only |
+| backups | nightly 14-18 UTC |
+| release | v1.0.0 **pre-release**, APK attached, checksum verified |
+
+Reproduce with `ops/provision_hetzner.sh` and `ops/cloudflare_dns.sh` — both
+preflight by default and change nothing without `--create` / `--apply`.
+
+## ⚠️ Read before touching payments
+
+**The Stripe test keys are PARKED, not gone** — commented in the server `.env`
+as `# M0-parked AAE_STRIPE_*`, backup at `~/astro-aae/.env.bak.stripe-m0`. The
+webhook secret cannot be re-read from Stripe, which is why they were commented
+rather than deleted.
+
+They were pulled because **test keys on a public instance let anyone mint a real
+365-day entitlement with card 4242** — the rail mints on a completed session
+regardless of key mode. The roadmap warns loudly about live keys arriving too
+early and says nothing about test keys staying too long.
+
+**Refund does NOT revoke a subscription.** The mint stores
+`ref = payment_intent OR subscription OR session_id` (`sub_…`);
+`charge.refunded` gives `payment_intent OR charge_id` (`py_…`). Different
+namespaces, so the lookup cannot match. Correct for one-time purchases (the
+deluxe report). M5's runbook is corrected: **cancel, verify `tier: free`, then
+refund**.
+
+## What M0 proved
+
+```
+checkout -> complete/paid ($3.25 subscription)
+webhook  -> POST /api/stripe/webhook 200 31ms
+mint     -> 241-char token, verified:true, exp-iat = 365 days
+access   -> GET /api/entitlement -> tier: supporter
+refund   -> access SURVIVED
+cancel   -> tier: free
+```
+
+## `/api/health` returning `ok` proves almost nothing
+
+It said `ok` while the container had no ephemeris at all. Check these three:
+
+- `ephemeris` must be **`swiss-files`**. `moshier` means the vendored `.se1`
+  mount is missing and **Chiron silently disappears** — 16 bodies, not 17,
+  every other position bit-identical, nothing logged. `backend/ephe/` is
+  gitignored, so a fresh clone never has it.
+- `personal_mode` must be **false**.
+- `ai.configured` must be **true**.
+
+## Gotchas earned today
+
+- **A price list is not a stock list.** Hetzner quotes machines it cannot place;
+  only `/v1/datacenters[].server_types.available` knows. Prices are **USD**.
+- **`${VAR:-}` sets a variable to EMPTY, not absent**, and
+  `os.environ.get(k, default)` only falls back when a key is absent. `float("")`
+  raised at import and crash-looped the whole API. `budget._f()` is the idiom.
+- **`git cherry` cannot see through a squash**, and reverse-applying a branch
+  diff fails once main moves. Probe main for the branch's distinctive **lines**.
+- **Never paste a secret on the same line as `cat > file`** — it becomes part of
+  the filename. Type the command, press Enter FIRST, then paste, then Ctrl-D.
+- **Cloudflare's Browser Cache TTL is a floor**, not a default: it raised
+  `no-cache` on both service workers to 4 hours while leaving `immutable`
+  assets alone. Zone is now set to respect origin headers.
+- An offline `fetch()` can be answered from the browser's **own HTTP cache**,
+  resolve, and never reach `.catch()`. Use `cache: "no-store"`.
+
+## Blocked on the operator
+
+1. **The APK has never been installed on a phone.** That is the only reason
+   v1.0.0 is a pre-release. Install it, cast in airplane mode, import an
+   entitlement — then `gh release edit v1.0.0 --prerelease=false`.
+2. **The Hetzner token is invalid** (rotated, and the whole "Token created" page
+   was pasted instead of the value). Needed only to change the firewall/server.
+3. **M5 decisions**: the LLC, and confirming $3.25 / $9.99 / $5.50 as real
+   prices before live keys go in.
+
+## Repo hygiene
+
+`main` is the only branch, local and remote — 27 stale ones were content-probed
+and deleted (tips recorded in the session-24 PR bodies; all recoverable by SHA).
+Merging is now **rebase-only**: squash and merge-commit are disabled at the repo
+level, and branches auto-delete on merge. Squash is what made the session-23
+orphan trap unresolvable.
 
 ---
 

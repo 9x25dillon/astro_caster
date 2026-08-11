@@ -5,6 +5,121 @@ PR bodies; this is the story. Started session 15 at the operator's request._
 
 ---
 
+## Session 24 · 2026-08-11 — the day it went live, and four things that were only pretending to work
+
+The operator arrived with a domain, no VM, and $100 of API credit. By the end
+Astra was serving real readings at astra-arcana.com to anyone who typed it.
+Almost none of the day was spent building the product. It was spent finding
+things that looked like they worked.
+
+The first was the deploy layout, parked since session 23 as an M4 decision. The
+landing page assumed it sat at `/` with the app at `/app/`; nginx did the
+opposite. What settled it was not preference but two independent facts, either
+one fatal: the app's service worker registers with scope `/`, so on a shared
+origin it would answer navigations to `/` from its precached shell and silently
+eat the landing page for every returning visitor — and `frontend/dist` doubles
+as Capacitor's webDir inside the *signed* APK, so rebasing Vite to `/app/` would
+make a binary nobody can cheaply re-sign fetch `/app/assets/*` against a root
+with no such prefix. Two origins cost one DNS record and dodge both.
+
+Then the test suite turned out to be spending money. `pytest` had been making
+live Fable-5 calls — five course generations at a 24k-token budget per run —
+because `conftest.py` neutralises personal mode, trust mode, the ephemeris and
+the receipts DB "so a local run matches CI", and never neutralised the provider
+keys. `test_course.py` documented the gap as an *assumption* in its docstring:
+"no Anthropic key in the test env". True on CI, which has no `.env`. False on
+the operator's machine. It had been invisible for months because an unfunded key
+fails instantly and looks exactly like the offline path working; funding the
+account is what turned a silent no-op into spend. The suite went from six
+minutes and two failures to 370 passed in 4.75 seconds.
+
+Buying the server was its own education. Hetzner's price list quotes machines it
+cannot sell. `cx33` lists at $8.99 and is provisionable in no EU location;
+Falkenstein reported zero available types of *any* kind. Only
+`/v1/datacenters[].server_types.available` knows, and nothing says so until the
+create call returns `error during placement` — after the SSH key and firewall
+already exist. Two wrong recommendations were given to the operator on the
+strength of a price list before that was understood. Prices are also USD despite
+the EU locations, and US regions run about 5.8x EU for the same specs. The
+preflight now asserts all of it.
+
+The deploy came up clean and was wrong in three ways. Cloudflare runs `full`,
+meaning it speaks HTTPS to the origin, and nginx listened on 80 only — the first
+real request would have been a 502. The compose file's enumerated environment
+block had drifted and never passed `AAE_ANTHROPIC_API_KEY`, `AAE_OPENAI_API_KEY`
+or `AAE_CORS`, so every paid tier would have run permanently on the offline
+compiler while `/api/health` said `ok`. And `backend/ephe/` is gitignored, so a
+fresh clone — which every deploy is — has no ephemeris; `COPY . .` produced an
+image without it, the backend fell back to Moshier, and **Chiron vanished from
+every chart**. Sixteen bodies instead of seventeen, every other position
+bit-identical, nothing logged. The lesson worth keeping is that `/api/health`
+returning `ok` proves almost nothing; the fields that matter are `ephemeris`,
+`personal_mode` and `ai.configured`.
+
+The offline game was the operator's idea and the best one of the day. TAPBLADE
+now answers failed navigations on the landing page, exactly as Chrome's dinosaur
+does. It could not go in the app: the observatory already works completely
+offline, so there is no void to fill, and a game in front of a working
+instrument would be replacing something with nothing. The worker shipped with a
+bug that passed a casual test — a plain `fetch(request)` while offline is
+answered from the browser's *own* HTTP cache, resolves, and never reaches
+`.catch()`, so the fallback worked only for pages a visitor had never opened.
+It would have failed for precisely the returning visitors who have a worker
+installed. Caught only because the test asserted `/` and not just the
+convenient case.
+
+A branch audit was meant to be housekeeping. `git cherry` cannot see through a
+squash, and reverse-applying each branch's diff fails on all of them once main
+has moved, so it took a line-level content probe across 26 branches to get an
+answer. Twenty-five were absorbed. One was not: `tz-resolver-parked` carried a
+fix main never received, and the bug was live. `zoneOffsetMsAt` probed
+`Intl.formatToParts` with millisecond-bearing instants, producing
+fractional-second offsets, and `firstTransition` binary-searches on exact
+equality — so the end of local mean time came out as 1881-04-02 for New York
+instead of 1883-11-18. Every birth in that 2.6-year window got a zone offset
+where it should have got LMT, and the chart looked entirely plausible. All 46
+existing tests passed throughout, because nothing exercised the pre-1883
+boundary.
+
+One branch had to stay dead. `track-e1b-ask` looked orphaned — it carried a
+"your birth data never leaves this browser" claim and matching tests. That claim
+is false: charts are computed server-side by default. Main had already replaced
+it with an accurate one and added `expect(claim).not.toContainText(...)` to keep
+it gone. The audit's most useful output was knowing what *not* to recover.
+
+M0 finally ran, five sessions after it was first scheduled, and passed — against
+the real deployment rather than localhost. Four defects stood in front of it and
+none were in the rail: compose forwarded no `AAE_STRIPE_*`; it forwarded no
+`AAE_PUBLIC_URL`, whose default would have redirected paying customers to
+`127.0.0.1:5173`; the fix for those crash-looped the entire API, because
+`${VAR:-}` *sets* a variable to empty and `os.environ.get(k, default)` only
+falls back when a key is absent, so `float("")` raised at import time and
+uvicorn could not load the app at all. `budget.py` had carried a tolerant
+helper for exactly this all along — which is why the cost controls survived the
+identical passthrough while the Stripe rail did not. The fix was to adopt the
+idiom already in the codebase.
+
+The fourth was in the runbook. M5 said to refund the test purchase and confirm
+revoke. Refunding left `tier: supporter` intact; only cancelling produced
+`tier: free`. The mint stores `ref = payment_intent OR subscription OR
+session_id`, so a subscription's ref is `sub_…`, while `charge.refunded` gives
+`py_…` — different namespaces, so the lookup can never match. That is
+defensible behaviour, and correct for one-time purchases. What was not
+defensible was a runbook that would have had the operator discovering it during
+his first real transaction.
+
+The day closed by taking the payment rail back down. Test keys on a public
+instance mean anyone can mint a genuine 365-day entitlement with card 4242 — the
+rail mints on a completed session regardless of key mode. The roadmap warns
+loudly about live keys arriving too early and says nothing about test keys
+staying too long.
+
+Nine PRs merged. The observatory is live, it computes seventeen bodies, it
+answers in Fable's voice, and it cannot yet take money — which is now the only
+thing left.
+
+---
+
 ## Session 23 · 2026-08-08 — a price list mistaken for a wiring diagram
 
 The session was asked to finish two things a closed terminal had interrupted: a
