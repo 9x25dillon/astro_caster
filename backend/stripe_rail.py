@@ -48,7 +48,25 @@ from typing import Optional
 import httpx
 
 _API = "https://api.stripe.com/v1"
-_TIMEOUT = float(os.environ.get("AAE_STRIPE_TIMEOUT", "20"))
+
+
+def _f(env: str, default: float) -> float:
+    """Read a numeric env var, tolerating SET-BUT-EMPTY.
+
+    os.environ.get(k, default) only falls back when the key is ABSENT. A key
+    present with an empty value returns "", and float("") raises — at import
+    time, so the whole app fails to boot. That is not hypothetical: compose
+    passes every optional var as `${VAR:-}`, which sets it to empty rather
+    than leaving it unset, and AAE_STRIPE_TIMEOUT crash-looped the backend
+    exactly this way. Same idiom as budget._f, for the same reason.
+    """
+    try:
+        return float(os.environ.get(env, default) or default)
+    except (ValueError, TypeError):
+        return float(default)
+
+
+_TIMEOUT = _f("AAE_STRIPE_TIMEOUT", 20.0)
 _TOLERANCE_S = 300  # webhook timestamp tolerance (Stripe's default)
 
 # Phase 4.3 — the deluxe personal-report product rides the same rail as a
@@ -90,8 +108,8 @@ def price_cents(tier: str) -> int:
         # The DEFAULTS matter as much as the env: a deploy that forgets a var
         # must never charge MORE than was decided, so the fallback is the
         # intended price, not an old placeholder.
-        "supporter": float(os.environ.get("AAE_STRIPE_SUPPORTER_USD", "3.25")),
-        "oracle": float(os.environ.get("AAE_STRIPE_ORACLE_USD", "9.99")),
+        "supporter": _f("AAE_STRIPE_SUPPORTER_USD", 3.25),
+        "oracle": _f("AAE_STRIPE_ORACLE_USD", 9.99),
     }.get(tier)
     if usd is None:
         raise ValueError(f"no Stripe price for tier {tier!r}")
@@ -100,7 +118,7 @@ def price_cents(tier: str) -> int:
 
 def report_price_cents() -> int:
     """Price of the one-time deluxe personal-report purchase (Phase 4.3)."""
-    return int(round(float(os.environ.get("AAE_STRIPE_REPORT_USD", "5.50")) * 100))
+    return int(round(_f("AAE_STRIPE_REPORT_USD", 5.50) * 100))
 
 
 def seed_hash(seed: str) -> str:
