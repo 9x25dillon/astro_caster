@@ -64,6 +64,21 @@ services:
       - "host.docker.internal:host-gateway"
     volumes:
       - backend-data:/app/data
+      # Swiss Ephemeris data files. NOT baked into the image: `backend/ephe/` is
+      # GITIGNORED, so a fresh clone (i.e. every deploy) does not have it, and
+      # `COPY . .` in backend/Dockerfile silently produces an image with no
+      # ephemeris at all.
+      #
+      # The consequence is not a rounding difference — CHIRON VANISHES. With no
+      # SE_EPHE_PATH directory, ephemeris.py falls back to Moshier, which has no
+      # asteroid data, and the chart comes back with 16 bodies instead of 17.
+      # Every other body is bit-identical; only Chiron silently disappears,
+      # which is exactly the kind of defect nobody notices until a user does.
+      #
+      # This vendored directory is COMMITTED and is the same file set
+      # tests/conftest.py pins the parity vectors to, so production computes
+      # what the drift-lock verifies. Read-only: the backend only reads it.
+      - ./packages/astra-core/src/vendor/swisseph:/app/ephe:ro
     expose:
       - "8787"
     restart: unless-stopped
