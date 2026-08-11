@@ -339,7 +339,21 @@
     <div class="card">
       <h3>Astra 1.0 · reader build</h3>
       <p style="margin-bottom:14px">
-        <a class="btn btn-primary" href="https://github.com/9x25dillon/astro_caster/releases" style="display:block; text-align:center">Download the APK</a>
+        <!--
+          Pinned to the v1.0.0 asset, NOT the auto-updating
+          /releases/latest/download/astra-1.0-reader.apk form. That form 404s
+          here: GitHub's "latest" deliberately skips pre-releases, and 1.0.0 is
+          one until the APK has been installed on a real device. Verified — it
+          returns 404, not a redirect.
+
+          This is version-pinned anyway: the sha256 printed below is specific to
+          this exact artifact, so a new release means editing this URL and that
+          checksum TOGETHER. A stale checksum next to a fresh download is worse
+          than publishing no checksum at all — it teaches people that verifying
+          is pointless. If the release is ever promoted out of pre-release, the
+          /latest/ form becomes safe and this pairing can be revisited.
+        -->
+        <a class="btn btn-primary" href="https://github.com/9x25dillon/astro_caster/releases/download/v1.0.0/astra-1.0-reader.apk" style="display:block; text-align:center">Download the APK</a>
       </p>
       <p style="font-size:14px; color:var(--ink)">
         5.3&nbsp;MB · Android 7.0 and later · works offline<br>
