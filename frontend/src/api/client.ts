@@ -29,7 +29,28 @@ import type {
 
 // Versioned API base. The backend also serves bare /api/* so an app shell
 // cached before a backend upgrade keeps working (skew tolerance).
-export const API_BASE = "/api/v1";
+//
+// RELATIVE ON THE WEB, ABSOLUTE IN THE APK. Capacitor serves the bundle from
+// its own `https://localhost` origin, so a relative `/api/v1` inside the
+// Android app resolves to a server that does not exist — every call fails and
+// the on-device fallback answers. That is invisible in the good case (charts
+// still appear, correctly, computed locally) and fatal in the paid one: the
+// written readings, the narrated voice and the daily transit are all
+// backend-work, so an imported entitlement bought exactly nothing. The app's
+// own home screen says "the unlock is for the written work", which the APK
+// could not deliver.
+//
+// Set at build time (see APK_A0_FINDINGS.md):
+//   VITE_READER_MODE=1 VITE_API_BASE=https://app.astra-arcana.com/api/v1 npm run build
+//
+// This does NOT weaken the offline claim. The landing page's promise is that
+// the app never fetches CODE from us — fetching data over an API is a
+// different thing, the deterministic engine still runs on-device, and the
+// three-tier fallback in generate() means a dead network degrades exactly as
+// it always has. Unset (the web build) keeps the relative path, so the
+// website is byte-for-byte unaffected.
+export const API_BASE: string =
+  ((import.meta.env?.VITE_API_BASE ?? "") as string).replace(/\/+$/, "") || "/api/v1";
 const BASE = API_BASE;
 
 // Session ID — random per browser session, resets on tab close, never persisted.

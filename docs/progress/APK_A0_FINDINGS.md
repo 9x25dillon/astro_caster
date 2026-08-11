@@ -236,7 +236,9 @@ first run, so the SDK only needs bootstrapping, not pinning.
 export JAVA_HOME=$HOME/.jdks/jdk-21.0.12+8      # 21. Not 17, not 26. See above.
 
 cd frontend
-VITE_READER_MODE=1 npm run build                 # reader build — the flag IS the guarantee
+VITE_READER_MODE=1 \
+  VITE_API_BASE=https://app.astra-arcana.com/api/v1 \
+  npm run build                                  # reader build — the flag IS the guarantee
 npx cap sync android
 
 cd android && ./gradlew assembleRelease
@@ -267,7 +269,44 @@ ever update an installed Astra.** Back up the keystore *and*
 out** by Capacitor default; they are uncommented here. That is defence in depth,
 not the defence — the key is never in the tree to begin with.
 
-## Still needs a real device — A1 is not closed
+## A1 CLOSED on hardware — 2026-08-11, Pixel 10a (Android 17 / SDK 37)
+
+Installed, launched, and cold-started in **airplane mode**: the chart computed
+live on the device (clock advanced 4:23 → 4:24 and the Moon moved with it), so
+the on-device engine is real. Two defects only hardware could have shown:
+
+**1. The masthead pills rendered UNDER the status bar.** `theme.css` pads
+`.app` with `env(safe-area-inset-*)` and `index.html` sets `viewport-fit=cover`,
+which is what makes iOS correct — and on Android does nothing, because the
+WebView populates `env(safe-area-inset-*)` from **display cutouts, not the
+status bar**. The top inset resolved to 0. No CSS change could have fixed it;
+`MainActivity` now consumes `systemBars() | displayCutout()` and pads the
+content view, which fixes the gesture-bar edge for free.
+
+**2. The APK could never reach the backend.** `API_BASE` was the relative
+`/api/v1`, and Capacitor serves the bundle from its own `https://localhost`
+origin, so every API call hit a server that does not exist. The failure was
+invisible in the good case — charts still appeared, computed on-device — and
+fatal in the paid one: written readings, narrated voice and the daily transit
+are all backend work, so an imported entitlement bought almost nothing while
+the home screen said "the unlock is for the written work". `VITE_API_BASE` now
+makes the native build absolute. **The server's `AAE_CORS` must include
+`https://localhost`** or the calls fail CORS and silently fall back.
+
+Verified by the server's own access log after a clean launch:
+`/api/v1/generate-chart`, `/api/v1/entitlement`, `/api/v1/tts/voices`.
+
+### Gotcha: the service worker outlives the APK update
+
+`adb install -r` replaces the assets, but the WebView's service-worker cache
+persists in app storage — the rebuilt app kept serving the OLD bundle until
+`pm clear`. A real user updating the APK may get the previous bundle until the
+worker updates itself. **The PWA service worker is arguably redundant inside
+the APK** (the assets are already local and the shell is offline-first by
+construction); disabling it for reader builds would remove the staleness risk
+entirely. Not done — flagged.
+
+## Superseded: "Still needs a real device" — A1 is not closed
 
 A1's exit criteria are *installs, casts offline, imports an entitlement*. Only
 what a build machine can prove is proven. `adb devices` is empty, so these three
