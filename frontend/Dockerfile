@@ -20,7 +20,12 @@ RUN cd frontend && npm run build
 
 # ---- serve stage -----------------------------------------------------------
 FROM nginx:1.27-alpine
+# openssl CLI is not in nginx:alpine by default; 40-ensure-cert.sh needs it to
+# self-sign a development certificate when no real one is mounted.
+RUN apk add --no-cache openssl
 COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
+COPY frontend/docker-entrypoint.d/40-ensure-cert.sh /docker-entrypoint.d/40-ensure-cert.sh
+RUN chmod +x /docker-entrypoint.d/40-ensure-cert.sh
 COPY --from=build /repo/frontend/dist /usr/share/nginx/html
 # The marketing page is served on its own hostname from its own root — see the
 # M4 layout note at the top of nginx.conf. It is plain HTML with no build step,

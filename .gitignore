@@ -72,3 +72,6 @@ services/kgirl/
 
 # Live origin address — public repo, proxied DNS; see DEPLOY.md 3.2
 ops/origin.env
+
+# Origin TLS material — private key, never committed (see DEPLOY.md 3.3)
+certs/

@@ -25,9 +25,32 @@ services:
       AAE_AI_API_KEY: ${AAE_AI_API_KEY:-}
       AAE_AI_BASE_URL: ${AAE_AI_BASE_URL:-}
       AAE_AI_MODEL: ${AAE_AI_MODEL:-}
+      AAE_AI_MODEL_DEEP: ${AAE_AI_MODEL_DEEP:-}
+      AAE_AI_MODEL_SUPPORTER: ${AAE_AI_MODEL_SUPPORTER:-}
+      AAE_AI_MODEL_ORACLE: ${AAE_AI_MODEL_ORACLE:-}
+      # Anthropic (Fable oracle reports / personal report / course) and OpenAI
+      # (deck-plate images). These were MISSING from this list until 2026-08-11:
+      # the container simply never received them, so every paid tier degraded to
+      # the offline compiler on the server while looking completely healthy —
+      # `ai_source: offline` is an honest field, but nothing about the deploy
+      # would have told you the key was the reason.
+      AAE_ANTHROPIC_API_KEY: ${AAE_ANTHROPIC_API_KEY:-}
+      AAE_OPENAI_API_KEY: ${AAE_OPENAI_API_KEY:-}
+      # Browser origin allowed to call the API. With the two-origin layout this
+      # is the APP host only; the landing page never calls /api.
+      AAE_CORS: ${AAE_CORS:-}
+      AAE_DEV_TOKEN: ${AAE_DEV_TOKEN:-}
       # Premium voice + ephemeris data files (optional).
       ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY:-}
+      ELEVENLABS_VOICE_ID: ${ELEVENLABS_VOICE_ID:-}
       SE_EPHE_PATH: ${SE_EPHE_PATH:-}
+      # Pinned empty, never passed through. Edition P grants oracle tier and
+      # operator rights to EVERY request, and trust mode bypasses payment
+      # verification — either one reaching production would give the whole
+      # internet the paid product for free. Hardcoded rather than defaulted so
+      # that a .env copied up from a dev machine cannot enable them.
+      AAE_PERSONAL_MODE: ""
+      AAE_TRUST_MODE: ""
       # Cost control. Defaults ($100/day) suit a funded deployment, not a fixed
       # prepaid balance — see .env.example before going live.
       AAE_GLOBAL_DAILY_USD: ${AAE_GLOBAL_DAILY_USD:-}
@@ -55,6 +78,19 @@ services:
         condition: service_healthy
     ports:
       - "${WEB_PORT:-5173}:80"
+      - "${WEB_TLS_PORT:-8443}:443"
+    volumes:
+      # The Cloudflare Origin CA certificate, mounted rather than baked in: the
+      # private key must never enter the image or the (public) repo. Absent
+      # locally, so 40-ensure-cert.sh self-signs a throwaway and dev still
+      # works. In production set WEB_PORT=80 and WEB_TLS_PORT=443.
+      #
+      # NOT :ro — deliberately. The self-signing fallback has to WRITE here on a
+      # machine with no certificate, and a read-only mount turns that into
+      # "container exits at boot" for anyone who just cloned the repo. The
+      # script never touches an existing certificate, so the production key is
+      # not at risk of being overwritten by it.
+      - ./certs:/etc/nginx/certs
     restart: unless-stopped
 
 volumes:
