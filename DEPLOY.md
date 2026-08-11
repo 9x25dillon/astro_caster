@@ -78,12 +78,78 @@ docker compose up --build          # add -d to detach
 ```
 
 - App → **http://localhost:${WEB_PORT:-5173}** (same port as dev)
+- Landing page → **http://landing.localhost:${WEB_PORT:-5173}**
 - `/api/*` is reverse-proxied by nginx to the backend (SSE streaming for
   `/api/ai-ask-stream` is unbuffered); the backend port is **not** published.
 
 The frontend image is a multi-stage build (`node:20` builds the PWA →
 `nginx:alpine` serves `dist`). It waits for the backend's healthcheck before
 starting so the `/api` upstream is always resolvable.
+
+### 3.1 Deploy layout — two origins (M4, decided 2026-08-11)
+
+One nginx, one image, **two hostnames**:
+
+| host | serves | root in image |
+|---|---|---|
+| `astra-arcana.com` (+ `www`) | the marketing landing page | `/usr/share/nginx/landing` |
+| `app.astra-arcana.com` | the PWA + `/api/*` proxy | `/usr/share/nginx/html` |
+
+The app block is also `default_server`, so an unrecognised `Host` — and a plain
+local `docker compose up` — still reaches the app exactly as before.
+
+**Why not one host with the app at `/app/`?** Two independent blockers, both
+documented at the top of `frontend/nginx.conf`:
+
+1. The app's service worker registers with **scope `/`**. It would own the
+   whole origin and answer navigations to `/` from its precached shell,
+   swallowing the landing page for every returning visitor.
+2. `frontend/dist` is also Capacitor's `webDir`, bundled inside the **signed**
+   APK and served from the WebView's root. Rebasing Vite to `/app/` makes the
+   APK fetch `/app/assets/*` against a root with no such prefix.
+
+Separate origins also keep the app's "zero off-origin requests" invariant
+(`no-external.spec.ts`) out of reach of anything later added to the pitch.
+
+⚠️ **The apex is load-bearing for a shipped binary.** The signed APK's
+`PURCHASE_URL` is the immutable string `https://astra-arcana.com/#support`,
+which resolves to the anchor above the landing page's pricing table. Serving
+anything else at the apex breaks every installed APK's only route to
+purchasing, and no rebuild can fix the copies already out there.
+
+**DNS (Cloudflare, proxied — the D4 ratified posture):**
+
+```
+A     astra-arcana.com       <vps-ipv4>    proxied
+A     app.astra-arcana.com   <vps-ipv4>    proxied
+A     www.astra-arcana.com   <vps-ipv4>    proxied
+```
+
+Universal SSL covers the apex and one subdomain level, so all three are
+covered with no cert work. Set SSL mode **Full (strict)** with an origin
+certificate, or Full with the origin behind the firewall; nginx listens on
+plain 80 and Cloudflare terminates TLS. Add a redirect rule for
+`www` → apex if you want a single canonical name — it is deliberately *not*
+done in nginx, to keep the header drift-lock reading one block per host.
+
+Publish the web container on a port Cloudflare will talk to — set `WEB_PORT=80`
+on the host (the `5173` default is a local-dev convenience, not a prod value).
+
+**Firewall the origin — this is a budget control, not just hygiene.** Both
+hostnames resolve to the same IP and the app is the default server, so anyone
+hitting the raw IP reaches the app while bypassing Cloudflare. That matters
+more than usual here: with `AAE_TRUST_PROXY=1`, `backend/clientip.py` believes
+`CF-Connecting-IP`, so a direct-to-origin caller can forge that header and mint
+themselves an unlimited number of per-IP budget buckets. Restrict 80/443 to
+Cloudflare's published ranges.
+
+For the record on why the per-IP buckets work at all through two hops: nginx
+rewrites `X-Forwarded-For` but passes `CF-Connecting-IP` through untouched, and
+`client_ip()` prefers it precisely because it is a single address that does not
+shift when the proxy chain grows a link.
+
+With two origins, set `AAE_CORS` to the **app** origin only
+(`https://app.astra-arcana.com`) — the landing page never calls the API.
 
 ### Hardening for real production
 
