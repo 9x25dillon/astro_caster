@@ -11,7 +11,12 @@
 // disagree — which is exactly the class the old code got wrong.
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { resolveOffset, type WallClock } from "../src/timezone.js";
+import {
+  firstTransition,
+  resolveOffset,
+  zoneOffsetMsAt,
+  type WallClock,
+} from "../src/timezone.js";
 
 const at = (year: number, month: number, day: number, hour = 12, minute = 0): WallClock =>
   ({ year, month, day, hour, minute });
@@ -91,4 +96,42 @@ test("resolution is deterministic — the same input always gives the same offse
     assert.equal(again.hours, once.hours);
     assert.equal(again.utcMs, once.utcMs);
   }
+});
+
+// --- probe drift ------------------------------------------------------------
+// These two exist because the bug they close survived a full test suite. The
+// resolver was correct for every modern date, so all 46 cases above passed
+// while `firstTransition` was wrong by YEARS — and firstTransition is what
+// decides whether a birth predates standard time and should fall back to local
+// mean time. A silent 2.6-year window of wrong offsets is exactly the failure
+// mode this file's header warns about.
+
+test("zoneOffsetMsAt returns whole seconds even for a probe carrying milliseconds", () => {
+  // Intl.formatToParts reports the wall clock truncated to seconds. Subtracting
+  // an instant that still carries milliseconds yields a fractional-second
+  // "offset" — e.g. -17762001ms where the real offset is -17762000ms. Offsets
+  // in tzdb only ever change on whole seconds, so a remainder is always a bug.
+  for (const zone of ["America/New_York", "Europe/Dublin", "Asia/Kathmandu"]) {
+    for (const extra of [1, 7, 999]) {
+      const off = zoneOffsetMsAt(Date.UTC(1880, 0, 1) + extra, zone);
+      // `===` not assert.equal: a negative offset gives `-0`, and strict
+      // assert compares with Object.is, which says -0 !== 0. The value is a
+      // whole second; only the sign of zero differs.
+      assert.ok(off % 1000 === 0, `${zone} offset ${off} is not a whole second`);
+    }
+  }
+});
+
+test("firstTransition finds the true end of local mean time, not an early false hit", () => {
+  // firstTransition binary-searches for the first instant whose offset differs
+  // from the LMT offset. With fractional offsets the equality predicate flipped
+  // while still inside the LMT era and the search converged early: New York
+  // came out 1881-04-02 instead of 1883-11-18, US Standard Time Day.
+  const day = (zone: string): string => {
+    const t = firstTransition(zone);
+    assert.ok(t !== null, `${zone} should have a transition`);
+    return new Date(t as number).toISOString().slice(0, 10);
+  };
+  assert.equal(day("America/New_York"), "1883-11-18");
+  assert.equal(day("America/Los_Angeles"), "1883-11-18");
 });
