@@ -414,5 +414,13 @@
 </footer>
 
 </div>
+
+<!--
+  Registers the offline fallback worker. With no network this page has nothing
+  to say, so sw.js answers failed navigations with TAPBLADE instead of the
+  browser's error page. External file, not inline, so `script-src 'self'` holds
+  — see register-sw.js.
+-->
+<script src="/register-sw.js"></script>
 </body>
 </html>
