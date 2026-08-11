@@ -44,6 +44,25 @@ services:
       ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY:-}
       ELEVENLABS_VOICE_ID: ${ELEVENLABS_VOICE_ID:-}
       SE_EPHE_PATH: ${SE_EPHE_PATH:-}
+      # Stripe. ALSO missing from this list until 2026-08-11, with the same
+      # failure shape as the AI keys above: put the keys in .env, restart, and
+      # /api/pricing keeps reporting card_available=false with nothing logged,
+      # because stripe_available() correctly observes that the container has no
+      # key. The rail degrades honestly — which is exactly what makes the
+      # misconfiguration invisible.
+      AAE_STRIPE_SECRET_KEY: ${AAE_STRIPE_SECRET_KEY:-}
+      AAE_STRIPE_WEBHOOK_SECRET: ${AAE_STRIPE_WEBHOOK_SECRET:-}
+      AAE_STRIPE_MODE: ${AAE_STRIPE_MODE:-}
+      AAE_STRIPE_SUPPORTER_USD: ${AAE_STRIPE_SUPPORTER_USD:-}
+      AAE_STRIPE_ORACLE_USD: ${AAE_STRIPE_ORACLE_USD:-}
+      AAE_STRIPE_REPORT_USD: ${AAE_STRIPE_REPORT_USD:-}
+      AAE_STRIPE_TIMEOUT: ${AAE_STRIPE_TIMEOUT:-}
+      # The origin Stripe redirects a paying customer BACK to. Defaults in
+      # main.py to http://127.0.0.1:5173 — harmless locally, and a broken
+      # purchase for every real customer if it is not set in production. It has
+      # to be the APP host: the return handler that mints the entitlement lives
+      # in the PWA, not on the landing page.
+      AAE_PUBLIC_URL: ${AAE_PUBLIC_URL:-}
       # Pinned empty, never passed through. Edition P grants oracle tier and
       # operator rights to EVERY request, and trust mode bypasses payment
       # verification — either one reaching production would give the whole
