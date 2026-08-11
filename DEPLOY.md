@@ -151,6 +151,77 @@ shift when the proxy chain grows a link.
 With two origins, set `AAE_CORS` to the **app** origin only
 (`https://app.astra-arcana.com`) — the landing page never calls the API.
 
+### 3.2 The live infrastructure (provisioned 2026-08-11)
+
+| | |
+|---|---|
+| origin | Hetzner Cloud `astra`, cpx22 (2 vCPU / 4 GB / 80 GB), `nbg1` Nuremberg |
+| OS | Ubuntu 24.04 LTS · Docker + compose plugin · 2 GB swap · root login and password auth disabled |
+| access | `ssh -i ~/.ssh/astra_hetzner astra@$ORIGIN_IP` |
+| firewall | Hetzner `astra-edge` — 22 from the operator's IP; 80/443 from Cloudflare ranges only |
+| backups | on, +20%, nightly 14–18 UTC |
+| DNS | Cloudflare zone `astra-arcana.com`, **active**; `aryanna`/`camilo.ns.cloudflare.com` set at Namecheap |
+| records | `@`, `www`, `app` → the origin, all **proxied** (origin IP not public) |
+
+**The origin's IP is deliberately not written down in this repo.** Every DNS
+record is proxied so the address stays unpublished, and this repo is public —
+the Hetzner firewall is the real control, but naming the address here would
+discard a layer of defence for nothing. It lives in `ops/origin.env`
+(gitignored) and in the Hetzner console:
+
+```bash
+cp ops/origin.env.example ops/origin.env   # then fill in ORIGIN_IP
+```
+
+Reproduce or amend with the two scripts in `ops/`. Both **preflight by default
+and change nothing** until given `--create` / `--apply`:
+
+```bash
+ops/provision_hetzner.sh          # then --create
+ops/cloudflare_dns.sh             # then --apply
+```
+
+Namecheap's email-forwarding `MX` + SPF `TXT` records were imported by
+Cloudflare's scan and **deliberately kept** — deleting them silently breaks
+mail for the domain.
+
+### ⚠️ 3.3 TLS to the origin — unresolved, and it will 502
+
+Cloudflare's SSL mode for the zone is **`full`**, which means Cloudflare
+connects to the origin over **HTTPS on 443**. `frontend/nginx.conf` listens on
+**80 only**. Nothing is broken today because nothing is deployed yet — but the
+moment the stack comes up, every request becomes a 502 until this is resolved.
+`ops/cloudflare_dns.sh` deliberately does **not** touch the ssl setting, so the
+choice stays explicit rather than being made silently by a script.
+
+Pick one before deploying:
+
+1. **Origin certificate + a 443 listener** (recommended). Generate a Cloudflare
+   Origin CA cert, mount it into the frontend container, add `listen 443 ssl` to
+   the app server block, publish 443 in `docker-compose.yml`. Then Cloudflare
+   can be set to `strict`. Adding a second listener means re-checking
+   `backend/tests/test_edge_headers.py`, which gates the header set per server
+   block.
+2. **`ssl=flexible`** — Cloudflare talks HTTP to the origin. Works with today's
+   config and no code change, but traffic between Cloudflare and the origin
+   crosses the public internet in clear text. The Hetzner firewall limits *who*
+   can reach the origin, not whether the hop is encrypted. Acceptable only as a
+   short bring-up step, and not once real entitlement tokens are in flight.
+
+### Two Hetzner facts worth knowing before you buy anything
+
+- **The price list is not a stock list.** `GET /server_types` quotes types the
+  API cannot place: `cx23`/`cx33` list at \$6.49/\$8.99 and are provisionable in
+  **no** EU location, and `fsn1` reported zero available types of any kind. The
+  only reliable signal is `GET /datacenters` →
+  `datacenters[].server_types.available` (a list of type IDs). Without checking
+  it, the first symptom is `error during placement` from the create call, after
+  the SSH key and firewall already exist. `ops/provision_hetzner.sh` checks it
+  in preflight for exactly this reason.
+- **Prices are USD**, despite the EU locations — confirm with `GET /pricing` →
+  `currency`. US locations cost roughly **5.8×** EU for equivalent specs
+  (cpx21 \$37.49 vs a 4 GB EU box at \$22.99).
+
 ### Hardening for real production
 
 ```dotenv
