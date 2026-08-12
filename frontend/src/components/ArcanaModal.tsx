@@ -45,6 +45,7 @@ import { printSessionTome } from "../lib/tomePrint";
 import { galleryByKind, gallerySave, journalForSeed, shelfAttachPersonal, shelfSaveOracle } from "../lib/bookshelf";
 import { JournalPad } from "./JournalPad";
 import { TarotCard } from "./TarotCard";
+import { DailyCardPanel } from "./DailyCardPanel";
 import { ConstellationPath } from "./ConstellationPath";
 import { chaosLetters, wordValue, reduceDigit, planetToKamea } from "../lib/sigil";
 import { deriveSoulProfile } from "../lib/archetypes";
@@ -668,6 +669,11 @@ export const ArcanaModal: React.FC<{
           {/* ── Natal Arcana ─────────────────────────────────────────── */}
           {tab === "natal" && sig && (
             <div className="arc-natal">
+              {/* The day's card leads the chapter: it is the one reading that
+                  is true right now without anyone asking for it, and it is the
+                  same draw the morning notification and the home-screen widget
+                  show. Deterministic from (chart, date) — see dailyOracle.ts. */}
+              <DailyCardPanel />
               <div className="arc-meta">
                 <span>Dominant element: <b>{sig.dominant_element}</b></span>
                 <span>Modality: <b>{sig.dominant_modality}</b></span>

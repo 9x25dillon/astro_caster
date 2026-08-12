@@ -83,7 +83,20 @@ export function addLocalDays(from: Date, n: number): Date {
  *  ending mid-clause. Prefers the first sentence; falls back to a word-boundary
  *  cut so a long first sentence never gets chopped through a word. */
 function toLine(meaning: string, limit = 120): string {
-  const flat = meaning.replace(/\s+/g, " ").trim();
+  // Strip markdown emphasis FIRST. `offlineMeaning` writes **bold** card names,
+  // which the in-app panel renders as literal asterisks and a notification
+  // body renders as literal asterisks with no possibility of ever doing
+  // otherwise — Android notifications are plain text. Caught by looking at the
+  // rendered panel; no DOM assertion would have flagged it, because the
+  // markup was correct and only the glyphs were wrong.
+  // Order matters: **bold** before *emphasis*, or the inner pass eats one
+  // asterisk of each pair and leaves the other stranded.
+  const plain = meaning
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/\*(.+?)\*/g, "$1")
+    .replace(/(^|\W)_(.+?)_(\W|$)/g, "$1$2$3")
+    .replace(/`(.+?)`/g, "$1");
+  const flat = plain.replace(/\s+/g, " ").trim();
   if (!flat) return "";
   const firstSentence = flat.match(/^[^.!?]*[.!?]/)?.[0]?.trim();
   const candidate = firstSentence && firstSentence.length <= limit ? firstSentence : flat;
