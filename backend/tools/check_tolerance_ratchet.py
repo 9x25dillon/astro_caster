@@ -13,7 +13,11 @@ paperwork, which is the asymmetry that makes this a ratchet rather than a lock.
 
 Compares the working tree's contract against a base revision (default: the
 merge-base with origin/main, so it reads a PR's whole effect rather than the
-last commit's).
+last commit's; on a push to main that merge-base is HEAD, so it falls through
+to HEAD~1 rather than comparing the contract against itself).
+
+A base that cannot be resolved at all is an ERROR, not a pass: "I could not
+run the check" must never exit the same way as "there was nothing to check".
 
 Usage (from backend/):
     .venv/bin/python tools/check_tolerance_ratchet.py
@@ -48,6 +52,44 @@ def _bounds(payload: dict) -> Dict[str, float]:
         for name, spec in payload.get("quantities", {}).items()
         if "bound" in spec
     }
+
+
+def _rev(spec: str) -> Optional[str]:
+    """Resolve `spec` to a commit sha, or None if it names nothing."""
+    out = _git("rev-parse", "--verify", "--quiet", f"{spec}^{{commit}}")
+    return out.strip() if out and out.strip() else None
+
+
+def _resolve_base(explicit: Optional[str]) -> tuple[Optional[str], str]:
+    """(sha, how) for the revision to ratchet against.
+
+    An explicit --base must resolve; a typo there is a broken invocation, not
+    a licence to skip the check.
+
+    Otherwise walk a chain. The merge-base with origin/main reads a PR's whole
+    effect, which is the case this gate is really for. But on a push to main
+    that merge-base IS HEAD, so the contract would be compared against itself
+    and every direct commit to main would sail through unchecked — and this
+    repo does push to main directly. Fall through to HEAD~1 there, so a commit
+    that widens a bound is caught whichever way it arrived.
+    """
+    if explicit is not None:
+        return _rev(explicit), f"--base {explicit}"
+
+    head = _rev("HEAD")
+    mb = _git("merge-base", "HEAD", "origin/main")
+    for spec, how in (
+        (mb.strip() if mb else None, "merge-base with origin/main"),
+        ("origin/main", "origin/main"),
+        ("HEAD~1", "HEAD~1 (direct commit to a mainline)"),
+    ):
+        if not spec:
+            continue
+        sha = _rev(spec)
+        # A base equal to HEAD compares the contract against itself.
+        if sha and sha != head:
+            return sha, how
+    return None, "no usable base"
 
 
 def _base_contract(base: str) -> Optional[dict]:
@@ -90,21 +132,32 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--base", default=None,
                     help="revision to compare against (default: merge-base with "
-                         "origin/main, falling back to origin/main then HEAD)")
+                         "origin/main, then origin/main, then HEAD~1 — skipping "
+                         "any that resolve to HEAD itself)")
     args = ap.parse_args()
 
     current = json.loads((_REPO / _CONTRACT_REL).read_text())
 
-    base = args.base
+    base, how = _resolve_base(args.base)
     if base is None:
-        mb = _git("merge-base", "HEAD", "origin/main")
-        base = mb.strip() if mb else "origin/main"
+        # NOT the same as "the contract is new", and it must not exit the same
+        # way. An unresolvable base means the comparison never happened; if
+        # that returned 0 the gate would vanish in exactly the conditions that
+        # break ref resolution (a shallow clone, a missing remote) while still
+        # printing a reassuring line. Fail loudly instead.
+        print(f"ratchet: ERROR — cannot resolve a base revision ({how}).")
+        print("  The ratchet compares the working tree's contract against a base;")
+        print("  with no base there is nothing to compare and no check was run.")
+        print("  In CI this usually means a shallow clone — use fetch-depth: 0.")
+        print("  Pass --base <rev> explicitly to say what to compare against.")
+        return 1
 
     previous = _base_contract(base)
     if previous is None:
-        # The contract is new in this change — nothing to ratchet against.
-        # Not an error: A2 itself is the commit that introduces the file.
-        print(f"ratchet: no contract at {base} — first appearance, nothing to compare")
+        # The base is real and simply has no contract yet: this change is the
+        # one introducing the file. Genuinely nothing to ratchet against.
+        print(f"ratchet: no contract at {base[:12]} ({how}) — "
+              "first appearance, nothing to compare")
         return 0
 
     cur, prev = _bounds(current), _bounds(previous)
