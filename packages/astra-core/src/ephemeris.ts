@@ -205,7 +205,46 @@ export function searchEclipses(start: Date, count: number): RawEclipse[] {
 // Assembly (port of ephemeris.calculate_chart)
 // ---------------------------------------------------------------------------
 
-const round6 = (x: number) => Math.round(x * 1e6) / 1e6;
+// Python's round() is round-half-to-EVEN (banker's); JS Math.round is
+// round-half-UP (toward +Infinity). They disagree on every exact tie, and on
+// negatives they disagree in DIRECTION: Math.round(-1.5) is -1 where Python
+// gives -2. Every rounded field here — longitude, latitude, declination,
+// speed, the angles, the cusps — inherited that mismatch.
+//
+// It stayed invisible because a tie costs only 1e-6, far inside the 0.01°
+// tolerance those fields are held to. `meta.julian_day` is the one field
+// compared at 1e-6, i.e. as an equality check, so it is where the A1
+// generative harness finally caught it (seed 31559911369, case 1845: a JD of
+// exactly 2451711.0078125 formatted as ...007812 by Python and ...007813 by
+// JS). The repo already knew the shape of this bug — RESONARIUM_PARITY.md
+// Constraint 1 records the same round-half-to-even dependency for orbs, and
+// says the rounding mode is part of the spec.
+//
+// Scaling by 1e6 first is NOT a valid way to do this, and the first attempt at
+// this fix proved it by making things worse: 2451710.5140625000931 is a double
+// sitting just ABOVE a tie, so both engines correctly round it up — but
+// multiplying by 1e6 rounds the product to exactly …0625e6, manufacturing a
+// tie that was not there and sending it down. That turned 1 divergence into 5.
+//
+// So: keep the platform's exact-value rounding (toFixed is specified against
+// the real value of the double, as Python's format is) and override ONLY on a
+// genuine tie, where the two languages' documented tie rules actually differ.
+// The tie test reads the exact decimal expansion rather than arithmetic on it,
+// because arithmetic is what destroyed the information last time.
+const fixedHalfEven = (x: number, dp: number): string => {
+  const exact = x.toFixed(dp + 14);
+  const dot = exact.indexOf(".");
+  const beyond = exact.slice(dot + 1 + dp);
+  const isTie = beyond[0] === "5" && /^0*$/.test(beyond.slice(1));
+  if (!isTie) return x.toFixed(dp); // native rounding already matches Python
+  const truncated = exact.slice(0, dot + 1 + dp); // toward zero, dp decimals
+  const lastKept = Number(exact[dot + dp]);
+  if (lastKept % 2 === 0) return truncated; // already even
+  const step = 10 ** -dp;
+  return (Number(truncated) + (x < 0 ? -step : step)).toFixed(dp);
+};
+
+const round6 = (x: number): number => Number(fixedHalfEven(x, 6));
 
 function buildPlanet(
   name: string,
@@ -461,7 +500,10 @@ export function calculateChart(req: ChartRequest): ChartResponse {
     ephemeris: "swiss-wasm",
     zodiac: req.zodiac ?? "tropical",
     house_system: h.fellBack ? "W" : req.house_system ?? "P",
-    julian_day: jd.toFixed(6),
+    // round6 first: toFixed alone rounds half AWAY from zero (the spec picks
+    // the larger n on a tie), which is what made this the field that exposed
+    // the mismatch above.
+    julian_day: fixedHalfEven(jd, 6),
   };
   if (h.fellBack) {
     meta.house_fallback = `${req.house_system ?? "P"} undefined at this latitude; whole-sign used`;

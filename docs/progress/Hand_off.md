@@ -152,6 +152,45 @@ has no boundary of its own), and at an exact station both engines report
 the full-precision value (`ephemeris.py:200`), the display is rounded to 6dp
 (`:195`). Odd-looking, not wrong, noted in the suite.
 
+## The rounding-mode divergence A1 caught in CI (session 25c)
+
+**A1 went red on PR #171 with a fresh CI seed and found a real cross-engine
+bug.** `meta.julian_day` differed by exactly 1e-6 on one case in 2000.
+
+**Cause:** `Math.round` is round-half-**UP**; Python's `round()` is
+round-half-to-**EVEN**. TS's `round6` was `Math.round(x*1e6)/1e6`, so **every**
+rounded field — longitude, latitude, declination, speed, angles, cusps —
+carried the mismatch. It was invisible because a tie costs 1e-6, far inside
+the 0.01° those fields are held to. `meta.julian_day` is the one field
+compared at 1e-6 (an equality check), so it was the only one strict enough to
+expose it. On negatives the two even disagree in *direction*:
+`Math.round(-1.5)` is −1, Python gives −2.
+
+RESONARIUM_PARITY.md Constraint 1 had already recorded this exact dependency
+for orbs. It was a known bug shape sitting unfixed in a different field.
+
+**⚠️ The first fix made it worse — 1 divergence became 5.** Scaling by 1e6
+before rounding *manufactures ties that do not exist*:
+`2451710.5140625000931` is a double sitting just **above** a tie, so both
+engines correctly round it up — but `× 1e6` rounds the product to exactly
+`…0625e6`, creating a tie and sending it down. **Never do tie detection with
+arithmetic on the scaled value.** The correct rule keeps the platform's
+exact-value rounding (`toFixed`, specified against the real value like
+Python's `format`) and overrides *only* on a genuine tie, detected by reading
+the decimal expansion:
+
+```
+packages/astra-core/src/ephemeris.ts → fixedHalfEven()
+```
+
+Both cases are pinned in `packages/astra-core/test/rounding-mode.test.ts` —
+the genuine tie AND the near-tie — because a refactor back to `Math.round`
+looks like a harmless simplification. The parity vectors were untouched: the
+fix moved TS toward Python, which generated them.
+
+**Verify:** `.venv/bin/python tools/parity_property.py --n 2000 --seed 31559911369`
+→ was 1999/2000, then 1995/2000, now **2000/2000**.
+
 ## What the NEXT session (or the operator) does with this
 
 - **One APK cycle**: rebuild the bundle → sync → build → sign (JDK 21,

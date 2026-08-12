@@ -164,6 +164,42 @@ step that fails the build if the suite survives it — because the one thing
 this day established is that a suite claiming to have teeth should be made to
 prove it on every run.
 
+And then, within the hour, A1 proved its own worth by going red on the pull
+request that contained all of this.
+
+One case in two thousand, and only one field: the Julian day, differing by
+exactly a millionth. Everything else agreed. The cause turned out to be sitting
+in every rounded field the TypeScript engine produces. JavaScript's Math.round
+rounds halves upward; Python's round rounds them to even. Longitude, latitude,
+declination, speed, the angles, the cusps — all of them carried the mismatch,
+and all of them hid it, because a tie costs a millionth of a degree and those
+fields are compared at a hundredth. The Julian day is the single field compared
+as an equality check, which is why it was the only one that could ever have
+told us. On negative values the two rules do not merely differ in magnitude,
+they differ in direction.
+
+The repository had already written this bug down. RESONARIUM_PARITY.md records
+the same round-half-to-even dependency for orb formatting, and says plainly
+that the rounding mode is part of the specification. It was a known shape,
+unfixed, in a field nobody had looked at.
+
+The first fix made it worse, and instructively so: one divergence became five.
+Scaling a number by a million before inspecting its halfway digit manufactures
+ties that do not exist. The value that broke it sits a fraction above a tie —
+both engines were rounding it up correctly — and multiplying by a million
+rounded that fraction away, produced an exact half, and sent it down. The
+lesson is narrow and worth keeping: you cannot detect a tie by doing arithmetic
+on the thing you are trying to inspect. The working version leaves the
+platform's own exact-value rounding alone, which already matches Python
+everywhere except genuine ties, and overrides only those, detecting them by
+reading the decimal expansion rather than computing with it.
+
+Both cases are pinned in tests now — the true tie and the near-tie — because
+the wrong version looks like a tidier one, and the next person to simplify it
+back to Math.round deserves a red build rather than a silent divergence. The
+committed vectors never moved: the fix pulled TypeScript toward Python, and
+Python is what generated them.
+
 ---
 
 ## Session 24 · 2026-08-11 — the day it went live, and four things that were only pretending to work
