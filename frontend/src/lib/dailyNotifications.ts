@@ -177,6 +177,10 @@ export async function rescheduleDaily(
       id: p.id,
       title: p.title,
       body: p.body,
+      // Android tints this to a white silhouette; without it Capacitor uses
+      // its own generic default, which is what the first device test found
+      // sitting in the shade next to a reading. See ic_stat_astra.xml.
+      smallIcon: "ic_stat_astra",
       schedule: { at: p.at, allowWhileIdle: true },
       extra: p.extra,
     })),
