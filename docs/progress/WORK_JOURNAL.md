@@ -114,9 +114,89 @@ rail mints on a completed session regardless of key mode. The roadmap warns
 loudly about live keys arriving too early and says nothing about test keys
 staying too long.
 
-Nine PRs merged. The observatory is live, it computes seventeen bodies, it
-answers in Fable's voice, and it cannot yet take money — which is now the only
-thing left.
+Then a phone arrived, and the day got a second half.
+
+A Pixel 10a, gifted the day before — no cellular, no Google account, a blank
+SIM, bought purely to develop against. It is a better test bed than a daily
+driver, because it shows exactly what a direct-download user sees with no Play
+Services quietly filling gaps. It also meant A1, open since session 23 with the
+note "`adb devices` is empty", could finally close.
+
+It installed. It cold-started in airplane mode and computed a live chart — the
+clock advanced 4:23 → 4:24 between two screenshots and the Moon moved with it,
+which is the difference between a cached picture and real astronomy. And then
+the screenshot showed two things nobody could have found any other way.
+
+The masthead pills were rendering underneath the status bar. The shell sets
+`viewport-fit=cover` and pads with `env(safe-area-inset-*)`, which is exactly
+correct — for iOS. On Android the WebView populates those insets from display
+cutouts, not from the status bar, so the top inset was zero. Measuring the
+screenshot confirmed it: the pill sat at 54px where the padding alone would
+explain 18px and nothing more. No CSS change could have fixed it. Since Android
+15 an app targeting SDK 35+ is drawn edge-to-edge whether it asks or not, so
+the activity now consumes the insets natively, which fixed the gesture bar at
+the bottom for free.
+
+The second was worse, and it had been true since the APK was first built. The
+badge read "offline — cast on your device" while the phone was on wifi, which
+is not a glitch but a structure: `API_BASE` was a relative path, and Capacitor
+serves the bundle from its own `https://localhost`, so every API call resolved
+to a server that does not exist. It survived because it looked fine — charts
+appeared, correctly, because the on-device engine answered. But the written
+readings, the narrated voice and the daily transit are all backend work. An
+imported entitlement bought almost nothing, on a home screen that says "the
+unlock is for the written work". Proven fixed from the server's own access log
+rather than the app's optimism: `/api/v1/generate-chart`, `/api/v1/entitlement`.
+
+Fixing it needed a rebuild, which needed the signing recipe, which produced the
+day's smallest and most preventable delay — `--ks-pass file:` pointed at the
+same file twice, the second read hits EOF, and the answer had been written down
+in `APK_A0_FINDINGS.md` since session 23. Reading the note first would have
+been faster than rediscovering it.
+
+Then a correction that only mattered because it was caught: the rebuilt APK
+still declared versionCode 1. Two materially different binaries would both have
+claimed to be version 1.0, which Android will not treat as an update and Play
+would reject outright. Bumped, rebuilt, re-signed, republished as v1.0.1 — and
+the landing page's checksum, download URL, filename and version label all moved
+with it, because a stale checksum beside a fresh download is worse than no
+checksum at all: it teaches people that verifying is pointless.
+
+A branch audit that was meant to be housekeeping turned up the day's most
+interesting find, and its most interesting non-find. Twenty-seven branches, and
+`git cherry` useless against a squashed main, so it took a line-level content
+probe. Twenty-six absorbed. `tz-resolver-parked` was not, and the bug it fixed
+was live: fractional-second offsets from millisecond-bearing probes broke a
+binary search on exact equality, putting the end of local mean time at
+1881-04-02 for New York instead of 1883-11-18. Every birth in that 2.6-year
+window got a zone offset where it should have got local mean time, and the
+chart looked entirely plausible. Forty-six existing tests passed throughout.
+
+The non-find was `track-e1b-ask`, which looked orphaned and had to stay dead. It
+carried a "your birth data never leaves this browser" claim and matching tests.
+The claim is false — charts are computed server-side by default — and main had
+already replaced it with an accurate one and added an assertion that the false
+version stays gone. The most useful output of an audit was knowing what not to
+recover.
+
+The last act was the service worker, retired from reader builds. Inside the APK
+it caches local files against an outage that cannot reach them, and it had
+already caused harm: the rebuilt app kept serving the old bundle until
+`pm clear`. The instinct is to disable it. Disabling is wrong — it emits no
+worker at all, which leaves the workers already registered inside installed
+1.0 and 1.0.1 builds in place forever, still answering from their stale
+precache. A self-destroying worker gets fetched by those installs and
+unregisters itself. The obvious choice would have stranded exactly the users
+the change exists to protect.
+
+Fourteen PRs, twenty commits, two releases. The observatory is live, it computes
+seventeen bodies, it runs on a phone in airplane mode, it answers in Fable's
+voice — and it cannot yet take money, which is now the only thing left.
+
+The signing key was backed up at the end, encrypted, and the backup was
+restored and used to sign a test APK to prove it works. It produced the same
+certificate the published app carries. It is still on the same disk as the
+original, which makes it not yet a backup — only a file that could become one.
 
 ---
 
