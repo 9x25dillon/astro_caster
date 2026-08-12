@@ -82,8 +82,12 @@ test("a card's journal prompt opens a pad and the answer lands in the journal", 
   await page.getByRole("button", { name: "Draw", exact: true }).click();
   await page.locator(".arc-draw-btn").filter({ hasText: /^Draw$/ }).click();
 
+  // Session 25: the card lands face-down — turn it before reaching its pad.
+  await page.locator(".tarot-face--back").first().click();
   await expect(page.locator(".arc-drawn-journal")).toContainText("refusing to look at");
-  await page.getByRole("button", { name: "✎ Write" }).click();
+  // The turn also published the card to the margin, whose glass carries its
+  // own pen — scope to the card's pad.
+  await page.locator(".arc-drawn .jr-open").click();
   await page.locator(".jr-text").fill("The unfinished letter in the drawer.");
   await page.getByRole("button", { name: "Keep" }).click();
   await expect(page.getByRole("button", { name: /kept/ })).toBeVisible();

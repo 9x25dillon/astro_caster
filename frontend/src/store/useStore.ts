@@ -174,6 +174,7 @@ interface AstroState {
   openSupport: (open: boolean) => void;
   loadTreasury: () => Promise<void>;
   redeemDonation: (txHash: string, chain?: string) => Promise<boolean>;
+  importEntitlement: (raw: string) => Promise<{ ok: boolean; note: string }>;
   clearEntitlement: () => void;
   validateEntitlement: () => Promise<void>;
   completeCheckoutReturn: () => Promise<void>;
@@ -531,6 +532,39 @@ export const useStore = create<AstroState>((set, get) => ({
     } catch (e) {
       set({ error: (e as Error).message });
       return false;
+    }
+  },
+
+  // The paste path (session 25): the APK has no address bar, so `?entitlement=`
+  // is unreachable there — this is the only way a key bought on the web gets
+  // into the app. Accepts either the bare token or a whole pasted unlock link,
+  // and verifies against the backend BEFORE storing: a bad paste changes
+  // nothing, and the caller gets a sentence it can show verbatim.
+  importEntitlement: async (raw) => {
+    // Tokens copied from a wrapped terminal line, a mail client, or a phone's
+    // share sheet arrive with whitespace baked in — strip all of it first
+    // (the Hand_off gotcha that already bit the devtools path).
+    const squeezed = raw.replace(/\s+/g, "");
+    const linkMatch = squeezed.match(/[?&]entitlement=([^&#]+)/);
+    const token = linkMatch ? decodeURIComponent(linkMatch[1]) : squeezed;
+    if (!token || token === "clear") return { ok: false, note: "Paste a key first." };
+    try {
+      const status = await checkEntitlement(token);
+      if (!status.supporter) {
+        return {
+          ok: false,
+          note: "That key didn't verify — expired, revoked, or mistyped. Nothing was stored.",
+        };
+      }
+      localStorage.setItem(ENT_KEY, token);
+      set({ entitlement: token, isSupporter: true });
+      trackEvent("entitlement_imported", { tier: status.tier });
+      return { ok: true, note: `Unlocked — ${status.tier} tier is active on this device.` };
+    } catch {
+      return {
+        ok: false,
+        note: "Couldn't reach the observatory to verify the key. Check the connection and try again — nothing was stored.",
+      };
     }
   },
 

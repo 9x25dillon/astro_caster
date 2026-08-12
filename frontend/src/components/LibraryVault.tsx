@@ -4,10 +4,29 @@
 import React, { useRef, useState } from "react";
 import { downloadVault, restoreVault } from "../lib/vault";
 import { PricingPanel } from "./PricingPanel";
+import { useStore } from "../store/useStore";
 
 export const LibraryVault: React.FC = () => {
   const fileRef = useRef<HTMLInputElement>(null);
   const [msg, setMsg] = useState("");
+  // Session 25: the key-import field. The reader APK has no address bar, so a
+  // subscription bought on the web had NO way back into the app — this field
+  // is that last mile, and it works identically in every browser.
+  const importEntitlement = useStore((s) => s.importEntitlement);
+  const isSupporter = useStore((s) => s.isSupporter);
+  const [keyDraft, setKeyDraft] = useState("");
+  const [keyNote, setKeyNote] = useState("");
+  const [keyBusy, setKeyBusy] = useState(false);
+
+  const importKey = async () => {
+    if (keyBusy) return;
+    setKeyBusy(true);
+    setKeyNote("");
+    const res = await importEntitlement(keyDraft);
+    setKeyNote(res.note);
+    if (res.ok) setKeyDraft("");
+    setKeyBusy(false);
+  };
 
   return (
     <div className="lib-surface lib-vault">
@@ -60,6 +79,39 @@ export const LibraryVault: React.FC = () => {
           }}
         />
         {msg && <span className="muted" style={{ fontSize: 11 }}>{msg}</span>}
+      </div>
+
+      <div className="lib-keyimport">
+        <h3 className="lib-subtitle">⚿ Bring your key</h3>
+        <p className="shelf-sub">
+          Subscribed on the web? Paste your unlock key — or the whole unlock
+          link — here. It is verified first and then lives only in this
+          {" "}browser.{isSupporter ? " A key is already active on this device; importing another replaces it." : ""}
+        </p>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <input
+            className="key-import-field"
+            aria-label="Entitlement key"
+            placeholder="paste key or unlock link"
+            value={keyDraft}
+            onChange={(e) => setKeyDraft(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") void importKey(); }}
+            style={{ flex: "1 1 220px", minWidth: 180, fontSize: 12, padding: "4px 8px" }}
+          />
+          <button
+            className="ghost key-import-btn"
+            style={{ width: "auto", fontSize: 12, padding: "4px 12px" }}
+            disabled={keyBusy || !keyDraft.trim()}
+            onClick={() => void importKey()}
+          >
+            {keyBusy ? "Verifying…" : "⚿ Import key"}
+          </button>
+        </div>
+        {keyNote && (
+          <p className="muted key-import-note" role="status" style={{ fontSize: 11, marginTop: 6 }}>
+            {keyNote}
+          </p>
+        )}
       </div>
 
       {/* E-3: support & unlock became a real pricing surface — both rails, live

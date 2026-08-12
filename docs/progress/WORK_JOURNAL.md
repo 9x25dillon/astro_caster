@@ -5,6 +5,50 @@ PR bodies; this is the story. Started session 15 at the operator's request._
 
 ---
 
+## Session 25 · 2026-08-12 — the last mile, and the cards learn to turn over
+
+The session opened with a sweeping work order — twenty-odd deliverables across
+parity, privacy, determinism, and hardening, written from the README alone and
+honest enough to say so. Its own first instruction was to check it against the
+live state before building anything, and the check mattered: the order
+prescribed a launch the repository had already performed the day before. The
+reconciliation is written down (`RECONCILIATION_2026-08-12.md`); its most
+useful finding is what NOT to do — three of the order's items would quietly
+reverse decisions the operator ratified on purpose, the MT19937 retirement
+chief among them, since the parity lock and the tarot widget's own acceptance
+both depend on that RNG staying bit-exact. The genuinely open work it names —
+generative parity sampling, external ground-truth anchors — is real and now
+recorded as the strongest post-launch engineering candidate.
+
+What actually got built was the operator's own ratified order from session 24,
+both halves, one bundle. The paste field first, because it is the difference
+between the APK signposting a purchase and honoring one: the Library's Vault
+now takes a pasted key or the entire unlock link, squeezes out the whitespace
+that wrapped pastes always carry, and asks the backend to verify before
+anything is stored. The verify-first ordering is the whole design — a bad
+paste, a mistyped key, or a dead connection all leave the browser exactly as
+it was, with a sentence explaining itself instead of a silent failure that
+surfaces three screens later as a locked feature someone paid for.
+
+The tarot widget went in second and stayed deliberately shallow: presentation
+over an engine nobody touched. A dealt spread now lands face-down — an
+engraved back drawn inline, nothing fetched — and each card turns on its own
+tap, one flip per intent, instantly for anyone who asked their device for
+reduced motion. The tap that turns a card also publishes it to the margin
+glass, which cost one disambiguation in an old spec (two pens on the page
+once the margin holds a card) and bought the phone user a tap. The parity
+suites passed untouched afterward, which is the point: the same cards, in the
+same order, from the same seed — they just arrive the way a reading actually
+arrives, face-down and one at a time.
+
+The suites: 374 backend, 48 core, 25 frontend unit, the full e2e matrix green
+including the no-external ledger and the offline draw. The bundle is ready
+for the one APK cycle session 24 specified — build, sign, v1.0.2,
+versionCode 3 — which needs the operator's machine, because the signing key
+lives outside every repo, exactly as designed.
+
+---
+
 ## Session 24 · 2026-08-11 — the day it went live, and four things that were only pretending to work
 
 The operator arrived with a domain, no VM, and $100 of API credit. By the end
