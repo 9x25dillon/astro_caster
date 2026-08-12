@@ -82,7 +82,9 @@ for clear-text logging on PR #170 and was right: generated cases are synthetic
 and safe to print, but `--case` takes arbitrary JSON and the reason to reach
 for it is to reproduce ONE chart that misbehaved — i.e. exactly when the input
 is a real person's birth moment. Supplied cases now report which quantities
-diverged with the values redacted. If you are debugging a user report, you
+diverged as a closed set of category labels — not redacted values, but a fixed
+vocabulary nothing derived from the input can escape. If you are debugging a
+user report, you
 already hold the input; the tool will not put it in a CI log for you.
 
 **A3 — anchors: infrastructure done, data partial and deliberately so.**
