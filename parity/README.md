@@ -39,6 +39,36 @@ the same committed seas-only data — so the TS suite compares near-exactly
 that the astronomy-engine era needed is retired. The tolerances stored in
 the files remain the contractual outer bound.
 
+## The three layers of the lock
+
+The vectors above are one layer of three, and they are the weakest one on
+their own. Each layer catches what the others structurally cannot:
+
+| layer | what it proves | what it CANNOT prove |
+|---|---|---|
+| **`parity/*.json`** — 9 committed vectors | the two engines agree at 9 known points | anything between those points; and nothing at all about correctness, since `gen_parity_vectors.py` writes the backend's own output |
+| **`backend/tools/parity_property.py`** (Track A1) | the two engines agree across 2000 freshly-sampled cases per CI run, oversampling polar latitudes, sidereal frames, retrograde stations, the JD rollover and local midnight | that either engine is right — it is still engine-vs-engine |
+| **`parity/anchors/`** (Track A3) | each engine independently matches values published OUTSIDE this repository | broad coverage — the set is deliberately small and grows only by acquisition |
+
+The middle layer earned its place on its first run: it found a real bug the
+nine vectors could never have seen — sidereal **whole-sign** cusps in
+`@astra/core` were the tropical sign boundaries shifted into the sidereal
+frame, landing ~5° mid-sign instead of snapping to the sidereal boundaries
+the way `swe_houses_ex` does. Every sidereal whole-sign chart had all twelve
+cusps wrong, and roughly one body in three fell in the wrong house. No golden
+vector covered sidereal whole-sign, so nothing was red.
+
+```bash
+cd backend
+.venv/bin/python tools/parity_property.py --n 2000 --seed 12345   # CI passes the run id
+.venv/bin/python tools/parity_property.py --seed 12345 --index 44 # replay one case
+.venv/bin/python tools/parity_property.py --case '{"year":2000,...}'
+```
+
+Every red run prints its seed, the failing case, a **shrunk** minimal
+reproduction, and the one-line replay command. Failures are reproducible
+locally from the CI run id alone.
+
 ## Comparison rules (mirror these in any consumer)
 
 - Angle-valued fields compare **circularly** (359.99° vs 0.01° = 0.02°).

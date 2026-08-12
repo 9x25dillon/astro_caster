@@ -49,12 +49,55 @@ Re-derive before trusting any of this: `git fetch && git status -sb`._
   spec scopes to the card's own pad (the turn publishes to the margin, which
   adds a second pen — same disambiguation the margin's arrival forced before).
 
+## Then Track A was started, and it found something (session 25b)
+
+**A1 — the generative parity harness is live.** `backend/tools/parity_property.py`
+draws 2000 seeded, stratified cases per CI run and compares the backend
+against `@astra/core` through a long-lived bridge process
+(`packages/astra-core/tools/case-bridge.mjs`). New CI job `property-parity`,
+seeded from `github.run_id`, so any red build replays locally with one
+command.
+
+**⚠️ It found a live bug on its first run — sidereal whole-sign charts were
+wrong on device.** `@astra/core` computed whole-sign cusps by shifting the
+*tropical* sign boundaries into the sidereal frame, so all twelve cusps sat
+~5° mid-sign (the ayanamsha mod 30) instead of snapping to sidereal
+boundaries the way `swe_houses_ex` does. About **one body in three landed in
+the wrong house** on every sidereal whole-sign chart. Fixed in
+`packages/astra-core/src/ephemeris.ts`; pinned by
+`packages/astra-core/test/sidereal-houses.test.ts`. The nine golden vectors
+never covered sidereal whole-sign, so nothing was red — which is exactly the
+gap the work order predicted.
+
+Verify the harness has teeth in ~30 s:
+```bash
+cd backend
+PARITY_INJECT_BIAS_DEG=0.0167 .venv/bin/python tools/parity_property.py --n 5 --seed 7
+# -> 0/5 cases agree   (a 1-arcminute bias must turn it red)
+```
+
+**A3 — anchors: infrastructure done, data partial and deliberately so.**
+`parity/anchors/` now has the provenance contract, a CI `anchors-guard`
+(any anchor diff without an `ANCHOR-CHANGE:` trailer fails the PR), and two
+runners that assert each engine independently. **ΔT at both ends of 2000 is
+checked in** from the NASA GSFC / Espenak-Meeus tables; the backend matches.
+Everything else — planetary longitudes from JPL Horizons, four eclipses,
+Lahiri ayanamsa — is **blocked on network egress**: Horizons, GSFC, USNO,
+IERS and Wikipedia are all 403 from this environment. The exact queries and
+schemas are written down in `parity/anchors/ACQUISITION.md` and both test
+runners pick up each file the moment it appears. **This is ~20 minutes of
+work for anyone on an unrestricted network**, and the ayanamsa anchor is the
+one to do first — A1 just demonstrated the sidereal frame is where the real
+bugs are.
+
 ## What the NEXT session (or the operator) does with this
 
 - **One APK cycle**: rebuild the bundle → sync → build → sign (JDK 21,
   recipe in `APK_A0_FINDINGS.md`) → **v1.0.2 / versionCode 3** → new
   checksum → landing page edit → release. The service-worker retirement
-  (merged in session 24, still unpublished) rides the same build.
+  (merged in session 24, still unpublished) rides the same build. **The
+  sidereal whole-sign fix now rides it too** — installed 1.0/1.0.1 builds
+  compute those charts wrong on device until a new APK ships.
 - The app-link (`VIEW` intent-filter + `assetlinks.json`) remains the
   refinement path; the paste field removes the urgency.
 - M5 is unchanged and still non-code: LLC, confirm prices, live keys, one

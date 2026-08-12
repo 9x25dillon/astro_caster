@@ -47,6 +47,65 @@ for the one APK cycle session 24 specified — build, sign, v1.0.2,
 versionCode 3 — which needs the operator's machine, because the signing key
 lives outside every repo, exactly as designed.
 
+Then the operator said to start Track A, and the second half of the day was
+about the difference between a test that passes and a test that could fail.
+
+The argument for a generative parity harness had been made in the abstract:
+nine fixed vectors cannot cover twelve technique families, and point samples
+miss precisely where implementations diverge. It took the harness about
+ninety seconds of real running to stop being an abstract argument. Fifty
+stratified cases, four of them red, and every red one carried the same
+signature — every house cusp off by the same amount, four or five degrees,
+on sidereal charts using whole-sign houses. That is not float noise. Float
+noise does not move twelve cusps by exactly the same distance.
+
+What it was: whole-sign houses put a cusp on each sign boundary, and Swiss
+Ephemeris snaps them in the frame of the chart you asked for. The TS engine
+was computing the tropical cusps and then subtracting the ayanamsha along
+with everything else — which is exactly right for Placidus, where the cusps
+are anchored to the angles and the frame shift moves them rigidly, and
+exactly wrong for whole-sign, where the cusps are anchored to the sign
+boundaries themselves. Shifting them left them stranded five degrees into
+each sign, which is the ayanamsha mod 30. Roughly a third of the bodies in
+any such chart landed in the wrong house, and the chart looked entirely
+plausible, and it had been shipping in the signed APK since the first build.
+
+The shrinker earned its keep here. The first failing case was a 2073 birth
+at latitude 40.86, longitude 151.03, at 12:37:36 with a 7¾-hour offset — six
+irrelevant details wrapped around one relevant pair. It reduced to noon on
+15 June 2000 at latitude 41, longitude 0, offset zero, whole-sign, sidereal.
+Everything that survived the shrink was load-bearing, and the diagnosis was
+readable off the minimal case rather than dug out of the original one.
+
+Then the harness got pointed at itself. A test suite that has never failed
+is indistinguishable from a test suite that cannot fail, so the bridge grew
+a knob that adds a fixed bias to every longitude after computation, and a
+single arcminute — the work order's stated bar — turns it red on every case
+it draws. After the fix: two seeds, thirty-five hundred independent cases,
+all green, including the compound path where a polar latitude forces the
+whole-sign fallback *and* the chart is sidereal.
+
+The anchors were the honest half. The point of `parity/anchors/` is that its
+contents come from outside this repository, because `gen_parity_vectors.py`
+writes the backend's own output and a backend regression would simply
+regenerate its own alibi. The infrastructure went in whole — the provenance
+contract, a CI guard that fails any anchor diff lacking an `ANCHOR-CHANGE:`
+trailer, and two runners that assert each engine independently so neither can
+stand in as the other's reference. The data mostly did not, because JPL
+Horizons, NASA GSFC, USNO, IERS and even Wikipedia are all blocked by this
+environment's egress proxy. One anchor survived that: ΔT at both ends of the
+year 2000, whose exact published figures were quotable, cross-checked three
+ways against the era's polynomial and drift rate, and written down *before*
+the engine was asked — which is the ordering that separates an anchor from a
+rationalisation. The backend answers 63.8285 and 64.0906 against a published
+63.83 and 64.09.
+
+The rest is a runbook with exact queries and a stated reason, which is what
+the work order asks for when something is deferred. Inventing the numbers
+was the available alternative and it was the worse one: a misremembered digit
+either red-bars a correct engine, or blesses a wrong one and does it in
+silence.
+
 ---
 
 ## Session 24 · 2026-08-11 — the day it went live, and four things that were only pretending to work
