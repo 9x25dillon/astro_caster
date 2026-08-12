@@ -3133,3 +3133,62 @@ button.is-live { color: var(--ion); background: rgba(127, 231, 220, 0.08); }
   color: var(--sepia);
 }
 .key-import-field:focus { border-color: var(--gold); outline: none; }
+
+/* ── Today's card (session 26) ─────────────────────────────────────────────
+   The daily panel leads chapter II. It reuses .arc-drawn for the card itself
+   so the day's card is visually the same object as a drawn one — it IS one,
+   from the same parity-locked deal — and adds only the framing and the
+   notification switch. */
+.daily-panel {
+  margin: 0 0 18px;
+  padding: 14px 16px;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+}
+.daily-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.daily-head .lib-subtitle { margin: 0; }
+.daily-date { font-size: 0.78rem; letter-spacing: 0.04em; }
+
+.daily-card { cursor: pointer; }
+.daily-card:focus-visible {
+  outline: 1px solid var(--gold);
+  outline-offset: 2px;
+}
+
+.daily-notify {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--rule);
+}
+.daily-notify-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  margin-bottom: 6px;
+  cursor: pointer;
+}
+.daily-notify-time {
+  background: transparent;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  color: var(--sepia);
+  padding: 2px 6px;
+  font-size: 0.82rem;
+}
+.daily-notify-time:focus { border-color: var(--gold); outline: none; }
+.daily-notify-note { font-size: 0.75rem; margin: 6px 0 0; }
+.daily-notify-fine { font-size: 0.7rem; margin: 8px 0 0; opacity: 0.75; }
+
+/* The tilt/flip chrome elsewhere is motion; this panel has none to disable,
+   but the focus ring must stay visible under forced-colors. */
+@media (forced-colors: active) {
+  .daily-card:focus-visible { outline: 2px solid CanvasText; }
+}

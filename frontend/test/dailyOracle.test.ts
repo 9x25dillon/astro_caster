@@ -105,6 +105,17 @@ test("the notification line stays short and never ends mid-word", () => {
   }
 });
 
+test("the line is plain text — no markdown leaks into a notification", () => {
+  // offlineMeaning writes **bold** card names. A notification body is plain
+  // text on Android and always will be, so an unstripped asterisk ships as an
+  // asterisk. This was found by rendering the panel and looking at it.
+  for (const d of precomputeDailyDraws(chart, 40, new Date(2026, 7, 12))) {
+    assert.ok(!d.line.includes("**"), `markdown bold survived: ${d.line}`);
+    assert.ok(!/(^|\s)[*_]\S/.test(d.line), `markdown emphasis survived: ${d.line}`);
+    assert.ok(!d.line.includes("`"), `code span survived: ${d.line}`);
+  }
+});
+
 test("every precomputed day carries what a widget needs to render", () => {
   for (const d of precomputeDailyDraws(chart, 10, new Date(2026, 7, 12))) {
     assert.match(d.date, /^\d{4}-\d{2}-\d{2}$/);
