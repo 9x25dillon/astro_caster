@@ -21,6 +21,7 @@ import {
   writePrefs,
   type DailyNotificationPrefs,
 } from "../lib/dailyNotifications";
+import { canPinWidget, requestPinWidget } from "../lib/widgetBridge";
 
 /** "Tuesday, 12 August" — the day named, so the card is anchored to it. */
 function longDate(key: string): string {
@@ -38,12 +39,14 @@ export const DailyCardPanel: React.FC = () => {
 
   const [prefs, setPrefs] = useState<DailyNotificationPrefs>(DEFAULT_PREFS);
   const [canNotify, setCanNotify] = useState(false);
+  const [canPin, setCanPin] = useState(false);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     setPrefs(readPrefs());
     void isSupported().then(setCanNotify);
+    void canPinWidget().then(setCanPin);
   }, []);
 
   // Recomputed when the day rolls over or the chart changes — not memoised on
@@ -152,6 +155,35 @@ export const DailyCardPanel: React.FC = () => {
           <p className="muted daily-notify-fine">
             Computed on this device and scheduled here — the card is drawn from
             your chart, and nothing about it is sent anywhere.
+          </p>
+        </div>
+      )}
+
+      {canPin && (
+        <div className="daily-widget-offer">
+          <button
+            className="ghost daily-widget-btn"
+            onClick={async () => {
+              const asked = await requestPinWidget();
+              // The launcher owns the confirmation and never tells us the
+              // outcome, so this says what was ASKED, not what happened —
+              // claiming "added" when the reader may have cancelled would be
+              // the app asserting something it cannot know.
+              setNote(
+                asked
+                  ? "Asked your launcher to add it — confirm on the home screen."
+                  : "Your launcher wouldn't take the request. You can still add it by long-pressing the home screen."
+              );
+            }}
+          >
+            {/* ✦ rather than a box-drawing glyph: EB Garamond has no U+25EB
+                and it rendered as tofu on the device. Verified on hardware —
+                the browser substituted a fallback font and hid it. */}
+            ✦ Put the wheel on my home screen
+          </button>
+          <p className="muted daily-notify-fine">
+            The widget shows your wheel and this card. It redraws when you open
+            Astra — nothing runs in the background.
           </p>
         </div>
       )}

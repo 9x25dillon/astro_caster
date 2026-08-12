@@ -1,6 +1,7 @@
 // App.tsx — the observatory shell.
 import React, { useEffect, useMemo, useState } from "react";
 import { useStore } from "./store/useStore";
+import { syncDailySurfaces } from "./lib/dailySync";
 import { Controls } from "./components/Controls";
 import { ChartWheel } from "./components/ChartWheel";
 import { DetailPanel } from "./components/DetailPanel";
@@ -107,6 +108,22 @@ export const App: React.FC = () => {
     return () => window.removeEventListener("online", onOnline);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Session 26: the notification queue and the widget's data are both things
+  // this app leaves behind for a surface that runs when we do not, and a launch
+  // is their only refresh opportunity. Driven off `chart` so a recast — a new
+  // profile, a different house system — updates both.
+  //
+  // Deferred past first paint on purpose: the widget half rasterises the live
+  // wheel, which means walking the whole SVG with getComputedStyle, and the one
+  // moment that must stay cheap is the one where the observatory appears. It is
+  // also why nothing awaits this — syncDailySurfaces never throws, and no part
+  // of the UI depends on its result.
+  useEffect(() => {
+    if (!chart) return;
+    const t = window.setTimeout(() => { void syncDailySurfaces(chart); }, 1200);
+    return () => window.clearTimeout(t);
+  }, [chart]);
 
   const openChapter = (ch: Chapter) => {
     setChapter(ch);

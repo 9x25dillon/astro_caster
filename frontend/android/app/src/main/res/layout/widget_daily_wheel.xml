@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The widget face: the wheel, the day's card, one line of meaning.
+
+  Only the RemoteViews-supported view set is available here — no ConstraintLayout,
+  no custom views, no SVG. LinearLayout and friends only.
+
+  The wheel image is supplied at runtime as a Bitmap by DailyWheelWidget; the
+  PNG the app rasterised is square, so the ImageView is too, and the caption
+  sits under it rather than beside it so the layout survives a narrow 2-cell
+  placement.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center_horizontal"
+    android:padding="10dp"
+    android:background="@drawable/widget_bg">
+
+    <!-- The src/text defaults below are what the WIDGET PICKER shows. Android
+         renders previewLayout without ever running the provider, so a layout
+         with no defaults previews as a blank black rectangle — which reads as
+         broken and is the last thing seen before deciding whether to add it.
+         At runtime every one of these is replaced by RemoteViews. -->
+    <ImageView
+        android:id="@+id/widget_wheel"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:adjustViewBounds="true"
+        android:scaleType="fitCenter"
+        android:src="@drawable/widget_preview_wheel"
+        android:contentDescription="@string/widget_wheel_desc" />
+
+    <TextView
+        android:id="@+id/widget_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:maxLines="1"
+        android:ellipsize="end"
+        android:gravity="center"
+        android:textColor="#E8D9A8"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        android:text="@string/widget_preview_title" />
+
+    <TextView
+        android:id="@+id/widget_caption"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:maxLines="2"
+        android:ellipsize="end"
+        android:gravity="center"
+        android:textColor="#B9AE93"
+        android:textSize="11sp"
+        android:text="@string/widget_preview_caption" />
+
+</LinearLayout>

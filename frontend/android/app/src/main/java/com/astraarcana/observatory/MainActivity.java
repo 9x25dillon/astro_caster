@@ -33,6 +33,11 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        // App-local plugins are not auto-discovered the way packaged ones are —
+        // this must run BEFORE super.onCreate, which is where the bridge is
+        // built and the plugin registry is frozen.
+        registerPlugin(AstraWidgetPlugin.class);
+
         super.onCreate(savedInstanceState);
 
         final View content = findViewById(android.R.id.content);

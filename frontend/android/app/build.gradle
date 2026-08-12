@@ -17,6 +17,16 @@ android {
         }
     }
     buildTypes {
+        debug {
+            // A debug build is signed with the debug key, so installing one over
+            // a release-signed Astra fails with INSTALL_FAILED_UPDATE_INCOMPATIBLE
+            // and the only way through is uninstalling — which destroys the
+            // reader's charts, journal and entitlement. A distinct id means a
+            // test build lands BESIDE the real app instead of demanding a choice.
+            applicationIdSuffix ".dev"
+            versionNameSuffix "-dev"
+            resValue "string", "app_name", "Astra dev"
+        }
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
