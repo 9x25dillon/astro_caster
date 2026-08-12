@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The notification small icon.
+
+  Android tints small icons to a flat white silhouette and discards colour
+  entirely, so this is a shape and nothing else — a coloured or detailed icon
+  comes out as a white blob. The eight-pointed star is the app's own motif: the
+  ✦ that marks every card chip, and the engraving on the tarot card back.
+
+  Without this, Capacitor falls back to its generic default icon, which is what
+  the first on-device test showed in the shade — an unbranded mark next to a
+  reading, which reads as some other app's notification.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="#FFFFFFFF">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M12.00,2.00L13.30,8.86L19.07,4.93L15.14,10.70L22.00,12.00L15.14,13.30L19.07,19.07L13.30,15.14L12.00,22.00L10.70,15.14L4.93,19.07L8.86,13.30L2.00,12.00L8.86,10.70L4.93,4.93L10.70,8.86Z" />
+</vector>
