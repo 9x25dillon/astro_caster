@@ -29,12 +29,14 @@ failure prints the seed, the failing case, a SHRUNK minimal case, and the
 one-line replay command. Failures exit 1.
 
 Privacy: generated cases are echoed in full because this process invented
-them — they describe nobody. A case supplied via --case is NOT echoed, and
-the values in its divergence report are redacted, because the reason to reach
-for --case is to reproduce one chart that misbehaved, i.e. precisely when the
-input is a real person's birth moment. The prime directive ("no birth data in
-any log line") has no carve-out for developer tools, and in CI stdout is a
-retained log. Caught by CodeQL on PR #170, and it was right.
+them — they describe nobody. A case supplied via --case is NOT echoed, and its
+divergence report is reduced to a closed set of category labels
+(_failure_category), because the reason to reach for --case is to reproduce
+one chart that misbehaved, i.e. precisely when the input is a real person's
+birth moment. The prime directive ("no birth data in any log line") has no
+carve-out for developer tools, and in CI stdout is a retained log. Caught by
+CodeQL on PR #170, and it was right: it traced the taint from the --case JSON
+specifically, leaving the RNG-sourced path alone, which is the correct split.
 
 Usage (from backend/):
     .venv/bin/python tools/parity_property.py --n 2000 --seed 12345
@@ -99,20 +101,18 @@ YEAR_MIN, YEAR_MAX = 1800, 2100
 
 # Divergence messages carry two kinds of information. The CONTINUOUS values —
 # longitudes, Julian days, deltas, speeds — are derived from the birth moment
-# and, given enough of them, invert back toward it; those are redacted when the
-# input did not come from our own RNG. The CATEGORICAL structure — which body,
-# which field, which cusp index — is what actually diagnoses a divergence and
-# leaks no moment on its own, so it survives. A reviewer who thinks that line
-# sits in the wrong place can move it here, in one function, rather than
-# arguing with prose.
-_FLOATY = re.compile(r"-?\d+\.\d+")
-_PARENTHETICAL = re.compile(r"\s*\([^)]*\)")
-
-
-def _redact(message: str) -> str:
-    return _FLOATY.sub("<redacted>", _PARENTHETICAL.sub("", message))
-
-
+# and, given enough of them, invert back toward it. The CATEGORICAL structure —
+# which body, which field, which cusp — is what actually diagnoses a divergence
+# and leaks no moment on its own.
+#
+# For a case supplied via --case (i.e. possibly a real person's birth moment)
+# the report is mapped through this function to a CLOSED SET of category
+# literals, so nothing derived from the input can reach stdout at all. A
+# regex-redaction pass lived here first; mapping to a fixed vocabulary is
+# strictly stronger, because it cannot be defeated by a message format nobody
+# thought to escape. Every branch must return a literal — if you add a
+# divergence message, add its category here too, or it lands in
+# "divergence.other" and the report gets vaguer rather than leakier.
 def _failure_category(message: str) -> str:
     msg = message.strip()
     if msg.startswith("TS engine error:"):
@@ -459,7 +459,14 @@ def run(seed: int, n: int, only_index: Optional[int], ad_hoc: Optional[str]) -> 
             cases = [json.loads(ad_hoc)]
         else:
             rng = random.Random(seed)
-            cases = [gen_case(rng) for _ in range(n)]
+            # Generation is sequential from one seeded rng, so case k is the
+            # same case for any n > k. Replaying --index k therefore only needs
+            # the first k+1 draws, not all n — which matters because ~10% of
+            # cases run a station search (a few hundred ephemeris calls each),
+            # so regenerating 2000 of them to reach case 1900 turns "replay any
+            # red build with one command" into a multi-minute wait.
+            wanted = n if only_index is None else only_index + 1
+            cases = [gen_case(rng) for _ in range(wanted)]
             if only_index is not None:
                 cases = [cases[only_index]]
 
