@@ -285,23 +285,19 @@ def compare(py: Dict[str, Any], ts: Dict[str, Any]) -> List[str]:
 
     # The polar fallback must be IDENTICAL — which system actually served.
     if py["meta"]["house_system"] != ts["meta"]["house_system"]:
-        fails.append(
-            "house-system fallback diverged: "
-            f"py={py['meta']['house_system']} ts={ts['meta']['house_system']}"
-        )
+        fails.append("house-system fallback diverged")
 
     py_p = {p["id"]: p for p in py["planets"]}
     ts_p = {p["id"]: p for p in ts["planets"]}
     if set(py_p) != set(ts_p):
-        fails.append(f"body sets differ: only-py={sorted(set(py_p)-set(ts_p))} "
-                     f"only-ts={sorted(set(ts_p)-set(py_p))}")
+        fails.append("body sets differ")
 
     strict_signs = True
     for pid in sorted(set(py_p) & set(ts_p)):
         a, b = py_p[pid], ts_p[pid]
         dl = _circ(a["longitude"], b["longitude"])
         if dl > LON_TOL:
-            fails.append(f"{pid} lon Δ{dl:.6f} ({a['longitude']} vs {b['longitude']})")
+            fails.append(f"{pid} lon Δ{dl:.6f}")
         if abs(a["latitude"] - b["latitude"]) > _TOL["planet.latitude_deg"]:
             fails.append(f"{pid} lat Δ{abs(a['latitude']-b['latitude']):.6f}")
         if abs(a["declination"] - b["declination"]) > _TOL["planet.declination_deg"]:
@@ -312,25 +308,20 @@ def compare(py: Dict[str, Any], ts: Dict[str, Any]) -> List[str]:
         if a["sign"] != b["sign"]:
             strict_signs = False
             if not (_near_sign_edge(a["longitude"]) or _near_sign_edge(b["longitude"])):
-                fails.append(f"{pid} SIGN {a['sign']} vs {b['sign']} "
-                             f"(lon {a['longitude']} / {b['longitude']})")
+                fails.append(f"{pid} SIGN mismatch")
         elif a["dignity"] != b["dignity"] or a["element"] != b["element"] \
                 or a["modality"] != b["modality"]:
-            fails.append(f"{pid} sign-derived fields differ on same sign "
-                         f"({a['dignity']}/{a['element']}/{a['modality']} vs "
-                         f"{b['dignity']}/{b['element']}/{b['modality']})")
+            fails.append(f"{pid} sign-derived fields differ on same sign")
         if a["house"] != b["house"]:
             cusps = [h["longitude"] for h in py["houses"]]
             if not (_near_any_cusp(a["longitude"], cusps)
                     or _near_any_cusp(b["longitude"], cusps)):
-                fails.append(f"{pid} HOUSE {a['house']} vs {b['house']} "
-                             f"(lon {a['longitude']})")
+                fails.append(f"{pid} HOUSE mismatch")
         if a["retrograde"] != b["retrograde"]:
             # At a station the speed's sign IS the decision; only a speed
             # within noise of zero may flip it.
             if min(abs(a["speed"]), abs(b["speed"])) > 2 * SPEED_TOL:
-                fails.append(f"{pid} RETROGRADE {a['retrograde']} vs {b['retrograde']} "
-                             f"(speed {a['speed']} / {b['speed']})")
+                fails.append(f"{pid} RETROGRADE mismatch")
 
     # Cusps + angles.
     for i, (ha, hb) in enumerate(zip(py["houses"], ts["houses"])):
@@ -372,9 +363,9 @@ def compare(py: Dict[str, Any], ts: Dict[str, Any]) -> List[str]:
         if pk != tk:
             fails.append(f"patterns differ: only-py={sorted(pk-tk)} only-ts={sorted(tk-pk)}")
     if strict_signs and py["elements"] != ts["elements"]:
-        fails.append(f"element tallies differ: {py['elements']} vs {ts['elements']}")
+        fails.append("element tallies differ")
     if strict_signs and py["modalities"] != ts["modalities"]:
-        fails.append(f"modality tallies differ: {py['modalities']} vs {ts['modalities']}")
+        fails.append("modality tallies differ")
 
     return fails
 
