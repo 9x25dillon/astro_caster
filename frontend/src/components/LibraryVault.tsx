@@ -22,10 +22,20 @@ export const LibraryVault: React.FC = () => {
     if (keyBusy) return;
     setKeyBusy(true);
     setKeyNote("");
-    const res = await importEntitlement(keyDraft);
-    setKeyNote(res.note);
-    if (res.ok) setKeyDraft("");
-    setKeyBusy(false);
+    // importEntitlement is contracted to resolve, never reject — but the
+    // button disables itself on keyBusy, so ANY escaping throw leaves the
+    // field stuck on "Verifying…" with only a reload to clear it. Belt and
+    // braces: the spinner comes down in `finally` regardless of who breaks
+    // the contract later.
+    try {
+      const res = await importEntitlement(keyDraft);
+      setKeyNote(res.note);
+      if (res.ok) setKeyDraft("");
+    } catch {
+      setKeyNote("Something went wrong reading that key. Nothing was stored.");
+    } finally {
+      setKeyBusy(false);
+    }
   };
 
   return (

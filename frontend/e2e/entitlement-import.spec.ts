@@ -63,6 +63,28 @@ test("a whole pasted unlock LINK works — the token is extracted from it", asyn
   ).toBe(oracle);
 });
 
+test("a malformed unlock link is refused without stranding the field", async ({ page }) => {
+  // A link truncated mid-percent-escape — what a share sheet or a mail client
+  // hands you when the URL got cut. decodeURIComponent THROWS on it, and that
+  // throw used to escape importEntitlement entirely: the note never arrived,
+  // the button never came back off "Verifying…", and the field was dead until
+  // a reload. On the APK this paste field is the only route a key has, so a
+  // dead field is a dead purchase.
+  await openVault(page);
+  await page
+    .locator(".key-import-field")
+    .fill("https://app.astra-arcana.com/?entitlement=abc%");
+  await page.locator(".key-import-btn").click();
+  await expect(page.locator(".key-import-note")).toContainText(/didn't verify/i);
+  // The recovery is the point of the test, not the message: the control has to
+  // come back so the reader can correct the paste in place.
+  await expect(page.locator(".key-import-btn")).toBeEnabled();
+  await expect(page.locator(".key-import-btn")).toContainText(/Import key/i);
+  expect(
+    await page.evaluate(() => localStorage.getItem("aae.entitlement"))
+  ).toBeNull();
+});
+
 test("whitespace from a wrapped paste is stripped before verification", async ({ page }) => {
   const { supporter } = mintedTokens();
   test.skip(!supporter, "backend venv / mint tool unavailable");
