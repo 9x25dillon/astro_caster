@@ -39,15 +39,16 @@ the same committed seas-only data — so the TS suite compares near-exactly
 that the astronomy-engine era needed is retired. The tolerances stored in
 the files remain the contractual outer bound.
 
-## The three layers of the lock
+## The four layers of the lock
 
-The vectors above are one layer of three, and they are the weakest one on
+The vectors above are one layer of four, and they are the weakest one on
 their own. Each layer catches what the others structurally cannot:
 
 | layer | what it proves | what it CANNOT prove |
 |---|---|---|
 | **`parity/*.json`** — 9 committed vectors | the two engines agree at 9 known points | anything between those points; and nothing at all about correctness, since `gen_parity_vectors.py` writes the backend's own output |
-| **`backend/tools/parity_property.py`** (Track A1) | the two engines agree across 2000 freshly-sampled cases per CI run, oversampling polar latitudes, sidereal frames, retrograde stations, the JD rollover and local midnight | that either engine is right — it is still engine-vs-engine |
+| **`backend/tools/parity_property.py`** (Track A1) | the two engines agree across 2000 freshly-sampled cases per CI run, oversampling polar latitudes, sidereal frames, retrograde stations, the JD rollover and local midnight | that either engine is right — it is still engine-vs-engine. And random sampling essentially never lands within a hair of a boundary, which is where classifications actually flip |
+| **`backend/tools/parity_boundary.py`** + **`tolerance.contract.json`** (Track A2) | the two engines make the same CATEGORICAL decision — sign, house, aspect membership, retrograde — at constructed distances from every boundary | anything about values away from boundaries; it is deliberately blind to the bulk of the space A1 covers |
 | **`parity/anchors/`** (Track A3) | each engine independently matches values published OUTSIDE this repository | broad coverage — the set is deliberately small and grows only by acquisition |
 
 The middle layer earned its place on its first run: it found a real bug the
@@ -68,6 +69,33 @@ cd backend
 Every red run prints its seed, the failing case, a **shrunk** minimal
 reproduction, and the one-line replay command. Failures are reproducible
 locally from the CI run id alone.
+
+## The tolerance contract, and what a bound actually means
+
+`parity/tolerance.contract.json` is the machine-readable, versioned contract:
+per quantity, the unit, the bound, the product-level justification, and **the
+categorical decision that bound exists to protect**.
+
+A bound is **the half-width of the band around a boundary in which the two
+engines may classify differently.** Outside that band, agreement is mandatory
+and a disagreement is a defect. This definition is the point: it is what makes
+a tolerance checkable rather than decorative, and it is why the boundary suite
+can be strict without being flaky. Demanding agreement *at* a boundary is
+unsatisfiable — at exactly 30.000000° one engine says 29.999999° (Aries) and
+the other 30.000001° (Taurus), and neither is wrong.
+
+```bash
+cd backend
+.venv/bin/python tools/parity_boundary.py                  # 253 constructed cases
+.venv/bin/python tools/parity_boundary.py --kind sign -v   # one kind, per-probe
+.venv/bin/python tools/parity_boundary.py --inject-bias-deg 0.0167   # must go RED
+.venv/bin/python tools/check_tolerance_ratchet.py          # widening needs an ADR
+```
+
+**Widening a bound fails CI** unless the same change adds an ADR under
+`docs/design/adr/`. Tightening is always free — that asymmetry is what makes
+it a ratchet. Tolerances that drift upward to make builds green are how a
+drift lock dies.
 
 ## Comparison rules (mirror these in any consumer)
 

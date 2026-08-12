@@ -32,8 +32,8 @@ session builds the paste field (`LibraryVault.tsx`, `importEntitlement` in
 
 ## Track A — parity lock
 
-> **Update, same day (session 25b):** A1 and A3 were BUILT after this report
-> was written — see the "Track A delivered" section at the foot of this file.
+> **Update, same day (sessions 25b/25c):** A1, A2 and A3 were all BUILT after
+> this report was written — see the "Track A delivered" section at the foot of this file.
 > The rows below record the state as found, which is what a reconciliation is
 > for; they are no longer current for A1/A3.
 
@@ -139,6 +139,28 @@ this path; historical-zone resolution is `frontend/src/lib/timezone.ts` with
 its own suite) and the Julian/Gregorian boundary (both engines call
 `swe.julday(..., GREG_CAL)` unconditionally, so there is no dual-calendar
 behaviour to diverge — the sampled range starts at 1800). [E]
+
+## A2 — assert the decision, not the float ✅
+
+`parity/tolerance.contract.json` (versioned; per quantity the unit, bound,
+product justification, and the categorical decision it protects),
+`backend/tools/parity_boundary.py` (253 constructed cases at measured
+distances from sign, cusp, aspect-orb and station boundaries),
+`check_tolerance_ratchet.py` (widening needs an ADR; tightening is free),
+`docs/design/adr/` with ADR-0001, and 13 contract-integrity tests pinning the
+contract to the vector tolerances so the two copies cannot drift apart.
+
+The bound is defined as the half-width of the band in which the engines may
+classify differently — which is what makes it checkable, and what keeps the
+suite strict without being flaky. [E]
+
+**Acceptance met, but only after three silent failures in the suite itself**,
+all recorded in Hand_off.md: a falsification hook that sat downstream of the
+classifier (so a 1-arcminute bias passed clean), probes converging onto the
+discontinuity of a wrapped angular function (landing ~15° from any boundary
+while reporting healthy counts), and a sensitivity floor above the fault it
+had to catch. CI now runs the injection as a step that fails the build if the
+suite survives it. [E]
 
 ## A3 — external ground-truth anchors ⚠️ infrastructure complete, data partial
 
