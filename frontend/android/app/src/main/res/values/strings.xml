@@ -4,4 +4,10 @@
     <string name="title_activity_main">Astra</string>
     <string name="package_name">com.astraarcana.observatory</string>
     <string name="custom_url_scheme">com.astraarcana.observatory</string>
+    <string name="widget_description">Your chart wheel, with the day\'s card beneath it.</string>
+    <string name="widget_wheel_desc">Your natal chart wheel</string>
+    <!-- Shown only in the widget picker, before the provider has ever run.
+         Replaced by the real card the moment the widget is placed. -->
+    <string name="widget_preview_title">The Star</string>
+    <string name="widget_preview_caption">Your wheel and the day\'s card, drawn on this device.</string>
 </resources>

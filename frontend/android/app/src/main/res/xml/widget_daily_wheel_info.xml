@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  updatePeriodMillis is 0 ON PURPOSE.
+
+  The system clamps it to 30 minutes minimum and then honours it only loosely,
+  and there is nothing for a timed wake-up to DO here: the wheel and the caption
+  can only change when the app runs and republishes them, and the app sends an
+  explicit update broadcast when it does. A periodic wake would spend battery
+  redrawing identical pixels.
+
+  minWidth/minHeight target a 3x3 placement — the wheel needs to be roughly
+  square to be legible, and resizing is allowed in both directions for people
+  who want it larger.
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="180dp"
+    android:minHeight="180dp"
+    android:minResizeWidth="110dp"
+    android:minResizeHeight="110dp"
+    android:targetCellWidth="3"
+    android:targetCellHeight="3"
+    android:resizeMode="horizontal|vertical"
+    android:widgetCategory="home_screen"
+    android:description="@string/widget_description"
+    android:previewLayout="@layout/widget_daily_wheel"
+    android:initialLayout="@layout/widget_daily_wheel"
+    android:updatePeriodMillis="0" />

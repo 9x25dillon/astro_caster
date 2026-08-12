@@ -3170,11 +3170,29 @@ button.is-live { color: var(--ion); background: rgba(127, 231, 220, 0.08); }
 .daily-notify-row {
   display: flex;
   align-items: center;
+  justify-content: flex-start;
   gap: 8px;
   font-size: 0.82rem;
   margin-bottom: 6px;
   cursor: pointer;
 }
+/* The label sat centred and wrapped mid-phrase on a phone because the row
+   inherited the panel's centring. Keep the control and its text together on
+   the left and let the text take the space it needs. */
+.daily-notify-row > span { text-align: left; }
+/* The global `input {width:100%}` at the top of this file applies to
+   checkboxes too, so the box claimed the whole row and pushed its own label
+   off the edge. Flex basis is `auto` = that width, so it has to be overridden
+   explicitly rather than with flex alone. */
+.daily-notify-toggle {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  padding: 0;
+  margin: 0;
+}
+.daily-notify-time { width: auto; flex: 0 0 auto; }
 .daily-notify-time {
   background: transparent;
   border: 1px solid var(--rule);
@@ -3191,4 +3209,15 @@ button.is-live { color: var(--ion); background: rgba(127, 231, 220, 0.08); }
    but the focus ring must stay visible under forced-colors. */
 @media (forced-colors: active) {
   .daily-card:focus-visible { outline: 2px solid CanvasText; }
+}
+
+.daily-widget-offer {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--rule);
+}
+.daily-widget-btn {
+  width: auto;
+  font-size: 12px;
+  padding: 4px 12px;
 }
