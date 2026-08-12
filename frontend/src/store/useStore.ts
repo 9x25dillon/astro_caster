@@ -22,6 +22,10 @@ import {
 } from "../lib/reportTokens";
 
 const ENT_KEY = "aae.entitlement";
+// Every way a pasted key can be unusable reads the same to the reader, and
+// says the one thing they need: nothing on this device changed.
+const BAD_KEY_NOTE =
+  "That key didn't verify — expired, revoked, or mistyped. Nothing was stored.";
 const LAST_CHART_KEY = "aae.last_chart";
 const ASK_QUEUE_KEY = "aae.ask_queue";
 import type {
@@ -546,15 +550,24 @@ export const useStore = create<AstroState>((set, get) => ({
     // (the Hand_off gotcha that already bit the devtools path).
     const squeezed = raw.replace(/\s+/g, "");
     const linkMatch = squeezed.match(/[?&]entitlement=([^&#]+)/);
-    const token = linkMatch ? decodeURIComponent(linkMatch[1]) : squeezed;
+    // decodeURIComponent THROWS on a malformed escape (`…?entitlement=abc%`),
+    // which a truncated or mail-client-mangled link supplies readily. Left
+    // uncaught it rejected the promise instead of returning a note, and the
+    // caller's spinner never cleared — the field died mid-verify with no way
+    // back but a reload, on the one surface (the APK) where this is the ONLY
+    // route a key has. A key that won't decode is just a key that won't
+    // verify, so it takes the same sentence as any other bad paste.
+    let token: string;
+    try {
+      token = linkMatch ? decodeURIComponent(linkMatch[1]) : squeezed;
+    } catch {
+      return { ok: false, note: BAD_KEY_NOTE };
+    }
     if (!token || token === "clear") return { ok: false, note: "Paste a key first." };
     try {
       const status = await checkEntitlement(token);
       if (!status.supporter) {
-        return {
-          ok: false,
-          note: "That key didn't verify — expired, revoked, or mistyped. Nothing was stored.",
-        };
+        return { ok: false, note: BAD_KEY_NOTE };
       }
       localStorage.setItem(ENT_KEY, token);
       set({ entitlement: token, isSupporter: true });
