@@ -390,12 +390,23 @@ export function calculateChart(req: ChartRequest): ChartResponse {
   // Houses + angles from the same swe_houses C the backend runs — every house
   // system pyswisseph accepts works here too, and the Vertex is real now.
   // Sidereal cusps/angles are the tropical ones minus the effective offset —
-  // exactly what swe_houses_ex does internally (residual ~1e-11).
+  // exactly what swe_houses_ex does internally (residual ~1e-11) — for every
+  // ANGLE-ANCHORED system. Whole-sign is the exception: its cusps snap to
+  // sign boundaries, and swe snaps them in the SIDEREAL frame, so the shifted
+  // tropical cusps land mid-sign. Snap from the sidereal Ascendant instead.
+  // (Found by the A1 generative harness — a constant mid-sign cusp offset on
+  // every sidereal whole-sign chart, backend as reference.)
   const off = sidereal ? siderealOffset(jd, shift!) : 0;
   const h = calcSwissHouses(jd, req.lat, req.lng, req.house_system ?? "P")!;
-  const cusps = h.cusps.map((c) => norm360(c - off));
   const asc = norm360(h.asc - off);
   const mc = norm360(h.mc - off);
+  const servedWholeSign = h.fellBack || (req.house_system ?? "P") === "W";
+  const cusps =
+    sidereal && servedWholeSign
+      ? Array.from({ length: 12 }, (_, k) =>
+          norm360(Math.floor(asc / 30) * 30 + k * 30)
+        )
+      : h.cusps.map((c) => norm360(c - off));
   const angles: Angles = {
     ascendant: round6(asc),
     midheaven: round6(mc),

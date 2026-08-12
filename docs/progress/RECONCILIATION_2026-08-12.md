@@ -32,6 +32,11 @@ session builds the paste field (`LibraryVault.tsx`, `importEntitlement` in
 
 ## Track A — parity lock
 
+> **Update, same day (session 25b):** A1 and A3 were BUILT after this report
+> was written — see the "Track A delivered" section at the foot of this file.
+> The rows below record the state as found, which is what a reconciliation is
+> for; they are no longer current for A1/A3.
+
 | Order | State | Evidence |
 |---|---|---|
 | A1 stratified property parity | **Unstarted** | `parity/` holds 9 fixed vectors; `backend/tools/gen_parity_vectors.py` is point-sampling only. No generative harness, no seeded stratification. [E] |
@@ -95,3 +100,73 @@ order — executed in this session.
    default inversion. [E]
 3. Feature freeze is respected: nothing speculative was opened; the two
    features built this session are the operator's own ratified order.
+
+---
+
+# Track A delivered (session 25b, same day)
+
+## A1 — stratified generative parity ✅
+
+`backend/tools/parity_property.py` + `packages/astra-core/tools/case-bridge.mjs`.
+2000 seeded cases per CI run (job `property-parity`, seeded from
+`github.run_id`), streamed through one long-lived TS bridge process.
+Stratification oversamples the hostile regions; a representative run:
+
+```
+strata: fractional-tz=1474, jd-rollover=201, local-midnight=250,
+        near-polar=285, polar=484, sidereal=585, southern=1014, station=177
+```
+
+Failures print the seed, the case, a **shrunk** minimal reproduction, and the
+replay command. Falsification verified: `PARITY_INJECT_BIAS_DEG=0.0167`
+(1 arcminute) turns the suite red on 5/5 cases — the work order's stated
+acceptance bar. [E]
+
+**It found a real bug on its first run.** `@astra/core` computed sidereal
+**whole-sign** cusps as the *tropical* sign boundaries shifted into the
+sidereal frame, so all twelve cusps sat ~5° mid-sign instead of snapping to
+sidereal boundaries the way `swe_houses_ex` does. Roughly one body in three
+landed in the wrong house on every sidereal whole-sign chart. Fixed in
+`packages/astra-core/src/ephemeris.ts` (snap from the sidereal Ascendant when
+whole-sign is the system actually served, including via polar fallback);
+pinned by `packages/astra-core/test/sidereal-houses.test.ts`. No golden vector
+covered sidereal whole-sign, so nothing was red — which is precisely the
+argument the work order made for A1. [E]
+
+**Deliberately out of scope, with reasons:** DST transitions (the
+deterministic engines take `tz_offset` as a given number — no tz database on
+this path; historical-zone resolution is `frontend/src/lib/timezone.ts` with
+its own suite) and the Julian/Gregorian boundary (both engines call
+`swe.julday(..., GREG_CAL)` unconditionally, so there is no dual-calendar
+behaviour to diverge — the sampled range starts at 1800). [E]
+
+## A3 — external ground-truth anchors ⚠️ infrastructure complete, data partial
+
+`parity/anchors/` with the full record contract (source, url, verbatim
+citation, retrieval date, the source's own uncertainty, and a separately
+justified engine allowance), a CI `anchors-guard` job that fails any PR
+touching anchor data without an `ANCHOR-CHANGE:` trailer, and two independent
+runners — `backend/tests/test_anchors.py` (5 tests) and
+`packages/astra-core/test/anchors.test.ts` — so **neither engine is ever the
+other's reference in this suite**.
+
+**Landed:** ΔT at 2000-01-01 (63.83 s) and 2000-12-31 (64.09 s) from the NASA
+GSFC / EclipseWise tables (Espenak & Meeus). The backend returns 63.8285 s and
+64.0906 s — inside tolerance, and the pair also pins the table's *slope*
+across the year, which a single point cannot. Value was recorded before the
+engine was consulted; that ordering is what keeps it an anchor. [E]
+
+**Deferred with the blocker written down** (`parity/anchors/ACQUISITION.md`):
+JPL Horizons, NASA GSFC, USNO, IERS and Wikipedia are all unreachable from
+this environment's egress proxy (403 / `EGRESS_BLOCKED`, verified 2026-08-12).
+Planetary longitudes, eclipses, the Lahiri ayanamsa, and ΔT at 1900/2050 are
+specified there with their **exact queries** and schemas; both test runners
+pick each file up automatically the moment it exists. Fabricating the values
+from recollection was refused — a misremembered digit either red-bars a
+correct engine or sanctifies a wrong one, and the second failure is silent.
+[E]
+
+**Judgment:** A3's remaining work is data acquisition, not engineering, and
+needs ~20 minutes on a machine with open egress. The ayanamsa anchor is the
+highest-value one outstanding, because A1 has now demonstrated the sidereal
+frame is where this codebase's real bugs live. [X]

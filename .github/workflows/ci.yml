@@ -170,6 +170,75 @@ jobs:
       - name: Parity vs parity/natal-chart.json
         run: npm test
 
+  anchors-guard:
+    name: "A3 — anchor provenance guard"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Need both sides of the PR to diff, and the commit messages to
+          # look for the trailer — a shallow clone has neither.
+          fetch-depth: 0
+      - name: Anchor data may only change with an ANCHOR-CHANGE trailer
+        # parity/anchors/ holds values sourced OUTSIDE this repository. Nothing
+        # here may regenerate them, so an anchor diff is never routine: it is
+        # either a new acquisition (fine, with provenance) or a value being
+        # bent to make a build green (the failure mode this guard exists for).
+        # Markdown is exempt — the runbook and README are meant to be edited.
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          changed=$(git diff --name-only "$BASE" "$HEAD" -- parity/anchors/ \
+                    | grep -v '\.md$' || true)
+          if [ -z "$changed" ]; then
+            echo "ok: no anchor data touched"
+            exit 0
+          fi
+          echo "anchor data changed in this PR:"
+          echo "$changed" | sed 's/^/  /'
+          if git log --format='%B' "$BASE".."$HEAD" | grep -q '^ANCHOR-CHANGE:'; then
+            echo "ok: ANCHOR-CHANGE trailer present"
+            git log --format='%B' "$BASE".."$HEAD" | grep '^ANCHOR-CHANGE:' | sed 's/^/  /'
+          else
+            echo "::error::Files under parity/anchors/ changed without an ANCHOR-CHANGE: trailer."
+            echo "These values come from OUTSIDE this repository and are never regenerated here."
+            echo "If this is a legitimate acquisition or correction, add a commit trailer:"
+            echo "    ANCHOR-CHANGE: <what changed, which source, why>"
+            echo "See parity/anchors/README.md."
+            exit 1
+          fi
+
+  property-parity:
+    name: "A1 — generative parity (Python ⇄ TS, N=2000)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: packages/astra-core/package-lock.json
+      - name: Install backend dependencies
+        run: pip install -r backend/requirements.txt
+      - name: Install @astra/core dependencies
+        run: npm ci --prefix packages/astra-core
+      - name: Stratified generative parity — seeded from the run id
+        # 2000 fresh cases per run, oversampling the hostile regions (polar
+        # latitudes, sidereal, stations, JD rollover, local midnight). The
+        # seed IS the run id: any red run replays locally with the printed
+        # `--seed … --index …` command. The nine golden vectors stay as the
+        # immutable regression anchors; this samples the space between them.
+        working-directory: backend
+        run: python tools/parity_property.py --n 2000 --seed ${{ github.run_id }}
+
   e2e:
     name: E2E — Playwright (desktop + mobile emulation)
     runs-on: ubuntu-latest
