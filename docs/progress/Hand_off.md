@@ -1,12 +1,90 @@
 # Hand_off.md
 
-_Last updated: 2026-08-12 (session 25 — the ratified work order is **MERGED to
-`main`** as `c656a66`: the entitlement paste field and the interactive tarot
-widget. Track A (generative parity + external anchors) is on
-`claude/astro-caster-launch-kdx6yz`, PR #170. The bundle is APK-ready; the
-rebuild / re-sign / release (v1.0.2, versionCode 3) needs the operator's
-machine — the signing keystore lives outside every repo by design.)
+_Last updated: 2026-08-12 (session 26 — **v1.0.3 is BUILT, SIGNED and
+PUBLISHED**: https://github.com/9x25dillon/astro_caster/releases/tag/v1.0.3,
+sha256 `13358c52…e2e2`, signing cert unchanged. It carries the six defects
+listed in `RELEASE_v1.0.3.md` off installed devices — including the sidereal
+whole-sign fix and the key-import path — plus the session-26 daily oracle.
+**The landing page edit is PR #180 and the live site still serves the old
+page until the origin box is deployed.**)
 Re-derive before trusting any of this: `git fetch && git status -sb`._
+
+---
+
+# SESSION 26 — 2026-08-12
+
+## Start here
+
+1. **The release is out; the site is not.** v1.0.3 is published and its
+   checksum was verified against the *downloaded* artifact, not the local
+   build. `landing/index.html` is updated on PR #180 but **nothing is live
+   until `git pull && docker compose up -d --build` runs on the origin box.**
+   Until then astra-arcana.com advertises v1.0.1 with a checksum that no
+   longer matches anything you can download from the pinned URL — that URL
+   still resolves, so the page is stale rather than broken.
+2. **The version is 1.0.3, not the 1.0.2 every earlier doc predicted.** The
+   cycle was scoped as five fixes; the session-26 features merged to `main`
+   before the build was cut, so the name follows the artifact. `versionCode`
+   was already 3 and did not move.
+3. **A `.dev` build may still be on the test phone.** Debug builds now carry
+   `applicationIdSuffix ".dev"` so they install *beside* a release-signed
+   Astra instead of demanding an uninstall that would destroy the reader's
+   charts, journal and entitlement. If `adb shell pm list packages | grep
+   astra` shows two, the `.dev` one is disposable.
+
+## What shipped
+
+Six defects off devices (full table in `RELEASE_v1.0.3.md`), of which two were
+wrong answers rather than wrong behaviour: **sidereal whole-sign houses** (~1
+body in 3 in the wrong house on every such chart) and the **half-up vs
+half-even rounding** mismatch. Plus the entitlement paste field and its
+malformed-link fix, the service-worker retirement, and **Astra's own app icon
+— every build before this shipped the stock Capacitor logo as the app's face.**
+
+New: today's card on the Reading chapter, an opt-in daily notification, and a
+home-screen widget showing the chart wheel with the day's card beneath it.
+
+## The three things a device found that CI could not
+
+All of these passed in a browser and in the full CI matrix:
+
+1. **`registerPlugin` returns a PROXY.** Resolving any promise with it makes
+   the runtime probe for `.then`, which the proxy forwards to native as a
+   method call literally named "then" — `"AstraWidget.then()" is not
+   implemented on android`. The handle must live in a module variable and
+   never be a promise's resolution value.
+2. **The global `input {width:100%}` (theme.css:415) applies to checkboxes.**
+   The daily toggle claimed its whole row and pushed its own label off the
+   screen edge. Flex basis of `auto` IS that width, so flex alone cannot fix
+   it — the box needs an explicit size.
+3. **A VectorDrawable can compile, package, and still fail to inflate.** The
+   app icon as a vector dropped the entire adaptive icon to Android's robot
+   placeholder with *nothing in logcat naming it*. Two-arc circles instead of
+   a degenerate single arc did not help. Shipped as PNG; the dead end is
+   recorded in #176 so it is not rediscovered.
+
+## Accepted limitations, so they are met as decisions
+
+- **The daily notification fires within a ONE-HOUR window** (`dumpsys alarm`:
+  `window=+1h0m0s0ms`). Android grants exact alarms only to holders of
+  `USE_EXACT_ALARM`, which Play restricts to alarm-clock and calendar apps —
+  Astra would not qualify and should not ask. The time-picker copy still
+  implies to-the-minute precision and should be softened.
+- **The widget only redraws while the app runs.** `updatePeriodMillis` is 0 on
+  purpose: the wheel can only change when the app rasterises it.
+
+## What the NEXT session does
+
+1. **Merge #180 and deploy the landing page.** This is the only thing standing
+   between the release and the people it is for.
+2. Soften the notification time copy (see above).
+3. M5 is unchanged and still non-code: LLC, confirm prices, live keys, one
+   real purchase, cancel → `tier: free` → refund, in that order.
+4. Track A3's remaining anchors are now reachable — **network egress works
+   from this environment**, contrary to the session-25 note. JPL Horizons
+   returns data; Mars at J2000 agrees with the engine to **0.076 arcsec**.
+   The Sun (`COMMAND='10'`) returns a header with no ephemeris and needs a
+   workaround. `parity/anchors/ACQUISITION.md` has the exact queries.
 
 ---
 
@@ -193,12 +271,11 @@ fix moved TS toward Python, which generated them.
 
 ## What the NEXT session (or the operator) does with this
 
-- **One APK cycle**: rebuild the bundle → sync → build → sign (JDK 21,
-  recipe in `APK_A0_FINDINGS.md`) → **v1.0.2 / versionCode 3** → new
-  checksum → landing page edit → release. The service-worker retirement
-  (merged in session 24, still unpublished) rides the same build. **The
-  sidereal whole-sign fix now rides it too** — installed 1.0/1.0.1 builds
-  compute those charts wrong on device until a new APK ships.
+- ✅ **DONE in session 26 — the APK cycle shipped as v1.0.3, not v1.0.2.**
+  Built, signed (cert unchanged), published, and verified by updating over an
+  installed v1.0.1 on the Pixel. The service-worker retirement and the
+  sidereal whole-sign fix both rode it, as predicted here. The one part still
+  open is the landing-page deploy — see the session 26 section at the top.
 - The app-link (`VIEW` intent-filter + `assetlinks.json`) remains the
   refinement path; the paste field removes the urgency.
 - M5 is unchanged and still non-code: LLC, confirm prices, live keys, one
@@ -234,7 +311,7 @@ fix moved TS toward Python, which generated them.
 | ssh | `ssh -i ~/.ssh/astra_hetzner astra@$ORIGIN_IP` |
 | deploy | on the box: `git pull && docker compose up -d --build` |
 | TLS | Cloudflare `strict` + Origin CA cert (2041); nginx listens 443 |
-| release | **v1.0.1**, pre-release, APK attached, checksum verified live |
+| release | **v1.0.3**, pre-release, APK attached, checksum verified against the DOWNLOADED file |
 | test device | **Pixel 10a**, Android 17 / SDK 37, USB-authorised, `adb devices` |
 
 `ops/provision_hetzner.sh` and `ops/cloudflare_dns.sh` reproduce the infra. Both
