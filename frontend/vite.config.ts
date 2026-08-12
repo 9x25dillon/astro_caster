@@ -11,6 +11,25 @@ export default defineConfig(({ command }) => {
   // switching branches or rebuilding never leaves a wedged worker behind.
   // Production (`build`) always emits the real, caching PWA service worker.
   const dev = command === "serve";
+
+  // READER BUILDS (the APK) get the same treatment, for a different reason.
+  //
+  // Inside Capacitor the assets are already on the device — the service worker
+  // caches local files against a network outage that cannot affect them. It
+  // buys nothing and costs correctness: `adb install -r` replaces the assets
+  // but NOT the WebView's storage, so the rebuilt 1.0.1 app kept serving the
+  // 1.0 bundle until `pm clear`. A user updating the APK would have got the
+  // old app with no way to know.
+  //
+  // selfDestroying, NOT `disable`. Disabling emits no worker at all, which
+  // leaves the workers already registered inside installed 1.0/1.0.1 builds in
+  // place FOREVER, still answering from their stale precache. A
+  // self-destroying worker is fetched by those installs on next launch and
+  // unregisters itself. Disabling would have been the obvious choice and would
+  // have stranded exactly the users this is meant to fix.
+  const readerMode = (process.env.VITE_READER_MODE ?? "").trim() !== ""
+    && process.env.VITE_READER_MODE !== "0"
+    && process.env.VITE_READER_MODE?.toLowerCase() !== "false";
   return {
   resolve: {
     alias: {
@@ -25,10 +44,11 @@ export default defineConfig(({ command }) => {
     react(),
     VitePWA({
       registerType: "autoUpdate",
-      // In dev, serve a self-destroying SW (cleans up stale workers); in
-      // production, the normal caching SW. devOptions.enabled must be true
-      // in dev for the browser to fetch the self-destroying /sw.js at all.
-      selfDestroying: dev,
+      // Self-destroying in dev (cleans up stale workers) and in reader builds
+      // (the APK's assets are local, so the worker only adds staleness — see
+      // the note above). The website keeps the real caching PWA worker, which
+      // is what makes it installable and offline-capable in a browser.
+      selfDestroying: dev || readerMode,
       devOptions: { enabled: dev, type: "module" },
       includeAssets: ["favicon.svg"],
       // Precache the self-hosted fonts too (workbox default is js/css/html
