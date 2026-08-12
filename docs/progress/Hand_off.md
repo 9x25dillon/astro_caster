@@ -73,18 +73,90 @@ All of these passed in a browser and in the full CI matrix:
 - **The widget only redraws while the app runs.** `updatePeriodMillis` is 0 on
   purpose: the wheel can only change when the app rasterises it.
 
+## Working on the Android app — what session 26 learned the slow way
+
+None of this is written down anywhere else, and each item cost real time to
+find.
+
+**Drive the WebView, not the pixels.** Tapping screen coordinates parsed out of
+screenshots is slow and it lies — a tap lands mid-animation, a system dialog
+eats it, the shade opens instead. Capacitor debug builds have WebView debugging
+on, so drive the running app directly:
+
+```bash
+PID=$(adb shell pidof com.astraarcana.observatory.dev)
+adb forward tcp:9222 localabstract:webview_devtools_remote_$PID
+curl -s http://localhost:9222/json/list        # -> webSocketDebuggerUrl
+# then Runtime.evaluate over that socket; node 22+ has a global WebSocket.
+```
+
+That is how the notification was tested end-to-end: read the real prefs,
+schedule a probe 45 s out, watch it fire. Reach for it the moment you need more
+than one interaction.
+
+**Test builds install BESIDE the real app.** `applicationIdSuffix ".dev"` on
+the debug buildType. Without it a debug build cannot install over a
+release-signed Astra at all (`INSTALL_FAILED_UPDATE_INCOMPATIBLE`), and the
+only way through is an uninstall that destroys the reader's charts, journal and
+entitlement. Never uninstall to make room.
+
+**Reading what actually shipped.** Release builds shorten resource paths, so
+`unzip -l | grep ic_launcher` finds nothing and proves nothing. Use the
+resource table:
+
+```bash
+$BT/aapt2 dump resources app-release.apk | grep -A8 "mipmap/ic_launcher\b"
+# -> (xxxhdpi) (file) res/o-.png    then unzip -p that path
+```
+
+**Verifying a notification without waiting for morning.** `dumpsys alarm | grep
+-A2 <package>` shows `origWhen` and the delivery `window`. `dumpsys
+notification --noredact | grep -A80 "id=<id>"` shows the posted `android.title`
+and `android.text` — which is how the content was checked rather than squinting
+at a screenshot.
+
+**Signing is a script, not a command line.** `--ks-pass file:` reads ONE LINE
+PER REFERENCE, so pointing `--ks-pass` and `--key-pass` at the same file makes
+the second read hit EOF. Use `env:` for both. Writing the whole thing to a
+`.sh` and running it under `bash` also sidesteps this shell's quoting, which
+mangles inline `$VAR` and command substitution.
+
 ## What the NEXT session does
 
+**Start here, in this order:**
+
 1. **Merge #180 and deploy the landing page.** This is the only thing standing
-   between the release and the people it is for.
-2. Soften the notification time copy (see above).
-3. M5 is unchanged and still non-code: LLC, confirm prices, live keys, one
+   between a published release and the people it is for. Deploy is
+   `git pull && docker compose up -d --build` on the origin box (see the
+   locations table below for ssh). Afterwards, confirm two things by loading
+   the page: the download link resolves, and the printed sha256 matches
+   `13358c52…e2e2`.
+2. **Verify the live site against the artifact**, not against this document —
+   `curl -sL <pinned URL> | sha256sum` and compare to what the page prints.
+   A stale checksum beside a fresh download is the failure mode the whole
+   ordering rule exists to prevent.
+
+**Then, in rough priority:**
+
+3. Soften the notification time-picker copy — it implies to-the-minute
+   delivery, and Android's window is an hour (see above). Wording is the
+   operator's voice; the constraint is not negotiable.
+4. **Track A3's remaining anchors are now reachable.** The session-25 note and
+   `parity/anchors/ACQUISITION.md` both say egress is blocked. **It is not.**
+   JPL Horizons returns data and Mars at J2000 agrees with the engine to
+   **0.076 arcsec** — the first check in this repository against a lineage
+   that is not Swiss. The exact queries are already written down. Two caveats:
+   the Sun (`COMMAND='10'`) returns a body header with no ephemeris block and
+   needs a query workaround, and **the ayanamsa anchor is the one to do
+   first**, because A1 demonstrated the sidereal frame is where this
+   codebase's real bugs live. Fix ACQUISITION.md's blocker note while you are
+   there.
+5. M5 is unchanged and still non-code: LLC, confirm prices, live keys, one
    real purchase, cancel → `tier: free` → refund, in that order.
-4. Track A3's remaining anchors are now reachable — **network egress works
-   from this environment**, contrary to the session-25 note. JPL Horizons
-   returns data; Mars at J2000 agrees with the engine to **0.076 arcsec**.
-   The Sun (`COMMAND='10'`) returns a header with no ephemeris and needs a
-   workaround. `parity/anchors/ACQUISITION.md` has the exact queries.
+
+**Do not** reopen C1 (MT19937 retirement), D2's verify posture, or B1's
+local-first inversion without the operator. All three reverse ratified
+decisions; `RECONCILIATION_2026-08-12.md` explains why for each.
 
 ---
 
