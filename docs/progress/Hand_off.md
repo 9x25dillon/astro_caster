@@ -1,118 +1,151 @@
 # Hand_off.md
 
-_Last updated: 2026-08-11 (session 24 CLOSED — **Astra is LIVE at
-https://astra-arcana.com**. M0-M4 done, M5 is all that remains. Payment rail
-deliberately PARKED. Tree clean, 0 open PRs, 0 stale branches.)
+_Last updated: 2026-08-11 (session 24 CLOSED — **Astra is LIVE** at
+https://astra-arcana.com. M0–M4 done; M5 is the only milestone left and it is
+gated on decisions, not code. 18 commits, 9 PRs, 2 releases. `main` is the only
+branch. Payment rail deliberately PARKED.)
 Re-derive before trusting any of this: `git fetch && git status -sb`._
 
 ---
 
 # SESSION 24 — 2026-08-11
 
-## TL;DR
+## Start here: the three things most likely to bite you
 
-Went live. The product was never the hard part; four things that looked like
-they worked were.
+1. **`/api/health` returning `ok` proves almost nothing.** It said `ok` while
+   the container had no ephemeris and **Chiron was missing from every chart**
+   (16 bodies, not 17; every other position bit-identical; nothing logged).
+   Always check `ephemeris` = `swiss-files`, `personal_mode` = `false`,
+   `ai.configured` = `true`.
+2. **The published APK (v1.0.1) does NOT contain the service-worker change.**
+   That merged after the build. The next APK build picks it up — and until one
+   ships, an installed app can still serve a stale bundle after an update.
+3. **Stripe test keys are PARKED, not deleted** — commented in the server
+   `.env` as `# M0-parked AAE_STRIPE_*`, backup at `.env.bak.stripe-m0`. They
+   were pulled because **test keys on a public instance let anyone mint a real
+   365-day entitlement with card 4242**. The rail mints on a completed session
+   regardless of key mode.
 
-1. **Astra is serving the public** — landing page at the apex, the observatory
-   at `app.astra-arcana.com`, TLS `strict`, real Fable readings verified.
-2. **M0 PASSED** at last (five sessions late), against the real deployment.
-3. **`pytest` was spending your money** — live Fable-5 calls on every run.
-4. **Chiron was missing from every chart in production.**
-5. **A timezone bug was live on main**, recovered from a parked branch.
-6. **M5 is the only milestone left**, and it is gated on decisions, not code.
-
-## Where production actually sits
+## Where everything is
 
 | | |
 |---|---|
-| landing | https://astra-arcana.com (+ `www`) |
+| landing | https://astra-arcana.com (+ `www`) — apex |
 | app + API | https://app.astra-arcana.com |
-| origin | Hetzner cpx22, Nuremberg — IP in `ops/origin.env` (gitignored) |
-| access | `ssh -i ~/.ssh/astra_hetzner astra@$ORIGIN_IP` |
-| TLS | Cloudflare `strict` + Origin CA cert (2041), nginx 443 |
-| firewall | 22 = operator IP; 80/443 = Cloudflare ranges only |
-| backups | nightly 14-18 UTC |
-| release | v1.0.0 **pre-release**, APK attached, checksum verified |
+| origin | Hetzner cpx22, Nuremberg. IP in `ops/origin.env` (gitignored) |
+| ssh | `ssh -i ~/.ssh/astra_hetzner astra@$ORIGIN_IP` |
+| deploy | on the box: `git pull && docker compose up -d --build` |
+| TLS | Cloudflare `strict` + Origin CA cert (2041); nginx listens 443 |
+| release | **v1.0.1**, pre-release, APK attached, checksum verified live |
+| test device | **Pixel 10a**, Android 17 / SDK 37, USB-authorised, `adb devices` |
 
-Reproduce with `ops/provision_hetzner.sh` and `ops/cloudflare_dns.sh` — both
+`ops/provision_hetzner.sh` and `ops/cloudflare_dns.sh` reproduce the infra. Both
 preflight by default and change nothing without `--create` / `--apply`.
 
-## ⚠️ Read before touching payments
+## THE NEXT SESSION — a planned update, and the gap that should ride with it
 
-**The Stripe test keys are PARKED, not gone** — commented in the server `.env`
-as `# M0-parked AAE_STRIPE_*`, backup at `~/astro-aae/.env.bak.stripe-m0`. The
-webhook secret cannot be re-read from Stripe, which is why they were commented
-rather than deleted.
+### ⚠️ A paying customer cannot get their key into the Android app
 
-They were pulled because **test keys on a public instance let anyone mint a real
-365-day entitlement with card 4242** — the rail mints on a completed session
-regardless of key mode. The roadmap warns loudly about live keys arriving too
-early and says nothing about test keys staying too long.
+A1's third check ("import an entitlement") was never closed, and investigating
+it found there is **no import path at all** on Android:
 
-**Refund does NOT revoke a subscription.** The mint stores
-`ref = payment_intent OR subscription OR session_id` (`sub_…`);
-`charge.refunded` gives `payment_intent OR charge_id` (`py_…`). Different
-namespaces, so the lookup cannot match. Correct for one-time purchases (the
-deluxe report). M5's runbook is corrected: **cancel, verify `tier: free`, then
-refund**.
+- the only mechanism is `?entitlement=<token>` in the URL (`useStore.ts:198`)
+- the APK has **no address bar**
+- `AndroidManifest.xml` declares **only a LAUNCHER intent-filter** — no `VIEW`
+  action, no deep link, no app link
+- there is **no paste-a-token field** anywhere (`SupportModal`'s only input
+  takes a crypto tx hash)
 
-## What M0 proved
+So the entire reader-mode premise — "subscribe on the web, bring the key back"
+— has no last mile. The APK signposts people to a purchase they then cannot
+use. **Fix this in the same update as anything else that touches the APK**, so
+it is one rebuild, one re-sign, one checksum change, one release.
 
-```
-checkout -> complete/paid ($3.25 subscription)
-webhook  -> POST /api/stripe/webhook 200 31ms
-mint     -> 241-char token, verified:true, exp-iat = 365 days
-access   -> GET /api/entitlement -> tier: supporter
-refund   -> access SURVIVED
-cancel   -> tier: free
-```
+Two candidate mechanisms, cheapest first:
+1. **A paste field** in the Library (chapter VIII) next to the vault restore.
+   No manifest change, no rebuild risk beyond the bundle. Validate by calling
+   `GET /api/entitlement` with the pasted token before storing it.
+2. **An app link** (`VIEW` intent-filter for `astra-arcana.com`), so the
+   post-purchase link opens the app directly. Nicer, but needs
+   `assetlinks.json` served from the apex and a manifest change.
 
-## `/api/health` returning `ok` proves almost nothing
+Do (1) first; (2) is a refinement.
 
-It said `ok` while the container had no ephemeris at all. Check these three:
+### The interactive tarot widget (operator's request)
 
-- `ephemeris` must be **`swiss-files`**. `moshier` means the vendored `.se1`
-  mount is missing and **Chiron silently disappears** — 16 bodies, not 17,
-  every other position bit-identical, nothing logged. `backend/ephe/` is
-  gitignored, so a fresh clone never has it.
-- `personal_mode` must be **false**.
-- `ai.configured` must be **true**.
+Almost all the substrate already exists — this is a presentation layer, not an
+engine:
 
-## Gotchas earned today
+- **full 78-card data** in `packages/astra-core` (`tarot-cards.json`, generated
+  from the Python source, so it cannot drift)
+- **deterministic draws** — `mt19937.ts` is CPython-compatible and bit-exact
+  with the backend; `parity/tarot-draw.json` locks it
+- **offline readings** already work (`buildLocalReading`)
+- **deck-art plates** already render (`plate_art.py`, oracle-gated)
 
-- **A price list is not a stock list.** Hetzner quotes machines it cannot place;
-  only `/v1/datacenters[].server_types.available` knows. Prices are **USD**.
-- **`${VAR:-}` sets a variable to EMPTY, not absent**, and
-  `os.environ.get(k, default)` only falls back when a key is absent. `float("")`
-  raised at import and crash-looped the whole API. `budget._f()` is the idiom.
-- **`git cherry` cannot see through a squash**, and reverse-applying a branch
-  diff fails once main moves. Probe main for the branch's distinctive **lines**.
-- **Never paste a secret on the same line as `cat > file`** — it becomes part of
-  the filename. Type the command, press Enter FIRST, then paste, then Ctrl-D.
-- **Cloudflare's Browser Cache TTL is a floor**, not a default: it raised
-  `no-cache` on both service workers to 4 hours while leaving `immutable`
-  assets alone. Zone is now set to respect origin headers.
-- An offline `fetch()` can be answered from the browser's **own HTTP cache**,
-  resolve, and never reach `.catch()`. Use `cache: "no-store"`.
+Suggested shape, consistent with the existing design language:
+- a `TarotCard` component: face-down, **tap to flip** (3D transform), showing
+  the engraved plate
+- **tilt parallax** — the phone has a gyroscope and the project already invests
+  in touch (pinch-zoom on the wheel, long-press `data-pop`)
+- honour the **motion budget** in the Track R material pass, and
+  `prefers-reduced-motion` — one motion per intent
+- it belongs in chapter VI/VII (Arcana → Draw)
 
-## Blocked on the operator
+**Acceptance:** a drawn card is still bit-identical to the backend draw
+(parity vectors must stay green), the widget works offline, and no new
+off-origin request appears (`no-external.spec.ts` must stay green).
 
-1. **The APK has never been installed on a phone.** That is the only reason
-   v1.0.0 is a pre-release. Install it, cast in airplane mode, import an
-   entitlement — then `gh release edit v1.0.0 --prerelease=false`.
-2. **The Hetzner token is invalid** (rotated, and the whole "Token created" page
-   was pasted instead of the value). Needed only to change the firewall/server.
-3. **M5 decisions**: the LLC, and confirming $3.25 / $9.99 / $5.50 as real
-   prices before live keys go in.
+## What M5 needs, and none of it is code
 
-## Repo hygiene
+- **the LLC** — your roadmap draws the line at the first *live* payment. It is
+  now also the cheaper Play route: **organisation accounts skip the 12-tester /
+  14-day closed-testing requirement** that new personal accounts must complete.
+- **confirm prices** — $3.25 / $9.99 / $5.50 are still flagged as placeholders
+- then: live keys into the host secret store only, one real purchase,
+  **cancel → verify `tier: free` → refund** (in that order — see below)
 
-`main` is the only branch, local and remote — 27 stale ones were content-probed
-and deleted (tips recorded in the session-24 PR bodies; all recoverable by SHA).
-Merging is now **rebase-only**: squash and merge-commit are disabled at the repo
-level, and branches auto-delete on merge. Squash is what made the session-23
-orphan trap unresolvable.
+## Hard-won specifics
+
+- **Refund does NOT revoke a subscription.** Mint stores
+  `ref = payment_intent OR subscription OR session_id` (`sub_…`);
+  `charge.refunded` gives `py_…`. Different namespaces. Correct for one-time
+  purchases. **Cancel is the revoke trigger.**
+- **`${VAR:-}` sets a variable to EMPTY, not absent.** `os.environ.get(k,
+  default)` only falls back when a key is *absent*, so `float("")` raised at
+  import and crash-looped the entire API. `budget._f()` is the idiom to copy.
+- **A price list is not a stock list.** Hetzner quotes machines it cannot
+  place; only `/v1/datacenters[].server_types.available` knows. Prices are USD.
+- **Android `env(safe-area-inset-*)` reflects display cutouts, not the status
+  bar.** It resolves to 0. Insets must be consumed natively (`MainActivity`).
+- **`git cherry` cannot see through a squash.** Probe `main` for a branch's
+  distinctive *lines*. Merging is now **rebase-only** at the repo level, with
+  branches auto-deleting, so this should not recur.
+- **Never paste a secret on the same line as `cat > file`** — it becomes part
+  of the filename. Type the command, press Enter FIRST, then paste, then Ctrl-D.
+- **Cloudflare's Browser Cache TTL is a floor, not a default** — it raised
+  `no-cache` on both service workers to 4h. Zone now respects origin headers.
+- **APK signing:** JDK **21** (`~/.jdks/jdk-21.0.12+8`). `--ks-pass file:`
+  reads one line per reference, so the second read hits EOF — use `env:` for
+  both, with `--ks-key-alias astra`. Recipe in `APK_A0_FINDINGS.md`.
+
+## Credential state
+
+| | |
+|---|---|
+| `~/.cloudflare-token` | **works** — zone-scoped (DNS / settings / SSL / read) |
+| `~/.hetzner-token` | **INVALID** — rotated, and the whole "Token created" page was pasted instead of the value. Only needed to change the firewall/server. |
+| `~/.stripe-test` | works, `sk_test`, livemode false |
+| `~/.astra-signing/` | the keystore. **Outside every repo; nothing can regenerate it.** Confirm it is backed up somewhere that survives this disk. |
+
+## Still open, none of it blocking
+
+- v1.0.1 is a **pre-release** — verified on one phone, not a matrix. Promote
+  with `gh release edit v1.0.1 --prerelease=false`.
+- Play Store needs an **AAB**, not an APK; signing is currently post-build via
+  `apksigner`, which does not carry over to bundles.
+- 27 stale branches were content-probed and deleted; tips are in the
+  session-24 PR bodies and recoverable by SHA.
 
 ---
 
