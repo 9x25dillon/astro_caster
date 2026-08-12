@@ -1,0 +1,105 @@
+{
+  "schema": "astra-parity/tolerance-contract@1",
+  "version": 1,
+  "description": "The tolerance contract, made machine-readable (Track A2). Arcseconds are the wrong unit for a product whose output is CATEGORICAL: two engines agreeing to 0.5\" can still disagree about which house a planet occupies. Each bound below therefore carries the categorical decision it exists to protect, and the boundary suite (backend/tools/parity_boundary.py) asserts that decision directly rather than asserting numeric proximity and hoping.",
+  "how_a_bound_is_used": "A bound is the HALF-WIDTH OF THE BAND around a categorical boundary in which the two engines are permitted to classify differently. Outside that band the classification must be identical — a disagreement there is a real defect, not float noise. This is what makes the number falsifiable: widen a bound and you widen the region where divergence is excused, which is exactly the failure mode the ratchet detector exists to catch.",
+  "why_exact_agreement_is_not_the_contract": "Two distinct implementations cannot agree on the classification of a value sitting EXACTLY on a boundary; at 30.000000° one engine returns 29.999999° (Aries) and the other 30.000001° (Taurus), and neither is wrong. Demanding identity there would produce a permanently flaky suite, and a flaky suite gets muted, which is how a drift lock dies. The contract instead states how far from a boundary agreement becomes mandatory.",
+  "ratchet": {
+    "rule": "Any change that INCREASES a bound fails CI unless the same PR adds an ADR under docs/design/adr/. Decreasing a bound (tightening) is always allowed.",
+    "enforced_by": "backend/tools/check_tolerance_ratchet.py, run by the tolerance-ratchet CI job",
+    "rationale": "Tolerances that drift upward to make builds green are how a drift lock dies. Widening may well be correct — an ephemeris upgrade legitimately moves things — but it must be a decision somebody wrote down, not a number somebody nudged."
+  },
+  "quantities": {
+    "planet.longitude_deg": {
+      "unit": "degree",
+      "bound": 0.01,
+      "product_justification": "0.01° is 36 arcseconds. The Moon, the fastest body, covers that in about 50 seconds of clock time, so this bound corresponds to roughly a minute of uncertainty in birth time — far below the precision any birth certificate carries, and therefore below the precision the product can honestly claim.",
+      "categorical_decisions_protected": [
+        "planet.sign — boundaries every 30°",
+        "planet.house — boundaries at the 12 cusps",
+        "planet.dignity — a pure function of sign, so it inherits the sign boundary exactly",
+        "planet.element and planet.modality — likewise derived from sign",
+        "aspect set membership — via the orb computed from two longitudes"
+      ],
+      "must_never_flip_outside_band": "Two engines must agree on sign, house, dignity, element and modality for any body further than 0.01° from the relevant boundary."
+    },
+    "planet.latitude_deg": {
+      "unit": "degree",
+      "bound": 0.01,
+      "product_justification": "Ecliptic latitude drives no categorical output on its own in this codebase; it is carried for display and for the fixed-star search. The bound matches longitude for consistency rather than for an independent reason, which is stated plainly here so nobody later mistakes it for a measured figure.",
+      "categorical_decisions_protected": [
+        "fixed-star conjunction membership — the star search uses angular distance, to which latitude contributes"
+      ],
+      "must_never_flip_outside_band": "Fixed-star hit membership must agree for any pairing further than the star orb ± this bound."
+    },
+    "planet.declination_deg": {
+      "unit": "degree",
+      "bound": 0.01,
+      "product_justification": "Declination is displayed, not classified — this codebase implements no out-of-bounds or parallel-aspect feature that would turn it into a decision. The bound exists so a regression in the equatorial conversion is still caught numerically.",
+      "categorical_decisions_protected": [],
+      "must_never_flip_outside_band": "None. If a declination-based feature (out-of-bounds, parallels) is ever added, this entry must gain its boundary and the suite must gain a case."
+    },
+    "planet.speed_deg_per_day": {
+      "unit": "degree per day",
+      "bound": 0.005,
+      "product_justification": "Speed matters because its SIGN is a decision, not because its magnitude is displayed precisely. Near a station the speed passes through zero slowly, so a bound of 0.005°/day brackets a window of hours around the exact station for the slow bodies — the interval in which no honest engine can call the direction.",
+      "categorical_decisions_protected": [
+        "planet.retrograde — the sign of the speed IS the flag",
+        "aspect.applying — derived from relative speeds of the two bodies"
+      ],
+      "must_never_flip_outside_band": "Two engines must agree on the retrograde flag whenever |speed| exceeds this bound."
+    },
+    "house.cusp_deg": {
+      "unit": "degree",
+      "bound": 0.02,
+      "product_justification": "Cusps are twice the longitude bound because they are a function of latitude, sidereal time and obliquity rather than a body's own position, and the quadrant systems amplify input error toward high latitude. 0.02° is still roughly a minute of birth time at mid-latitudes.",
+      "categorical_decisions_protected": [
+        "planet.house — the cusps ARE the boundaries",
+        "intercepted signs — a sign fully contained in one house is decided entirely by two adjacent cusp positions"
+      ],
+      "must_never_flip_outside_band": "Two engines must place a body in the same house whenever it is further than 0.02° from every cusp."
+    },
+    "angle_deg": {
+      "unit": "degree",
+      "bound": 0.02,
+      "product_justification": "Matches the cusp bound because the Ascendant and Midheaven ARE cusps in every quadrant system, and are computed by the same routine from the same inputs. Holding them to a tighter bound than the cusps they anchor would be incoherent.",
+      "categorical_decisions_protected": [
+        "planet.house — Asc and MC anchor the cusp set",
+        "aspect set membership for aspects involving the angles"
+      ],
+      "must_never_flip_outside_band": "Aspects to the angles, and house placement, must agree outside this band."
+    },
+    "aspect.orb_deg": {
+      "unit": "degree",
+      "bound": 0.01,
+      "product_justification": "An orb is a difference of two longitudes, so it inherits their error. This is the bound at which an aspect appears or disappears from a reading, which is the most visible categorical output the product has: a reading that mentions a square the other engine does not see is a user-facing contradiction.",
+      "categorical_decisions_protected": [
+        "aspect set membership at the orb cutoff, for every aspect type and both orb policies (natal factor 1.0, transit factor 0.6)"
+      ],
+      "must_never_flip_outside_band": "An aspect whose orb is further than 0.01° from its cutoff must be present in both engines or absent from both."
+    },
+    "aspect.separation_deg": {
+      "unit": "degree",
+      "bound": 0.01,
+      "product_justification": "Separation determines WHICH aspect family a pairing falls into. The tightest gap between two aspect angles in the table is 15° (135° sesquiquadrate to 150° quincunx), so this bound is three orders of magnitude below the nearest ambiguity — it can never misassign a family, only shift an orb.",
+      "categorical_decisions_protected": [
+        "aspect.type"
+      ],
+      "must_never_flip_outside_band": "Two engines must assign the same aspect type to the same pairing, unconditionally — the band is far narrower than the gap between families."
+    },
+    "meta.julian_day": {
+      "unit": "day",
+      "bound": 1e-06,
+      "product_justification": "1e-6 day is 86 milliseconds. Both engines derive JD arithmetically from the same civil inputs, so this is a pure-arithmetic check with no ephemeris involved; it is here to catch a calendar or timezone regression, not physical disagreement.",
+      "categorical_decisions_protected": [
+        "every downstream decision, since a JD error moves all bodies at once"
+      ],
+      "must_never_flip_outside_band": "Nothing — this bound is an equality check in practice."
+    }
+  },
+  "not_applicable": {
+    "eclipse_magnitude_thresholds": "The partial/annular/total classification is not computed in this codebase. Both engines call the same Swiss Ephemeris C routine (swe_sol_eclipse_when_glob) and decode the same retflag bits in the same order, so the threshold lives inside the library and is identical by construction, not by agreement. The decoding ORDER is the only thing we own, and it is pinned by parity/predictive.json.",
+    "void_of_course_moon": "Not implemented. If a void-of-course feature is ever added, its endpoints are a categorical boundary and this contract must gain an entry before that feature ships.",
+    "dignity_terms": "Egyptian/Ptolemaic terms are not implemented. Dignity here is Domicile/Exaltation/Detriment/Fall/Neutral, a pure function of sign, so its boundaries are exactly the sign boundaries already covered by planet.longitude_deg. Adding terms would introduce genuinely new boundaries at non-30° degrees and would require a new entry."
+  }
+}

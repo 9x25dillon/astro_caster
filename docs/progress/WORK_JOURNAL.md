@@ -106,6 +106,64 @@ was the available alternative and it was the worse one: a misremembered digit
 either red-bars a correct engine, or blesses a wrong one and does it in
 silence.
 
+Then A2, which was a lesson in how comfortable a useless test feels.
+
+The premise is that arcseconds are the wrong unit for this product. Astra's
+output is categorical — a sign, a house, an aspect that is either in the
+reading or not — and two engines agreeing to half an arcsecond can still put
+Mars in different houses. So A2 builds a suite that constructs the hostile
+case rather than waiting to stumble into it: root-find the exact instant the
+Moon sits eleven thousandths of a degree short of the Aries boundary, then ask
+both engines which sign it is in.
+
+The first question was what to assert, and it is the question the whole track
+turns on. "The classifications must be identical" is unsatisfiable at a
+boundary: at exactly thirty degrees one engine says 29.999999 and the other
+30.000001, and neither is wrong. A suite that demands identity there is flaky
+forever, and a flaky suite gets muted — this repository has that scar already,
+a deliberately-red test that sat red for weeks and hid a genuinely broken
+build behind its noise. So the contract states the width of the band instead:
+inside it, disagreement is excused and counted; outside it, disagreement is a
+defect. That single definition is what turns a tolerance from decoration into
+something you can check, and it is why the contract now records, for every
+bound, the categorical decision that bound exists to protect.
+
+Then the suite passed under a one-arcminute injected bias, which is the exact
+acceptance criterion it was built to satisfy. It had no teeth and it looked
+perfect. The knob that falsifies A1 perturbs the reported longitude after the
+engine has already decided the sign, so A1 — which compares longitudes — goes
+red, and A2 — which compares decisions — never notices. A falsification hook
+is only valid for the comparison it sits upstream of, and nothing about the
+green output said otherwise.
+
+Moving the injection upstream of every decision did not fix it either, and the
+second cause was worse. The probes were not near the boundaries at all. The
+root-finder had been searching for the signed distance to the *nearest*
+thirty-degree multiple, a quantity that jumps from plus fifteen to minus
+fifteen at every sign midpoint, and the bisector had been dutifully converging
+onto those cliffs. Every probe was sitting fifteen degrees from anything
+interesting, the counts looked healthy, and the suite reported success in the
+same shape it would have used if it were working. Targeting one boundary at a
+time fixed the geometry; discarding any probe that failed to land where it was
+aimed fixed the silence, which was the more important half. Keeping a probe
+and measuring it after the fact had felt like the careful choice, and it was
+precisely what let a broken generator look like a working one.
+
+Even then the sensitivity was wrong by a factor of nothing dramatic and
+everything sufficient. A probe sitting a given distance from a boundary only
+flips when the injected error exceeds that distance, so the suite could only
+detect a bias larger than its smallest probe outside the excused band. The
+distances ran one band, then two; the floor was therefore twice the band,
+comfortably above the arcminute it was supposed to catch. Two intermediate
+distances closed it.
+
+Three failures, all of them silent, all of them in the test rather than the
+code under test. The suite is green now at two hundred and fifty-three
+constructed cases and red under an arcminute, and CI runs the injection as a
+step that fails the build if the suite survives it — because the one thing
+this day established is that a suite claiming to have teeth should be made to
+prove it on every run.
+
 ---
 
 ## Session 24 · 2026-08-11 — the day it went live, and four things that were only pretending to work

@@ -170,6 +170,53 @@ jobs:
       - name: Parity vs parity/natal-chart.json
         run: npm test
 
+  boundary-parity:
+    name: "A2 — boundary-adversarial parity + tolerance ratchet"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The ratchet diffs the contract against the merge-base, so it needs
+          # history rather than a shallow clone.
+          fetch-depth: 0
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: packages/astra-core/package-lock.json
+      - name: Install backend dependencies
+        run: pip install -r backend/requirements.txt
+      - name: Install @astra/core dependencies
+        run: npm ci --prefix packages/astra-core
+      - name: Tolerance ratchet — a widened bound needs an ADR
+        working-directory: backend
+        run: python tools/check_tolerance_ratchet.py
+      - name: Boundary-adversarial parity (assert the decision, not the float)
+        # Constructs cases at measured distances from every categorical
+        # boundary — sign, cusp, aspect orb cutoff, retrograde station — and
+        # asserts the two engines classify identically outside the band the
+        # contract excuses. Deterministic: same cases every run, no seed.
+        working-directory: backend
+        run: python tools/parity_boundary.py
+      - name: Self-test — the suite must fail on a 1-arcminute bias
+        # The acceptance criterion, run as a check rather than trusted. The
+        # first version of this suite passed clean under this injection
+        # because the knob it used landed downstream of the classifier; it
+        # would have shipped with no teeth. Now the injection is upstream of
+        # every decision and this step fails the build if the suite survives.
+        working-directory: backend
+        run: |
+          if python tools/parity_boundary.py --kind sign --inject-bias-deg 0.0167; then
+            echo "::error::parity_boundary SURVIVED a 1-arcminute injected bias — the suite has no teeth"
+            exit 1
+          fi
+          echo "ok: the boundary suite goes red on a 1-arcminute bias"
+
   anchors-guard:
     name: "A3 — anchor provenance guard"
     runs-on: ubuntu-latest

@@ -101,6 +101,57 @@ work for anyone on an unrestricted network**, and the ayanamsa anchor is the
 one to do first — A1 just demonstrated the sidereal frame is where the real
 bugs are.
 
+## Then A2 — and the suite that passed while testing nothing (session 25c)
+
+**A2 is done: the tolerance contract, the boundary-adversarial suite, and the
+ratchet.** `parity/tolerance.contract.json` states, per quantity, the unit,
+the bound, the product justification, and **the categorical decision the bound
+protects**. `backend/tools/parity_boundary.py` constructs 253 cases at
+measured distances from real boundaries — sign, house cusp, aspect orb cutoff,
+retrograde station — and asserts the two engines make the same DECISION.
+`check_tolerance_ratchet.py` fails any PR that widens a bound without an ADR.
+
+**⚠️ Two ways this suite was silently useless before it was any good. Both are
+worth carrying forward, because both looked green.**
+
+1. **It passed clean under a 1-arcminute injected bias** — the exact
+   acceptance criterion. Cause: the falsification knob
+   (`PARITY_INJECT_BIAS_DEG` in the bridge) perturbs the TS engine's *reported
+   longitude* AFTER that engine has already assigned sign, house and aspects.
+   That correctly falsifies A1, which compares longitudes, and is invisible to
+   A2, which compares classifications. The fix was to inject **upstream of
+   every decision** (`--inject-bias-deg` monkeypatches the backend's
+   `swe.calc_ut`). **A falsification hook is only valid for the specific
+   comparison it sits upstream of.**
+2. **Its probes were landing ~15° from the boundaries they claimed to test.**
+   The root-finder searched for "signed distance to the *nearest* 30°
+   multiple", which jumps +15° → −15° at every sign midpoint; the bisector
+   converged onto those discontinuities. Probe counts looked healthy. The fix
+   targets one specific boundary at a time (continuous through the crossing)
+   and **discards any probe that did not land where it was aimed** — keeping
+   and measuring them is what turned a broken generator into a silent one.
+
+Also: sensitivity is set by the smallest probe distance *outside* the band. A
+probe at distance d only flips under a bias b when b > d, so with multiples
+jumping 1.0 → 2.0 the floor was 0.02° — above the 0.0167° it had to catch.
+`BAND_MULTIPLES` now includes 1.1 and 1.5.
+
+Verify all of it in ~2 minutes:
+```bash
+cd backend
+.venv/bin/python tools/parity_boundary.py                          # 253/253 green
+.venv/bin/python tools/parity_boundary.py --kind sign --inject-bias-deg 0.0167
+# -> must exit 1 with "engines DISAGREE ... outside the 0.01 band"
+```
+CI runs the injection as a step that **fails the build if the suite survives
+it**, so "has teeth" is checked rather than trusted.
+
+Two smaller things found on the way: dignity is a pure function of sign (so it
+has no boundary of its own), and at an exact station both engines report
+`retrograde=true` beside a displayed speed of `0.000000` — the flag comes from
+the full-precision value (`ephemeris.py:200`), the display is rounded to 6dp
+(`:195`). Odd-looking, not wrong, noted in the suite.
+
 ## What the NEXT session (or the operator) does with this
 
 - **One APK cycle**: rebuild the bundle → sync → build → sign (JDK 21,
