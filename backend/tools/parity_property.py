@@ -28,6 +28,14 @@ Reproducibility: every case derives from --seed (CI passes the run id). A
 failure prints the seed, the failing case, a SHRUNK minimal case, and the
 one-line replay command. Failures exit 1.
 
+Privacy: generated cases are echoed in full because this process invented
+them — they describe nobody. A case supplied via --case is NOT echoed, and
+the values in its divergence report are redacted, because the reason to reach
+for --case is to reproduce one chart that misbehaved, i.e. precisely when the
+input is a real person's birth moment. The prime directive ("no birth data in
+any log line") has no carve-out for developer tools, and in CI stdout is a
+retained log. Caught by CodeQL on PR #170, and it was right.
+
 Usage (from backend/):
     .venv/bin/python tools/parity_property.py --n 2000 --seed 12345
     .venv/bin/python tools/parity_property.py --seed 12345 --index 137   # replay one
@@ -39,6 +47,7 @@ import argparse
 import json
 import os
 import random
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -86,6 +95,22 @@ STATION_BODIES = [(2, "Mercury"), (3, "Venus"), (4, "Mars"), (5, "Jupiter"),
 TZ_CHOICES = [x / 4 for x in range(-48, 57)]
 
 YEAR_MIN, YEAR_MAX = 1800, 2100
+
+
+# Divergence messages carry two kinds of information. The CONTINUOUS values —
+# longitudes, Julian days, deltas, speeds — are derived from the birth moment
+# and, given enough of them, invert back toward it; those are redacted when the
+# input did not come from our own RNG. The CATEGORICAL structure — which body,
+# which field, which cusp index — is what actually diagnoses a divergence and
+# leaks no moment on its own, so it survives. A reviewer who thinks that line
+# sits in the wrong place can move it here, in one function, rather than
+# arguing with prose.
+_FLOATY = re.compile(r"-?\d+\.\d+")
+_PARENTHETICAL = re.compile(r"\s*\([^)]*\)")
+
+
+def _redact(message: str) -> str:
+    return _FLOATY.sub("<redacted>", _PARENTHETICAL.sub("", message))
 
 
 def _circ(a: float, b: float) -> float:
@@ -395,6 +420,11 @@ def shrink(case: Dict[str, Any], bridge: Bridge) -> Dict[str, Any]:
 
 def run(seed: int, n: int, only_index: Optional[int], ad_hoc: Optional[str]) -> int:
     bridge = Bridge()
+    # Provenance of the cases about to run, and therefore what may be printed.
+    # Generated == this process made the numbers up; supplied == they came from
+    # outside and must be treated as somebody's birth moment. See the report
+    # branch in the loop below.
+    synthetic = ad_hoc is None
     try:
         if ad_hoc is not None:
             cases = [json.loads(ad_hoc)]
@@ -416,15 +446,34 @@ def run(seed: int, n: int, only_index: Optional[int], ad_hoc: Optional[str]) -> 
                 failures += 1
                 index = only_index if only_index is not None else i
                 print(f"\n✗ case {index} (seed {seed}) diverged:")
-                for f in fails:
-                    print(f"    - {f}")
-                print(f"  case:   {json.dumps(req)}")
-                minimal = shrink(case, bridge)
-                min_req = {k: v for k, v in minimal.items() if not k.startswith("_")}
-                if min_req != req:
-                    print(f"  shrunk: {json.dumps(min_req)}")
-                print(f"  replay: .venv/bin/python tools/parity_property.py "
-                      f"--seed {seed} --index {index}")
+                if synthetic:
+                    # Safe to echo in full: every field came from the seeded
+                    # RNG above, so the "birth data" here describes nobody.
+                    for f in fails:
+                        print(f"    - {f}")
+                    print(f"  case:   {json.dumps(req)}")
+                    minimal = shrink(case, bridge)
+                    min_req = {k: v for k, v in minimal.items()
+                               if not k.startswith("_")}
+                    if min_req != req:
+                        print(f"  shrunk: {json.dumps(min_req)}")
+                    print(f"  replay: .venv/bin/python tools/parity_property.py "
+                          f"--seed {seed} --index {index}")
+                else:
+                    # --case takes arbitrary JSON, and the reason anyone reaches
+                    # for it is to reproduce ONE chart that misbehaved — i.e.
+                    # precisely when the input is a real person's birth moment.
+                    # Echoing it (or the positions derived from it, which are
+                    # invertible back toward a birth moment) would put birth
+                    # data in stdout, and in CI that is a retained log line.
+                    # The prime directive has no carve-out for developer tools,
+                    # and the caller already holds the input they just passed,
+                    # so the echo buys nothing. Report WHICH quantities diverged,
+                    # never their values.
+                    for f in fails:
+                        print(f"    - {_redact(f)}")
+                    print("  case:   <supplied via --case; not echoed — see the "
+                          "privacy note in this file's report path>")
                 if failures >= 5:
                     print("\n(stopping after 5 divergent cases)")
                     break
@@ -435,9 +484,14 @@ def run(seed: int, n: int, only_index: Optional[int], ad_hoc: Optional[str]) -> 
         if strata_counts and total > 1:
             print("strata:", ", ".join(
                 f"{k}={v}" for k, v in sorted(strata_counts.items())))
-        if failures:
+        if failures and synthetic:
             print(f"\nSEED {seed} — replay any case above locally with the "
                   "printed command.")
+        elif failures:
+            # No replay line here on purpose: the only handle for a supplied
+            # case is the case itself, which is exactly what is not echoed.
+            print("\nThe supplied case diverged. You already hold the input; "
+                  "re-run with the same --case to reproduce.")
         return 1 if failures else 0
     finally:
         bridge.close()

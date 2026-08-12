@@ -1,10 +1,11 @@
 # Hand_off.md
 
-_Last updated: 2026-08-12 (session 25 — both halves of the ratified work order
-BUILT on branch `claude/astro-caster-launch-kdx6yz`: the entitlement paste
-field and the interactive tarot widget. The bundle is APK-ready; the rebuild /
-re-sign / release (v1.0.2, versionCode 3) needs the operator's machine — the
-signing keystore lives outside every repo by design.)
+_Last updated: 2026-08-12 (session 25 — the ratified work order is **MERGED to
+`main`** as `c656a66`: the entitlement paste field and the interactive tarot
+widget. Track A (generative parity + external anchors) is on
+`claude/astro-caster-launch-kdx6yz`, PR #170. The bundle is APK-ready; the
+rebuild / re-sign / release (v1.0.2, versionCode 3) needs the operator's
+machine — the signing keystore lives outside every repo by design.)
 Re-derive before trusting any of this: `git fetch && git status -sb`._
 
 ---
@@ -75,6 +76,14 @@ cd backend
 PARITY_INJECT_BIAS_DEG=0.0167 .venv/bin/python tools/parity_property.py --n 5 --seed 7
 # -> 0/5 cases agree   (a 1-arcminute bias must turn it red)
 ```
+
+**`--case` does not echo its input, on purpose.** CodeQL flagged the harness
+for clear-text logging on PR #170 and was right: generated cases are synthetic
+and safe to print, but `--case` takes arbitrary JSON and the reason to reach
+for it is to reproduce ONE chart that misbehaved — i.e. exactly when the input
+is a real person's birth moment. Supplied cases now report which quantities
+diverged with the values redacted. If you are debugging a user report, you
+already hold the input; the tool will not put it in a CI log for you.
 
 **A3 — anchors: infrastructure done, data partial and deliberately so.**
 `parity/anchors/` now has the provenance contract, a CI `anchors-guard`
