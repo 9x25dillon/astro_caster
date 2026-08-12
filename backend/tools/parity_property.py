@@ -113,6 +113,44 @@ def _redact(message: str) -> str:
     return _FLOATY.sub("<redacted>", _PARENTHETICAL.sub("", message))
 
 
+def _failure_category(message: str) -> str:
+    msg = message.strip()
+    if msg.startswith("TS engine error:"):
+        return "engine.ts_error"
+    if msg.startswith("julian_day "):
+        return "meta.julian_day"
+    if msg.startswith("house-system fallback diverged:"):
+        return "meta.house_system"
+    if msg.startswith("body sets differ:"):
+        return "planets.body_set"
+    if msg.startswith("angle ") or msg.startswith("angles "):
+        return "angles"
+    if msg.startswith("cusp ") or msg.startswith("cusps "):
+        return "houses.cusps"
+    if msg.startswith("element tallies differ:"):
+        return "elements.tally"
+    if msg.startswith("modality tallies differ:"):
+        return "modalities.tally"
+
+    m = re.match(r"^\S+\s+(lon|lat|decl|speed|SIGN|HOUSE|RETROGRADE)\b", msg)
+    if m:
+        kind = m.group(1)
+        return {
+            "lon": "planet.longitude",
+            "lat": "planet.latitude",
+            "decl": "planet.declination",
+            "speed": "planet.speed",
+            "SIGN": "planet.sign",
+            "HOUSE": "planet.house",
+            "RETROGRADE": "planet.retrograde",
+        }[kind]
+
+    if "sign-derived fields differ on same sign" in msg:
+        return "planet.sign_derived"
+
+    return "divergence.other"
+
+
 def _circ(a: float, b: float) -> float:
     d = abs(a - b) % 360.0
     return min(d, 360.0 - d)
@@ -461,8 +499,9 @@ def run(seed: int, n: int, only_index: Optional[int], ad_hoc: Optional[str]) -> 
                     # and the caller already holds the input they just passed,
                     # so the echo buys nothing. Report WHICH quantities diverged,
                     # never their values.
-                    for f in fails:
-                        print(f"    - {_redact(f)}")
+                    categories = sorted({_failure_category(f) for f in fails})
+                    for c in categories:
+                        print(f"    - {c}")
                     print("  case:   <supplied via --case; not echoed — see the "
                           "privacy note in this file's report path>")
                 if failures >= 5:
