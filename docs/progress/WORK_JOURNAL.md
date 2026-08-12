@@ -5,6 +5,95 @@ PR bodies; this is the story. Started session 15 at the operator's request._
 
 ---
 
+## Session 26 · 2026-08-12 — reading someone else's work, and the failures that look like success
+
+The session began as a review. Another model had spent a day on Track A and
+left three pull requests behind it, each with a PR body making specific,
+checkable claims: this harness goes red under a one-arcminute bias, this
+ratchet refuses a widened bound, this suite is 253 for 253. The temptation with
+a document like that is to read it and believe it, because it is written by
+something that sounds confident and is mostly right.
+
+So the claims got run instead of read. All of them held. The generative
+harness really does go to 0/5 under an injected arcminute and really does exit
+1. The boundary suite really is green and really does go red. The sidereal
+whole-sign fix is real — checked not against its own test but against
+pyswisseph directly, which puts the cusps at 150/180/210 where the old code
+would have put them at 126.14/156.14/186.14, six degrees into every sign. The
+hand-rolled `fixedHalfEven` matches Python across fourteen thousand values,
+four thousand of them exact ties, where plain `toFixed` diverges on 1,501.
+That is a good day's work by any measure, and it was right to say so.
+
+Two things were wrong, and they were wrong in the same way: they failed open.
+
+`decodeURIComponent` sat one line outside a try block, so a link truncated
+mid-percent-escape threw instead of returning a note, the throw escaped the
+store action entirely, and the caller's spinner never came down. The field
+died mid-verify with no message and no recovery but a reload — on the one
+surface, the APK, where that paste field is the *only* route a key has. A dead
+field is a dead purchase.
+
+The ratchet was the sharper one, because a ratchet that reports success is
+worse than no ratchet. On a push to `main` its base resolved to `HEAD`, so it
+compared the tolerance contract against its own copy and printed "no bound
+widened — ok". A bound widened fivefold and pushed straight to main sailed
+through; that was reproduced in a clone rather than argued from the code. And
+an unresolvable base exited 0 with the same reassuring sentence as the
+legitimate first-appearance case, which means the gate would have quietly
+vanished in exactly the conditions that break ref resolution. Both now fail
+loudly, and both were falsified in all four directions afterward.
+
+Then the release, which had been waiting on a machine rather than on code. The
+signing keystore was here all along. v1.0.2 built, signed, certificate
+fingerprint matching v1.0 exactly — and then sat unpublished while the session
+turned to the features the operator asked for next.
+
+The daily oracle rests on one observation: a daily draw is already a pure
+function of (chart, date). `defaultSeed` folds the local date in, and the draw
+is the parity-locked MT19937 over it. Which means the app can compute sixty
+days ahead, hand the results to the notification scheduler and to Android's
+SharedPreferences, and let two surfaces that cannot run our JavaScript — a
+notification firing at 8am, a widget redrawing while the app is closed — read
+a plain string later. No push service. No FCM token. Nothing about a birth
+chart leaving the phone for a feature whose entire content is derived from
+one. It also kept Android from becoming a third engine under a parity lock
+that has two, which is the version of this that would have rotted.
+
+The phone found three things the browser and the full CI matrix both missed.
+Capacitor's `registerPlugin` returns a Proxy, and resolving any promise with it
+makes the runtime probe for `.then` — which the Proxy dutifully forwards to
+native as a method call named "then". The global `input {width:100%}` applies
+to checkboxes, so the daily toggle claimed its entire row and shoved its own
+label off the screen. And a VectorDrawable can compile, package into
+`drawable-v24/`, and still fail to inflate on device, dropping the whole
+adaptive icon to Android's robot placeholder with nothing in logcat naming it.
+That last one was not solved, only bisected and routed around; the dead end is
+written into the PR so the next person does not spend the afternoon on it.
+
+The icon is the part worth remembering. It was found by accident — the daily
+notification delivered correctly and then sat in the shade under a generic blue
+X, and the question "why is that not our mark?" turned out to have the answer
+"because it never was". Astra had shipped the stock Capacitor template logo as
+its face since v1.0: on the home screen of everyone who installed it, in the
+notification shade, beside every reading. Nobody had looked, because nobody had
+had a reason to look at a notification before. The caduceus that was already in
+the masthead and the favicon is now the icon, extracted as a real outline from
+Noto Sans Symbols rather than set as text.
+
+The release went out as **v1.0.3**, not the v1.0.2 four documents had
+predicted, because the session-26 features merged before the build was cut and
+a version name should follow the artifact rather than the plan. Its checksum
+was taken from the file downloaded back off GitHub, not from the local build
+that made it — signing embeds timestamps, and "the file I built" and "the file
+they get" are the same bytes only if you check.
+
+What is left is the smallest and most annoying thing in the session: the
+landing page still advertises v1.0.1. The edit is written and reviewed; the
+live site serves the old page until someone runs two commands on the origin
+box. The release is out and the people it is for cannot see it yet.
+
+---
+
 ## Session 25 · 2026-08-12 — the last mile, and the cards learn to turn over
 
 The session opened with a sweeping work order — twenty-odd deliverables across
