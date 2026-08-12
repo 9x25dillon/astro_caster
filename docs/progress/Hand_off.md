@@ -42,7 +42,18 @@ Re-derive before trusting any of this: `git fetch && git status -sb`._
 `ops/provision_hetzner.sh` and `ops/cloudflare_dns.sh` reproduce the infra. Both
 preflight by default and change nothing without `--create` / `--apply`.
 
-## THE NEXT SESSION — a planned update, and the gap that should ride with it
+## ✅ THE NEXT SESSION — RATIFIED WORK ORDER (operator, 2026-08-11)
+
+**Build both, in one APK cycle: the entitlement paste field, and the
+interactive tarot widget.** Not a proposal — this is decided. Detail below.
+
+Sequencing that matters: land BOTH in the bundle before rebuilding the APK.
+Every Android change costs a rebuild, a re-sign, a fresh checksum, a landing
+page edit and a release — doing them separately pays that four times. The
+service-worker retirement (already merged, not yet in a published build) rides
+along in the same rebuild, which will be **v1.0.2 / versionCode 3**.
+
+
 
 ### ⚠️ A paying customer cannot get their key into the Android app
 
