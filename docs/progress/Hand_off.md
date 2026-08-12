@@ -1,10 +1,64 @@
 # Hand_off.md
 
-_Last updated: 2026-08-11 (session 24 CLOSED — **Astra is LIVE** at
-https://astra-arcana.com. M0–M4 done; M5 is the only milestone left and it is
-gated on decisions, not code. 18 commits, 9 PRs, 2 releases. `main` is the only
-branch. Payment rail deliberately PARKED.)
+_Last updated: 2026-08-12 (session 25 — both halves of the ratified work order
+BUILT on branch `claude/astro-caster-launch-kdx6yz`: the entitlement paste
+field and the interactive tarot widget. The bundle is APK-ready; the rebuild /
+re-sign / release (v1.0.2, versionCode 3) needs the operator's machine — the
+signing keystore lives outside every repo by design.)
 Re-derive before trusting any of this: `git fetch && git status -sb`._
+
+---
+
+# SESSION 25 — 2026-08-12
+
+## What landed (the ratified both-in-one-bundle order, done)
+
+1. **The entitlement paste field** — the missing last mile. The Library's
+   Vault (chapter VIII) now carries "⚿ Bring your key": paste the bare token
+   OR the whole unlock link (the `?entitlement=` URL — the token is extracted
+   from it), whitespace from wrapped pastes stripped, verified via
+   `GET /api/entitlement` BEFORE storing. A bad paste stores nothing and says
+   why; offline says it couldn't verify and stores nothing. Store action:
+   `importEntitlement` in `useStore.ts`; UI in `LibraryVault.tsx`; five e2e
+   cases in `entitlement-import.spec.ts` (invalid, offline, bare token, full
+   link, wrapped whitespace).
+2. **The interactive tarot widget** — `TarotCard.tsx`. A dealt spread lands
+   face-down (engraved inline-SVG back, no asset fetch); tap turns the card —
+   one 3D flip per intent, instant under `prefers-reduced-motion`; the same
+   tap publishes the card to the margin glass, so no second tap is owed.
+   Gyroscope tilt parallax on revealed cards (±4°, damped, never on reduced
+   motion, never prompts on iOS — no permission request, so it simply stays
+   still there). A fresh deal resets every card face-down. Presentation ONLY:
+   the deal is the untouched parity-locked seeded draw.
+3. **Reconciliation Report** against the operator's ASTRA work order:
+   `RECONCILIATION_2026-08-12.md`. Headline: the order assumes pre-launch;
+   Astra launched 2026-08-11. Track A (generative parity + external anchors)
+   is the strongest genuinely-open work; C1 (retire MT19937), D2's verify
+   posture, and B1's local-first inversion would reverse ratified decisions
+   and are escalated, not implemented.
+
+## Verified
+
+- backend **374 passed** · astra-core **48 passed** (parity green — the drawn
+  cards are still bit-identical to the backend draw) · frontend unit **25
+  passed** · **full e2e suite green including `no-external.spec.ts` and
+  `arcana-offline.spec.ts`** (the widget works offline; zero new off-origin
+  requests).
+- Spec updates that ride along: `arcana-offline.spec.ts` and
+  `journal.spec.ts` now drive the face-down → turn interaction; the journal
+  spec scopes to the card's own pad (the turn publishes to the margin, which
+  adds a second pen — same disambiguation the margin's arrival forced before).
+
+## What the NEXT session (or the operator) does with this
+
+- **One APK cycle**: rebuild the bundle → sync → build → sign (JDK 21,
+  recipe in `APK_A0_FINDINGS.md`) → **v1.0.2 / versionCode 3** → new
+  checksum → landing page edit → release. The service-worker retirement
+  (merged in session 24, still unpublished) rides the same build.
+- The app-link (`VIEW` intent-filter + `assetlinks.json`) remains the
+  refinement path; the paste field removes the urgency.
+- M5 is unchanged and still non-code: LLC, confirm prices, live keys, one
+  real purchase, cancel → `tier: free` → refund, in that order.
 
 ---
 

@@ -27,8 +27,14 @@ test("draws a tarot spread on-device with the backend offline", async ({ page, c
   // Two buttons share .arc-draw-btn (spread draw + Oracle Report); take the draw one.
   await page.locator(".arc-draw-btn").filter({ hasText: /^Draw$/ }).click();
 
-  // three_card is the default spread → three dealt cards, each with a meaning.
+  // three_card is the default spread → three dealt cards, face-down (the
+  // session-25 widget), each turning on tap to show its meaning — all of it
+  // computed on-device.
   const drawn = page.locator(".arc-drawn");
   await expect.poll(() => drawn.count(), { timeout: 15_000 }).toBe(3);
-  await expect(drawn.first().locator(".arc-drawn-meaning")).not.toBeEmpty();
+  await expect(page.locator(".tarot-card.is-facedown")).toHaveCount(3);
+  await page.locator(".tarot-face--back").first().click();
+  await expect(
+    page.locator(".tarot-card.is-revealed .arc-drawn-meaning")
+  ).not.toBeEmpty();
 });

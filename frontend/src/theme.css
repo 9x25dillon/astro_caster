@@ -3067,3 +3067,69 @@ button.is-live { color: var(--ion); background: rgba(127, 231, 220, 0.08); }
   color: var(--ink);
   margin: 2px 0 0;
 }
+
+/* ── Session 25 — the interactive draw (TarotCard) ─────────────────────────
+   A dealt card lands face-down and turns on tap: one 3D flip per intent.
+   Presentation only — the deal underneath is the parity-locked seeded draw. */
+.tarot-card { perspective: 900px; }
+.tarot-flip {
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 420ms var(--ease-out, ease);
+}
+.tarot-card.is-facedown .tarot-flip { transform: rotateY(180deg); }
+/* The whisper of gyroscope parallax on a revealed card (set by TarotCard.tsx;
+   absent → 0 → no motion). */
+.tarot-card.is-revealed .tarot-flip {
+  transform: rotateX(var(--tarot-tilt-x, 0deg)) rotateY(var(--tarot-tilt-y, 0deg));
+}
+.tarot-face--front { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.tarot-face--back {
+  position: absolute;
+  inset: 0;
+  transform: rotateY(180deg);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--gold);
+  border-radius: 10px;
+  background:
+    radial-gradient(120% 90% at 50% 10%, rgba(201, 168, 76, 0.10) 0%, transparent 55%),
+    var(--obsidian-2);
+  color: var(--gold-soft);
+  cursor: pointer;
+  padding: 10px;
+}
+.tarot-card.is-revealed .tarot-face--back { pointer-events: none; }
+.tarot-face--back:hover, .tarot-face--back:focus-visible { border-color: var(--gold-bright); }
+.tarot-back-face { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.tarot-back-plate { width: 84px; height: auto; opacity: 0.9; }
+.tarot-back-pos {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gold-soft);
+}
+.tarot-back-hint { font-size: 10.5px; font-style: italic; color: var(--ink); }
+@media (prefers-reduced-motion: reduce) {
+  .tarot-flip { transition: none; }
+  .tarot-card.is-revealed .tarot-flip { transform: none; }
+}
+
+/* Session 25 — the Library's key import (the APK's only unlock path). */
+.lib-keyimport { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--rule); }
+.lib-subtitle {
+  font-family: var(--display);
+  color: var(--gold-soft, #e0c578);
+  margin: 0 0 4px;
+  font-size: 15px;
+}
+.key-import-field {
+  background: var(--obsidian-3);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  color: var(--sepia);
+}
+.key-import-field:focus { border-color: var(--gold); outline: none; }

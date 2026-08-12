@@ -44,6 +44,7 @@ import { useSpeech, speakableText } from "../lib/speech";
 import { printSessionTome } from "../lib/tomePrint";
 import { galleryByKind, gallerySave, journalForSeed, shelfAttachPersonal, shelfSaveOracle } from "../lib/bookshelf";
 import { JournalPad } from "./JournalPad";
+import { TarotCard } from "./TarotCard";
 import { ConstellationPath } from "./ConstellationPath";
 import { chaosLetters, wordValue, reduceDigit, planetToKamea } from "../lib/sigil";
 import { deriveSoulProfile } from "../lib/archetypes";
@@ -127,6 +128,9 @@ export const ArcanaModal: React.FC<{
   const [walked, setWalked] = useState<Set<number>>(new Set());
 
   const [spread, setSpread] = useState<SpreadType>("three_card");
+  // Session 25 — the interactive draw: which positions have been turned over.
+  // Reset on every fresh deal so each spread starts face-down.
+  const [revealed, setRevealed] = useState<Record<string, boolean>>({});
   const [source, setSource] = useState<SourceSystem>("golden_dawn");
   const [question, setQuestion] = useState("What do I need to understand right now?");
   const [useAi, setUseAi] = useState(false);
@@ -221,6 +225,8 @@ export const ArcanaModal: React.FC<{
   async function draw() {
     if (!chart) return;
     setLoading(true); setErr(null);
+    // Session 25: a fresh deal lands face-down — every card waits for its tap.
+    setRevealed({});
     try {
       const wantAi = useAi && isSupporter;
       const r = await fetchTarotReading(chart, spread, question, {
@@ -727,7 +733,29 @@ export const ArcanaModal: React.FC<{
                 <div className="arc-reading">
                   <div className="arc-cards-row">
                     {reading.cards.map((c) => (
-                      <div key={c.position} className="arc-drawn mg-sel"
+                      <TarotCard
+                        key={c.position}
+                        position={c.position}
+                        revealed={!!revealed[c.position]}
+                        onReveal={() => {
+                          setRevealed((p) => ({ ...p, [c.position]: true }));
+                          trackEvent("arcana_card_turned", { position: c.position, spread });
+                          // Turning a card is also selecting it — publish to
+                          // the margin in the same intent, no second tap owed.
+                          setMargin({
+                            title: `${c.card.name}${c.reversed ? " (reversed)" : ""}`,
+                            subtitle: c.position,
+                            body: [c.meaning],
+                            action: c.activity ?? undefined,
+                            journal: {
+                              seed: reading.seed, position: c.position,
+                              prompt: c.journal_prompt ?? null,
+                              cardName: c.card.name, question: reading.question,
+                            },
+                          });
+                        }}
+                      >
+                      <div className="arc-drawn mg-sel"
                            onClick={() => setMargin({
                              title: `${c.card.name}${c.reversed ? " (reversed)" : ""}`,
                              subtitle: c.position,
@@ -765,6 +793,7 @@ export const ArcanaModal: React.FC<{
                           />
                         )}
                       </div>
+                      </TarotCard>
                     ))}
                   </div>
                   <div className="arc-interp">
