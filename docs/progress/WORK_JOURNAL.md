@@ -5,6 +5,126 @@ PR bodies; this is the story. Started session 15 at the operator's request._
 
 ---
 
+## Session 27 · 2026-08-14 — agreement is not correctness
+
+The observatory has always been built on two engines agreeing. A backend in
+Python and a core in TypeScript, drift-locked by nine golden vectors, a
+generative harness that draws two thousand cases a run, and a boundary suite
+that checks not the number but the decision the number makes. All of it asks
+one question, thousands of times, very well: *do these two agree?*
+
+None of it can ask whether they are right. The vectors are generated from the
+backend's own output, so the backend is an unfalsifiable oracle there. The
+harness compares the two engines to each other. Both stay green if both are
+wrong in the same direction — and since both now sit on Swiss Ephemeris, that
+stopped being a theoretical concern some time ago and nobody noticed.
+
+`parity/anchors/` exists to ask the other question. It held one value this
+morning: ΔT in the year 2000. By evening it held the sidereal frame and forty
+planetary positions, and it had found that the whole product was computing the
+sky with an analytic approximation while every instrument on the box reported
+otherwise.
+
+The ayanamsa came first because A1 had already proved the sidereal frame was
+where real bugs lived. The Lahiri constant turned up in one peer-reviewed
+paper, hedged with "it is reliably learnt", from a paper careless enough
+elsewhere to compute Lahiri as a linear drift from 285 AD and get a figure
+identical to its Raman column. A number like that has to earn its place. It
+did, by predicting something it was never fitted to: propagated back to the
+Calendar Reform Committee's 1956 equinox it lands 16.11 arcseconds under the
+decreed 23°15′00″, and nutation in longitude at that instant is 16.67. A
+residual of −0.56, inside the accuracy of the series used to check it. One
+constant reproducing a government decree from 1955 across a distinction
+(mean versus true) that neither source stated outright.
+
+Then the engine agreed with it to **0.000 arcseconds**, and that was the most
+suspicious result of the day. Exact agreement is not a triumph; it is equally
+consistent with the published constant having come from Swiss Ephemeris
+somewhere up its own citation chain — the circularity the whole directory
+exists to break, restored by the back door. It could not be settled by
+reading: the vendored Swiss is compiled WebAssembly and the published docs do
+not print their Lahiri base. So the 1956 decree went in as a second anchor, at
+a looser tolerance and with worse provenance, purely because a 1955 Government
+of India publication *cannot* have been derived from Swiss Ephemeris. The
+engine reproduces it to 0.14 arcseconds. That is evidence circularity could not
+have manufactured, and it is why an independent anchor at a loose bound beats a
+precise one that might be a mirror.
+
+The planetary longitudes went in next, forty of them from JPL Horizons, and
+they immediately did the job. Seven failed. The 2100 epoch failed hardest on
+the Moon — 13.83 arcseconds, ten times anything else — and the shape of that
+is the answer: divide each body's miss by its own angular speed and the Sun,
+Moon, Mercury and Venus all resolve to the same quantity, 19.9, 23.7, 21.4 and
+20.5 seconds. Four independent bodies agreeing on twenty-one seconds is not a
+position error. It is two ephemerides predicting different ΔT for a year whose
+Earth rotation has not happened yet. ACQUISITION.md had already written that
+warning down for the 2050 ΔT anchor without noticing it infects any
+UT-argument *position* anchor at a future epoch. The 2100 column was withdrawn
+on evidence and replaced with 2020.
+
+What remained could not be explained away, and it was the finding of the day.
+The planets were not coming from Swiss data files at all. The only `.se1` ever
+vendored was `seas_18` — asteroids, which is where Chiron comes from — and
+Swiss does not error when a class is missing. It answers from Moshier and says
+nothing. `/api/health` could not see it either, because `_USING_FILES` tested
+that a *directory existed*, not that anything was in it. The endpoint had been
+reporting `swiss-files` to every check for months, and it reported it twice
+more to me while I verified two production deploys earlier the same day.
+
+Nothing about a reading was wrong. Three arcseconds is an order of magnitude
+inside the arcminute that moves a body across a cusp; no chart changed, no card
+changed, nobody was ever misread. What was wrong is that the system had no way
+to know. The two engines shared the configuration, so they agreed with each
+other perfectly while both sat a few arcseconds off the sky — the exact fault
+the anchors were built for, found the first time they were pointed at
+something.
+
+Shipping the fix was more interesting than it should have been. The files were
+gitignored: `*.se1` is a blanket rule and `seas_18` was only ever tracked
+because somebody once forced it in. `git add -f` would have worked in ten
+seconds and left the next person to rediscover the whole thing, silently, the
+way this started — so the rule got the exception instead, one filename at a
+time, so that adding an ephemeris stays a deliberate act with a size somebody
+has to look at.
+
+They had to go to *both* engines, and the reason is the tarot. The seed is
+built from longitudes rounded to two decimals, so moving the ephemeris moves
+some charts across a rounding boundary and a different seed is a different
+spread. I estimated forty per cent of charts, said so out loud, then measured
+it at 3.4 — one in thirty. An order of magnitude wrong, in the alarming
+direction, stated before checking. The measurement was one command. Estimate to
+decide whether to measure; never to report.
+
+The last thing the change broke was the most instructive. Two forecast parity
+cases went red on orbs differing by exactly 0.001 — in both directions, which
+rules out a rounding-mode cause — while the engines themselves proved
+bit-identical to 5.7e-14 degrees, closer than double precision can express a
+difference. The vector's tolerance was 1e-6 against orbs *stored rounded to
+three decimals*: it was demanding that two three-decimal numbers be bit-equal,
+and it had held for a year purely because no orb had ever happened to land on a
+boundary. A test can be green for its whole life and be measuring nothing. That
+is the same sentence as the healthcheck with a failing streak of 11,527, and
+the same sentence as a health endpoint describing a folder, and by the third
+time in one day it stopped being a coincidence and started being the theme.
+
+Underneath it, a real defect: `forecast.ts` and `advanced.ts` each kept a
+private `Math.round(x*1e3)/1e3` where the backend rounds half-to-even. A1 had
+caught that exact class once before in `ephemeris.ts`; the fix never reached the
+other two copies, and the old ephemeris values had never sat close enough to a
+boundary to expose them.
+
+Production now agrees with JPL Horizons to 0.138 arcseconds, verified against
+the live API rather than a local build — Saturn at 0.017, the Moon at 0.138,
+everything else between. The residual is not noise: a near-uniform half
+arcsecond across every body at 1800 decaying to nothing by 2000, which is a
+precession model disagreeing, not an ephemeris. That is tomorrow's thread.
+
+The APK is still v1.0.3 and still carries the old engine. The website and the
+phone now disagree about the sky, which is a strange sentence to end on, and
+the reason the handoff opens with a build.
+
+---
+
 ## Session 26 · 2026-08-12 — reading someone else's work, and the failures that look like success
 
 The session began as a review. Another model had spent a day on Track A and
