@@ -50,6 +50,76 @@ else:
     # No data files: Moshier mode is self-contained and needs no path.
     _USING_FILES = False
 
+# Swiss names its data files by CONTENT, and a missing class is not an error:
+# when `sepl_*` (planets) or `semo_*` (moon) are absent, Swiss quietly answers
+# those bodies from Moshier's analytic series instead and reports nothing.
+# `_USING_FILES` above cannot see that — it only knows a directory exists — so
+# on its own it will call a folder holding nothing but asteroids "swiss-files".
+#
+# That is not hypothetical. The configuration this project actually ships
+# contains only `seas_18.se1` (asteroids, which is where Chiron comes from), so
+# every planet is Moshier while `_USING_FILES` is True. Track A3's Horizons
+# anchors measured the cost at up to 3.13" (Pluto at 1800) — harmless to a
+# reading, invisible from inside, and impossible to diagnose from a health
+# endpoint that reports the directory rather than its contents.
+_SWISS_FILE_PREFIXES = {"planets": "sepl", "moon": "semo", "asteroids": "seas"}
+
+
+def _swiss_files_present(path: str) -> dict[str, bool]:
+    """Which classes of Swiss data file are actually readable at `path`."""
+    try:
+        names = os.listdir(path)
+    except OSError:
+        # Unreadable is indistinguishable from empty for our purposes, and a
+        # health probe must never be the thing that raises.
+        return {cls: False for cls in _SWISS_FILE_PREFIXES}
+    return {
+        cls: any(n.startswith(prefix) and n.endswith(".se1") for n in names)
+        for cls, prefix in _SWISS_FILE_PREFIXES.items()
+    }
+
+
+_SWISS_FILES = (
+    _swiss_files_present(_EPHE_PATH)
+    if _USING_FILES
+    else {cls: False for cls in _SWISS_FILE_PREFIXES}
+)
+
+
+def ephemeris_status() -> dict:
+    """What the ephemeris layer can ACTUALLY read, for /api/health.
+
+    Deliberately NOT the same value as `ChartResponse.meta["ephemeris"]`. That
+    field is a drift-lock stamp: `gen_parity_vectors.py` records it into every
+    vector and `test_parity_vectors.py` widens its tolerance from 1 to 5 arcmin
+    when the running engine's stamp differs from the vector's. Making it more
+    descriptive would silently loosen every parity vector in the repository, so
+    it stays an identity token and the honest description lives here.
+
+    `mode` is chosen by where the PLANETS come from, because that is what
+    dominates a chart:
+      "swiss-files"   planets and moon both from Swiss data files
+      "swiss-partial" some classes present, others falling back to Moshier
+      "moshier"       no data files at all; everything analytic
+    """
+    present = dict(_SWISS_FILES)
+    if not _USING_FILES or not any(present.values()):
+        mode = "moshier"
+    elif present["planets"] and present["moon"]:
+        mode = "swiss-files"
+    else:
+        mode = "swiss-partial"
+    return {
+        "mode": mode,
+        "path": _EPHE_PATH or None,
+        "files": present,
+        # Spelled out so an operator does not have to know Swiss's fallback
+        # rules to read the answer.
+        "planet_source": "swiss-files" if present["planets"] else "moshier",
+        "moon_source": "swiss-files" if present["moon"] else "moshier",
+        "asteroid_source": "swiss-files" if present["asteroids"] else "moshier",
+    }
+
 # Body id -> (swisseph constant, glyph). Order defines display order.
 _PLANET_TABLE: List[Tuple[str, int, str]] = [
     ("Sun", swe.SUN, "☉"),
