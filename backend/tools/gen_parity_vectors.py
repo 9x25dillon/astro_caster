@@ -248,8 +248,26 @@ def build_forecast_payload() -> dict:
                 "start": FORECAST_START, "days": FORECAST_DAYS,
                 "min_sig": FORECAST_MIN_SIG, "events": slim,
             })
+        # orb_tolerance_deg is 0.002, not the 1e-6 this carried until 2026-08-14.
+        # That figure was never a statement about engine agreement — the events
+        # here store `orb` already rounded to 3 dp, so the tightest difference
+        # two records can express is 0.001, and 1e-6 was demanding that two
+        # 3-dp values be bit-equal. It held only by luck: while both engines ran
+        # Moshier no orb happened to sit on a rounding boundary. Vendoring the
+        # full Swiss data files moved the values, several landed within 1e-13 of
+        # a boundary, and float noise below double epsilon decided which way each
+        # one fell — in BOTH directions, which is what rules out a rounding-mode
+        # bug. The engines themselves are bit-identical: measured 5.7e-14 deg
+        # worst-case on raw unrounded longitudes.
+        #
+        # 0.002 = one ULP of the stored precision (0.001), doubled so the
+        # comparison is not itself decided by float representation — 0.001
+        # exactly compares as 0.0010000000000000009 > 0.001 and still fails.
+        # This bounds nothing astronomical; the real agreement is 12 orders of
+        # magnitude tighter, and A1's generative harness holds the engines to
+        # 0.01 deg across thousands of cases every CI run.
         return {"schema": "astra-parity/forecast@1",
-                "date_tolerance_days": 0, "orb_tolerance_deg": 1e-6,
+                "date_tolerance_days": 0, "orb_tolerance_deg": 0.002,
                 "cases": cases}
     finally:
         FC._TRANSIT_BODIES = saved
