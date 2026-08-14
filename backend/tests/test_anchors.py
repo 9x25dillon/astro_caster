@@ -17,6 +17,7 @@ record. Widening either is an anchor change and trips the CI guard.
 """
 import json
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -32,9 +33,30 @@ import swisseph as swe  # noqa: E402
 # the way ephemeris.py's comment describes.
 from ephemeris import swe_lock  # noqa: E402
 
+# Deliberately the app's OWN body table and longitude flags, private names and
+# all, rather than a reimplementation. A test that rebuilt these would keep
+# passing if the application's flags drifted — which is precisely the drift most
+# worth catching, since FLG_SWIEPH vs FLG_MOSEPH silently changes which
+# ephemeris answers, and the frame flags decide whether the number is even
+# comparable to the anchor.
+from ephemeris import _FLG_LON, _PLANET_TABLE  # noqa: E402
+
 ANCHOR_DIR = Path(__file__).resolve().parents[2] / "parity" / "anchors"
 DELTA_T_FILE = ANCHOR_DIR / "delta_t.json"
 AYANAMSA_FILE = ANCHOR_DIR / "ayanamsa.json"
+LONGITUDES_FILE = ANCHOR_DIR / "planet_longitudes.json"
+
+
+def _angular_sep(a: float, b: float) -> float:
+    """Separation of two ecliptic longitudes, honouring the 0/360 seam.
+
+    A plain abs(a - b) reports ~360° for two positions a hair either side of
+    Aries 0°, which would fail an anchor that is in fact exact — and the Moon
+    crosses that seam every month, so this is a routine case rather than an
+    edge one.
+    """
+    d = abs(a - b) % 360.0
+    return min(d, 360.0 - d)
 
 
 def _load(path: Path):
@@ -93,6 +115,64 @@ def test_delta_t_rate_between_anchors():
     assert abs(engine_rate - published_rate) <= tol, (
         f"ΔT drift across 2000: engine {engine_rate:+.4f} s vs published "
         f"{published_rate:+.4f} s (tolerance ±{tol} s)"
+    )
+
+
+# --------------------------------------------------------------------------- #
+# Planetary longitudes — where the engine actually puts a body
+# --------------------------------------------------------------------------- #
+
+_LONGITUDES = _load(LONGITUDES_FILE) if LONGITUDES_FILE.exists() else {"anchors": []}
+_SWE_ID = {name: swe_id for name, swe_id, _ in _PLANET_TABLE}
+
+
+def test_longitude_anchor_frame_is_of_date():
+    """Assert the FRAME before asserting any value.
+
+    ACQUISITION.md §1 calls this the frame trap: an anchor pulled in the J2000
+    ecliptic instead of the ecliptic of date is wrong by up to ~1.4°/century of
+    precession — two to three degrees at this file's 1800 and 2100 epochs. It
+    fails as a smooth trend across epochs rather than as noise, which reads
+    convincingly like an engine bug and would send someone hunting in the wrong
+    place. Cheap to assert, expensive to debug.
+    """
+    if not _LONGITUDES["anchors"]:
+        pytest.skip("planet_longitudes.json not acquired — see ACQUISITION.md")
+    assert re.search(r"of date", _LONGITUDES.get("frame", ""), re.I), (
+        "anchor frame must be the true ecliptic and equinox OF DATE — the frame "
+        "swe_calc_ut returns. See ACQUISITION.md §Frame trap."
+    )
+
+
+@pytest.mark.parametrize("anchor", _LONGITUDES["anchors"], ids=lambda a: a["id"])
+def test_planet_longitude_matches_published_ephemeris(anchor):
+    """swe.calc_ut must put each body where JPL Horizons puts it.
+
+    This is the first anchor in the directory that constrains a POSITION. ΔT
+    pins the clock and ayanamsa.json pins the sidereal rotation, but neither
+    says where a planet is. Nothing inside the repository can: the golden
+    vectors are generated from the backend's own output, and the property
+    harness compares the two engines to each other — both stay green if both
+    are wrong together, which is a live risk now that both sit on Swiss.
+    """
+    swe_id = _SWE_ID.get(anchor["body"])
+    assert swe_id is not None, (
+        f"{anchor['id']}: {anchor['body']} is not in the app's _PLANET_TABLE"
+    )
+    with swe_lock:
+        values, _ = swe.calc_ut(anchor["jd_ut"], swe_id, _FLG_LON)
+    actual = values[0]
+    tol = anchor["uncertainty"] + anchor["engine_allowance"]
+    delta = _angular_sep(actual, anchor["value"])
+    assert delta <= tol, (
+        f"{anchor['id']}: engine {actual:.7f}° vs published {anchor['value']}° "
+        f"(Δ{delta * 3600:.3f}\" > {tol * 3600:.3f}\" tolerance)\n"
+        f"  frame:  {_LONGITUDES.get('frame', '?')[:60]}...\n"
+        f"  source: {anchor['source']}\n"
+        f"  {anchor['url']}\n"
+        "  A miss that GROWS with distance from 2000 is a frame error, not a\n"
+        "  position error — check the frame assertion above first.\n"
+        "  Do NOT widen the anchor to make this pass — see parity/anchors/README.md."
     )
 
 
