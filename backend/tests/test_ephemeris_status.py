@@ -86,13 +86,19 @@ def test_shipped_configuration_reports_itself_honestly():
     """Pin what THIS repo's pinned config actually says.
 
     conftest.py forces SE_EPHE_PATH to the vendored
-    packages/astra-core/src/vendor/swisseph, which carries only seas_18.se1.
-    Before this change /api/health called that "swiss-files". If this assertion
-    ever flips to "swiss-files", either the full data files were added — good,
-    and Track A3's engine_allowance can be tightened — or the probe regressed
-    to checking for a directory again.
+    packages/astra-core/src/vendor/swisseph. It carried only seas_18.se1 until
+    2026-08-14, so this asserted "swiss-partial" and every planet came from
+    Moshier; sepl_18 and semo_18 were then vendored and it became true.
+
+    Going red here means one of two things, and they need opposite responses:
+    a data file was LOST from the vendor directory (fix the directory, and
+    expect the tarot spreads of ~3.4% of charts to have moved), or the probe
+    regressed to checking that a folder exists. Do not "fix" it by relaxing
+    the assertion.
     """
     status = E.ephemeris_status()
-    assert status["mode"] == "swiss-partial"
-    assert status["planet_source"] == "moshier"
+    assert status["mode"] == "swiss-files"
+    assert status["files"] == {"planets": True, "moon": True, "asteroids": True}
+    assert status["planet_source"] == "swiss-files"
+    assert status["moon_source"] == "swiss-files"
     assert status["asteroid_source"] == "swiss-files"

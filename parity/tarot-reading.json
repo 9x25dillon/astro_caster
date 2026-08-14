@@ -18,7 +18,7 @@
       "element": "Water",
       "house": 10,
       "id": "Sun",
-      "longitude": 353.507602,
+      "longitude": 353.507608,
       "modality": "Mutable",
       "sign": "Pisces"
      },
@@ -26,7 +26,7 @@
       "element": "Fire",
       "house": 6,
       "id": "Moon",
-      "longitude": 254.523983,
+      "longitude": 254.523978,
       "modality": "Mutable",
       "sign": "Sagittarius"
      },
@@ -34,7 +34,7 @@
       "element": "Fire",
       "house": 10,
       "id": "Mercury",
-      "longitude": 3.143613,
+      "longitude": 3.143614,
       "modality": "Cardinal",
       "sign": "Aries"
      },
@@ -42,7 +42,7 @@
       "element": "Fire",
       "house": 10,
       "id": "Venus",
-      "longitude": 16.984845,
+      "longitude": 16.984839,
       "modality": "Cardinal",
       "sign": "Aries"
      },
@@ -50,7 +50,7 @@
       "element": "Earth",
       "house": 7,
       "id": "Mars",
-      "longitude": 296.914115,
+      "longitude": 296.914121,
       "modality": "Cardinal",
       "sign": "Capricorn"
      },
@@ -58,7 +58,7 @@
       "element": "Air",
       "house": 9,
       "id": "Jupiter",
-      "longitude": 327.483988,
+      "longitude": 327.484069,
       "modality": "Fixed",
       "sign": "Aquarius"
      },
@@ -66,7 +66,7 @@
       "element": "Fire",
       "house": 10,
       "id": "Saturn",
-      "longitude": 4.189799,
+      "longitude": 4.189812,
       "modality": "Cardinal",
       "sign": "Aries"
      },
@@ -74,7 +74,7 @@
       "element": "Earth",
       "house": 3,
       "id": "Uranus",
-      "longitude": 151.288396,
+      "longitude": 151.288605,
       "modality": "Mutable",
       "sign": "Virgo"
      },
@@ -82,7 +82,7 @@
       "element": "Earth",
       "house": 11,
       "id": "Neptune",
-      "longitude": 37.872204,
+      "longitude": 37.87196,
       "modality": "Fixed",
       "sign": "Taurus"
      },
@@ -90,7 +90,7 @@
       "element": "Earth",
       "house": 11,
       "id": "Pluto",
-      "longitude": 54.725354,
+      "longitude": 54.725562,
       "modality": "Fixed",
       "sign": "Taurus"
      },
@@ -98,7 +98,7 @@
       "element": "Air",
       "house": 8,
       "id": "North Node",
-      "longitude": 302.725888,
+      "longitude": 302.731278,
       "modality": "Fixed",
       "sign": "Aquarius"
      },
@@ -106,7 +106,7 @@
       "element": "Fire",
       "house": 2,
       "id": "South Node",
-      "longitude": 122.725888,
+      "longitude": 122.731278,
       "modality": "Fixed",
       "sign": "Leo"
      },
@@ -130,7 +130,7 @@
       "element": "Fire",
       "house": 10,
       "id": "Part of Fortune",
-      "longitude": 2.612238,
+      "longitude": 2.612227,
       "modality": "Cardinal",
       "sign": "Aries"
      },
@@ -338,7 +338,7 @@
       "element": "Earth",
       "house": 10,
       "id": "Sun",
-      "longitude": 280.36892,
+      "longitude": 280.368919,
       "modality": "Cardinal",
       "sign": "Capricorn"
      },
@@ -346,7 +346,7 @@
       "element": "Water",
       "house": 7,
       "id": "Moon",
-      "longitude": 223.323775,
+      "longitude": 223.323751,
       "modality": "Fixed",
       "sign": "Scorpio"
      },
@@ -354,7 +354,7 @@
       "element": "Earth",
       "house": 9,
       "id": "Mercury",
-      "longitude": 271.889275,
+      "longitude": 271.889277,
       "modality": "Cardinal",
       "sign": "Capricorn"
      },
@@ -362,7 +362,7 @@
       "element": "Fire",
       "house": 8,
       "id": "Venus",
-      "longitude": 241.565798,
+      "longitude": 241.565788,
       "modality": "Mutable",
       "sign": "Sagittarius"
      },
@@ -370,7 +370,7 @@
       "element": "Air",
       "house": 12,
       "id": "Mars",
-      "longitude": 327.963313,
+      "longitude": 327.963303,
       "modality": "Fixed",
       "sign": "Aquarius"
      },
@@ -378,7 +378,7 @@
       "element": "Fire",
       "house": 1,
       "id": "Jupiter",
-      "longitude": 25.25303,
+      "longitude": 25.253087,
       "modality": "Cardinal",
       "sign": "Aries"
      },
@@ -386,7 +386,7 @@
       "element": "Earth",
       "house": 1,
       "id": "Saturn",
-      "longitude": 40.395639,
+      "longitude": 40.395663,
       "modality": "Fixed",
       "sign": "Taurus"
      },
@@ -394,7 +394,7 @@
       "element": "Air",
       "house": 11,
       "id": "Uranus",
-      "longitude": 314.809223,
+      "longitude": 314.809188,
       "modality": "Fixed",
       "sign": "Aquarius"
      },
@@ -402,7 +402,7 @@
       "element": "Air",
       "house": 11,
       "id": "Neptune",
-      "longitude": 303.192981,
+      "longitude": 303.193013,
       "modality": "Fixed",
       "sign": "Aquarius"
      },
@@ -410,7 +410,7 @@
       "element": "Fire",
       "house": 8,
       "id": "Pluto",
-      "longitude": 251.454709,
+      "longitude": 251.454779,
       "modality": "Mutable",
       "sign": "Sagittarius"
      },
@@ -418,7 +418,7 @@
       "element": "Fire",
       "house": 5,
       "id": "North Node",
-      "longitude": 123.952895,
+      "longitude": 123.954023,
       "modality": "Fixed",
       "sign": "Leo"
      },
@@ -426,7 +426,7 @@
       "element": "Air",
       "house": 11,
       "id": "South Node",
-      "longitude": 303.952895,
+      "longitude": 303.954023,
       "modality": "Fixed",
       "sign": "Aquarius"
      },
@@ -450,7 +450,7 @@
       "element": "Air",
       "house": 11,
       "id": "Part of Fortune",
-      "longitude": 327.220091,
+      "longitude": 327.220068,
       "modality": "Fixed",
       "sign": "Aquarius"
      },

@@ -13,6 +13,7 @@ import {
   signFor,
 } from "./astrology.js";
 import { calculateChart, chartFrameOffset } from "./ephemeris.js";
+import { pyRound } from "./pyround.js";
 import { circularMidpoint } from "./synastry.js";
 import type { ChartRequest } from "./types.js";
 
@@ -21,7 +22,8 @@ const SKIP = new Set(["Descendant", "Imum Coeli", "Part of Fortune", "Lilith", "
 const DIAL_BODIES_SKIP = new Set(["Descendant", "Imum Coeli", "Part of Fortune"]);
 
 const round4 = (x: number) => Math.round(x * 1e4) / 1e4;
-const round3 = (x: number) => Math.round(x * 1e3) / 1e3;
+// Half-to-EVEN, matching the backend's round(x, 3). See ./pyround.ts.
+const round3 = (x: number) => pyRound(x, 3);
 const round2 = (x: number) => Math.round(x * 100) / 100;
 
 // --------------------------------------------------------------------------- //

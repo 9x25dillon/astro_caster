@@ -24,8 +24,17 @@ frontend/dev-dist/
 # Ephemeris data (large binary files, fetched separately)
 backend/ephe/
 *.se1
-# ...except the small asteroid file vendored for the on-device WASM Swiss engine
+# ...except the vendored set, which is COMMITTED on purpose: it is the ephemeris
+# both engines actually read, so it has to travel with the source. A fresh clone
+# is what every deploy and every CI run starts from, and Swiss does not fail when
+# a data file is missing — it silently answers from Moshier instead. Leaving
+# these ignored is how the whole product ran on an analytic approximation while
+# /api/health reported "swiss-files" (see the vendor README).
+# Name them individually rather than un-ignoring the directory, so adding a file
+# here stays a deliberate act with a size cost somebody has to look at.
 !packages/astra-core/src/vendor/swisseph/seas_18.se1
+!packages/astra-core/src/vendor/swisseph/sepl_18.se1
+!packages/astra-core/src/vendor/swisseph/semo_18.se1
 
 # Telemetry database (local instance data, not committed)
 backend/data/*.db

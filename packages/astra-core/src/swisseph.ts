@@ -45,14 +45,26 @@ async function loadBytes(url: URL): Promise<Uint8Array> {
 
 async function doInit(): Promise<boolean> {
   try {
-    const [factory, wasmBinary, seas] = await Promise.all([
+    // All three data-file classes, because the two engines must answer from
+    // the SAME set. Swiss treats a missing class as a silent fallback to
+    // Moshier, so loading a subset here would leave the browser on Moshier for
+    // whatever it skipped while the backend read real data — and the tarot seed
+    // is built from longitudes rounded to 0.01° (backend/tarot.py:396), so a
+    // sub-arcsecond disagreement near a rounding boundary changes the seed
+    // STRING and therefore the entire spread. Measured: 3.4% of charts, about
+    // one in thirty, would draw different cards offline than online.
+    const [factory, wasmBinary, seas, sepl, semo] = await Promise.all([
       import("./vendor/swisseph/swisseph.js"),
       loadBytes(new URL("./vendor/swisseph/swisseph.wasm", import.meta.url)),
       loadBytes(new URL("./vendor/swisseph/seas_18.se1", import.meta.url)),
+      loadBytes(new URL("./vendor/swisseph/sepl_18.se1", import.meta.url)),
+      loadBytes(new URL("./vendor/swisseph/semo_18.se1", import.meta.url)),
     ]);
     const m = await factory.default({ wasmBinary });
     m.FS.mkdir("/ephe");
     m.FS.writeFile("/ephe/seas_18.se1", seas);
+    m.FS.writeFile("/ephe/sepl_18.se1", sepl);
+    m.FS.writeFile("/ephe/semo_18.se1", semo);
     const p = m._malloc(16);
     m.stringToUTF8("/ephe", p, 16);
     m.ccall("swe_set_ephe_path_wrap", null, ["number"], [p]);

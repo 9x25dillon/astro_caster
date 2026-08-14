@@ -71,20 +71,13 @@ export const SPREAD_POSITIONS: Record<string, string[]> = {
   creative_expression: ["The Spark", "The Form", "The Block", "The Offering"],
 };
 
-/** Python's round(x, ndigits): round half to EVEN. The backend rounds weights
- *  to 3 dp before they feed the draw, so a naive round would drift the RNG
- *  comparison and flip cards at boundaries. */
-export function pyRound(x: number, ndigits: number): number {
-  const m = 10 ** ndigits;
-  const scaled = x * m;
-  const floor = Math.floor(scaled);
-  const diff = scaled - floor;
-  let r: number;
-  if (diff > 0.5) r = floor + 1;
-  else if (diff < 0.5) r = floor;
-  else r = floor % 2 === 0 ? floor : floor + 1; // exactly .5 → nearest even
-  return r / m;
-}
+// Moved to ./pyround.js so forecast.ts and advanced.ts can share it without
+// importing the deck JSON. Re-exported here because it was part of this
+// module's public surface. The backend rounds weights to 3 dp before they feed
+// the draw, so a naive round would drift the RNG and flip cards at boundaries.
+import { pyRound } from "./pyround.js";
+
+export { pyRound };
 
 export interface ArcanaLink {
   body: string;

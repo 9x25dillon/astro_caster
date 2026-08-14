@@ -9,6 +9,7 @@
 
 import { angularSeparation, degreeInSign, signFor } from "./astrology.js";
 import { eclipticLonSpeed, julianDay } from "./ephemeris.js";
+import { pyRound } from "./pyround.js";
 
 // name → swe order preserved; Moon handled specially. Chiron and the true
 // Node ride the WASM Swiss engine (initSwisseph) via eclipticLonSpeed —
@@ -216,7 +217,11 @@ function eventT2n(transiting: string, natalName: string, asp: string, dateIso: s
   };
 }
 
-const round3 = (x: number) => Math.round(x * 1000) / 1000;
+// Python-compatible: the backend rounds these same orbs with round(x, 3),
+// which is half-to-EVEN. Math.round is half-UP and disagreed at exact
+// boundaries — invisible until the full Swiss data files moved orb values
+// onto them. See ./pyround.ts.
+const round3 = (x: number) => pyRound(x, 3);
 
 const BIG = 999.0;
 
