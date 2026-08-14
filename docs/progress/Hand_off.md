@@ -1,13 +1,185 @@
 # Hand_off.md
 
-_Last updated: 2026-08-12 (session 26 — **v1.0.3 is BUILT, SIGNED and
-PUBLISHED**: https://github.com/9x25dillon/astro_caster/releases/tag/v1.0.3,
-sha256 `13358c52…e2e2`, signing cert unchanged. It carries the six defects
-listed in `RELEASE_v1.0.3.md` off installed devices — including the sidereal
-whole-sign fix and the key-import path — plus the session-26 daily oracle.
-**The landing page edit is PR #180 and the live site still serves the old
-page until the origin box is deployed.**)
+_Last updated: 2026-08-14 (session 27 — **the site is fully deployed and the
+APK is not**. Six PRs merged and shipped to the origin box: the v1.0.3 landing
+page, a frontend healthcheck that had never once passed, Track A3 anchors for
+the sidereal frame and planetary positions, a health endpoint that described a
+folder instead of an ephemeris, and — the big one — **the full Swiss ephemeris
+data files, to both engines**. Production positions now sit within **0.138″ of
+JPL Horizons**; this morning they were up to 3.13″ off and nothing could see
+it. **Every installed phone is still on v1.0.3, which predates all of it.**
+Cutting v1.0.4 is the next session's job and this file opens with it.)
 Re-derive before trusting any of this: `git fetch && git status -sb`._
+
+---
+
+# SESSION 27 — 2026-08-14
+
+## Start here: cut v1.0.4
+
+`main` is at `e0b2a33`, CI green, working tree clean, **0 open PRs**. The
+origin box is deployed and verified. The only thing lagging is the binary.
+
+### 1. What the new APK gains, and why it is worth cutting
+
+The reader engine inside the APK has been computing planetary positions from
+**Moshier's analytic series** for the whole life of the product. The vendored
+ephemeris carried only `seas_18.se1` (asteroids — that is where Chiron comes
+from), and Swiss silently answers any class it cannot find from Moshier. This
+build is the first one whose on-device engine reads real Swiss data.
+
+| | v1.0.3 (on phones) | v1.0.4 (to build) |
+|---|---|---|
+| planetary source | Moshier analytic | **Swiss data files** |
+| worst error vs JPL | 3.13″ (Pluto 1800) | **0.138″** (measured on prod) |
+| forecast orb rounding | `Math.round` (half-up) | **`pyRound`** (half-even, matches backend) |
+
+Neither is visible in a reading — both are far inside the ~1 arcmin that moves
+a body across a sign or cusp. Cut the build anyway: the device is the only
+surface still running the old engine, and leaving it there means the phone and
+the website disagree about the sky.
+
+### 2. The two things that make this build different from a routine one
+
+**(a) It is ~1.75 MB bigger, and that is expected.** `sepl_18.se1` (484,061 B)
+and `semo_18.se1` (1,304,771 B) are now committed under
+`packages/astra-core/src/vendor/swisseph/` and land in `frontend/dist/assets/`
+as fingerprinted, precached assets. `npm run build` reports **precache 33
+entries / 6573 KiB**. The v1.0.3 artifact was **5,860,185 bytes**; expect
+roughly +1.7 MB before APK compression. If the artifact comes out the same
+size as v1.0.3, the data files did not make it in — stop and check `dist`.
+
+**(b) ⚠️ VERIFY BEFORE SHIPPING: saved readings may not reproduce.** The tarot
+seed is built from longitudes rounded to 0.01° (`backend/tarot.py:396`).
+Changing the ephemeris moved some longitudes across a rounding boundary:
+**measured 3.4% of charts (17/500) get a different seed string**, and a
+different seed is a different spread. Reprints re-deal from
+chart+spread+question+date rather than from the stored seed, so a reader who
+reprints a shelved reading cast on v1.0.3 **may get different cards than the
+copy they already have**. This was measured but its effect on the Bookshelf
+and Journal was NOT traced. Before publishing, cast a chart, shelve a reading,
+and reprint it — and decide deliberately whether that needs a migration note
+in the release text. It is a one-time step across an ephemeris change, not an
+ongoing bug.
+
+### 3. Bump the version first
+
+`frontend/android/app/build.gradle` is still `versionCode 3` / `versionName
+"1.0.3"`. Both move: **`versionCode 4`, `versionName "1.0.4"`**. `versionCode`
+is the upgrade path — an unchanged one will not install over the existing app.
+
+### 4. Then follow the runbook that already exists
+
+Do not improvise the build. `docs/progress/RELEASE_v1.0.3.md` is the
+release-shaped wrapper (order of operations, artifact verification) and
+`docs/progress/APK_A0_FINDINGS.md` §"To build it" is the exact recipe. The
+essentials, so you know what you are looking at:
+
+```bash
+export JAVA_HOME=$HOME/.jdks/jdk-21.0.12+8      # 21. Not 17, not 26.
+cd frontend
+VITE_READER_MODE=1 \
+  VITE_API_BASE=https://app.astra-arcana.com/api/v1 \
+  npm run build                                  # the flag IS the reader guarantee
+npx cap sync android
+cd android && ./gradlew assembleRelease
+# sign — keystore at ~/.astra-signing/, NEVER in the tree
+```
+
+Carry these forward, all learned the hard way:
+
+- **`--ks-pass env:` for both password args, not `file:`** — `apksigner` reads
+  one line per file reference, so the second read hits EOF.
+- **The landing page is edited AFTER the APK is signed, never before.** Signing
+  embeds timestamps, so every rebuild changes the sha256. A checksum written
+  from a previous build is worse than none: it teaches readers that verifying
+  is noise. There are five references to the version on that page and they all
+  move together.
+- **Never rebuild to re-publish.** The hash changes and the published checksum
+  becomes a lie.
+- **Debug builds carry `applicationIdSuffix ".dev"`**, so they install beside a
+  release-signed Astra instead of demanding an uninstall that would destroy the
+  reader's charts, journal and entitlement. `adb shell pm list packages | grep
+  astra` showing two is fine; the `.dev` one is disposable.
+- The signing key is the app's permanent identity. Lose it and no future build
+  can ever update an installed Astra.
+
+### 5. After the release is published
+
+`landing/index.html` gets the new version, pinned download URL, `sha256sum`
+filename and checksum — then the origin box needs
+`git pull && docker compose up -d --build` or the site keeps advertising
+v1.0.3. That deploy loop is exercised and reliable; see §"Deploying" below.
+
+---
+
+## What shipped to production this session
+
+All six merged and deployed; box at `e0b2a33`, rollback point `0915353`.
+
+| PR | What |
+|---|---|
+| #180 | landing page → v1.0.3 (deployed; the site had been advertising v1.0.1 with a dead checksum) |
+| #182 | **the frontend healthcheck had never once passed** — `wget` probed `http://localhost/`, BusyBox resolves that to `[::1]` and nginx listens on IPv4 only. `FailingStreak` was 11527, every probe since boot, while serving 200 |
+| #183 | Track A3 — Lahiri ayanamsa anchored at J2000 (mean) and the 1956 vernal equinox (true) |
+| #184 | Track A3 — 40 JPL Horizons planetary longitudes, 10 bodies × 4 epochs |
+| #185 | `/api/health` described a folder, not an ephemeris |
+| #186 | the full Swiss data files, to both engines |
+
+## Deploying (exercised four times today, reliable)
+
+```bash
+ssh -i ~/.ssh/astra_hetzner astra@178.104.120.219
+cd ~/astro-aae && git pull && docker compose up -d --build
+```
+
+- **SSH port 22 is firewalled to the operator's IP, which rotates.** A deploy
+  that opens with `ssh: connect ... timed out` while the site serves 200 is
+  this, not an outage. Check `curl https://api.ipify.org` and repoint the
+  `astra-edge` firewall (id `11451407`) in the Hetzner console —
+  `~/.hetzner-token` is still invalid (401), so the API cannot do it.
+- **Verify from OUTSIDE the box, and check the fields that matter**: not just
+  `status: ok` but `ephemeris` (**now legitimately `swiss-files`**),
+  `personal_mode: false`, `ai.configured: true`, and `/api/generate-chart`
+  returning **17 bodies including Chiron**. `ChartRequest` takes **`lat`/`lng`**,
+  not `latitude`/`longitude` — the wrong names give a 422 that reads like an
+  outage.
+- A 000 on one surface immediately after a rebuild is the restart window.
+  Retry before believing it.
+- `gh run list` returned stale and empty results repeatedly today. `gh api
+  repos/OWNER/REPO/actions/runs --jq ...` was reliable when it was not.
+
+## Open threads, in the order they are worth taking
+
+1. **Cut v1.0.4** — above.
+2. **The precession term.** The residual against JPL is not random: a
+   near-uniform **~0.5″ across every body at 1800**, decaying to ~0.24″ at 1900
+   and ~0.05″ by 2000. A body-independent offset that scales with distance from
+   J2000 is a precession-model signature, not ephemeris error — Horizons states
+   IAU76/80 ecliptic-of-date and Swiss defaults to a newer model. Resolving it
+   is the path from A3's 2″ `engine_allowance` to ACQUISITION.md's 1″. Uranus
+   at 1800 carries ~0.8″ beyond the common offset, plausibly real DE431-vs-DE44x
+   disagreement.
+3. **`check_tolerance_ratchet.py` does not cover per-vector tolerances.** It
+   guards `parity/tolerance.contract.json`; `parity/forecast.json`'s
+   `orb_tolerance_deg` was widened this session (1e-6 → 0.002, justified in the
+   generator) and the ratchet had nothing to say. Real gap.
+4. **Eclipse anchors** — the last unacquired item in `ACQUISITION.md` (§3).
+   Note that its egress blocker is **stale**: JPL Horizons and NASA GSFC answer
+   fine from the operator's machine. Test before deferring.
+
+## Things that are true now and were not this morning
+
+- `parity/anchors/` covers the clock (ΔT), the sidereal frame (ayanamsa) and
+  **positions** (JPL longitudes). Both engines assert against all of it
+  independently. It found two real defects on its first outing.
+- The two engines are **bit-identical** with the new data files: measured
+  5.7e-14° worst-case on raw unrounded longitudes, 0/60 tarot seed strings
+  differing. Bit-identity was the reason the Moshier-only config existed; it
+  survived the change.
+- `.gitignore` no longer swallows the vendored ephemeris. `*.se1` is still a
+  blanket rule — the three vendored files are named as individual exceptions,
+  so adding one stays a deliberate act with a size cost somebody has to see.
 
 ---
 
