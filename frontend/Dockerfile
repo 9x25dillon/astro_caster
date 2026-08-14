@@ -33,5 +33,9 @@ COPY --from=build /repo/frontend/dist /usr/share/nginx/html
 COPY landing/ /usr/share/nginx/landing/
 
 EXPOSE 80
+# Probe 127.0.0.1, not `localhost`: BusyBox wget resolves the name to [::1] and
+# nginx listens on IPv4 only, so the check failed on every run since this image
+# was first built — the container reported `unhealthy` for its whole life while
+# serving 200 to the world. An address, not a name, keeps the two in agreement.
 HEALTHCHECK --interval=15s --timeout=5s --retries=5 \
-  CMD wget -qO- http://localhost/ >/dev/null 2>&1 || exit 1
+  CMD wget -qO- http://127.0.0.1/ >/dev/null 2>&1 || exit 1
