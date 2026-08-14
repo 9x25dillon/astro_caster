@@ -318,7 +318,13 @@ async def health():
         "status": "ok",
         "api_version": API_VERSION,
         "personal_mode": ENT.personal_mode(),
-        "ephemeris": "swiss-files" if E._USING_FILES else "moshier",
+        # Reports which Swiss data files are actually READABLE, not merely that
+        # a directory exists — the old check called a folder containing only
+        # asteroids "swiss-files" while every planet came from Moshier. Still a
+        # string in the same key, so existing probes keep working; `mode` is now
+        # capable of saying "swiss-partial", which is what this deployment is.
+        "ephemeris": E.ephemeris_status()["mode"],
+        "ephemeris_detail": E.ephemeris_status(),
         # ai_status probes local providers (up to ~1.5s each on a cache miss)
         # — keep it off the event loop.
         "ai": await asyncio.to_thread(ai_status),
