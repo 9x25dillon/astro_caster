@@ -26,8 +26,15 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import swisseph as swe  # noqa: E402
 
+# `set_sid_mode` is process-global C state. The suite is single-threaded today,
+# so this is largely ceremonial — but it is the app's own lock, and reaching for
+# it here documents that the ayanamsa calls below are frame-sensitive in exactly
+# the way ephemeris.py's comment describes.
+from ephemeris import swe_lock  # noqa: E402
+
 ANCHOR_DIR = Path(__file__).resolve().parents[2] / "parity" / "anchors"
 DELTA_T_FILE = ANCHOR_DIR / "delta_t.json"
+AYANAMSA_FILE = ANCHOR_DIR / "ayanamsa.json"
 
 
 def _load(path: Path):
@@ -90,6 +97,104 @@ def test_delta_t_rate_between_anchors():
 
 
 # --------------------------------------------------------------------------- #
+# Ayanamsa — the sidereal frame's single degree of freedom
+# --------------------------------------------------------------------------- #
+
+_AYANAMSA = _load(AYANAMSA_FILE) if AYANAMSA_FILE.exists() else {"anchors": []}
+
+
+def _ayanamsa_deg(jd_tt: float, frame: str) -> float:
+    """Swiss Ephemeris' Lahiri ayanamsa at a TT instant, in the requested frame.
+
+    Two things here are deliberate and both are frame decisions, not style:
+
+    `FLG_NONUT` is what separates MEAN from TRUE. Without it Swiss returns the
+    TRUE ayanamsa, which differs from the mean by nutation in longitude — up to
+    ~17 arcsec, an order of magnitude larger than any tolerance in this file.
+    The two anchors genuinely differ in frame because their sources do, so the
+    flag is chosen per anchor rather than fixed here; a comparison that picked
+    the wrong one would fail confidently while both engine and anchor were right.
+
+    `get_ayanamsa_ex` (not `..._ex_ut`) takes a TT argument, matching the
+    anchors' `jd_tt`. Going through the UT variant would apply ΔT twice over —
+    negligible at J2000 (~1e-4 arcsec), less so the further out an anchor sits.
+    """
+    if frame not in ("mean", "true"):
+        raise ValueError(
+            f"unknown ayanamsa frame {frame!r} — the anchor's `frame` field must "
+            "be 'mean' or 'true'. Guessing here is how a 17 arcsec nutation error "
+            "gets mistaken for an engine bug."
+        )
+    flags = swe.FLG_NONUT if frame == "mean" else 0
+    with swe_lock:
+        swe.set_sid_mode(swe.SIDM_LAHIRI, 0, 0)
+        out = swe.get_ayanamsa_ex(jd_tt, flags)
+    # pyswisseph has returned both a bare float and a (retflag, ayanamsa) tuple
+    # across versions; the repo pins 2.10 but the suite should not break on a
+    # bump that only changes the wrapper's shape.
+    return float(out[1]) if isinstance(out, (tuple, list)) else float(out)
+
+
+@pytest.mark.parametrize("anchor", _AYANAMSA["anchors"], ids=lambda a: a["id"])
+def test_ayanamsa_matches_published_value(anchor):
+    """swe must reproduce the published Lahiri ayanamsa within the declared window.
+
+    This is a rigid-rotation fault class. An ayanamsa error moves every body in
+    a sidereal chart by exactly the same angle, so every aspect, pattern and
+    inter-body relationship survives intact while signs and houses shift
+    wholesale. Both engines rotate together, so the golden vectors stay green
+    and the parity harness stays green — nothing inside this repository can see
+    it. Only an external value can.
+    """
+    actual = _ayanamsa_deg(anchor["jd_tt"], anchor["frame"])
+    tol = anchor["uncertainty"] + anchor["engine_allowance"]
+    delta = abs(actual - anchor["value"])
+    assert delta <= tol, (
+        f"{anchor['id']}: engine {actual:.7f}° vs published {anchor['value']}° "
+        f"(Δ{delta * 3600:.3f}\" > {tol * 3600:.3f}\" tolerance)\n"
+        f"  frame:  {anchor['frame']}\n"
+        f"  source: {anchor['source']}\n"
+        f"  {anchor['url']}\n"
+        "  Before touching the anchor, check the FRAME. A miss in the 14-17 arcsec\n"
+        "  range is the nutation term — a mean-vs-true mix-up, not an engine error.\n"
+        "  See the file's frame_note.\n"
+        "  Do NOT widen the anchor to make this pass — see parity/anchors/README.md."
+    )
+
+
+def test_ayanamsa_mean_and_true_differ_by_nutation():
+    """Guard the FRAME itself, which is the trap this anchor is most exposed to.
+
+    The anchor is a MEAN value and the assertion above suppresses nutation to
+    match it. If a future change swapped the flag — or if a Swiss bump altered
+    what `FLG_NONUT` means — the anchor test could keep passing against the
+    wrong quantity only if mean and true happened to coincide, which they do
+    twice per 18.6-year nutation cycle. Asserting that the two are SEPARATED by
+    a plausible nutation at an epoch where nutation is known to be large keeps
+    that coincidence from being mistaken for correctness.
+
+    This is engine-vs-engine and so is NOT an anchor assertion; it pins the
+    frame, and the anchor pins the value.
+    """
+    if not _AYANAMSA["anchors"]:
+        pytest.skip("no ayanamsa anchors acquired yet")
+    jd_tt = _AYANAMSA["anchors"][0]["jd_tt"]
+    diff_arcsec = (
+        _ayanamsa_deg(jd_tt, "true") - _ayanamsa_deg(jd_tt, "mean")
+    ) * 3600.0
+
+    # Nutation in longitude is bounded by roughly ±17.2". At J2000 it is close
+    # to −14"; the window is kept wide because this guards a frame, not a value.
+    assert 0.5 <= abs(diff_arcsec) <= 20.0, (
+        f"mean and true ayanamsa differ by {diff_arcsec:+.3f}\", which is not a "
+        "plausible nutation in longitude. Either FLG_NONUT no longer suppresses "
+        "nutation in this Swiss build, or both calls are now returning the same "
+        "frame — in which case test_ayanamsa_matches_published_value is no longer "
+        "checking what it claims to check."
+    )
+
+
+# --------------------------------------------------------------------------- #
 # Provenance — the anchors' own contract, enforced
 # --------------------------------------------------------------------------- #
 
@@ -142,6 +247,10 @@ def test_anchor_tolerances_stay_bounded(path):
         # 1 arcmin: the point at which a longitude error becomes capable of
         # flipping a sign or house assignment.
         "ecliptic_longitude_deg": 1.0 / 60.0,
+        # Same 1 arcmin cap, same reason, but it bites harder: the ayanamsa is
+        # a rigid rotation, so this error does not average out across a chart —
+        # every body carries the full amount in the same direction at once.
+        "ayanamsa_deg": 1.0 / 60.0,
     }
     payload = json.loads(path.read_text())
     cap = limits.get(payload["quantity"])
