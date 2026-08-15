@@ -17,28 +17,51 @@ the discipline to undo it in the right order.
 
 ---
 
-## 0. The decision that comes first — and it is not a small one
+## 0. ✅ DECIDED 2026-08-15 — it is a monthly subscription
 
-**The landing page advertises `$3.25 / mo` and `$9.99 / mo`. The rail is
-configured to charge `payment` — once.**
+**The offer is a monthly subscription.** Operator's decision, recorded here so
+it stops being a question.
 
-`AAE_STRIPE_MODE` is unset on the box, and `_mode()` defaults to `payment`
-(`stripe_rail.py:93`). Go live as-is and the first customer is charged a single
-$3.25 for something the page sold as monthly. That is a mis-sale, not a bug
-report, and it is the most expensive thing in this document.
+The problem it settles: the landing page advertises `$3.25 / mo` and
+`$9.99 / mo`, while `AAE_STRIPE_MODE` is unset on the box and `_mode()`
+defaults to `payment` — once (`stripe_rail.py:93`). Going live in that state
+charges the first customer a single $3.25 for something sold as monthly.
 
-Two ways to close it — **pick one before anything else:**
+**The fix is one environment variable and nothing else.** Every customer-facing
+surface was audited on the day of the decision and all four already describe a
+subscription:
 
-| | Do | Consequence |
-|---|---|---|
-| **A. Sell a subscription** _(recommended)_ | set `AAE_STRIPE_MODE=subscription` | matches the page, matches the app's copy, and makes the cancel/portal machinery meaningful — it is what the rail was built around |
-| **B. Sell a one-time unlock** | edit `landing/index.html` to say `once`, redeploy | simpler to support, but the Customer Portal, `customer.subscription.deleted` and the whole cancel path become dead code |
+| Surface | Says |
+|---|---|
+| `landing/index.html` | `$3.25 / mo`, `$9.99 / mo`, "Cancel any time from your own billing portal" |
+| `/legal/pricing` | "Monthly tiers renew until you cancel"; price grandfathering |
+| `/legal/refunds` | "Full refund of the most recent payment within 14 days"; self-service cancel via the portal |
+| `/legal/terms` | "Monthly tiers renew automatically until you cancel" |
 
-The app itself is already honest either way — `PricingPanel` words the offer
-from `/api/pricing`'s `mode` (`recurring = mode === "subscription"`). Only the
-landing page hardcodes "/ mo", so only the landing page can lie.
+So the documents were right and the server was out of step. **No copy change is
+required** — `AAE_STRIPE_MODE=subscription` makes every published promise true.
+The app was never at risk either way: `PricingPanel` words the offer from
+`/api/pricing`'s `mode` (`recurring = mode === "subscription"`).
 
-**The rest of this document assumes A.**
+**The $5.50 deluxe report is unaffected**, and deliberately so:
+`create_report_checkout_session` hard-codes `"mode": "payment"` — "a report is
+not a subscription" — so it stays one-time no matter what the tier mode is.
+`$5.50 once` on the page remains true.
+
+### Why the CODE default stays `payment`
+
+Do not "fix" `_mode()`'s fallback to `subscription` to match. The default is a
+fail-safe and it points the right way:
+
+- fallback `payment` while selling monthly → the customer pays **once** and
+  still gets a full entitlement (`AAE_ENT_DAYS`, 365 days). The business loses
+  money; nobody is harmed.
+- fallback `subscription` while selling one-time → the customer is **billed
+  every month** for something sold once. That is the harmful direction, and no
+  refund makes it not have happened.
+
+An explicit env var plus a preflight that fails loudly (§4) is the right guard.
+A default that quietly charges people recurring is not.
 
 ---
 
