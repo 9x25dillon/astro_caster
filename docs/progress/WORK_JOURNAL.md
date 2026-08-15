@@ -5,6 +5,123 @@ PR bodies; this is the story. Started session 15 at the operator's request._
 
 ---
 
+## Session 29 · 2026-08-15 — the rail that took money and gave nothing back
+
+The operator said the payment rail wasn't working. It was working. That was the
+problem.
+
+`card_available` was `true`. The Buy button rendered. Stripe would have taken a
+real card and charged it, and the customer would have been returned to a page
+that said thank you. What never happened was the part after: every
+`checkout.session.completed` arrived at a server that answered `503` and threw
+it away, because `AAE_STRIPE_WEBHOOK_SECRET` had never been put on the box. Money
+in, no entitlement out, and not one surface anywhere reporting a fault — because
+from the container's point of view nothing *was* faulty. It had no webhook
+secret, so it declined to process webhooks. Correct behaviour, honestly
+reported, catastrophic outcome.
+
+The operator had registered the endpoint in the Stripe dashboard and reasonably
+believed that was the job. It is two jobs. Registering the endpoint tells Stripe
+where to send events; pasting the `whsec_` tells the server which events to
+believe. Do the first and skip the second and you get a rail that is open for
+business and structurally incapable of delivering the thing it sells.
+
+What made it findable in about ninety seconds was refusing to reason about it.
+The temptation was to read the `.env` and think. The probe is better: POST
+anything unsigned at the webhook and read the status. `503` means the secret is
+absent and every event is being dropped. `400` means the secret is loaded and
+the signature check rejected your junk, which is exactly what it should do to
+junk. One curl separates "not configured" from "working" without any access to
+the box at all, and without trusting anybody's memory of what they typed
+yesterday — including my own reading of a file five minutes earlier.
+
+There is a lesson in the shape of that bug that keeps recurring in this
+codebase, and it recurred twice more today. Both times the system degraded
+*honestly*, and the honesty is what hid it.
+
+The crypto rail had never worked, for a reason nobody could have found by
+reading the crypto rail. `docker-compose.yml` passes variables into the
+container through an explicit list, and no treasury variable was on it. Set a
+real wallet in `.env`, restart, and the app keeps showing the burn-address
+placeholder and keeps reporting `crypto_available: false` — accurately, because
+the container genuinely never received a wallet. Nothing logs. Nothing errors.
+The third time this exact omission has shipped here: the AI keys, then the
+Stripe keys, now the treasury block. Three features, three silent no-ops, one
+root cause, and each was found only because somebody eventually tried to use the
+feature and disbelieved the calm answer.
+
+Then fixing it nearly took the site down. Adding those variables as `${VAR:-}`
+does not leave them unset — it sets them to empty, and `os.environ.get(k,
+default)` only falls back when a key is *absent*. `int("")` raises at import,
+which means the backend would have failed to boot on the very next deploy: the
+deploy that was about to happen on a box now holding live Stripe keys. It was
+caught by running the module under the environment compose actually produces
+rather than the one I intended it to produce. The repo already had scar tissue
+for this — `stripe_rail._f` carries a comment about `AAE_STRIPE_TIMEOUT`
+crash-looping the backend the same way — and I had read that comment earlier in
+the session and still walked into the trap from the other side. Reading the
+warning is not the same as applying it.
+
+The quieter half of that fix was worse than the crash. An empty
+`AAE_TREASURY_ETH` made the address `""` instead of the burn placeholder, and
+`configured` — which asks only "is this different from the burn address?" —
+cheerfully answered *yes* for an empty string. The rail would have advertised
+itself as open while the verifier refused every payment with "no EVM treasury
+configured". The precise failure I had spent the previous hour removing,
+reintroduced by the fix for it, in a different rail. A crash announces itself. A
+wrong `true` does not.
+
+The eclipse anchors were the day's other work, and they were mostly an exercise
+in not being fooled by agreement. Four solar and four lunar eclipses out of
+Espenak's Five Millennium Catalog, and three separate places where the obvious
+comparison is confidently wrong. The catalog's magnitude column is the Moon/Sun
+diameter ratio for a total eclipse but the obscured-diameter fraction for a
+partial, and Swiss exposes both; pick the wrong index and you get a 0.03
+disagreement that is definitional rather than an error, and you can spend a day
+hunting an ephemeris bug that does not exist. The catalog's own ΔT column is an
+extrapolation for anything after 2006, so using it to convert times charges the
+publisher's 2006 forecast error to your engine and makes it look like modern
+decay. Swiss clamps lunar umbral magnitude at zero where the catalog signs it
+negative, so the one anchor that looks most tempting to assert would have failed
+forever on a definition.
+
+The most useful anchor turned out to be one added almost as an afterthought. All
+the solar eclipses were total, which meant the magnitude convention was
+documented but not actually *tested* — every one of them resolved the same way,
+so a test that hardcoded the wrong index would have passed the entire file.
+Adding a single partial eclipse changed that: hardcoding `attr[0]` now fails six
+of seven anchors, and hardcoding `attr[1]` fails the seventh. Coverage is not
+how many cases you have. It is whether any of them can tell your cases apart.
+
+And the hybrid, which was the whole reason for the second pass. `ECL_HYBRID` and
+`ECL_ANNULAR_TOTAL` are the same constant in swisseph, and the app's mapping
+checks "total" first — so if Swiss ever set both bits, every hybrid eclipse
+would silently report as total and no test would notice. I fully expected to
+find that bug. Swiss returns 33, not 37; the ordering is safe. The right outcome
+was a test that pins the premise rather than a fix, because the thing worth
+recording was never "this is broken" but "this is only correct because of
+something nobody wrote down".
+
+The day ended somewhere unexpected. The operator had bought a subscription in a
+desktop browser and wanted it on their phone, and discovered there was no route
+— the app has had a "paste your key here" field since session 25 and has never,
+anywhere, *shown* anyone their key. The import field's source did not exist. The
+only way to get a key out was to open developer tools and read local storage,
+which is not a thing you ask someone who has just paid you. A field with no
+source is not a feature with a gap; it is a door with no handle on one side, and
+it survived four sessions because everyone who tested it already had the key in
+their clipboard.
+
+Fixing it needed no backend at all, which is the part worth remembering. The
+token was always a bearer credential with no device binding — pasting one key
+into several of your own devices has always worked. Nothing was ever *forbidden*.
+The only thing missing was a way to read the string you already owned. Most of
+the day's real defects were that shape: not a wrong rule, but a missing door,
+sitting behind a system that was reporting itself perfectly healthy the whole
+time.
+
+---
+
 ## Session 28 · 2026-08-15 — the number that stood in for the measurement
 
 Yesterday's session ended with a warning written into the handoff, in bold, as

@@ -1,13 +1,150 @@
 # Hand_off.md
 
-_Last updated: 2026-08-15 (session 28 — **v1.0.4 is published and the phone
-runs the real ephemeris at last**. The APK was cut, signed, verified on
-hardware and released; the landing page moved with it. Verifying the one thing
-session 27 flagged found it was **~9× worse than recorded** — 28.8% of shelved
-readings would have reprinted a different spread, not 3.4% — so it was fixed
-rather than noted. The only step left when this was written is the origin-box
-deploy of the landing page, which needs an operator shell.)
+_Last updated: 2026-08-15 (session 29 — **the money rail works end to end and a
+real subscription is running on the operator's own phone**. The card rail was
+open and silently minting nothing; the eclipse anchors were acquired and
+asserted on both engines; v1.0.5 is published. Servers are UP and the rail is
+LIVE — this is the first handoff written with real money flowing.)
 Re-derive before trusting any of this: `git fetch && git status -sb`._
+
+---
+
+# SESSION 29 — 2026-08-15
+
+## Start here
+
+`main` is at `bbd9422`, working tree clean, both suites green (backend 475,
+astra-core 60, frontend 43 + 18 e2e). **v1.0.5 is published and live.**
+
+**⚠️ THE RAIL IS LIVE AND TAKES REAL MONEY.** `card_available: true`,
+`mode: subscription`, webhook probe returns `400`. This is no longer a staging
+system: a mistake here charges a real card. There is no "closed" state to fall
+back on unless you deliberately re-park the keys (§6 of `M5_GOLIVE.md`).
+
+## The bug that mattered most today, and how to find it again in one command
+
+The operator reported "the payment rail isn't working". It was half-configured
+in the worst possible way: `AAE_STRIPE_SECRET_KEY` was on the box, so the rail
+**opened and could charge a card**, but `AAE_STRIPE_WEBHOOK_SECRET` had never
+been added, so every `checkout.session.completed` was answered `503` and
+**dropped**. Money in, no entitlement out, and every surface reporting itself
+healthy.
+
+Registering the endpoint in the Stripe dashboard and putting the `whsec_` on
+the server are **two separate steps**. Only the first had been done.
+
+**Diagnose it with a probe, never by reading `.env`:**
+
+```bash
+curl -s -o /dev/null -w "%{http_code}\n" -X POST \
+  https://app.astra-arcana.com/api/stripe/webhook \
+  -H "Content-Type: application/json" -d '{}'
+# 503 = secret absent, every event dropped.  400 = secret loaded, working.
+```
+
+`backend/tools/m5_preflight.py` catches the same thing and is read-only; it now
+reports 10 pass / 1 warn / 0 FAIL. The remaining warn is informational.
+
+## What shipped
+
+| What | Where |
+|---|---|
+| Crypto/treasury vars finally reach the container | `50758e6` + merge `50ac45d` |
+| The compose fix that would have crash-looped the backend | `cee91e5` |
+| Eclipse anchors acquired (8) + runner on both engines | `12c6ced`, `8994edc`, merge `92c23cf` |
+| Annular + hybrid + partial anchors — every nature branch pinned | `a6903ac` |
+| Key EXPORT in Library chapter VIII | `dc41e93` |
+| v1.0.5 cut and published | `37614bb`, `bbd9422` |
+
+Release: [`v1.0.5`](https://github.com/9x25dillon/astro_caster/releases/tag/v1.0.5),
+`astra-1.0.5-reader.apk`, 7,523,335 B, sha256
+`fdf61fa328395860ba9a952031cbc361016c539509e403e2755f68e8d1fdaa19`, signing
+cert unchanged (`c568d41d…2b0a82e`). Checksum verified against the
+**downloaded** file; the advertised link was resolved (HTTP 200) before the
+page shipped.
+
+## ⚠️ Three traps that are now in the repo, and will bite again
+
+**1. A var absent from `docker-compose.yml`'s `environment:` list never reaches
+the container.** This was the THIRD occurrence (AI keys, Stripe keys, now the
+whole treasury/crypto block). Setting a wallet in `.env` was a silent no-op.
+Every instance has the same shape: the feature degrades *honestly*, reports
+itself unavailable, logs nothing — which is exactly what makes it invisible.
+
+**2. Fixing (1) can crash-loop the backend.** `${VAR:-}` does not leave a
+variable unset, it SETS it empty, and `os.environ.get(k, default)` only falls
+back when the key is ABSENT. `int("")` then raises at import. Caught before
+deploying by running the module under the environment compose actually
+produces. Guards: `entitlements._i`, `treasury._s`, `stripe_rail._f`,
+`budget._f`. Pinned by `backend/tests/test_env_empty_passthrough.py`, whose
+`COMPOSE_EMPTIES` list must be kept in step with the compose block.
+
+**3. "Same size as the last build" does NOT mean the build failed.** v1.0.5 came
+out at exactly 7,523,335 bytes, byte-identical in SIZE to v1.0.4, with a
+different sha256. Session 27 told the next person to stop on that signal — there
+it meant missing data files. Here it was zip compression on a small text delta.
+**Check the content:** extract the APK and grep `assets/public/assets/` for a
+string you know is new.
+
+## The eclipse anchors — what to read before touching them
+
+`parity/anchors/eclipses.json`: 11 anchors, 1919–2023, 7 solar + 4 lunar.
+Every branch of `predictive._eclipse_nature` is pinned. Two things encode
+comparisons that look obvious and are wrong:
+
+- **Magnitude is `attr[8]`, never `attr[0]` or `attr[1]`.** The catalog's column
+  is the Moon/Sun *diameter ratio* for total/annular/hybrid but the *obscured
+  diameter fraction* for a partial; `attr[8]` is the field that switches.
+  Hardcoding `attr[0]` fails 6/7 solar anchors, `attr[1]` fails 1/7.
+- **Never convert with the catalog's own ΔT column.** It is an extrapolation
+  after the canon's 2006 publication (70 s printed vs 68.85 s observed at 2017).
+  Anchors are stored in TD; the test converts the *engine's* UT answer with the
+  *engine's* `deltat()`.
+
+Anchors now support a `measurements` map as well as the flat form —
+`_measurements()` in `test_anchors.py` normalises both. Any non-Markdown change
+under `parity/anchors/` needs an `ANCHOR-CHANGE:` commit trailer or CI fails.
+
+**Verified to bite:** worst assertion sits at 54% of tolerance; a 120 s timing
+bias fails 11/11. **Honest gap, written down rather than implied:** converting
+with the catalog's predicted ΔT is NOT caught — it lands at 95% of tolerance on
+`lunar-2018-07-27`.
+
+## Known and accepted
+
+- **The APK export half is on v1.0.5 only.** The operator's personal phone runs
+  the *purchased* subscription and shows Supporter chrome; the Pixel
+  (`5C091JEA325346`) is a TEST device with no key, so its masthead correctly
+  reads "Support / Unlock". **That is not a bug** — the export block renders
+  only when a key is present.
+- **`assetlinks.json` is not served.** `app.astra-arcana.com/.well-known/assetlinks.json`
+  returns the SPA fallback HTML with a 200, so Android App Links are NOT
+  configured. Stripe therefore returns a payer to a *browser*, not the app.
+  Irrelevant while keys move by copy-paste; the first thing to fix if in-app
+  purchase or automatic post-checkout unlock is ever wanted.
+- **The APK remains a READER by deliberate design** (`readerMode.ts`,
+  `capacitor.config.ts`) — no purchase UI, no billing SDK, which is what lets
+  one artifact serve Play, F-Droid and direct download. The operator confirmed
+  this stands. Note the honest limit already recorded there: checkout *bytes*
+  are still in the bundle; the guarantee is "no purchase UI is reachable".
+
+## Open threads
+
+1. **The customer portal is unverified in LIVE.** Test and live configure
+   separately; without it the in-app cancel fails. `--expect-live` checks it and
+   needs the live key. **Cancel before refund, always** — the mint stores
+   `sub_…`, `charge.refunded` carries `py_…`, so a refund never revokes a
+   subscription.
+2. **The precession term.** Unchanged: ~0.5″ at 1800 decaying to ~0.05″ by 2000,
+   a body-independent offset — the path from A3's 2″ `engine_allowance` to
+   ACQUISITION.md's 1″.
+3. **`check_tolerance_ratchet.py` does not cover per-vector tolerances.** Real
+   gap, still unchanged.
+4. **ΔT at 1900 and 2050** — the last deferred anchors (`ACQUISITION.md` §2).
+5. **LAN key pairing**, discussed and deliberately not built. If revisited: the
+   secret must be a short-lived single-use code, with same-IP as a *secondary*
+   check only. Same public IP is not identity — CGNAT and public wifi put
+   thousands of strangers behind one address.
 
 ---
 
