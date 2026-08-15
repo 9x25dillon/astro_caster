@@ -45,8 +45,17 @@ export async function printSessionTome(s: TomeSession): Promise<boolean> {
   }
 
   // Plates page: re-deal the SESSION's spread deterministically on-device —
-  // same chart + spread + question + date + lineage ⇒ the same cards the
-  // report reads (parity-locked), not a new shuffle. Optional on failure.
+  // the same cards the report reads (parity-locked), not a new shuffle.
+  // Optional on failure.
+  //
+  // The STORED seed drives the re-deal, not one re-derived from the re-cast
+  // chart. Re-deriving looks equivalent and is not: the seed folds in
+  // longitudes rounded to 0.01°, so any change to the ephemeris under a
+  // shelved reading walks some charts across a rounding boundary and deals a
+  // different spread — beside report text that is already written and still
+  // names the old cards. The v1.0.3 → v1.0.4 data-file change moved 28.8% of
+  // measured charts (144/500); replaying the stored seed reproduced the
+  // original draw on all 500.
   let spreadCards;
   try {
     if (chart) {
@@ -54,7 +63,7 @@ export async function printSessionTome(s: TomeSession): Promise<boolean> {
         chart,
         s.spread as SpreadType,
         s.question,
-        { source: s.source as SourceSystem, date: s.date ?? undefined }
+        { source: s.source as SourceSystem, date: s.date ?? undefined, seed: s.seed }
       );
       spreadCards = redeal.cards.map((c) => ({
         position: c.position, name: c.card.name, arcana: c.card.arcana,
