@@ -51,8 +51,22 @@ async function doInit(): Promise<boolean> {
     // whatever it skipped while the backend read real data — and the tarot seed
     // is built from longitudes rounded to 0.01° (backend/tarot.py:396), so a
     // sub-arcsecond disagreement near a rounding boundary changes the seed
-    // STRING and therefore the entire spread. Measured: 3.4% of charts, about
-    // one in thirty, would draw different cards offline than online.
+    // STRING and therefore the entire spread.
+    //
+    // Measured on the exact subset this file used to load (seas_18 only, so
+    // planets came from Moshier), backend engine both sides: 144/500 charts
+    // (28.8%) drew a DIFFERENT spread, and an independent grid of 1,152 birth
+    // moments put it at 29.9%. Nearly one chart in three, not the one in
+    // thirty recorded here before it was measured — the seed reads seventeen
+    // bodies, so it is the union of seventeen chances to cross a bucket, not
+    // one.
+    //
+    // The load is all-or-nothing on purpose: Promise.all means any missing
+    // file leaves `instance` null, and `calculateChart` then THROWS rather
+    // than answering — so a broken data file is a chart that visibly does not
+    // cast, never a chart that quietly casts on the wrong numbers. A partial
+    // load would be the invisible kind, and invisible is how the subset above
+    // survived three releases.
     const [factory, wasmBinary, seas, sepl, semo] = await Promise.all([
       import("./vendor/swisseph/swisseph.js"),
       loadBytes(new URL("./vendor/swisseph/swisseph.wasm", import.meta.url)),
