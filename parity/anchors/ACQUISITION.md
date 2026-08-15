@@ -120,11 +120,28 @@ anticipate:
   `+` means "central total, Moon north of the axis" for lunar, but
   "non-central, no northern limit" for solar.
 
-**Still open:** an annular and a hybrid solar eclipse, to pin
-`_eclipse_nature`'s `ECL_ANNULAR` and `ECL_ANNULAR_TOTAL` branches. Those two
-are the likeliest to be wrong, because swisseph's `ECL_HYBRID` and
-`ECL_ANNULAR_TOTAL` are the **same bit (32)** and a differently-ordered check
-would misreport one as the other. Same pages, same method as below.
+**Completed later the same day** with three more solar anchors, so every
+`_eclipse_nature` branch is now pinned:
+
+- `solar-1955-12-14-annular` — `ECL_ANNULAR` (bit 8), retflag 9.
+- `solar-2023-04-20-hybrid` — `ECL_ANNULAR_TOTAL` (bit 32), retflag 33. The
+  trap was real but the engine is clean: `ECL_HYBRID` and `ECL_ANNULAR_TOTAL`
+  are the same constant, and `_eclipse_nature` checks `ECL_TOTAL` first, so a
+  hybrid that also carried bit 4 would silently report as "total". **Measured:
+  Swiss returns 32 without 4.** `test_hybrid_anchor_does_not_also_carry_the_total_bit`
+  pins that premise directly. 2013 Nov 03 (`H3`) behaves identically.
+- `solar-1989-03-07-partial` — `ECL_PARTIAL` (bit 16), retflag 18, **and the
+  anchor that makes the magnitude convention testable.** For a partial the
+  catalog's magnitude is the obscured-diameter FRACTION, so `attr[8]` equals
+  `attr[0]` (0.82654) rather than `attr[1]` (1.03646). Every other solar anchor
+  is the ratio kind, so before this one existed a test hardcoding `attr[1]`
+  passed the whole file. Hardcoding `attr[0]` is now caught on 6/7 solar
+  anchors and `attr[1]` on 1/7 — the partial.
+
+**Nothing further is required for nature coverage.** What is left is depth:
+only one hybrid is stored, the set spans 1919–2023 only, and no eclipse sits
+close enough to a magnitude boundary to test the threshold rather than the
+ephemeris — that last one is A2's business.
 
 <details>
 <summary>Original acquisition plan (kept for the queries and the reasoning)</summary>

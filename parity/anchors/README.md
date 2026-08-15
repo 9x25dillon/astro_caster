@@ -55,14 +55,17 @@ guard.
 - **Ayanamsa** (`ayanamsa.json`): Lahiri at J2000 (mean) and the 1956 vernal
   equinox (true). `frame` is per-anchor — mean and true differ by nutation,
   ~14-17″, larger than every tolerance here.
-- **Eclipses** (`eclipses.json`): four solar and four lunar, 1919–2018, from
+- **Eclipses** (`eclipses.json`): seven solar and four lunar, 1919–2023, from
   Espenak & Meeus' Five Millennium Catalog (NASA GSFC) — instant of greatest
   eclipse, magnitude, and nature. Both Swiss entry points are covered
-  (`sol_eclipse_when_glob` and `lun_eclipse_when`), as is every branch of
-  `predictive._eclipse_nature` a lunar eclipse can reach. Read
-  `magnitude_convention_note` before comparing any magnitude: the catalog's
-  column is the Moon/Sun **diameter ratio** for total and annular eclipses,
-  which is Swiss `attr[8]`, not `attr[0]`. Read `delta_t_column_note` before
+  (`sol_eclipse_when_glob` and `lun_eclipse_when`), and **every branch of
+  `predictive._eclipse_nature` is pinned**: total, annular, annular_total
+  (hybrid), partial and penumbral. Read `magnitude_convention_note` before
+  comparing any magnitude: the catalog's column is the Moon/Sun **diameter
+  ratio** for total, annular and hybrid eclipses but the **obscured-diameter
+  fraction** for a partial — Swiss `attr[8]` is the field that switches between
+  them, and hardcoding either `attr[0]` or `attr[1]` is caught by an anchor.
+  Read `delta_t_column_note` before
   converting any instant: the catalog's own ΔT column is an extrapolation for
   anything after 2006, so the comparison is made in **TD**, converting the
   engine's UT answer with the engine's own `deltat()`.
@@ -99,6 +102,5 @@ acquired that day by direct HTTP GET. **Retest egress before deferring anything
 else on those grounds** — a recorded blocker is a snapshot, not a standing fact,
 and this one outlived its truth by three days.
 
-Still deferred, with reasons in `ACQUISITION.md`: ΔT at 1900 and 2050, and the
-annular/hybrid solar eclipses that would pin `_eclipse_nature`'s remaining two
-branches.
+Still deferred, with reasons in `ACQUISITION.md`: ΔT at 1900 and 2050. The
+eclipse set is complete for nature coverage as of 2026-08-15.

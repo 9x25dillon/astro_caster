@@ -19,7 +19,7 @@
 
   "time_scale_note": "Every instant here is stored in TD (Dynamical Time), as the catalog publishes it. The engine works in UT. The conversion belongs in the test, not in this file: a UT value stored here would be a number this repository computed, which is exactly what an anchor may not be. The test converts the ENGINE's UT answer to TD using the ENGINE's own deltat() and compares against the published TD. ΔT is separately anchored by delta_t.json, so that direction of conversion is itself covered rather than assumed.",
   "delta_t_column_note": "`delta_t_catalog_s` is the catalog's own ΔT column, recorded for provenance and DELIBERATELY NOT USED to convert anything. The source states its future ΔT was 'extrapolated from current values weighted by the long term trend from tidal effects'. The canon dates from 2006, so every value after it is a prediction: for 2017 Aug 21 the catalog prints 70 s where the observed value is 68.85 s. Converting TD->UT with the catalog's own column would inject that 1.15 s prediction error into the comparison and charge it to our engine.",
-  "magnitude_convention_note": "THE TRAP IN THIS FILE. The catalog's 'Ecl. Mag.' column is defined as 'the fraction of the Sun's diameter obscured by the Moon. For annular, total and hybrid eclipses, this value is actually the diameter ratio of Moon/Sun.' Swiss `sol_eclipse_where` returns BOTH quantities and they are not the same number: for 1919 attr[0] is 1.03637 (obscured-diameter fraction) and attr[1] is 1.07280 (diameter ratio). The value to compare against this catalog is attr[8], which pyswisseph documents as 'magnitude acc. to NASA (equals attr[0] for partial and attr[1] for annular and total eclipses)' — the catalog's convention exactly. Comparing against attr[0] instead shows a ~0.03 disagreement that is definitional, not an error, and 'fixing' it would be chasing a ghost. All four solar anchors here are total, so attr[8] == attr[1] for every one of them; a partial added later exercises the other branch and must still read attr[8].",
+  "magnitude_convention_note": "THE TRAP IN THIS FILE. The catalog's 'Ecl. Mag.' column is defined as 'the fraction of the Sun's diameter obscured by the Moon. For annular, total and hybrid eclipses, this value is actually the diameter ratio of Moon/Sun.' Swiss `sol_eclipse_where` returns BOTH quantities and they are not the same number: for 1919 attr[0] is 1.03637 (obscured-diameter fraction) and attr[1] is 1.07280 (diameter ratio). The value to compare against this catalog is attr[8], which pyswisseph documents as 'magnitude acc. to NASA (equals attr[0] for partial and attr[1] for annular and total eclipses)' — the catalog's convention exactly. Comparing against attr[0] instead shows a ~0.03 disagreement that is definitional, not an error, and 'fixing' it would be chasing a ghost. BOTH branches are now anchored and measured, so this is not a theory: for the total, annular and hybrid anchors attr[8] == attr[1] (e.g. 1919 → 1.07280), while for solar-1989-03-07-partial attr[8] == attr[0] == 0.82654 and attr[1] is 1.03646 — a 0.21 miss, two orders of magnitude outside tolerance. A test that hardcoded EITHER index would pass on one group and fail on the other. Read attr[8] and let Swiss pick.",
 
   "anchors": [
     {
@@ -156,6 +156,114 @@
           "uncertainty_basis": "Printed to 4 decimal places.",
           "engine_allowance": 0.002,
           "engine_allowance_note": "See solar-1919-05-29."
+        }
+      }
+    },
+
+    {
+      "id": "solar-1955-12-14-annular",
+      "kind": "solar",
+      "catalog_number": "09411",
+      "calendar_date": "1955 Dec 14",
+      "td_instant": "1955-12-14T07:02:25Z",
+      "delta_t_catalog_s": 31,
+      "nature": "annular",
+      "catalog_type": "A",
+      "gamma": 0.4266,
+      "branch_note": "Pins `_eclipse_nature`'s ECL_ANNULAR branch (bit 8). Engine retflag is 9 = ECL_CENTRAL|ECL_ANNULAR. Before this anchor the annular branch was never exercised by any test in the repository.",
+      "source": "Espenak & Meeus, Five Millennium Catalog of Solar Eclipses: -1999 to +3000, NASA/GSFC, century page 1901-2000",
+      "url": "https://eclipse.gsfc.nasa.gov/SEcat5/SE1901-2000.html",
+      "citation": "09411  1955 Dec 14  07:02:25     31   -545  141   A   p-   0.4266  0.9176   2N  72E  65  346  12m09s",
+      "retrieved": "2026-08-15",
+      "measurements": {
+        "instant_td": {
+          "value": 2435455.793344907,
+          "unit": "jd_tt",
+          "uncertainty": 5.787037037e-06,
+          "uncertainty_basis": "0.5 s in days; see solar-1919-05-29.",
+          "engine_allowance": 3.472222222e-05,
+          "engine_allowance_note": "3 s in days; see solar-1919-05-29. A CENTRAL eclipse (gamma 0.4266, the shadow axis crosses Earth), so the closest-approach instant is as well-conditioned as the total anchors and earns the same tight allowance."
+        },
+        "magnitude": {
+          "value": 0.9176,
+          "unit": "ratio",
+          "value_note": "Annular, so per the column key this is the Moon/Sun DIAMETER RATIO — below 1, which is what makes it annular. Swiss attr[8] equals attr[1] here (0.91838), not attr[0] (0.95918). Same branch as the total anchors despite the magnitude being <1: the split is annular/total/hybrid vs partial, NOT magnitude above/below 1.",
+          "uncertainty": 0.00005,
+          "uncertainty_basis": "Printed to 4 decimal places.",
+          "engine_allowance": 0.002,
+          "engine_allowance_note": "See solar-1919-05-29. Observed +0.00078, consistent with the same uniform adopted-radius factor as the total anchors."
+        }
+      }
+    },
+    {
+      "id": "solar-1989-03-07-partial",
+      "kind": "solar",
+      "catalog_number": "09484",
+      "calendar_date": "1989 Mar 07",
+      "td_instant": "1989-03-07T18:08:41Z",
+      "delta_t_catalog_s": 56,
+      "nature": "partial",
+      "catalog_type": "P",
+      "gamma": 1.0981,
+      "branch_note": "Pins `_eclipse_nature`'s ECL_PARTIAL branch (bit 16); engine retflag is 18 = ECL_NONCENTRAL|ECL_PARTIAL. It is also THE anchor that proves the magnitude convention, because it is the only solar anchor where attr[8] takes its other value — see this anchor's magnitude note.",
+      "source": "Espenak & Meeus, Five Millennium Catalog of Solar Eclipses: -1999 to +3000, NASA/GSFC, century page 1901-2000",
+      "url": "https://eclipse.gsfc.nasa.gov/SEcat5/SE1901-2000.html",
+      "citation": "09484  1989 Mar 07  18:08:41     56   -134  149   P   t-   1.0981  0.8268  61N 170W   0",
+      "citation_note": "The row's trailing Path Width and Central Duration columns are blank in the source, as they are for every partial eclipse — there is no central line. Only trailing whitespace was removed.",
+      "retrieved": "2026-08-15",
+      "measurements": {
+        "instant_td": {
+          "value": 2447593.256030092,
+          "unit": "jd_tt",
+          "uncertainty": 5.787037037e-06,
+          "uncertainty_basis": "0.5 s in days; see solar-1919-05-29.",
+          "engine_allowance": 5.787037037e-05,
+          "engine_allowance_note": "5 s in days — wider than the central anchors, for the same reason lunar-1961-03-02 is. Gamma is 1.0981, i.e. GREATER THAN 1: the shadow axis misses Earth entirely and never touches the surface. 'Greatest eclipse' is then the minimum of a shallow grazing approach rather than a crossing, so the instant is less sharply determined and the same ephemeris difference buys more seconds. Observed here is 2.99 s, which would sit at 85% of the 3.5 s tolerance the central anchors get — too close to call a pass with confidence. Set by the geometry, not by the observation."
+        },
+        "magnitude": {
+          "value": 0.8268,
+          "unit": "ratio",
+          "value_note": "⚠️ THE OTHER BRANCH, and the reason this anchor is here. For a PARTIAL eclipse the catalog's Ecl. Mag. is the fraction of the Sun's DIAMETER OBSCURED — not the diameter ratio — so Swiss attr[8] equals attr[0] (0.82654) and NOT attr[1] (1.03646). Using attr[1] here misses by 0.21, two orders of magnitude outside tolerance. Every other solar anchor in this file is total, annular or hybrid, where attr[8] equals attr[1]; without this one, a test that hardcoded attr[1] would pass on all of them and be wrong.",
+          "uncertainty": 0.00005,
+          "uncertainty_basis": "Printed to 4 decimal places.",
+          "engine_allowance": 0.002,
+          "engine_allowance_note": "See solar-1919-05-29. Observed -0.00026 — smaller than the +0.0009 the ratio-based anchors show, and of the opposite sign, which is expected: the obscured-diameter fraction is a different function of the same radii, so an adopted-radius difference propagates through it differently. That the two branches disagree in DIFFERENT ways is itself evidence the cause is an adopted constant rather than an ephemeris error."
+        }
+      }
+    },
+    {
+      "id": "solar-2023-04-20-hybrid",
+      "kind": "solar",
+      "catalog_number": "09559",
+      "calendar_date": "2023 Apr 20",
+      "td_instant": "2023-04-20T04:17:56Z",
+      "delta_t_catalog_s": 73,
+      "delta_t_catalog_is_prediction": true,
+      "nature": "annular_total",
+      "catalog_type": "H",
+      "gamma": -0.3952,
+      "branch_note": "Pins `_eclipse_nature`'s ECL_ANNULAR_TOTAL branch (bit 32) — the last unexercised one, and the one with a real trap behind it: swisseph's ECL_HYBRID and ECL_ANNULAR_TOTAL are the SAME constant (32), so an implementation that checked them in a different order could misreport one as the other. MEASURED, not assumed: the engine returns retflag 33 = ECL_CENTRAL|ECL_ANNULAR_TOTAL and does NOT also set ECL_TOTAL (4). That matters because `_eclipse_nature` tests total FIRST, so had Swiss set both bits the app would silently report a hybrid as 'total'. It does not. 2013 Nov 03 (catalog type 'H3', hybrid path begins annular and ends total) was checked the same way and behaves identically — the sub-type collapses to annular_total too.",
+      "source": "Espenak & Meeus, Five Millennium Catalog of Solar Eclipses: -1999 to +3000, NASA/GSFC, century page 2001-2100",
+      "url": "https://eclipse.gsfc.nasa.gov/SEcat5/SE2001-2100.html",
+      "citation": "09559  2023 Apr 20  04:17:56     73    288  129   H   -n  -0.3952  1.0132  10S 126E  67   49  01m16s",
+      "retrieved": "2026-08-15",
+      "measurements": {
+        "instant_td": {
+          "value": 2460054.679120370,
+          "unit": "jd_tt",
+          "uncertainty": 5.787037037e-06,
+          "uncertainty_basis": "0.5 s in days; see solar-1919-05-29.",
+          "engine_allowance": 3.472222222e-05,
+          "engine_allowance_note": "3 s in days; see solar-1919-05-29. Central (gamma -0.3952), so well-conditioned. Observed 0.11 s — the closest agreement in the file. As with solar-2017-08-21 the catalog's ΔT column (73 s) is a post-2006 extrapolation and is not used."
+        },
+        "magnitude": {
+          "value": 1.0132,
+          "unit": "ratio",
+          "value_note": "Hybrid, so the diameter-ratio branch: attr[8] equals attr[1] (1.01406), not attr[0] (1.00699). A hybrid's magnitude sits just above 1 by construction — that is exactly what makes the eclipse total where the umbral vertex reaches the surface and annular where it does not.",
+          "uncertainty": 0.00005,
+          "uncertainty_basis": "Printed to 4 decimal places.",
+          "engine_allowance": 0.002,
+          "engine_allowance_note": "See solar-1919-05-29. Observed +0.00086, in line with the same uniform factor."
         }
       }
     },
@@ -326,9 +434,9 @@
     }
   ],
 
-  "coverage_note": "Four solar and four lunar, spanning 1919-2018. The split is not decoration: `eclipse_timeline` reaches Swiss through two different entry points — `sol_eclipse_when_glob` and `lun_eclipse_when` — and a solar-only set would leave the lunar half of the product unanchored. The lunar four also cover every branch of `predictive._eclipse_nature` a lunar eclipse can reach (total, partial, penumbral), including the 'Nx' total-penumbral and 'T+' central-total sub-types the app deliberately collapses.",
+  "coverage_note": "Seven solar and four lunar, spanning 1919-2023. The split is not decoration: `eclipse_timeline` reaches Swiss through two different entry points — `sol_eclipse_when_glob` and `lun_eclipse_when` — and a solar-only set would leave the lunar half of the product unanchored.\n\nEVERY branch of `predictive._eclipse_nature` is now pinned by a measured anchor: total (bit 4, four solar + two lunar), annular_total/hybrid (32, solar-2023-04-20-hybrid), annular (8, solar-1955-12-14-annular), partial (16, solar-1989-03-07-partial and lunar-1961-03-02) and penumbral (64, lunar-1999-01-31). The 'unknown' fallback is therefore the only path left unreached, which is correct — it exists for a retflag carrying none of the five bits, and no real eclipse produces one.\n\nThe sub-types the app deliberately collapses are covered too: 'Nx' (total penumbral) → penumbral, 'T+' (central total) → total, and 'H'/'H3' (hybrid, either path order) → annular_total.",
   "deferred": {
-    "reason": "No annular or hybrid solar eclipse is anchored, so `_eclipse_nature`'s ECL_ANNULAR and ECL_ANNULAR_TOTAL branches remain unpinned — arguably the two branches most likely to be got wrong, since swisseph's ECL_HYBRID and ECL_ANNULAR_TOTAL are the SAME bit (32) and an implementation that ordered its checks differently would misreport one as the other. The catalog pages needed are the ones already cited here and the acquisition is mechanical; it was left out of this pass to keep the first eclipse anchor to a reviewable size, not because anything blocks it.",
-    "pending": ["solar-annular", "solar-hybrid"]
+    "reason": "Nothing is deferred for solar or lunar eclipse NATURE — every branch is anchored. What remains is depth rather than coverage: only one hybrid is checked in (2013 Nov 03 was measured and behaves identically but is not stored), no eclipse is anchored outside 1919-2023, and no eclipse near a magnitude boundary tight enough to flip its classification is included. The last of those is the interesting one and needs care: an eclipse within ~0.001 of a boundary would test the threshold rather than the ephemeris, and picking one is A2's business, not this file's.",
+    "pending": []
   }
 }

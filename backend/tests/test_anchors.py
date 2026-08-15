@@ -408,10 +408,16 @@ def test_anchor_tolerances_stay_bounded(path):
 # changing anything here. Both encode a comparison that looks obvious and is
 # wrong.
 #
-# Verified to bite, 2026-08-15. Every assertion below sits at <=50% of its
-# tolerance, so nothing here passes on slack. Two injected faults were checked:
-# reading attr[0] instead of attr[8] fails on 4/4 solar anchors, and a 120 s
-# timing bias (1 arcmin of lunar motion) fails on 8/8.
+# Verified to bite, 2026-08-15. Every assertion below sits at <=54% of its
+# tolerance, so nothing here passes on slack. Injected faults:
+#   - hardcoding attr[0] instead of attr[8]: fails on 6/7 solar anchors
+#   - hardcoding attr[1] instead of attr[8]: fails on 1/7 — the PARTIAL
+#   - a 120 s timing bias (1 arcmin of lunar motion): fails on 11/11
+#
+# That asymmetry is the whole argument for solar-1989-03-07-partial. attr[8] is
+# attr[1] for total/annular/hybrid and attr[0] for partial, so before a partial
+# was anchored, hardcoding attr[1] passed EVERY anchor in the file. One anchor
+# of the other kind is what turns a documented convention into a tested one.
 #
 # The honest negative, recorded so nobody assumes more coverage than exists:
 # converting with the catalog's own predicted ΔT — the mistake delta_t_column_note
@@ -600,3 +606,70 @@ def test_eclipse_timeline_reports_anchored_eclipses_on_the_published_date():
             f"{anchor['id']}: timeline says nature={event.nature}, "
             f"catalog says {anchor['nature']} (row: {anchor['citation']})"
         )
+
+
+def test_every_eclipse_nature_branch_is_anchored():
+    """The coverage claim, asserted rather than written in a comment.
+
+    `_eclipse_nature` maps five retflag bits to five names. Until an anchor
+    exercises a branch, that branch is untested and a wrong mapping in it is
+    invisible — which was true of annular and annular_total until 2026-08-15.
+    The hybrid case is the one with a real trap: swisseph's ECL_HYBRID and
+    ECL_ANNULAR_TOTAL are the SAME constant (32), and `_eclipse_nature` checks
+    total FIRST, so if Swiss ever also set ECL_TOTAL on a hybrid the app would
+    report it as 'total' and every other test here would still pass.
+
+    Deleting an anchor to make something else green would silently shrink this
+    coverage, so the completeness is pinned here instead of trusted to review.
+    """
+    if not _ECLIPSES["anchors"]:
+        pytest.skip("eclipses.json not acquired — see ACQUISITION.md")
+
+    from predictive import _ECLIPSE_NATURE  # noqa: PLC0415
+
+    # "unknown" is the fallback for a retflag carrying none of the five bits.
+    # No real eclipse produces one, so it is correctly unreachable by anchor.
+    mappable = {name for name, _bit in _ECLIPSE_NATURE}
+    anchored = {a["nature"] for a in _ECLIPSES["anchors"]}
+
+    missing = mappable - anchored
+    assert not missing, (
+        f"_eclipse_nature can return {sorted(missing)}, but no anchor in "
+        "eclipses.json exercises those branches — they are untested, and a "
+        "wrong mapping in one is invisible. Acquire an eclipse of that kind "
+        "(see ACQUISITION.md §3) rather than deleting this assertion."
+    )
+    assert not anchored - mappable, (
+        f"eclipses.json claims natures {sorted(anchored - mappable)} that "
+        "_eclipse_nature cannot produce — the anchor and the app disagree "
+        "about the vocabulary"
+    )
+
+
+def test_hybrid_anchor_does_not_also_carry_the_total_bit():
+    """The specific trap behind the shared bit, probed directly.
+
+    ECL_HYBRID == ECL_ANNULAR_TOTAL == 32, and `_eclipse_nature` tests
+    ECL_TOTAL (4) before it. This asserts the premise that makes the hybrid
+    anchor meaningful: Swiss returns 32 WITHOUT 4, so the ordering is safe. If
+    a future swisseph set both, the hybrid anchor above would start reporting
+    'total' — this test says why in one line instead of leaving someone to
+    rediscover it.
+    """
+    by_id = {a["id"]: a for a in _ECLIPSES["anchors"]}
+    anchor = by_id.get("solar-2023-04-20-hybrid")
+    if anchor is None:
+        pytest.skip("hybrid anchor not present")
+
+    published_td = anchor["measurements"]["instant_td"]["value"]
+    retflag, _tret = swe.sol_eclipse_when_glob(
+        published_td - _SEARCH_LEAD_DAYS, _FLAGS_ECL, 0, False
+    )
+    assert retflag & swe.ECL_ANNULAR_TOTAL, (
+        f"hybrid eclipse retflag {retflag} lacks ECL_ANNULAR_TOTAL (32)"
+    )
+    assert not retflag & swe.ECL_TOTAL, (
+        f"hybrid eclipse retflag {retflag} ALSO carries ECL_TOTAL (4). "
+        "_eclipse_nature checks total first, so it will now report this "
+        "hybrid as 'total'. Reorder the mapping — do not relax the anchor."
+    )
