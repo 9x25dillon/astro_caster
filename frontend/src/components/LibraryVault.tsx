@@ -18,6 +18,40 @@ export const LibraryVault: React.FC = () => {
   const [keyNote, setKeyNote] = useState("");
   const [keyBusy, setKeyBusy] = useState(false);
 
+  // Session 29: the OTHER half of "Bring your key", which was missing.
+  //
+  // The import field has existed since session 25, but nothing in the app ever
+  // SHOWED a key, so a subscriber who bought in a desktop browser had no way to
+  // get their own key out of it and onto their phone — the field they needed to
+  // fill had no source. The only route was devtools
+  // (`localStorage.getItem("aae.entitlement")`), which is not a thing to ask a
+  // paying customer to do. Export is the mirror of import and belongs beside it.
+  //
+  // Hidden behind a toggle rather than simply rendered, because the token IS the
+  // subscription: it is a bearer credential with no device binding (payload is
+  // tier/ref/verified/iat/exp/jti — see backend mint_entitlement), so anyone who
+  // reads it off a shared screen or a screenshot holds the tier until it
+  // expires. Default-hidden costs one tap and removes it from every incidental
+  // capture.
+  const entitlement = useStore((s) => s.entitlement);
+  const [keyShown, setKeyShown] = useState(false);
+  const [copyNote, setCopyNote] = useState("");
+
+  const copyKey = async () => {
+    if (!entitlement) return;
+    try {
+      await navigator.clipboard.writeText(entitlement);
+      setCopyNote("Key copied — paste it into this same field on the other device.");
+    } catch {
+      // Clipboard access is refused in plenty of ordinary situations (insecure
+      // context, permissions policy, older WebViews). The field is readOnly but
+      // selectable, so there is always a manual path — say so rather than
+      // leaving a dead button.
+      setCopyNote("Could not reach the clipboard — select the key above and copy it by hand.");
+    }
+    setTimeout(() => setCopyNote(""), 6000);
+  };
+
   const importKey = async () => {
     if (keyBusy) return;
     setKeyBusy(true);
@@ -121,6 +155,58 @@ export const LibraryVault: React.FC = () => {
           <p className="muted key-import-note" role="status" style={{ fontSize: 11, marginTop: 6 }}>
             {keyNote}
           </p>
+        )}
+
+        {/* Export. Only offered when there is actually a key here — on a device
+            with no subscription this would be a button that can only disappoint. */}
+        {isSupporter && entitlement && (
+          <div className="key-export" style={{ marginTop: 14 }}>
+            <h4 className="lib-subtitle" style={{ fontSize: 13 }}>⚿ Take your key to another device</h4>
+            <p className="shelf-sub">
+              Your subscription lives in this browser as a single key. Reveal it
+              here, copy it, and paste it into the same field on your phone or
+              tablet — it works on as many of your own devices as you like.{" "}
+              <strong>Treat it like a password:</strong> anyone holding this key
+              has your tier until it expires.
+            </p>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              <button
+                className="ghost key-reveal-btn"
+                style={{ width: "auto", fontSize: 12, padding: "4px 12px" }}
+                aria-expanded={keyShown}
+                onClick={() => { setKeyShown((v) => !v); setCopyNote(""); }}
+              >
+                {keyShown ? "◦ Hide my key" : "⚿ Show my key"}
+              </button>
+              <button
+                className="ghost key-copy-btn"
+                style={{ width: "auto", fontSize: 12, padding: "4px 12px" }}
+                onClick={() => void copyKey()}
+              >
+                ⧉ Copy my key
+              </button>
+            </div>
+            {keyShown && (
+              <textarea
+                className="key-export-field"
+                aria-label="Your entitlement key"
+                readOnly
+                value={entitlement}
+                rows={3}
+                onFocus={(e) => e.currentTarget.select()}
+                style={{
+                  width: "100%", marginTop: 8, fontSize: 11,
+                  fontFamily: "ui-monospace, monospace", padding: "6px 8px",
+                  wordBreak: "break-all", resize: "vertical",
+                }}
+              />
+            )}
+            {copyNote && (
+              <p className="muted key-export-note" role="status" style={{ fontSize: 11, marginTop: 6 }}>
+                {copyNote}
+              </p>
+            )}
+          </div>
         )}
       </div>
 

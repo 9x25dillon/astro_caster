@@ -99,3 +99,73 @@ test("whitespace from a wrapped paste is stripped before verification", async ({
     await page.evaluate(() => localStorage.getItem("aae.entitlement"))
   ).toBe(supporter);
 });
+
+// Session 29 — the export half. The import field above has existed since
+// session 25, but nothing ever SHOWED a key, so a subscriber who bought in a
+// desktop browser had no way to get their own key out and onto their phone:
+// the field they needed to fill had no source short of devtools. These pin the
+// round trip, which is the thing that actually makes a second device work.
+
+test("with no key there is nothing to export", async ({ page }) => {
+  await openVault(page);
+  // A reveal button on a device that holds no subscription can only
+  // disappoint, so the whole block is absent rather than disabled.
+  await expect(page.locator(".key-export")).toHaveCount(0);
+});
+
+test("an imported key can be revealed byte-identical and is hidden by default", async ({ page }) => {
+  const { oracle } = mintedTokens();
+  test.skip(!oracle, "backend venv / mint tool unavailable");
+
+  await openVault(page);
+  await page.locator(".key-import-field").fill(oracle!);
+  await page.locator(".key-import-btn").click();
+  await expect(page.locator(".key-import-note")).toContainText(/unlocked/i);
+
+  // The export block appears now that there is something to export.
+  await expect(page.locator(".key-export")).toBeVisible();
+  await expect(page.locator(".key-copy-btn")).toBeVisible();
+
+  // Default-hidden: the token is a BEARER credential with no device binding,
+  // so it must not sit on screen through an incidental screenshot or a shared
+  // screen. It costs one tap to see it.
+  await expect(page.locator(".key-export-field")).toHaveCount(0);
+  await expect(page.locator(".key-reveal-btn")).toHaveAttribute("aria-expanded", "false");
+
+  await page.locator(".key-reveal-btn").click();
+  await expect(page.locator(".key-reveal-btn")).toHaveAttribute("aria-expanded", "true");
+
+  // THE assertion: what is revealed must be exactly what a second device needs
+  // to paste. A truncated or prettified display would look right here and fail
+  // on the other device, which is the worst possible place to find out.
+  await expect(page.locator(".key-export-field")).toHaveValue(oracle!);
+
+  await page.locator(".key-reveal-btn").click();
+  await expect(page.locator(".key-export-field")).toHaveCount(0);
+});
+
+test("the revealed key round-trips back through the import field", async ({ page }) => {
+  const { oracle } = mintedTokens();
+  test.skip(!oracle, "backend venv / mint tool unavailable");
+
+  await openVault(page);
+  await page.locator(".key-import-field").fill(oracle!);
+  await page.locator(".key-import-btn").click();
+  await expect(page.locator(".key-import-note")).toContainText(/unlocked/i);
+  await page.locator(".key-reveal-btn").click();
+
+  const revealed = await page.locator(".key-export-field").inputValue();
+
+  // Simulate the second device: clear everything, then paste what the first
+  // device showed. This is the whole user journey — buy on the web, read the
+  // key, type it into the phone — compressed into one page.
+  await page.evaluate(() => localStorage.removeItem("aae.entitlement"));
+  await page.reload();
+  await openChapter(page, "VIII");
+  await expect(page.locator(".key-export")).toHaveCount(0);   // key really gone
+
+  await page.locator(".key-import-field").fill(revealed);
+  await page.locator(".key-import-btn").click();
+  await expect(page.locator(".key-import-note")).toContainText(/unlocked/i);
+  await expect(page.locator(".support-pill")).toHaveText(/✦ Supporter/);
+});
