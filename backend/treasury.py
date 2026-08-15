@@ -23,10 +23,26 @@ from typing import Dict, List
 # the real treasury is configured. Replace via AAE_TREASURY_ETH.
 _PLACEHOLDER_ETH = "0x000000000000000000000000000000000000dEaD"
 
-_TREASURY_ETH = os.environ.get("AAE_TREASURY_ETH", _PLACEHOLDER_ETH).strip()
-_TREASURY_SOL = os.environ.get("AAE_TREASURY_SOL", "").strip()
-_TREASURY_BTC = os.environ.get("AAE_TREASURY_BTC", "").strip()
-_LABEL = os.environ.get("AAE_TREASURY_LABEL", "K1ll · Observatory Treasury").strip()
+
+def _s(env: str, default: str) -> str:
+    """Read a string env var, tolerating SET-BUT-EMPTY.
+
+    os.environ.get(k, default) falls back only when the key is ABSENT. Compose
+    passes optional vars as `${VAR:-}`, which SETS them to empty — so once
+    these were added to docker-compose.yml on 2026-08-15, `_TREASURY_ETH`
+    became "" rather than the placeholder, and `configured` (which asks only
+    "is this different from the burn address?") flipped to TRUE for an EMPTY
+    address. /api/pricing would then advertise the crypto rail while
+    verify_eth_payment_details answered "no EVM treasury configured" — the
+    take-money-give-nothing shape this module is supposed to prevent.
+    """
+    return (os.environ.get(env) or default).strip()
+
+
+_TREASURY_ETH = _s("AAE_TREASURY_ETH", _PLACEHOLDER_ETH)
+_TREASURY_SOL = _s("AAE_TREASURY_SOL", "")
+_TREASURY_BTC = _s("AAE_TREASURY_BTC", "")
+_LABEL = _s("AAE_TREASURY_LABEL", "K1ll · Observatory Treasury")
 
 # Default allocation across the creator's real project pillars.
 _DEFAULT_SPLIT = "Music:40,Research:30,Agents:30"
@@ -54,7 +70,7 @@ _PILLAR_NOTES = {
 
 
 def funding_allocation() -> List[Dict[str, object]]:
-    split = _parse_split(os.environ.get("AAE_FUNDING_SPLIT", _DEFAULT_SPLIT))
+    split = _parse_split(_s("AAE_FUNDING_SPLIT", _DEFAULT_SPLIT))
     for p in split:
         p["note"] = _PILLAR_NOTES.get(str(p["name"]), "")
     return split

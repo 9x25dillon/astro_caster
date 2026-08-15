@@ -65,9 +65,29 @@ _SECRET = _SECRET_RAW.encode()
 # "Insecure" = the built-in default, or empty/blank (an empty HMAC key is weak
 # and must not be used to sign entitlement tokens in production).
 _SECRET_INSECURE = (_SECRET_RAW == _DEFAULT_SECRET) or (not _SECRET_RAW.strip())
-_ENT_DAYS = int(os.environ.get("AAE_ENT_DAYS", "365"))
+
+
+def _i(env: str, default: int) -> int:
+    """Read an integer env var, tolerating SET-BUT-EMPTY.
+
+    os.environ.get(k, default) only falls back when the key is ABSENT. A key
+    present with an empty value returns "", and int("") raises — at import
+    time, so the whole app fails to boot. Compose passes every optional var as
+    `${VAR:-}`, which SETS it to empty rather than leaving it unset, so simply
+    listing one of these in docker-compose.yml is enough to crash-loop the
+    backend. That is not hypothetical: AAE_STRIPE_TIMEOUT did exactly this once
+    (see stripe_rail._f), and every var below was added to compose on
+    2026-08-15, which would have repeated it.
+    """
+    try:
+        return int(os.environ.get(env, default) or default)
+    except (ValueError, TypeError):
+        return int(default)
+
+
+_ENT_DAYS = _i("AAE_ENT_DAYS", 365)
 _ETH_RPC = os.environ.get("AAE_ETH_RPC", "").strip()
-_MIN_WEI = int(os.environ.get("AAE_MIN_WEI", "0"))
+_MIN_WEI = _i("AAE_MIN_WEI", 0)
 _DEV_TOKEN = os.environ.get("AAE_DEV_TOKEN", "").strip()
 
 
@@ -522,7 +542,7 @@ async def verify_eth_payment(tx_hash: str) -> Tuple[bool, bool, str]:
 # Oracle tier is minted only for on-chain-VERIFIED contributions at/above an
 # explicitly configured threshold. Unset/zero threshold disables oracle minting
 # entirely (fail closed) — trust-mode grants carry value 0 and can never reach it.
-_ORACLE_MIN_WEI = int(os.environ.get("AAE_ORACLE_MIN_WEI", "0"))
+_ORACLE_MIN_WEI = _i("AAE_ORACLE_MIN_WEI", 0)
 
 
 def paid_tier(verified: bool, value_wei: int) -> str:
@@ -563,8 +583,8 @@ def accept_offchain_payment(tx_hash: str) -> Tuple[bool, bool, str]:
 #     AAE_REPORT_TOKEN_DAYS   claim lifetime in days (default 30)
 
 _REPORT_PRODUCT = "personal_report"
-_REPORT_MIN_WEI = int(os.environ.get("AAE_REPORT_MIN_WEI", "0"))
-_REPORT_TOKEN_DAYS = int(os.environ.get("AAE_REPORT_TOKEN_DAYS", "30"))
+_REPORT_MIN_WEI = _i("AAE_REPORT_MIN_WEI", 0)
+_REPORT_TOKEN_DAYS = _i("AAE_REPORT_TOKEN_DAYS", 30)
 
 
 def report_purchase_allowed(verified: bool, value_wei: int) -> Tuple[bool, str]:
