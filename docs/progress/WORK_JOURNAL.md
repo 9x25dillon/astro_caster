@@ -5,6 +5,70 @@ PR bodies; this is the story. Started session 15 at the operator's request._
 
 ---
 
+## Session 28 · 2026-08-15 — the number that stood in for the measurement
+
+Yesterday's session ended with a warning written into the handoff, in bold, as
+the thing to check before shipping: changing the ephemeris moves some charts
+across a rounding boundary, so a reader who reprints a shelved reading *may*
+get different cards than the copy they already have. Measured, it said: 3.4% of
+charts, seventeen in five hundred.
+
+The warning was right about the mechanism and wrong about the size by a factor
+of nine. It is 28.8%. Nearly one reprint in three.
+
+Where the wrong number comes from is worth more than the right one. The tarot
+seed is a string built from every body's longitude rounded to a hundredth of a
+degree — seventeen of them, joined end to end. A one-arcsecond shift in a body
+flips its bucket about three percent of the time, and three percent is roughly
+what got written down. But the seed does not read one body. It reads seventeen,
+and it takes only one of them to move for the whole string to change and the
+shuffle to land somewhere else entirely. The union of seventeen small chances
+is not a small chance. The figure was not measured wrong; a per-body rate was
+measured and then quoted as a per-chart one, which is the kind of error that
+survives review because both numbers are true of something.
+
+It had already propagated. The same 3.4% sat in `swisseph.ts` as the stated
+justification for loading all three ephemeris files rather than one — an
+argument that was correct, defending itself with a number nine times too small.
+A load-bearing figure that nobody re-derives becomes folklore about the code
+rather than a fact of it.
+
+What the divergence actually does is worse than "different cards", and that
+only became clear from reading the print path rather than the warning. A
+reprint does not re-render a stored document. It prints the stored report
+*text* — the words, unchanged, months old — beside a plates page it re-deals
+from a chart it re-casts on the spot. So a diverged reprint is not a different
+reading. It is one document contradicting itself: prose that names The Tower
+above a plate that shows the Two of Pentacles. The reader has a copy of the
+first one. That is the failure, and it is the kind that makes somebody
+distrust the whole instrument rather than report a bug.
+
+The fix was smaller than the investigation. Every shelved session already
+stores its seed — the bookshelf is *keyed* on it; it is the session's identity.
+The re-deal simply wasn't using it, deriving a fresh one instead, which is
+identical right up until the sky underneath it moves. Passing the stored seed
+made 500 out of 500 charts reproduce exactly across the same ephemeris change
+that had broken 144 of them. It also repairs readings shelved under older
+versions, which is why the release needed no migration note in the end: there
+is nothing left for a reader to notice.
+
+Then the phone. There is no way to see this change on a screen — Moshier and
+Swiss disagree by about an arcsecond, and no surface in the app displays
+anything that fine. What can be seen is the failure mode. The engine loads all
+three data files in a single `Promise.all`, the old astronomy-engine fallback
+was retired months ago, and casting a chart without an engine now throws rather
+than quietly answering. So the proof is indirect and complete: with wifi and
+mobile data off, a cold start cast a chart for birth data it had never seen,
+and a wheel came back. A chart that casts offline at all means all three files
+loaded. The app even labels it — *swiss-wasm ephemeris* — in the detail panel,
+which is the sentence the last three releases could not have honestly printed.
+
+v1.0.4 is published. Every phone that updates stops disagreeing with the
+website about where the planets are, and every tome that gets reprinted now
+shows the cards it was written about.
+
+---
+
 ## Session 27 · 2026-08-14 — agreement is not correctness
 
 The observatory has always been built on two engines agreeing. A backend in

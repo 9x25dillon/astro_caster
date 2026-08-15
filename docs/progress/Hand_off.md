@@ -1,15 +1,126 @@
 # Hand_off.md
 
-_Last updated: 2026-08-14 (session 27 — **the site is fully deployed and the
-APK is not**. Six PRs merged and shipped to the origin box: the v1.0.3 landing
-page, a frontend healthcheck that had never once passed, Track A3 anchors for
-the sidereal frame and planetary positions, a health endpoint that described a
-folder instead of an ephemeris, and — the big one — **the full Swiss ephemeris
-data files, to both engines**. Production positions now sit within **0.138″ of
-JPL Horizons**; this morning they were up to 3.13″ off and nothing could see
-it. **Every installed phone is still on v1.0.3, which predates all of it.**
-Cutting v1.0.4 is the next session's job and this file opens with it.)
+_Last updated: 2026-08-15 (session 28 — **v1.0.4 is published and the phone
+runs the real ephemeris at last**. The APK was cut, signed, verified on
+hardware and released; the landing page moved with it. Verifying the one thing
+session 27 flagged found it was **~9× worse than recorded** — 28.8% of shelved
+readings would have reprinted a different spread, not 3.4% — so it was fixed
+rather than noted. The only step left when this was written is the origin-box
+deploy of the landing page, which needs an operator shell.)
 Re-derive before trusting any of this: `git fetch && git status -sb`._
+
+---
+
+# SESSION 28 — 2026-08-15
+
+## Start here
+
+`main` is at `744aa76`, CI green, working tree clean, **0 open PRs**.
+**v1.0.4 is published** (pre-release, APK attached, checksum verified against
+the *downloaded* file) and installed on the Pixel.
+
+**The one thing not done: `landing/index.html` is merged but not deployed.**
+Until the origin box pulls, astra-arcana.com advertises 1.0.3 with a checksum
+that matches a file the page no longer links to. The download URL on the live
+page still resolves, so it is stale rather than broken.
+
+```bash
+ssh -i ~/.ssh/astra_hetzner astra@178.104.120.219
+cd ~/astro-aae && git pull && docker compose up -d --build
+# then, from OFF the box:
+curl -s https://astra-arcana.com | grep -oE "Astra 1\.0\.[0-9]+ · reader build"
+```
+
+The API needs nothing: it is already on `swiss-files` and was untouched today.
+
+## What shipped
+
+| PR | What |
+|---|---|
+| #187 | v1.0.4 — the version bump, the reprint fix, and the comment that misstated its own case |
+| #188 | the landing page → v1.0.4 (**merged, NOT deployed**) |
+
+Release: [`v1.0.4`](https://github.com/9x25dillon/astro_caster/releases/tag/v1.0.4),
+`astra-1.0.4-reader.apk`, 7,523,335 B, sha256
+`f7f29a81f1562a249ae8378fd2ca6078cf29ff9c7d434b31350210baaaacf340`, signing
+cert unchanged (`c568d41d…2b0a82e`).
+
+## ⚠️ The number in a comment was wrong by 9×, and it was load-bearing
+
+Session 27 wrote: *changing the ephemeris moves 3.4% of charts (17/500) to a
+different tarot seed*. That figure appeared twice — in this file, and in
+`swisseph.ts` as the justification for loading all three data files.
+
+Measured against the change actually shipping (planets from Moshier vs from
+Swiss files, backend engine both sides, 500 charts over 1930–2010):
+**144/500 — 28.8%.** An independent grid of 1,152 birth moments said 29.9%.
+
+3.4% is about the **per-body** rate. The seed reads **seventeen** bodies, so
+what matters is the union of seventeen chances to cross a 0.01° bucket edge.
+Any figure of this shape wants to be re-derived, not quoted.
+
+**Why it mattered.** `printSessionTome` re-casts the chart on-device and
+re-dealt the spread from a seed **re-derived** from that fresh cast, while
+printing the **stored** report text — so a diverged reprint is one document
+contradicting itself: plates that name cards the text does not. Fixed by
+passing the session's stored seed (`buildLocalReading` now takes one, mirroring
+the backend's `TarotReadingRequest.seed`). Replaying the stored seed reproduced
+the original draw on **500/500**. That repairs already-shelved readings too,
+which is why **no migration note was needed** in the release.
+
+Pinned by `packages/astra-core/test/reprint-seed.test.ts`, including the
+negative — that re-deriving *would* have dealt differently — so a refactor that
+drops the override fails loudly instead of quietly re-opening it.
+
+## How the on-device Swiss load was actually proved
+
+A wheel screenshot cannot show it: Moshier and Swiss differ by ~1″, and the UI
+rounds far coarser. What proves it is the **failure mode**:
+`initSwisseph` is a `Promise.all` over all three `.se1` files, the
+astronomy-engine fallback is retired, and `calculateChart` **throws** when the
+engine is absent. So:
+
+> with wifi and mobile data off, a cold start cast a chart for birth data with
+> no cache, and the wheel came back labelled **"swiss-wasm ephemeris"** with the
+> full 17-body set.
+
+A chart that casts offline at all ⇒ all three files loaded. The chart's daily
+card on the phone also matched what the backend draws for the same birth data
+under the full Swiss files — agreement on every body at 0.01°.
+
+**Two device facts worth keeping:** `webContentsDebuggingEnabled: false` in
+`capacitor.config.ts` means there is no CDP socket on a release build, so you
+cannot evaluate JS in the shipped app — drive it with `adb shell input tap` and
+screenshots, or change nothing. And `adb install -r` over the installed release
+works and keeps charts, journal and entitlement; `versionCode 4` is what makes
+it an update rather than a refusal.
+
+## Known and accepted in this build
+
+- **The daily-notification queue is precomputed 60 days ahead.** After the
+  update, a notification queued by v1.0.3 can name a different card than the app
+  shows, until `dailySync` rebuilds the queue on the next launch. One morning,
+  ~29% of charts, self-healing. Stated in the release notes; not fixed, because
+  the fix is a launch the reader is about to do anyway.
+- The APK came out **byte-identical across two builds of the same tree** — the
+  checksum did not change on rebuild, contrary to the note carried since
+  session 23. Do not lean on that: it was true for two v2/v3-signed builds of an
+  identical zip, and the rule (publish the checksum of the *uploaded* file) costs
+  nothing and stays correct either way.
+
+## Open threads, unchanged in priority
+
+1. **The precession term.** Residual vs JPL is a near-uniform ~0.5″ at 1800
+   decaying to ~0.05″ by 2000 — a body-independent offset scaling with distance
+   from J2000, i.e. a precession-model signature (Horizons states IAU76/80,
+   Swiss defaults newer). This is the path from A3's 2″ `engine_allowance` to
+   ACQUISITION.md's 1″.
+2. **`check_tolerance_ratchet.py` does not cover per-vector tolerances** — it
+   guards `parity/tolerance.contract.json` only. Real gap, unchanged.
+3. **Eclipse anchors** — the last unacquired item in `ACQUISITION.md` §3. Its
+   egress blocker is stale; test before deferring.
+4. **M5 is still non-code**: LLC, confirm prices, live keys, one real purchase,
+   cancel → `tier: free` → refund, in that order.
 
 ---
 
