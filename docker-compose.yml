@@ -57,6 +57,35 @@ services:
       AAE_STRIPE_ORACLE_USD: ${AAE_STRIPE_ORACLE_USD:-}
       AAE_STRIPE_REPORT_USD: ${AAE_STRIPE_REPORT_USD:-}
       AAE_STRIPE_TIMEOUT: ${AAE_STRIPE_TIMEOUT:-}
+      # The CRYPTO rail — third instance of the same omission as the AI keys and
+      # the Stripe keys above, found 2026-08-15. treasury.py falls back to a burn
+      # address (0x…dEaD) when AAE_TREASURY_ETH is unset, and /api/pricing derives
+      # crypto_available from "is the address something other than the burn
+      # address". Because none of these ever reached the container, putting a real
+      # wallet in .env changed NOTHING: the dashboard kept showing the burn
+      # address and the rail stayed closed, with the app reporting it accurately.
+      # A wallet configured here is also load-bearing for verification, not just
+      # display — verify_eth_payment_details rejects any tx whose recipient is not
+      # this address, so an unset treasury cannot mint an entitlement either.
+      AAE_TREASURY_ETH: ${AAE_TREASURY_ETH:-}
+      AAE_TREASURY_SOL: ${AAE_TREASURY_SOL:-}
+      AAE_TREASURY_BTC: ${AAE_TREASURY_BTC:-}
+      AAE_TREASURY_LABEL: ${AAE_TREASURY_LABEL:-}
+      AAE_FUNDING_SPLIT: ${AAE_FUNDING_SPLIT:-}
+      # On-chain verification. WITHOUT AAE_ETH_RPC the crypto rail fails CLOSED in
+      # production — trust mode is pinned empty below and is non-prod only — so a
+      # treasury address with no RPC displays an address that can take money and
+      # then refuses to mint anything for it. Set both or neither.
+      AAE_ETH_RPC: ${AAE_ETH_RPC:-}
+      AAE_MIN_WEI: ${AAE_MIN_WEI:-}
+      AAE_ORACLE_MIN_WEI: ${AAE_ORACLE_MIN_WEI:-}
+      AAE_REPORT_MIN_WEI: ${AAE_REPORT_MIN_WEI:-}
+      # Entitlement lifetime (default 365) and the token signing scheme. Ed25519
+      # is what lets a device verify a tier OFFLINE against a public key; it
+      # cannot be turned on at all while these do not reach the container.
+      AAE_ENT_DAYS: ${AAE_ENT_DAYS:-}
+      AAE_SIGN_ALGO: ${AAE_SIGN_ALGO:-}
+      AAE_ED25519_SEED: ${AAE_ED25519_SEED:-}
       # The origin Stripe redirects a paying customer BACK to. Defaults in
       # main.py to http://127.0.0.1:5173 — harmless locally, and a broken
       # purchase for every real customer if it is not set in production. It has

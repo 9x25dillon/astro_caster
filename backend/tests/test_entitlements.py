@@ -146,3 +146,57 @@ def test_boot_refused_in_prod_with_dev_token(monkeypatch):
     monkeypatch.setenv("AAE_DEV_TOKEN", "f" * 64)
     with pytest.raises(RuntimeError, match="AAE_DEV_TOKEN"):
         ENT.assert_safe_boot()
+
+
+# --- crypto rail availability ---------------------------------------------- #
+# A configured treasury address used to be enough for /api/pricing to advertise
+# the crypto rail. The address is only half of it: without an RPC there is no
+# way to verify a transaction, so in production the rail fails closed AFTER the
+# customer has irreversibly paid. These pin "advertised" to "can actually mint".
+
+def _treasury(monkeypatch, configured: bool):
+    monkeypatch.setattr(
+        ENT.TR, "treasury_info", lambda: {"configured": configured, "chains": []}
+    )
+
+
+def test_crypto_rail_closed_without_treasury(monkeypatch):
+    _clear(monkeypatch)
+    _treasury(monkeypatch, False)
+    monkeypatch.setattr(ENT, "_ETH_RPC", "https://rpc.example")
+    assert ENT.crypto_rail_open() is False
+
+
+def test_crypto_rail_closed_when_address_set_but_no_rpc(monkeypatch):
+    """The case this gate exists for.
+
+    A wallet is configured, so the old check reported the rail open, and the
+    UI offered a Buy button. In production trust mode is not allowed, so
+    verify_eth_payment_details returns "on-chain verification unavailable" —
+    the payment has already left the customer's wallet by then.
+    """
+    _clear(monkeypatch)
+    monkeypatch.setenv("AAE_ENV", "production")
+    _treasury(monkeypatch, True)
+    monkeypatch.setattr(ENT, "_ETH_RPC", "")
+    assert ENT.trust_mode_allowed() is False
+    assert ENT.crypto_rail_open() is False
+
+
+def test_crypto_rail_open_with_treasury_and_rpc(monkeypatch):
+    _clear(monkeypatch)
+    monkeypatch.setenv("AAE_ENV", "production")
+    _treasury(monkeypatch, True)
+    monkeypatch.setattr(ENT, "_ETH_RPC", "https://rpc.example")
+    assert ENT.crypto_rail_open() is True
+
+
+def test_crypto_rail_open_in_dev_trust_mode_without_rpc(monkeypatch):
+    """Trust mode is the one case where no RPC is still honest: the grant path
+    really will accept the hash. Dev only — is_production() must be false."""
+    _clear(monkeypatch)
+    monkeypatch.setenv("AAE_ENV", "development")
+    monkeypatch.setenv("AAE_TRUST_MODE", "1")
+    _treasury(monkeypatch, True)
+    monkeypatch.setattr(ENT, "_ETH_RPC", "")
+    assert ENT.crypto_rail_open() is True
