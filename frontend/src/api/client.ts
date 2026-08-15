@@ -627,12 +627,14 @@ export async function localTarotReading(
   chart: ChartResponse,
   spread: SpreadType,
   question: string,
-  opts: { source?: SourceSystem; date?: string } = {},
+  opts: { source?: SourceSystem; date?: string; seed?: string | null } = {},
 ): Promise<TarotReadingResponse> {
   const { buildLocalReading } = await core();
   const r = buildLocalReading(chart as unknown as CoreChartResponse, spread, question, {
     date: opts.date ?? (spread === "daily" ? localToday() : null),
     source: opts.source ?? "golden_dawn",
+    // Reproducing a stored session, not casting a new one — see buildLocalReading.
+    seed: opts.seed ?? null,
   });
   return r as unknown as TarotReadingResponse;
 }

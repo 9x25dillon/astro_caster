@@ -417,16 +417,28 @@ export interface LocalReading {
   disclaimer: string;
 }
 
-/** A complete offline reading, shaped to the backend's TarotReadingResponse. */
+/** A complete offline reading, shaped to the backend's TarotReadingResponse.
+ *
+ * `opts.seed` overrides the derived seed, mirroring the backend's
+ * `TarotReadingRequest.seed`. It exists for REPRODUCING a session that was
+ * already cast and stored, not for testing: `defaultSeed` folds in longitudes
+ * rounded to 0.01°, so a change to the ephemeris under a shelved reading moves
+ * some charts across a rounding boundary and re-derives a different draw for a
+ * report whose text is already written. Measured across the Moshier → Swiss
+ * data-file change: 144/500 charts (28.8%) re-derived a different seed and so a
+ * different spread, while replaying the stored seed reproduced the original
+ * draw on 500/500. The stored seed is the session's identity — when you have
+ * it, pass it. */
 export function buildLocalReading(
   chart: ChartResponse,
   spread: string,
   question: string,
-  opts: { date?: string | null; source?: string } = {}
+  opts: { date?: string | null; source?: string; seed?: string | null } = {}
 ): LocalReading {
   const source = opts.source ?? DEFAULT_SOURCE;
   const sig = buildNatalArcanaSignature(chart);
-  const seed = defaultSeed(chart, spread, question, opts.date ?? null, source);
+  const seed =
+    opts.seed || defaultSeed(chart, spread, question, opts.date ?? null, source);
   const draw = weightedDraw(sig, spread, seed);
 
   // First (Sun-first order) natal link per trump, so meanings/natal_link attach
