@@ -167,22 +167,96 @@ being rejected `400`, which looks like Stripe being broken and is not.
 
 ## 4. Preflight — before anyone touches a card
 
+### Where to run it
+
+**On this workstation, not on the box.** The tool only makes network calls —
+to `https://app.astra-arcana.com`, to `https://astra-arcana.com`, and to
+`https://api.stripe.com`. It never reads the server's `.env` and does not need
+to. Anywhere with this repo and the Stripe key works.
+
+### The quick version, with no key
+
+Run this any time. It checks the public surfaces and needs no secret at all:
+
 ```bash
-cd backend
-AAE_STRIPE_SECRET_KEY=sk_live_… \
+cd ~/astro-aae/backend
+.venv/bin/python tools/m5_preflight.py
+```
+
+`.venv/bin/python` rather than plain `python` is deliberate — the repo's
+virtualenv, the same interpreter the tests run under. Nothing here needs
+`sudo`.
+
+### The full gate, with the live key
+
+Get the key from the Stripe dashboard: flip the **View test data** toggle OFF
+so you are in live mode, then Developers → API keys → Secret key → Reveal. It
+begins `sk_live_`.
+
+**Keep it out of your shell history.** The project already has the convention —
+`~/.stripe-test` is one line, bare key, mode 600. Do the same for live:
+
+```bash
+install -m 600 /dev/null ~/.stripe-live     # create it empty, already 600
+nano ~/.stripe-live                          # paste the key, save
+```
+
+Then run the gate reading the key from that file, so the secret never appears
+in a command line:
+
+```bash
+cd ~/astro-aae/backend
+env AAE_STRIPE_SECRET_KEY="$(cat ~/.stripe-live)" \
   .venv/bin/python tools/m5_preflight.py --expect-live
 ```
 
-Every Stripe call it makes is a GET (`_stripe_get` hard-codes the method), so
-it cannot create a charge, a session or a customer. It checks the account is
-live and enabled, that a webhook endpoint points here with the three events,
-that an active portal configuration exists with cancel enabled, that the
-secret is loaded (an intentionally invalid POST must come back `400`, not
-`503`), and — the check that exists because of §0 — that the landing page's
-prices and their "/ mo" agree with what the rail will actually charge.
+(In fish: `env AAE_STRIPE_SECRET_KEY=(cat ~/.stripe-live) .venv/bin/python
+tools/m5_preflight.py --expect-live` — same shape, fish's own substitution
+syntax. The plain `VAR=value cmd` prefix also works in both fish ≥3.1 and zsh
+if you would rather paste the key inline; it just lands in history.)
+
+`--expect-live` is what turns observations into failures: without it, a closed
+rail and a test key are merely reported; with it, they block.
+
+### Reading the output
+
+Four sections, in the order a purchase would exercise them: **HEALTH** (is the
+server the public build, on the right ephemeris), **PRICING + COPY** (does what
+we advertise match what we would charge), **WEBHOOK** (is the secret loaded),
+then the three **STRIPE** sections (account, endpoint, portal).
+
+| Mark | Means |
+|---|---|
+| `✓ PASS` | nothing to do |
+| `! WARN` | look at it; it does not block. Before the keys go in, "webhook secret is loaded → 503" is the expected warn |
+| `✗ FAIL` | blocking. Every FAIL is repeated at the bottom under **Blocking:** with its one-line reason |
+
+The last line is the score, and the exit status matches it — `0` when there are
+no failures, `1` otherwise, so it can gate a script.
+
+What the common failures mean:
+
+| FAIL | Fix |
+|---|---|
+| `Stripe API answers — HTTP Error 401` | the key is wrong, revoked, or you copied the publishable key. A 401 here is never a network problem |
+| `key is LIVE mode` | you are holding `sk_test_`. Turn off "View test data" in the dashboard and copy again |
+| `card rail is open — …unset on the server` | the live key is not in the box's `.env` yet (§2). Expected until you do that step |
+| `webhook secret is loaded — 503` | `AAE_STRIPE_WEBHOOK_SECRET` is not in the box's `.env` yet (§3) |
+| `an endpoint points at this deployment` | no webhook registered in the LIVE dashboard, or its URL differs. It prints every URL it did find |
+| `an active portal configuration exists` | §1's portal activation, in the LIVE dashboard — test and live are separate |
+| `copy and rail disagree` | §0. Do not go live with this one open |
+
+### It cannot spend your money
+
+Every Stripe call is a GET — `_stripe_get` hard-codes the method, so the tool
+cannot create a charge, a session or a customer even if it is edited
+carelessly. The single write it makes is a deliberately **invalid** POST to our
+own webhook, which the signature check rejects before anything is minted or
+revoked; that is how it distinguishes "secret loaded" (400) from "secret
+missing" (503) from outside the box.
 
 Exit 0 means go. It printed three blocking failures the first time it was run
-against production, all of them §0.
+against production, all of them §0 — and zero once the mode was set.
 
 ---
 
