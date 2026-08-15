@@ -494,6 +494,25 @@ async def verify_eth_payment_details(tx_hash: str) -> Tuple[bool, bool, str, int
     return True, True, "verified on-chain", value_wei
 
 
+def crypto_rail_open() -> bool:
+    """Can a crypto payment ACTUALLY mint an entitlement right now?
+
+    The parallel of stripe_available(), and it exists for the same reason. A
+    configured treasury address alone was previously enough to advertise the
+    rail, but the address is only half of it: verify_eth_payment_details needs
+    an RPC to check the transaction, and with no RPC it fails closed everywhere
+    trust mode is not allowed — i.e. in production. That combination publishes
+    an address that can receive an irreversible payment and then mints nothing
+    for it, while /api/pricing reports the rail as open.
+
+    Requiring both means the rail is advertised only when it can be honoured.
+    """
+    info = TR.treasury_info()
+    if not info.get("configured"):
+        return False
+    return bool(_ETH_RPC) or trust_mode_allowed()
+
+
 async def verify_eth_payment(tx_hash: str) -> Tuple[bool, bool, str]:
     """Back-compat 3-tuple wrapper over verify_eth_payment_details."""
     ok, verified, note, _ = await verify_eth_payment_details(tx_hash)

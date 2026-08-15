@@ -65,12 +65,30 @@ def treasury_info() -> Dict[str, object]:
     if _TREASURY_ETH:
         chains.append({
             "id": "evm", "label": "EVM (ETH · Base · Polygon · Arbitrum)",
-            "address": _TREASURY_ETH, "asset": "ETH or USDC",
+            # NOT "ETH or USDC", which is what this said until 2026-08-15.
+            # verify_eth_payment_details reads tx.to and tx.value from
+            # eth_getTransactionByHash — the fields of a NATIVE transfer. In an
+            # ERC-20 transfer tx.to is the token contract and tx.value is 0, so
+            # a USDC payment is rejected as "recipient is not the treasury"
+            # AFTER the customer has irreversibly sent it. Advertising an asset
+            # the verifier cannot accept is a way to take money and give nothing
+            # back, so the copy now matches the check. Supporting USDC means
+            # parsing Transfer logs from the receipt, not editing this string.
+            "address": _TREASURY_ETH, "asset": "ETH (native transfer only)",
+            "unlocks": True,
         })
+    # SOL and BTC have no verifier at all: donate_verify routes non-EVM chains to
+    # accept_offchain_payment, which grants only under trust mode and therefore
+    # always fails closed in production. They are donation addresses, and saying
+    # so here is what stops the UI implying they buy an unlock.
     if _TREASURY_SOL:
-        chains.append({"id": "sol", "label": "Solana", "address": _TREASURY_SOL, "asset": "SOL or USDC"})
+        chains.append({"id": "sol", "label": "Solana", "address": _TREASURY_SOL,
+                       "asset": "SOL", "unlocks": False,
+                       "note": "Donation only — cannot be verified, does not unlock."})
     if _TREASURY_BTC:
-        chains.append({"id": "btc", "label": "Bitcoin", "address": _TREASURY_BTC, "asset": "BTC"})
+        chains.append({"id": "btc", "label": "Bitcoin", "address": _TREASURY_BTC,
+                       "asset": "BTC", "unlocks": False,
+                       "note": "Donation only — cannot be verified, does not unlock."})
     return {
         "label": _LABEL,
         "configured": _TREASURY_ETH != _PLACEHOLDER_ETH,

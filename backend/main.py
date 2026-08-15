@@ -504,7 +504,10 @@ async def get_pricing():
     card = STRIPE.stripe_available()
     return {
         "card_available": card,
-        "crypto_available": bool(TR.treasury_info().get("configured")),
+        # Both halves, not just a configured address: a treasury with no RPC
+        # cannot verify a payment and so cannot mint in production. See
+        # ENT.crypto_rail_open().
+        "crypto_available": ENT.crypto_rail_open(),
         # payment = one-time unlock, subscription = recurring; the copy differs.
         "mode": STRIPE.checkout_mode(),
         "currency": "usd",
