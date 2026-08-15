@@ -41,10 +41,16 @@ from ephemeris import swe_lock  # noqa: E402
 # comparable to the anchor.
 from ephemeris import _FLG_LON, _PLANET_TABLE  # noqa: E402
 
+# Same argument for the eclipse side: the app's own eclipse flags and its own
+# retflag->name mapping. _eclipse_nature is the function a reader's "total" or
+# "penumbral" actually comes from, so anchoring it is anchoring the product.
+from predictive import _FLAGS_ECL, _eclipse_nature  # noqa: E402
+
 ANCHOR_DIR = Path(__file__).resolve().parents[2] / "parity" / "anchors"
 DELTA_T_FILE = ANCHOR_DIR / "delta_t.json"
 AYANAMSA_FILE = ANCHOR_DIR / "ayanamsa.json"
 LONGITUDES_FILE = ANCHOR_DIR / "planet_longitudes.json"
+ECLIPSES_FILE = ANCHOR_DIR / "eclipses.json"
 
 
 def _angular_sep(a: float, b: float) -> float:
@@ -280,11 +286,27 @@ def test_ayanamsa_mean_and_true_differ_by_nutation():
 
 ANCHOR_FILES = sorted(ANCHOR_DIR.glob("*.json"))
 
-REQUIRED_FIELDS = (
-    "id", "value", "unit", "uncertainty", "uncertainty_basis",
+# Provenance is per-ANCHOR: who published it, where, and the quoted text.
+PROVENANCE_FIELDS = ("id", "source", "url", "citation", "retrieved")
+# A measurement is one number with its own error budget. In a single-measurement
+# file these sit directly on the anchor; in a multi-measurement one (eclipses,
+# where the instant and the magnitude are different columns with different
+# uncertainties) they sit inside each entry of `measurements`.
+MEASUREMENT_FIELDS = (
+    "value", "unit", "uncertainty", "uncertainty_basis",
     "engine_allowance", "engine_allowance_note",
-    "source", "url", "citation", "retrieved",
 )
+
+
+def _measurements(anchor: dict) -> dict:
+    """Every measurement on an anchor, keyed by name, for either file shape.
+
+    Returns {"value": <the anchor itself>} for the flat single-measurement
+    form, so callers never branch on the shape.
+    """
+    if "measurements" in anchor:
+        return anchor["measurements"]
+    return {"value": anchor}
 
 
 @pytest.mark.parametrize("path", ANCHOR_FILES, ids=lambda p: p.name)
@@ -300,15 +322,21 @@ def test_every_anchor_carries_full_provenance(path):
         f"{path.name}: missing or malformed schema tag"
     )
     for anchor in payload["anchors"]:
-        missing = [f for f in REQUIRED_FIELDS if f not in anchor]
-        assert not missing, f"{path.name}:{anchor.get('id', '?')} missing {missing}"
+        aid = anchor.get("id", "?")
+        missing = [f for f in PROVENANCE_FIELDS if f not in anchor]
+        assert not missing, f"{path.name}:{aid} missing {missing}"
         assert anchor["url"].startswith("http"), (
-            f"{path.name}:{anchor['id']} url is not a retrievable reference"
+            f"{path.name}:{aid} url is not a retrievable reference"
         )
         assert anchor["citation"].strip(), (
-            f"{path.name}:{anchor['id']} citation is empty — the quoted source "
+            f"{path.name}:{aid} citation is empty — the quoted source "
             "text is what makes the value checkable by a third party"
         )
+        measurements = _measurements(anchor)
+        assert measurements, f"{path.name}:{aid} carries no measurements at all"
+        for name, m in measurements.items():
+            gaps = [f for f in MEASUREMENT_FIELDS if f not in m]
+            assert not gaps, f"{path.name}:{aid}.{name} missing {gaps}"
 
 
 @pytest.mark.parametrize("path", ANCHOR_FILES, ids=lambda p: p.name)
@@ -320,27 +348,255 @@ def test_anchor_tolerances_stay_bounded(path):
     wider than this could hide a chart-visible error, which is the one thing
     an anchor must never do.
     """
+    # Keyed by (quantity, unit): a multi-measurement file mixes units, and a
+    # single cap across days and dimensionless ratios would be meaningless.
     limits = {
         # 0.5 s of ΔT ≈ 0.27 arcsec of lunar motion — still an order of
         # magnitude below the 0.01° tolerance any chart output is held to.
-        "delta_t_seconds": 0.5,
+        ("delta_t_seconds", "s"): 0.5,
         # 1 arcmin: the point at which a longitude error becomes capable of
         # flipping a sign or house assignment.
-        "ecliptic_longitude_deg": 1.0 / 60.0,
+        ("ecliptic_longitude_deg", "deg"): 1.0 / 60.0,
         # Same 1 arcmin cap, same reason, but it bites harder: the ayanamsa is
         # a rigid rotation, so this error does not average out across a chart —
         # every body carries the full amount in the same direction at once.
-        "ayanamsa_deg": 1.0 / 60.0,
+        ("ayanamsa_deg", "deg"): 1.0 / 60.0,
+        # 120 s, in days. The same 1-arcmin philosophy as the longitude caps,
+        # converted through the rate that matters here: the Moon closes on the
+        # shadow axis at ~0.5 arcsec/s, so 1 arcmin of lunar motion IS ~120 s of
+        # eclipse timing. The widest tolerance in the file today is 10.5 s.
+        ("eclipse_circumstances", "jd_tt"): 120.0 / 86400.0,
+        # Eclipse magnitude is dimensionless and never reaches a chart, so the
+        # 1-arcmin argument does not apply. What it governs is the NATURE
+        # boundary, and the binding constraint is the closest any anchor in the
+        # file sits to one: lunar-1999-01-31's penumbral magnitude is 1.0027,
+        # i.e. 0.0027 above the total-penumbral boundary at 1.0. A cap below
+        # that is provably unable to license a tolerance that hides a
+        # classification flip. Worst tolerance in the file today is 0.00205.
+        ("eclipse_circumstances", "ratio"): 0.0025,
     }
     payload = json.loads(path.read_text())
-    cap = limits.get(payload["quantity"])
-    if cap is None:
-        pytest.skip(f"no declared cap for quantity {payload['quantity']}")
+    quantity = payload["quantity"]
+    checked = 0
     for anchor in payload["anchors"]:
-        total = anchor["uncertainty"] + anchor["engine_allowance"]
-        assert total <= cap, (
-            f"{path.name}:{anchor['id']} tolerance {total} exceeds the {cap} "
-            f"{anchor['unit']} cap for {payload['quantity']} — a tolerance this "
-            "wide could hide a chart-visible error. Justify it in an ADR under "
-            "docs/design/adr/ and raise the cap deliberately, or fix the engine."
+        for name, m in _measurements(anchor).items():
+            cap = limits.get((quantity, m["unit"]))
+            if cap is None:
+                continue
+            checked += 1
+            total = m["uncertainty"] + m["engine_allowance"]
+            assert total <= cap, (
+                f"{path.name}:{anchor['id']}.{name} tolerance {total} exceeds "
+                f"the {cap} {m['unit']} cap for {quantity} — a tolerance this "
+                "wide could hide a chart-visible error. Justify it in an ADR "
+                "under docs/design/adr/ and raise the cap deliberately, or fix "
+                "the engine."
+            )
+    if checked == 0:
+        pytest.skip(f"no declared cap for quantity {quantity}")
+
+
+# --------------------------------------------------------------------------- #
+# Eclipses — the instant, the magnitude, and the classification
+# --------------------------------------------------------------------------- #
+# `nature` is the only eclipse field a reader ever sees, and until these landed
+# nothing in the repo could tell a correct classification from a wrong one: the
+# suite simply reported whichever bit Swiss returned. The magnitudes are here
+# because magnitude is the quantity the nature boundary is drawn on.
+#
+# Read eclipses.json's magnitude_convention_note and delta_t_column_note before
+# changing anything here. Both encode a comparison that looks obvious and is
+# wrong.
+#
+# Verified to bite, 2026-08-15. Every assertion below sits at <=50% of its
+# tolerance, so nothing here passes on slack. Two injected faults were checked:
+# reading attr[0] instead of attr[8] fails on 4/4 solar anchors, and a 120 s
+# timing bias (1 arcmin of lunar motion) fails on 8/8.
+#
+# The honest negative, recorded so nobody assumes more coverage than exists:
+# converting with the catalog's own predicted ΔT — the mistake delta_t_column_note
+# warns about — is NOT caught. It lands at 2.77 s (solar-2017) and 3.32 s
+# (lunar-2018) against a 3.50 s tolerance, i.e. 95% on the latter. Comparing in
+# TD is therefore what keeps that anchor off a knife-edge rather than something
+# these tests enforce; do it the wrong way and the suite goes flaky on the next
+# swisseph release instead of going red now.
+
+_ECLIPSES = _load(ECLIPSES_FILE) if ECLIPSES_FILE.exists() else {"anchors": []}
+_SOLAR = [a for a in _ECLIPSES["anchors"] if a["kind"] == "solar"]
+_LUNAR = [a for a in _ECLIPSES["anchors"] if a["kind"] == "lunar"]
+
+# Days before the published instant to begin the search. Comfortably shorter
+# than the ~29.5-day minimum spacing between two eclipses of the same kind, so
+# the window cannot select a different eclipse, and far longer than any credible
+# engine error, so it is not fitted to the answer either.
+_SEARCH_LEAD_DAYS = 15.0
+
+
+def _engine_td(jd_ut: float) -> float:
+    """The engine's UT answer expressed in TD, using the engine's own ΔT.
+
+    The catalog publishes TD; the engine works in UT. Converting THIS direction
+    is deliberate — see eclipses.json's delta_t_column_note. The catalog's own
+    ΔT column is a pre-2006 extrapolation for anything recent (70 s vs the
+    observed 68.85 s at 2017), so using it would charge Espenak's prediction
+    error to our engine. ΔT is independently anchored by delta_t.json, so this
+    conversion is covered rather than assumed.
+    """
+    return jd_ut + swe.deltat(jd_ut)
+
+
+def _tol_days(measurement: dict) -> float:
+    return measurement["uncertainty"] + measurement["engine_allowance"]
+
+
+def _fail(anchor, what, engine, published, tol, unit):
+    return (
+        f"{anchor['id']}: {what} — engine {engine!r} vs published "
+        f"{published!r} (Δ{abs(engine - published):.6g} > {tol:.6g} {unit})\n"
+        f"  source: {anchor['source']}\n  {anchor['url']}\n"
+        f"  row: {anchor['citation']}\n"
+        "  Do NOT widen the anchor to make this pass — see parity/anchors/README.md."
+    )
+
+
+@pytest.mark.parametrize("anchor", _SOLAR, ids=lambda a: a["id"])
+def test_solar_eclipse_matches_published_circumstances(anchor):
+    """Instant, magnitude and nature of a solar eclipse, against NASA's catalog.
+
+    Uses the application's OWN flags and nature mapping rather than a
+    reimplementation: a test that rebuilt these would keep passing if the app's
+    eclipse flags drifted, which is precisely the drift worth catching.
+    """
+    inst = anchor["measurements"]["instant_td"]
+    published_td = inst["value"]
+
+    retflag, tret = swe.sol_eclipse_when_glob(
+        published_td - _SEARCH_LEAD_DAYS, _FLAGS_ECL, 0, False
+    )
+    engine_td = _engine_td(tret[0])
+
+    tol = _tol_days(inst)
+    assert abs(engine_td - published_td) <= tol, _fail(
+        anchor, "instant of greatest eclipse (TD)", engine_td, published_td,
+        tol, f"days ({tol * 86400:.1f} s)",
+    )
+
+    assert _eclipse_nature(retflag) == anchor["nature"], _fail(
+        anchor, "nature", _eclipse_nature(retflag), anchor["nature"], 0, "category"
+    )
+
+    # attr[8] is "magnitude acc. to NASA" — attr[0] for a partial, attr[1] for
+    # annular/total, which is exactly the catalog's own convention. attr[0]
+    # alone disagrees by ~0.03 on a total eclipse, definitionally, not in error.
+    mag = anchor["measurements"]["magnitude"]
+    _r, _geopos, attr = swe.sol_eclipse_where(tret[0], _FLAGS_ECL)
+    tol_m = _tol_days(mag)
+    assert abs(attr[8] - mag["value"]) <= tol_m, _fail(
+        anchor, "eclipse magnitude", attr[8], mag["value"], tol_m, "ratio"
+    )
+
+
+@pytest.mark.parametrize("anchor", _LUNAR, ids=lambda a: a["id"])
+def test_lunar_eclipse_matches_published_circumstances(anchor):
+    """Same three assertions through the OTHER Swiss entry point.
+
+    `lun_eclipse_when` is a different search from `sol_eclipse_when_glob`, so a
+    solar-only anchor set would leave half of eclipse_timeline unproven.
+    """
+    inst = anchor["measurements"]["instant_td"]
+    published_td = inst["value"]
+
+    retflag, tret = swe.lun_eclipse_when(
+        published_td - _SEARCH_LEAD_DAYS, _FLAGS_ECL, 0, False
+    )
+    engine_td = _engine_td(tret[0])
+
+    tol = _tol_days(inst)
+    assert abs(engine_td - published_td) <= tol, _fail(
+        anchor, "instant of greatest eclipse (TD)", engine_td, published_td,
+        tol, f"days ({tol * 86400:.1f} s)",
+    )
+
+    # Covers the 'Nx' total-penumbral and 'T+' central-total sub-types the app
+    # deliberately collapses into penumbral/total.
+    assert _eclipse_nature(retflag) == anchor["nature"], _fail(
+        anchor, "nature", _eclipse_nature(retflag), anchor["nature"], 0, "category"
+    )
+
+    # geopos only affects the alt/az entries; attr[0] (umbral) and attr[1]
+    # (penumbral) are geocentric. umbral_magnitude is absent for the penumbral
+    # anchor on purpose — Swiss clamps it at 0 where the catalog signs it
+    # negative, so asserting it would fail forever on a definitional difference.
+    _r, attr = swe.lun_eclipse_how(tret[0], [0.0, 0.0, 0.0], _FLAGS_ECL)
+    for name, index in (("umbral_magnitude", 0), ("penumbral_magnitude", 1)):
+        m = anchor["measurements"].get(name)
+        if m is None:
+            continue
+        tol_m = _tol_days(m)
+        assert abs(attr[index] - m["value"]) <= tol_m, _fail(
+            anchor, name, attr[index], m["value"], tol_m, "ratio"
+        )
+
+
+def test_penumbral_anchor_does_not_assert_umbral_magnitude():
+    """Pin the omission itself, so it cannot be 'helpfully' filled in later.
+
+    lunar-1999-01-31 has no umbral phase. The catalog prints -0.0258 (how far
+    the Moon missed the umbra); Swiss clamps to 0.0000. Both are right about
+    different questions. Someone adding the catalog's figure to `measurements`
+    would produce a test that fails forever and looks like an engine bug, so
+    the absence is asserted rather than left to a comment.
+    """
+    by_id = {a["id"]: a for a in _LUNAR}
+    anchor = by_id.get("lunar-1999-01-31")
+    if anchor is None:
+        pytest.skip("lunar-1999-01-31 anchor not present")
+    assert anchor["nature"] == "penumbral"
+    assert "umbral_magnitude" not in anchor["measurements"], (
+        "lunar-1999-01-31 must NOT anchor an umbral magnitude — see the "
+        "umbral_magnitude_omitted note in eclipses.json"
+    )
+
+
+def test_eclipse_timeline_reports_anchored_eclipses_on_the_published_date():
+    """Bind the anchors to the PRODUCT surface, not just to Swiss.
+
+    Everything above asserts the engine calls underneath eclipse_timeline. This
+    asserts what a reader is actually shown: that the timeline surfaces the
+    anchored eclipse, on the published calendar date, with the published
+    nature. It is the step that would catch a correct engine wired up wrongly —
+    a frame mix-up, an off-by-one in the search loop, a lost nature bit.
+    """
+    if not _ECLIPSES["anchors"]:
+        pytest.skip("eclipses.json not acquired — see ACQUISITION.md")
+
+    import predictive as P  # noqa: PLC0415 — local, keeps module import cheap
+    from models import ChartRequest  # noqa: PLC0415
+
+    natal = ChartRequest(year=1879, month=3, day=14, hour=11, minute=30,
+                         second=0, lat=48.4011, lng=9.9876, tz_offset=0.67)
+
+    for anchor in _ECLIPSES["anchors"]:
+        published_date = anchor["td_instant"][:10]
+        # Start a few days before and take enough events to be sure the window
+        # covers it regardless of which kind interleaves first.
+        start = swe.revjul(anchor["measurements"]["instant_td"]["value"] - 3.0,
+                           swe.GREG_CAL)
+        start_iso = f"{start[0]:04d}-{start[1]:02d}-{start[2]:02d}"
+        timeline = P.eclipse_timeline(natal, start_iso, count=4)
+
+        match = [e for e in timeline.eclipses if e.date == published_date]
+        assert match, (
+            f"{anchor['id']}: eclipse_timeline starting {start_iso} did not "
+            f"report anything on {published_date}; it returned "
+            f"{[(e.date, e.kind, e.nature) for e in timeline.eclipses]}"
+        )
+        event = match[0]
+        assert event.kind == anchor["kind"], (
+            f"{anchor['id']}: timeline says kind={event.kind}, "
+            f"catalog says {anchor['kind']}"
+        )
+        assert event.nature == anchor["nature"], (
+            f"{anchor['id']}: timeline says nature={event.nature}, "
+            f"catalog says {anchor['nature']} (row: {anchor['citation']})"
         )

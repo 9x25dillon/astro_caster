@@ -87,3 +87,75 @@ test("ΔT anchors are covered for this engine", (t) => {
     `ΔT covered transitively via A1 + backend anchors (${payload.anchors.length} points)`
   );
 });
+
+// ── Eclipses ───────────────────────────────────────────────────────────────
+const eclipseFile = path.join(anchorDir, "eclipses.json");
+
+test("eclipse nature and date match the published catalog", async (t) => {
+  if (!existsSync(eclipseFile)) {
+    t.skip("eclipses.json not acquired — see parity/anchors/ACQUISITION.md");
+    return;
+  }
+  const payload = JSON.parse(readFileSync(eclipseFile, "utf8"));
+  const { searchEclipses } = await import("../src/ephemeris.js");
+
+  // WHAT THIS CAN AND CANNOT ASSERT, and why.
+  //
+  // `nature` and the calendar date are compared directly — they are also
+  // exactly what this engine surfaces to a reader, so this is the product
+  // surface rather than a layer beneath it.
+  //
+  // The sub-second INSTANT is not compared here. The catalog publishes TD and
+  // searchEclipses returns UT, and the vendored wasm exports no `swe_deltat`
+  // to convert between them (the same limitation the ΔT test above documents).
+  // Converting with the catalog's own ΔT column is not an option either: it is
+  // an extrapolation after 2006, which is the trap eclipses.json's
+  // delta_t_column_note exists for. The backend suite pins the instant to 3.5 s
+  // against the same file, and A1's harness holds the two engines together, so
+  // an instant error large enough to matter cannot hide — but it is covered
+  // transitively, not here. If a future wasm build exports swe_deltat, this
+  // should gain the direct comparison the backend already makes.
+  for (const anchor of payload.anchors) {
+    const publishedDate: string = anchor.td_instant.slice(0, 10);
+
+    // TD and UT differ by ~21-71 s across this set, so an eclipse within a
+    // minute or two of midnight UT could legitimately land on the adjacent
+    // calendar date. None in this file is (earliest is 01:51 TD), but a future
+    // anchor could be, and it would look like an engine fault rather than a
+    // scale mismatch — so refuse to make a claim we cannot back.
+    const hhmm = anchor.td_instant.slice(11, 16);
+    if (hhmm < "00:05" || hhmm > "23:55") {
+      t.diagnostic(`${anchor.id}: skipped, ${hhmm} TD is too near midnight to
+        compare a UT calendar date without ΔT`);
+      continue;
+    }
+
+    // Start a few days early and take enough events that the window covers it
+    // whichever kind interleaves first.
+    const start = new Date(`${publishedDate}T00:00:00Z`);
+    start.setUTCDate(start.getUTCDate() - 3);
+    const found = searchEclipses(start, 4);
+
+    const match = found.find((e) => e.date === publishedDate);
+    assert.ok(
+      match,
+      `${anchor.id}: TS engine reported nothing on ${publishedDate}; it found ` +
+        `${JSON.stringify(found.map((e) => [e.date, e.is_solar ? "solar" : "lunar", e.kind]))}\n` +
+        `  source: ${anchor.source}\n  ${anchor.url}\n  row: ${anchor.citation}`
+    );
+    assert.equal(
+      match!.is_solar,
+      anchor.kind === "solar",
+      `${anchor.id}: TS engine says ${match!.is_solar ? "solar" : "lunar"}, ` +
+        `catalog says ${anchor.kind}`
+    );
+    assert.equal(
+      match!.kind,
+      anchor.nature,
+      `${anchor.id}: TS engine says nature=${match!.kind}, catalog says ` +
+        `${anchor.nature}\n  row: ${anchor.citation}\n` +
+        "  Do NOT widen the anchor to make this pass — see parity/anchors/README.md."
+    );
+  }
+  t.diagnostic(`${payload.anchors.length} eclipse anchors checked (nature + date)`);
+});

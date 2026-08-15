@@ -11,6 +11,13 @@ is the same for all of it:
 > cannot be invented; the whole point of the directory is that its contents
 > did not come from this repository — or from a model's memory.
 
+> **⚠️ THE BLOCKER ABOVE IS STALE (retested 2026-08-15).** All three hosts
+> answer now, and §3's eclipses were acquired that day by direct HTTP GET. The
+> quoted note is kept because it is the reason the older files look thin, not
+> because it still applies. **Retest before deferring anything on egress
+> grounds** — it costs one `curl` and this blocker outlived its truth by three
+> days, nearly deferring work that was already possible.
+
 Run these from a machine with open egress. Each block gives the **exact
 query**, so the retrieved value is reproducible by a third party, which is
 the property that makes an anchor an anchor.
@@ -92,7 +99,35 @@ this suite; that separation is the entire value of A3.
   a generous `uncertainty`, or the anchor becomes a tripwire for the
   publisher's forecast revisions rather than for our engines.
 
-## 3. Eclipses — `eclipses.json`
+## 3. Eclipses — `eclipses.json` ✅ ACQUIRED 2026-08-15
+
+**Done, except annular and hybrid.** Four solar and four lunar eclipses,
+1919–2018, are in `eclipses.json` with their full catalog rows as citations,
+and `backend/tests/test_anchors.py` asserts instant, magnitude and nature
+against them. What the acquisition found, which the plan below did not
+anticipate:
+
+- The catalog's **Ecl. Mag.** is the Moon/Sun **diameter ratio** for total and
+  annular eclipses — Swiss `attr[8]` ("magnitude acc. to NASA"), not `attr[0]`.
+  The two differ by ~0.03 on a total eclipse.
+- The catalog's **ΔT column is a prediction** after the canon's 2006
+  publication (70 s printed vs 68.85 s observed at 2017), so it must not be
+  used to convert. The anchors are stored in TD and the test converts the
+  engine's UT answer with the engine's own `deltat()`.
+- Swiss **clamps** lunar umbral magnitude at 0 where the catalog signs it
+  negative, so the penumbral anchor deliberately omits that measurement.
+- The lunar type key differs from the solar one on the second character —
+  `+` means "central total, Moon north of the axis" for lunar, but
+  "non-central, no northern limit" for solar.
+
+**Still open:** an annular and a hybrid solar eclipse, to pin
+`_eclipse_nature`'s `ECL_ANNULAR` and `ECL_ANNULAR_TOTAL` branches. Those two
+are the likeliest to be wrong, because swisseph's `ECL_HYBRID` and
+`ECL_ANNULAR_TOTAL` are the **same bit (32)** and a differently-ordered check
+would misreport one as the other. Same pages, same method as below.
+
+<details>
+<summary>Original acquisition plan (kept for the queries and the reasoning)</summary>
 
 **Source:** Espenak's Five Millennium Canon (`eclipse.gsfc.nasa.gov/SEcat5/`),
 which is independently published and not derived from Swiss Ephemeris.
@@ -106,6 +141,8 @@ UT. Convert with the ΔT anchors above and record which scale the stored value
 is in. Magnitude thresholds separating partial/annular/total are a **categorical**
 decision — that boundary is A2's business, and these anchors are what make
 A2's thresholds mean something.
+
+</details>
 
 ## 4. Lahiri ayanamsa at two epochs — `ayanamsa.json`
 

@@ -55,17 +55,50 @@ guard.
 - **Ayanamsa** (`ayanamsa.json`): Lahiri at J2000 (mean) and the 1956 vernal
   equinox (true). `frame` is per-anchor — mean and true differ by nutation,
   ~14-17″, larger than every tolerance here.
-- **Eclipses**: schema and acquisition steps in `ACQUISITION.md`; runners land
-  with the data.
+- **Eclipses** (`eclipses.json`): four solar and four lunar, 1919–2018, from
+  Espenak & Meeus' Five Millennium Catalog (NASA GSFC) — instant of greatest
+  eclipse, magnitude, and nature. Both Swiss entry points are covered
+  (`sol_eclipse_when_glob` and `lun_eclipse_when`), as is every branch of
+  `predictive._eclipse_nature` a lunar eclipse can reach. Read
+  `magnitude_convention_note` before comparing any magnitude: the catalog's
+  column is the Moon/Sun **diameter ratio** for total and annular eclipses,
+  which is Swiss `attr[8]`, not `attr[0]`. Read `delta_t_column_note` before
+  converting any instant: the catalog's own ΔT column is an extrapolation for
+  anything after 2006, so the comparison is made in **TD**, converting the
+  engine's UT answer with the engine's own `deltat()`.
 
-## Why the initial set is small
+  **This file carries `measurements` instead of a single `value`.** An eclipse
+  is not one number — the instant and the magnitude come from different
+  columns, with different uncertainties and different failure modes. The
+  provenance and ratchet meta-tests understand both shapes; see
+  `_measurements()` in `backend/tests/test_anchors.py`. `nature` sits outside
+  `measurements` because it is categorical: it has no tolerance, it is either
+  right or wrong.
 
-This session's environment has a hard network egress policy: JPL Horizons,
-NASA GSFC, USNO, IERS and even Wikipedia are unreachable (verified 403 /
-EGRESS_BLOCKED on 2026-08-12). Fabricating anchor values from a model's
-memory would be worse than none — a misremembered digit either red-bars
-correct engines or sanctifies a wrong value. The one anchor checked in is the
-one whose exact printed value WAS verifiable through a quoted search snippet
-of the source page. Everything else is a ready-to-fill schema plus the exact
-queries in `ACQUISITION.md` — deferred to a session (or the operator) with
-open egress, with reasons written down, per the work-order's own rule.
+  **Asymmetric between the engines, deliberately.** The backend asserts instant,
+  magnitude and nature. The TS side (`packages/astra-core/test/anchors.test.ts`)
+  asserts **nature and calendar date only**: the catalog publishes TD, the TS
+  engine returns UT, and the vendored wasm exports no `swe_deltat` to bridge
+  them — the same limitation the ΔT coverage note above describes. Magnitude is
+  not surfaced by `searchEclipses` at all. The instant is therefore covered
+  transitively on that side (backend anchors + A1's cross-engine harness), and
+  the TS test says so rather than implying more.
+
+## Why the initial set was small — and why it no longer is
+
+The 2026-08-12 session had a hard network egress policy: JPL Horizons, NASA
+GSFC, USNO, IERS and even Wikipedia were unreachable (403 / EGRESS_BLOCKED).
+Fabricating anchor values from a model's memory would be worse than none — a
+misremembered digit either red-bars correct engines or sanctifies a wrong
+value — so everything unreachable was left as a ready-to-fill schema plus the
+exact queries in `ACQUISITION.md`.
+
+**That blocker was retested on 2026-08-15 and is gone**: `eclipse.gsfc.nasa.gov`,
+`ssd.jpl.nasa.gov` and `aa.usno.navy.mil` all answer. The eclipse anchors were
+acquired that day by direct HTTP GET. **Retest egress before deferring anything
+else on those grounds** — a recorded blocker is a snapshot, not a standing fact,
+and this one outlived its truth by three days.
+
+Still deferred, with reasons in `ACQUISITION.md`: ΔT at 1900 and 2050, and the
+annular/hybrid solar eclipses that would pin `_eclipse_nature`'s remaining two
+branches.
