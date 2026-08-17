@@ -41,6 +41,16 @@ jobs:
           ruff check .
       - name: Run tests
         run: python -m pytest -q
+      - name: Reading eval suite (replay — no provider calls)
+        # Quality gate on what the MODEL WROTE, not on the plumbing around it.
+        # The rest of the suite mocks the provider, so it cannot see a truncated
+        # reading, an invented placement, or a missing section — which is how
+        # every supporter reading came to end mid-sentence unnoticed. Replays
+        # recorded generations from evals/cassettes, so it costs nothing and is
+        # deterministic. Re-record with `python -m evals.runner --record` after
+        # changing a prompt, a model, or a token budget.
+        run: python -m evals.runner
+
       - name: Parity vectors byte-drift tripwire
         run: python tools/gen_parity_vectors.py --check
       - name: Gazetteer drift tripwire
