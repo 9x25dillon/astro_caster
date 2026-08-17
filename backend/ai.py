@@ -43,7 +43,7 @@ import json
 import os
 import re
 import time
-from typing import Dict, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import httpx
 
@@ -315,7 +315,12 @@ def _build_prompts(query, context, lens, selected_type, selected_id, depth, prov
     lens_line = _LENS_GUIDANCE.get(lens, _LENS_GUIDANCE["psychological"])
     if provider == "ollama":
         model = _OLLAMA_MODEL_DEEP if depth == "deep" else _OLLAMA_MODEL
-        budget = 850 if depth == "deep" else 520
+        # LOCAL_SYSTEM asks for ~300 words across four required headers, which is
+        # ~600 tokens before any markdown — 520 could not fit its own brief. Local
+        # generation costs nothing but wall-clock, and a continuation round-trip
+        # on a CPU-bound 3B model is far more expensive in latency than the extra
+        # room is, so fit it in one pass.
+        budget = 1800 if depth == "deep" else 1200
         focus = (f"Focus on the {selected_type} '{selected_id}'. "
                  if selected_type and selected_id else "Reflect on the whole chart. ")
         q = PS.quarantine(query, "question", 800) if query else "Offer a reflection."
@@ -324,17 +329,25 @@ def _build_prompts(query, context, lens, selected_type, selected_id, depth, prov
         system = f"{LOCAL_SYSTEM}\n(Active lens: {lens}.){PS.SYSTEM_NOTE}"
         return system, user, model, budget
     # cloud / kgirl — select model and depth by tier.
-    # Output budget is strictly tiered: oracle > supporter > free, so the top
-    # tier always has the most room for a long, fully-developed reading.
+    #
+    # Budgets are FLOORED BY MEASUREMENT, then ranked. The ladder that free-tier
+    # allowance depends on (free < supporter < oracle — every upgrade buys visibly
+    # more room) is kept, but no rung may sit below the length its own prompt
+    # actually costs. That was the defect: the ladder was honoured and the
+    # measurement was never taken, so supporter's rung fell under its own brief.
+    #
+    # Watch the ordering trap here — supporter NEEDS MORE than oracle (4,911 vs
+    # 4,521) because sonnet-5 spends 4.2–5.0 tokens per word against opus-5's
+    # 3.4–3.8. Ranking budgets is therefore safe only while each rung clears its
+    # own measured need; it is not a substitute for measuring.
     if tier == "oracle":
         model = _MODEL_ORACLE
         system = f"{SYSTEM_PROMPT}{ORACLE_EXTENSION}\n\nActive interpretive lens: {lens}. {lens_line}"
-        budget = 6000   # 6-section oracle reading uses ~2400–2600; generous headroom so the
-                        # top tier is never truncated even on dense charts / long lenses
+        budget = 8000   # measured need 3,886–4,521 (opus-5, 800–1200 words)
     elif tier == "supporter":
         model = _MODEL_SUPPORTER
         system = f"{SYSTEM_PROMPT}{ORACLE_EXTENSION}\n\nActive interpretive lens: {lens}. {lens_line}"
-        budget = 3000   # ORACLE_EXTENSION demands depth, but kept clearly below oracle's ceiling
+        budget = 6600   # measured need 4,367–4,911 (sonnet-5, same brief as oracle)
     else:
         # FREE-1 — the free tier gets a daily taste of the good model, then the
         # cheap one, and the deterministic engine underneath both. What the
@@ -349,12 +362,15 @@ def _build_prompts(query, context, lens, selected_type, selected_id, depth, prov
         # budget.py's server-side global daily cap, which no client can move.
         # Guarding a $0.03 call with a tracking identifier would cost more in
         # privacy than it saves in tokens.
+        # 1,600 covers the measured 1,138–1,257 a 300–600 word reading actually
+        # costs. The free tier stays short because the PROMPT asks for short —
+        # which is a reading that ends where it meant to, not one cut off at 700.
         if free_premium:
             model = _MODEL_FREE_PREMIUM
-            budget = 700
+            budget = 1600
         else:
             model = _MODEL_DEEP if depth == "deep" else _MODEL
-            budget = 700
+            budget = 1600
         system = f"{SYSTEM_PROMPT}\n\nActive interpretive lens: {lens}. {lens_line}"
     system += PS.SYSTEM_NOTE
     user = (
@@ -472,6 +488,10 @@ async def interpret(
         }
 
 
+# NOT measured the way the reading budgets above were — the arcana prompts are
+# built by callers and vary. They are left as-is deliberately: _chat_openai_compat
+# now continues past "length", so a tight number here costs an extra round-trip
+# rather than a truncated reading. Measure before tuning.
 _ARCANA_BUDGET = {"oracle": 2600, "supporter": 1600, "free": 900}
 
 
@@ -595,38 +615,124 @@ async def interpret_stream(
                             "note": f"stream ended early ({type(exc).__name__})."})
 
 
+# --------------------------------------------------------------------------- #
+# Completion guarantee
+#
+# A reading that stops mid-word is worth less than a shorter one that lands, and
+# the reader paid the same for it either way. Nothing in this module used to read
+# `finish_reason`, so a response guillotined at the token ceiling was handed back
+# exactly as though the writer had chosen to end there — no flag, no retry, no
+# way for the UI to know the difference.
+#
+# MEASURED 2026-08-17, cap raised to 9000 to find each tier prompt's natural length:
+#
+#   tier       model              natural need   old budget   verdict
+#   free       claude-haiku-4-5    1,138–1,257          700   cut ~44% short
+#   supporter  claude-sonnet-5     4,367–4,911        3,000   cut ~39%, EVERY TIME
+#   oracle     claude-opus-5       3,886–4,521        6,000   fit
+#
+# Supporter is the instructive case. It shares ORACLE_EXTENSION with the oracle
+# tier — "800–1200 words", five named sections — but was capped at little over
+# half the room that prompt needs, so every supporter reading ended mid-sentence.
+# Note too that supporter needs MORE than oracle, not less: sonnet-5 spends
+# 4.2–5.0 tokens per word where opus-5 spends 3.4–3.8. The old "strictly tiered"
+# ladder (oracle > supporter > free) was therefore tiering the wrong quantity.
+#
+# The tier ladder belongs in the LENGTH THE PROMPT ASKS FOR (300–600 words vs
+# 800–1200) and in the model doing the writing. It must never live in a ceiling
+# that truncates an answer somebody already paid for: that sells a short reading
+# and delivers a broken one.
+_MAX_CONTINUATIONS = 2
+
+_CONTINUE_INSTRUCTION = (
+    "Continue the reading from exactly where it stopped. Do not repeat any text "
+    "you have already written, do not greet or re-introduce yourself, and do not "
+    "summarise what came before. Resume mid-sentence if that is where it ended, "
+    "and carry through to a proper close."
+)
+
+
+def _trim_to_last_complete_sentence(text: str) -> str:
+    """Last resort: end on a sentence rather than on half a word.
+
+    Only reached when the continuation budget is spent and the model is STILL
+    going. A clean short paragraph is an honest thing to hand back; "...you are a
+    natural counsel" is not.
+
+    Guarded against amputating a reading to a stub: if the only sentence ending
+    sits in the first half of the text, the text is returned whole instead, on
+    the grounds that losing most of a paid reading to tidy its last line is the
+    worse of the two failures.
+    """
+    stripped = text.rstrip()
+    cut = max((stripped.rfind(c) for c in ".!?…"), default=-1)
+    if cut > len(stripped) * 0.5:
+        return stripped[: cut + 1]
+    return stripped
+
+
 async def _stream_openai_compat(base_url, api_key, system, user, model, max_tokens):
-    """Yield content deltas from an OpenAI-compatible streaming chat endpoint."""
+    """Yield content deltas from an OpenAI-compatible streaming chat endpoint.
+
+    Continues past the token ceiling instead of stopping mid-word. `finish_reason`
+    rides on the final chunk, and "length" means the writer was cut off rather
+    than finished — so the partial is fed back as an assistant turn and the model
+    is asked to carry on.
+
+    Already-streamed text cannot be retracted, so the sentence-trim fallback the
+    non-streaming path uses does not apply here. The defence is instead a budget
+    measured to fit plus up to _MAX_CONTINUATIONS further passes.
+    """
     headers = {"Content-Type": "application/json"}
     if api_key:
         headers["Authorization"] = f"Bearer {api_key}"
         headers["HTTP-Referer"] = "https://localhost"
         headers["X-Title"] = "Astrological Analysis Environment"
-    payload = {
-        "model": model,
-        "messages": [{"role": "system", "content": system},
-                     {"role": "user", "content": user}],
-        "temperature": 0.8, "max_tokens": max_tokens, "stream": True,
-    }
+    messages = [{"role": "system", "content": system},
+                {"role": "user", "content": user}]
+    produced = ""
     timeout = httpx.Timeout(300.0, connect=10.0)
     async with httpx.AsyncClient(timeout=timeout) as client:
-        async with client.stream(
-            "POST", f"{base_url}/v1/chat/completions", headers=headers, json=payload
-        ) as r:
-            r.raise_for_status()
-            async for line in r.aiter_lines():
-                if not line or not line.startswith("data:"):
-                    continue
-                data = line[5:].strip()
-                if data == "[DONE]":
-                    break
-                try:
-                    obj = json.loads(data)
-                    delta = obj["choices"][0]["delta"].get("content")
-                except (json.JSONDecodeError, KeyError, IndexError):
-                    continue
-                if delta:
-                    yield delta
+        for _ in range(_MAX_CONTINUATIONS + 1):
+            finish = None
+            payload = {
+                "model": model, "messages": messages,
+                "temperature": 0.8, "max_tokens": max_tokens, "stream": True,
+            }
+            async with client.stream(
+                "POST", f"{base_url}/v1/chat/completions", headers=headers, json=payload
+            ) as r:
+                r.raise_for_status()
+                async for line in r.aiter_lines():
+                    if not line or not line.startswith("data:"):
+                        continue
+                    data = line[5:].strip()
+                    if data == "[DONE]":
+                        break
+                    try:
+                        obj = json.loads(data)
+                        choice = obj["choices"][0]
+                        delta = choice["delta"].get("content")
+                    except (json.JSONDecodeError, KeyError, IndexError):
+                        continue
+                    # Arrives on the last chunk of the turn, often with no content.
+                    if choice.get("finish_reason"):
+                        finish = choice["finish_reason"]
+                    if delta:
+                        produced += delta
+                        yield delta
+            if finish != "length":
+                return
+            if not produced:
+                # Ceiling hit having emitted nothing (observed live: content=None
+                # with the whole budget spent). There is nothing to continue from,
+                # and interpret_stream's `emitted` guard will serve the offline
+                # reflection instead of an empty panel.
+                return
+            messages = messages[:2] + [
+                {"role": "assistant", "content": produced},
+                {"role": "user", "content": _CONTINUE_INSTRUCTION},
+            ]
 
 
 async def _filter_think_stream(stream):
@@ -667,29 +773,65 @@ async def _chat_openai_compat(
     base_url: str, api_key: Optional[str], system: str, user: str, model: str,
     max_tokens: int = 1200,
 ) -> str:
-    """OpenAI chat-completions wire format — used for both Ollama and cloud gateways."""
+    """OpenAI chat-completions wire format — used for both Ollama and cloud gateways.
+
+    Reads `finish_reason` and keeps going while it says "length", so a reading is
+    never returned chopped at the ceiling. Bounded by _MAX_CONTINUATIONS so a
+    runaway generation cannot bill without limit; if that bound is reached the
+    text is trimmed back to its last complete sentence.
+    """
     headers = {"Content-Type": "application/json"}
     if api_key:
         headers["Authorization"] = f"Bearer {api_key}"
         headers["HTTP-Referer"] = "https://localhost"  # OpenRouter etiquette
         headers["X-Title"] = "Astrological Analysis Environment"
-    payload = {
-        "model": model,
-        "messages": [
-            {"role": "system", "content": system},
-            {"role": "user", "content": user},
-        ],
-        "temperature": 0.8,
-        "max_tokens": max_tokens,
-        "stream": False,
-    }
+    messages = [
+        {"role": "system", "content": system},
+        {"role": "user", "content": user},
+    ]
     # Local CPU models need headroom (model load + prompt eval + generation).
     timeout = 240.0 if api_key is None else 60.0
+    parts: List[str] = []
+    still_cut = False          # True iff the LAST turn ended at the ceiling
     async with httpx.AsyncClient(timeout=timeout) as client:
-        r = await client.post(f"{base_url}/v1/chat/completions", headers=headers, json=payload)
-        r.raise_for_status()
-        data = r.json()
-        return data["choices"][0]["message"]["content"].strip()
+        for _ in range(_MAX_CONTINUATIONS + 1):
+            payload = {
+                "model": model,
+                "messages": messages,
+                "temperature": 0.8,
+                "max_tokens": max_tokens,
+                "stream": False,
+            }
+            r = await client.post(
+                f"{base_url}/v1/chat/completions", headers=headers, json=payload)
+            r.raise_for_status()
+            choice = r.json()["choices"][0]
+            # OBSERVED 2026-08-17 while recording eval fixtures: sonnet-5 through
+            # OpenRouter returned finish_reason="length" with content=None having
+            # burned all 3,000 tokens. `None.strip()` was a 500 on a call the
+            # reader had already paid for, so content is coerced before use.
+            parts.append(choice["message"].get("content") or "")
+            still_cut = choice.get("finish_reason") == "length"
+            if not still_cut:
+                break
+            if not "".join(parts):
+                # Nothing to continue FROM. An empty assistant turn is rejected by
+                # some providers and meaningless to the rest, so stop and let the
+                # caller fall back rather than spend another budget on nothing.
+                break
+            messages = messages[:2] + [
+                {"role": "assistant", "content": "".join(parts)},
+                {"role": "user", "content": _CONTINUE_INSTRUCTION},
+            ]
+    joined = "".join(parts)
+    if not joined.strip():
+        # interpret() turns this into the offline reflection — a real reading
+        # rather than an empty panel.
+        raise RuntimeError("provider returned no content")
+    # Only trim when the reading is genuinely still mid-thought. Trimming a
+    # COMPLETED continuation would cut back past a closing quote or bold marker
+    # to the previous full stop, damaging text the model had finished properly.
+    return _trim_to_last_complete_sentence(joined) if still_cut else joined.strip()
 
 
 async def _chat_kgirl(system: str, user: str, max_tokens: Optional[int] = None) -> Tuple[str, dict]:
