@@ -1,0 +1,11 @@
+{
+  "text": null,
+  "finish_reason": "length",
+  "model": "anthropic/claude-sonnet-5",
+  "completion_tokens": 3000,
+  "case": "supporter:whole-chart",
+  "recorded_config": {
+    "max_tokens": 3000,
+    "note": "ai.py supporter budget BEFORE the 2026-08-17 fix"
+  }
+}
