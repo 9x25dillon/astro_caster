@@ -1,7 +1,7 @@
 // components/DetailPanel.tsx
 // Context-sensitive right rail: shows the selected planet / house / aspect /
 // pattern, plus the Astra reflective interpretation and navigational suggestions.
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "../store/useStore";
 import { formatPos, ORDINAL, glyphText } from "../lib/astro";
 import { PLANET_METAL, MODALITY_PRINCIPLE } from "../lib/alchemy";
@@ -169,6 +169,43 @@ export const DetailPanel: React.FC = () => {
   const select = useStore((s) => s.select);
   const autoSpeak = useStore((s) => s.autoSpeak);
   const toggleAutoSpeak = useStore((s) => s.toggleAutoSpeak);
+  const preferOffline = useStore((s) => s.preferOffline);
+  const toggleOfflineMode = useStore((s) => s.toggleOfflineMode);
+  // WHICH ENGINE ANSWERED, said out loud.
+  //
+  // A reading from the deterministic engine used to arrive looking exactly like
+  // one from the model: same panel, same voice, no marker. That is fine when the
+  // reader asked for it and a broken promise when the spend cap decided for
+  // them, so the two are now named differently and the rationed case is the one
+  // that speaks up.
+  const engineNote = useMemo(() => {
+    if (!aiResult || aiResult.source !== "offline") return null;
+    switch (aiResult.offline_reason) {
+      case "chosen":
+        return {
+          kind: "chosen",
+          text: "Astra\u2019s own engine, by your choosing \u2014 instant, and the same every time you ask.",
+        };
+      case "capped":
+        return {
+          kind: "capped",
+          text:
+            "Today\u2019s model allowance is spent. This reading is Astra\u2019s own \u2014 " +
+            "whole, and yours, but not the writer you subscribe for. The allowance renews at midnight UTC.",
+        };
+      case "degraded":
+        return {
+          kind: "capped",
+          text: "The model could not be reached just now. Astra answered from her own engine instead.",
+        };
+      default:
+        return {
+          kind: "info",
+          text: "No model is configured, so Astra is answering from her own engine.",
+        };
+    }
+  }, [aiResult]);
+
   const [q, setQ] = useState("");
 
   const aiStreaming = useStore((s) => s.aiStreaming);
@@ -468,7 +505,26 @@ export const DetailPanel: React.FC = () => {
             </option>
           ))}
         </select>
+        <span
+          className={`chip ${preferOffline ? "active" : ""}`}
+          onClick={toggleOfflineMode}
+          title={
+            preferOffline
+              ? "Astra is reading from the deterministic engine \u2014 instant, free, and the same every time"
+              : "Read from the deterministic engine instead: instant, spends nothing, never leaves this device"
+          }
+          role="switch"
+          aria-checked={preferOffline}
+          aria-label="Offline engine"
+        >
+          {preferOffline ? "\u25c9" : "\u25cb"} offline
+        </span>
       </div>
+      {engineNote && (
+        <div className={`engine-note engine-note--${engineNote.kind}`} role="status">
+          {engineNote.text}
+        </div>
+      )}
       <div className="row" style={{ marginBottom: 10 }}>
         <button className="ghost" onClick={() => suggest()}>
           ✦ Suggestions
