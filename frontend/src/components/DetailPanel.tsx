@@ -179,6 +179,21 @@ export const DetailPanel: React.FC = () => {
   // them, so the two are now named differently and the rationed case is the one
   // that speaks up.
   const engineNote = useMemo(() => {
+    // A replayed reading is the SAME reading, deliberately — but a reader who
+    // isn't told will read "it gave me the identical answer" as a stuck app.
+    // Saying so turns an unexplained repeat into the promise it actually is.
+    if (aiResult?.replayed_at) {
+      const when = new Date(aiResult.replayed_at);
+      const day = Number.isNaN(when.getTime())
+        ? null
+        : when.toLocaleDateString(undefined, { month: "long", day: "numeric" });
+      return {
+        kind: "replayed",
+        text: day
+          ? `You have asked this before. This is the reading Astra gave you on ${day} \u2014 the same question of the same chart keeps its answer.`
+          : "You have asked this before. This is the reading Astra gave you then \u2014 the same question of the same chart keeps its answer.",
+      };
+    }
     if (!aiResult || aiResult.source !== "offline") return null;
     switch (aiResult.offline_reason) {
       case "chosen":

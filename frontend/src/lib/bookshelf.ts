@@ -17,12 +17,14 @@ import type { BirthInput } from "../types";
 
 const DB_NAME = "astra-bookshelf";
 // v2 journal (P1); v3 gallery (Archive images); v4 documents (Archive text —
-// forecasts/relationships/specialist charts shelve for the tome).
-const DB_VERSION = 4;
+// forecasts/relationships/specialist charts shelve for the tome); v5 replay
+// (the same question of the same chart returns the same reading).
+const DB_VERSION = 5;
 const STORE = "sessions";
 const JOURNAL = "journal";
 const GALLERY = "gallery";
 const DOCUMENTS = "documents";
+const REPLAY = "replay";
 
 export interface ShelfPersonal {
   report_markdown: string;
@@ -69,6 +71,10 @@ function openDb(): Promise<IDBDatabase> {
         const d = req.result.createObjectStore(DOCUMENTS, { keyPath: "id" });
         d.createIndex("kind", "kind", { unique: false });
         d.createIndex("chapter", "chapter", { unique: false });
+      }
+      if (!req.result.objectStoreNames.contains(REPLAY)) {
+        const r = req.result.createObjectStore(REPLAY, { keyPath: "key" });
+        r.createIndex("createdAt", "createdAt", { unique: false });
       }
     };
     req.onsuccess = () => resolve(req.result);
@@ -389,4 +395,63 @@ export async function docImport(docs: ShelfDoc[]): Promise<number> {
     n += 1;
   }
   return n;
+}
+
+// --------------------------------------------------------------------------- //
+// Replay store — the same question, of the same chart, at the same tier
+// --------------------------------------------------------------------------- //
+//
+// Keyed by a hash of the INPUTS (see lib/replay.ts), never by a seed. A seed in
+// this product is identity, not a cache key: re-deriving one re-deals the
+// reading rather than returning it, so keying on a seed would quietly produce a
+// DIFFERENT answer under the name of the same one.
+//
+// Records hold the reading text and the question that produced it — the same
+// posture as the session store above, which already holds birth data and full
+// report text. Local storage only; the server copy is opt-in and lives behind
+// an explicit consent flag (see /api/replay).
+
+export interface ReplayEntry {
+  key: string;
+  interpretation: string;
+  model: string | null;
+  provider: string | null;
+  createdAt: string;
+  /** Bumped on each hit so a prune can favour readings someone returns to. */
+  hits: number;
+}
+
+export function replayGet(key: string): Promise<ReplayEntry | null> {
+  return tx<ReplayEntry | undefined>(REPLAY, "readonly", (s) => s.get(key))
+    .then((r) => r ?? null)
+    .catch(() => null); // a replay miss must never break the ask path
+}
+
+export async function replayPut(
+  entry: Omit<ReplayEntry, "createdAt" | "hits">
+): Promise<void> {
+  const existing = await replayGet(entry.key);
+  await tx(REPLAY, "readwrite", (s) =>
+    s.put({
+      ...entry,
+      createdAt: existing?.createdAt ?? new Date().toISOString(),
+      hits: existing?.hits ?? 0,
+    })
+  ).catch(() => undefined);
+}
+
+export async function replayTouch(key: string): Promise<void> {
+  const existing = await replayGet(key);
+  if (!existing) return;
+  await tx(REPLAY, "readwrite", (s) =>
+    s.put({ ...existing, hits: existing.hits + 1 })
+  ).catch(() => undefined);
+}
+
+export function replayAll(): Promise<ReplayEntry[]> {
+  return tx<ReplayEntry[]>(REPLAY, "readonly", (s) => s.getAll()).catch(() => []);
+}
+
+export function replayClear(): Promise<void> {
+  return tx(REPLAY, "readwrite", (s) => s.clear()).then(() => undefined);
 }
