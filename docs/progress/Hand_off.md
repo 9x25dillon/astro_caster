@@ -186,10 +186,35 @@ says Pisces." **The engine was right the whole time.**
 - The wrong readings came from hand-typed TZ values (`-5.7`, then `+7`).
   **`resolveOffset` (`packages/astra-core/src/timezone.ts:210`) is correct and
   handles 1987 DST properly** — it only runs when a city is picked on the map.
-  The bare "TZ ±h" box has **no validation against longitude**. A guard warning
-  when the offset disagrees with `lng / 15` by more than ~1.5h would have caught
-  all three bad values at entry. **Offered, not built — operator's call.**
+  The bare "TZ ±h" box had no cross-check against the longitude sitting in the
+  next field. **BUILT: TZ-3, `checkOffsetAgainstLongitude`** — see below.
 
+
+## TZ-3 — the typed-offset guard (built at the end of the session)
+
+`checkOffsetAgainstLongitude(hours, lng)` in
+`packages/astra-core/src/timezone.ts`, surfaced in **both** places an offset can
+be typed (`CeremonyModal`, `Controls`). Two independent checks, because neither
+alone catches both of the operator's bad values:
+
+1. **Is it a civil offset at all** — every zone that has ever existed is a
+   multiple of 15 minutes within UTC−12..+14. Catches `-5.7` outright, with no
+   reference to longitude and no false positives.
+2. **Is it plausible here** — compared against `lng / 15`, tolerance **3 hours**.
+   Catches `+7` (9.2h out). The tolerance is 3h and not 2h because Xinjiang runs
+   UTC+8 at a solar +5, the widest legitimate gap on Earth; Galicia on summer
+   time is ~2.6h.
+
+Compared **modulo 24**, or the date line reads as a 24-hour error (Kiritimati is
+UTC+14 at a solar −10.5 — half an hour apart, not 24.5).
+
+**`-7` deliberately passes.** PDT is genuinely used at that longitude; it is only
+the wrong offset for a *November* birth, which a longitude guard cannot know.
+`resolveOffset` is what knows the date. Flagging it would cry wolf half the year.
+
+**Advisory, never blocking** — the manual field is the escape hatch for
+pre-standard-time local mean time, war time, and certificates written in the
+wrong convention. 10 core tests, 5 e2e.
 
 ---
 

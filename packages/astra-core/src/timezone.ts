@@ -271,3 +271,114 @@ export function resolveOffset(local: WallClock, zone: string, lng: number): Offs
 
   return { hours: offsetMs / MS_PER_HOUR, utcMs, kind: "zone", ambiguity, note };
 }
+
+// --------------------------------------------------------------------------- //
+// TZ-3 — sanity-check a hand-entered offset against the birthplace
+// --------------------------------------------------------------------------- //
+//
+// `resolveOffset` above is correct and knows 1987's DST rules — but it only
+// runs when a city is picked on the map. The bare "TZ ±h" box beside it took
+// any number in range with no cross-check, and the longitude that contradicts
+// it was sitting in the next field the whole time.
+//
+// Observed 2026-08-17: a Barstow, California birth (lng -117.18, solar -7.81)
+// was cast at -5.7, then at +7. Both produced a complete, plausible-looking
+// wheel describing a different sky. Nothing errored, because nothing looked.
+//
+// TWO INDEPENDENT CHECKS, because they catch different mistakes:
+//
+//   1. IS IT A CIVIL OFFSET AT ALL. Every zone that has ever existed is a
+//      multiple of 15 minutes, within UTC-12..+14. `-5.7` is not, so it can be
+//      rejected outright with no reference to longitude and no false positives.
+//      This is the check that catches a typo or a decimal-degrees value pasted
+//      into an hours field.
+//
+//   2. IS IT PLAUSIBLE FOR THIS PLACE. Compare against mean solar time from
+//      longitude. This one must be generous: civil time is a political
+//      artifact, and real places sit far from their sun. Xinjiang runs UTC+8
+//      at a solar +5 — a 3-hour gap, the widest legitimate one on Earth — and
+//      Galicia runs CEST at a solar -0.6, about 2.6 hours. So the threshold is
+//      3 hours, and anything under it passes without comment.
+//
+// COMPARED MODULO 24, or the date line reads as a 24-hour error: Kiritimati is
+// UTC+14 at longitude -157.4 (solar -10.5). Naively that is 24.5 hours apart;
+// it is really half an hour, on the other side of the line.
+//
+// ADVISORY, NEVER BLOCKING. The manual field exists precisely for the cases a
+// zone database cannot decide — pre-standard-time births on local mean time,
+// war time, a certificate written in the wrong convention, a birth at sea.
+// Refusing those would break the feature to fix the typo.
+
+/** How far a civil offset may sit from its longitude's solar time before we
+ *  say anything. 3h is Xinjiang, the widest real case on Earth. */
+export const OFFSET_SOLAR_TOLERANCE_H = 3;
+
+export type OffsetCheckLevel = "ok" | "suspect" | "invalid";
+
+export interface OffsetCheck {
+  level: OffsetCheckLevel;
+  /** Mean solar offset implied by the longitude. */
+  solarHours: number;
+  /** Signed hours from solar time, wrapped to (-12, 12]. */
+  deltaHours: number;
+  /** Reader-facing sentence, or "" when level is "ok". */
+  message: string;
+}
+
+/** Wrap an hour difference into (-12, 12] so the date line isn't a 24h error. */
+function wrapHours(h: number): number {
+  return ((((h + 12) % 24) + 24) % 24) - 12;
+}
+
+function fmtOffset(h: number): string {
+  const sign = h < 0 ? "−" : "+";
+  const abs = Math.abs(h);
+  const whole = Math.floor(abs);
+  const mins = Math.round((abs - whole) * 60);
+  return mins ? `UTC${sign}${whole}:${String(mins).padStart(2, "0")}` : `UTC${sign}${whole}`;
+}
+
+/**
+ * Check a hand-entered UTC offset against the birthplace's longitude.
+ *
+ * Returns `level: "ok"` when there is nothing to say. Callers should surface
+ * `message` as a warning beside the field and let the reader proceed anyway.
+ */
+export function checkOffsetAgainstLongitude(hours: number, lng: number): OffsetCheck {
+  const solarHours = longitudeLmtHours(lng);
+  const deltaHours = wrapHours(hours - solarHours);
+  const base = { solarHours, deltaHours };
+
+  if (!Number.isFinite(hours)) {
+    return { ...base, level: "invalid", message: "That isn't a number." };
+  }
+  if (hours < -12 || hours > 14) {
+    return {
+      ...base,
+      level: "invalid",
+      message: `No place uses ${fmtOffset(hours)} — real offsets run from UTC−12 to UTC+14.`,
+    };
+  }
+  // 15-minute grid. Compared on minutes to avoid a float remainder deciding it.
+  if (Math.abs(Math.round(hours * 60) - hours * 60) > 1e-6 ||
+      Math.round(hours * 60) % 15 !== 0) {
+    return {
+      ...base,
+      level: "invalid",
+      message:
+        `${fmtOffset(hours)} isn't a real timezone — every offset is a whole ` +
+        `quarter-hour. Did you mean ${fmtOffset(Math.round(hours * 4) / 4)}?`,
+    };
+  }
+  if (Math.abs(deltaHours) > OFFSET_SOLAR_TOLERANCE_H) {
+    return {
+      ...base,
+      level: "suspect",
+      message:
+        `${fmtOffset(hours)} is ${Math.abs(deltaHours).toFixed(1)} hours from the sun at ` +
+        `this longitude, which reads about ${fmtOffset(solarHours)}. Check the sign, ` +
+        `or pick the birthplace on the map and let Astra resolve it.`,
+    };
+  }
+  return { ...base, level: "ok", message: "" };
+}

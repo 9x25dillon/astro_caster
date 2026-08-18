@@ -1,5 +1,6 @@
 // components/Controls.tsx — left rail: birth data form, layers, radar.
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
+import { checkOffsetAgainstLongitude } from "@astra/core";
 import { useStore } from "../store/useStore";
 import { ElementModalityRadar } from "./ElementModalityRadar";
 // Lazy: LocationPicker pulls in leaflet (~150 kB chunk) — load it on first
@@ -32,6 +33,10 @@ export const Controls: React.FC<{
 }> = ({ onOpenGlossary, onOpenSoul, onOpenOracle, onOpenForecast, onNewChart }) => {
   const [showMap, setShowMap] = useState(false);
   const birth = useStore((s) => s.birth);
+  const offsetWarning = useMemo(
+    () => checkOffsetAgainstLongitude(birth.tz_offset, birth.lng),
+    [birth.tz_offset, birth.lng]
+  );
   const setBirth = useStore((s) => s.setBirth);
   const generate = useStore((s) => s.generate);
   const loading = useStore((s) => s.loading);
@@ -81,6 +86,16 @@ export const Controls: React.FC<{
         {field("minute", "Min", { type: "number", min: 0, max: 59 })}
         {field("tz_offset", "TZ ±h", { type: "number", step: 0.25 })}
       </div>
+      {/* TZ-3: the same guard the ceremony carries. This field is the one that
+          took -5.7 and +7 without a word, and the longitude that contradicts it
+          is directly below. Advisory — a wrong-looking offset is sometimes the
+          right one (local mean time, war time, a certificate in the wrong
+          convention), so it never blocks the cast. */}
+      {offsetWarning && offsetWarning.level !== "ok" && (
+        <p className={`tz-warning tz-warning--${offsetWarning.level}`} role="status">
+          {offsetWarning.message}
+        </p>
+      )}
       <div style={{ height: 8 }} />
       <div className="row">
         {field("lat", "Latitude", { type: "number", step: 0.0001 })}

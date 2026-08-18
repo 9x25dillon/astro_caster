@@ -6,7 +6,7 @@ import { useStore } from "../store/useStore";
 const LocationPicker = React.lazy(() =>
   import("./LocationPicker").then((m) => ({ default: m.LocationPicker }))
 );
-import { resolveOffset } from "@astra/core";
+import { checkOffsetAgainstLongitude, resolveOffset } from "@astra/core";
 import type { BirthInput } from "../types";
 
 const STEPS = [
@@ -93,6 +93,14 @@ export const CeremonyModal: React.FC<Props> = ({ onClose }) => {
       return null; // an unknown zone must not break the ceremony
     }
   }, [zone, draft.year, draft.month, draft.day, draft.hour, draft.minute, draft.lng]);
+
+  // TZ-3: the typed-offset guard. Only meaningful when the reader typed the
+  // offset themselves — a zone-resolved one is right by construction, and
+  // warning about it would be the app arguing with its own resolver.
+  const offsetWarning = useMemo(
+    () => (zone ? null : checkOffsetAgainstLongitude(draft.tz_offset, draft.lng)),
+    [zone, draft.tz_offset, draft.lng]
+  );
 
   useEffect(() => {
     if (!resolution) return;
@@ -228,9 +236,16 @@ export const CeremonyModal: React.FC<Props> = ({ onClose }) => {
                 <label className="ceremony-field">
                   <span>Timezone ±h</span>
                   <input type="number" step={0.25} value={draft.tz_offset}
+                    aria-invalid={offsetWarning?.level === "invalid" || undefined}
+                    className={offsetWarning && offsetWarning.level !== "ok" ? "tz-suspect" : undefined}
                     onChange={(e) => { setZone(null); set({ tz_offset: Number(e.target.value) }); }} />
                 </label>
               </div>
+              {offsetWarning && offsetWarning.level !== "ok" && (
+                <p className={`tz-warning tz-warning--${offsetWarning.level}`} role="status">
+                  {offsetWarning.message}
+                </p>
+              )}
               {/* TZ-2 disclosure. The project's posture is never to be silently
                   clever, so a resolution that did something non-obvious — took
                   the first of a doubled hour, moved a nonexistent one forward,

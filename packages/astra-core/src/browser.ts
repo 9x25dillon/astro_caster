@@ -96,6 +96,13 @@ export {
   resolveOffset,
   zoneOffsetMsAt,
   firstTransition,
+  // TZ-3: the sanity check on a hand-entered offset. Advisory only — the manual
+  // field is an escape hatch for cases a zone database cannot decide, so this
+  // warns and never blocks.
+  checkOffsetAgainstLongitude,
+  OFFSET_SOLAR_TOLERANCE_H,
+  type OffsetCheck,
+  type OffsetCheckLevel,
   type WallClock,
   type Ambiguity,
   type OffsetResolution,
