@@ -54,6 +54,22 @@ class TransitRequest(BaseModel):
     transit_iso: str
 
 
+class ReplayStoreRequest(BaseModel):
+    """A reading a reader has asked us to hold for them across devices.
+
+    `consent` is required and must be True. It is not decoration: it is what
+    makes the opt-in visible in the wire contract rather than implied by the
+    fact that a client called the endpoint. A request without it is a 422, so
+    the server can never accumulate readings from a client that simply forgot
+    the flag — see replay.py.
+    """
+
+    key: str = Field(..., min_length=16, max_length=128)
+    text: str = Field(..., min_length=1)
+    model: Optional[str] = None
+    consent: Literal[True]
+
+
 class AIRequest(BaseModel):
     query: str
     chart: "ChartResponse"

@@ -15,6 +15,8 @@ import {
   type AIResult,
   type Treasury,
 } from "../api/client";
+import { replayLookup, replayStore } from "../lib/replay";
+import { replaySyncForget } from "../api/client";
 import {
   clearPendingReportSeed,
   readPendingReportSeed,
@@ -29,12 +31,24 @@ const BAD_KEY_NOTE =
 const LAST_CHART_KEY = "aae.last_chart";
 const ASK_QUEUE_KEY = "aae.ask_queue";
 const OFFLINE_PREF_KEY = "aae.prefer_offline";
+const REPLAY_SYNC_KEY = "aae.replay_sync";
 
 /** Persisted so a deliberate choice survives a reload — a preference the reader
  *  has to re-make every visit is one they will stop making. */
 function loadOfflinePref(): boolean {
   try {
     return localStorage.getItem(OFFLINE_PREF_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+/** Replay sync — OFF unless explicitly stored as on. The default has to be off:
+ *  it is the difference between remembering a reading on someone's own device
+ *  and holding their question on ours. */
+function loadReplaySync(): boolean {
+  try {
+    return localStorage.getItem(REPLAY_SYNC_KEY) === "1";
   } catch {
     return false;
   }
@@ -156,6 +170,9 @@ interface AstroState {
   /** Reader has ASKED for the deterministic engine: free, instant, private,
    *  reproducible. Distinct from being pushed there by the spend cap. */
   preferOffline: boolean;
+  /** Reader has opted in to holding their readings server-side so they follow
+   *  them across devices. Off by default; see lib/replay.ts and backend/replay.py. */
+  replaySync: boolean;
 
   // AI
   aiResult: AIResult | null;
@@ -187,6 +204,8 @@ interface AstroState {
   loadTransit: (iso: string) => Promise<void>;
   ask: (query: string, depth?: "quick" | "deep") => Promise<void>;
   toggleOfflineMode: () => void;
+  toggleReplaySync: () => void;
+  forgetSyncedReadings: () => Promise<number>;
   flushAskQueue: () => Promise<void>;
   suggest: () => Promise<void>;
 
@@ -339,6 +358,7 @@ export const useStore = create<AstroState>((set, get) => ({
   error: null,
   autoSpeak: false,
   preferOffline: loadOfflinePref(),
+  replaySync: loadReplaySync(),
 
   aiResult: null,
   aiLoading: false,
@@ -370,6 +390,23 @@ export const useStore = create<AstroState>((set, get) => ({
   hover: (hovered) => set({ hovered }),
   setTransitIso: (transitIso) => set({ transitIso }),
   toggleAutoSpeak: () => set((s) => ({ autoSpeak: !s.autoSpeak })),
+  toggleReplaySync: () =>
+    set((s) => {
+      const replaySync = !s.replaySync;
+      try {
+        localStorage.setItem(REPLAY_SYNC_KEY, replaySync ? "1" : "0");
+      } catch {
+        /* private mode / quota — the preference simply won't persist */
+      }
+      return { replaySync };
+    }),
+
+  forgetSyncedReadings: async () => {
+    const { entitlement } = get();
+    if (!entitlement) return 0;
+    return replaySyncForget(entitlement);
+  },
+
   toggleOfflineMode: () =>
     set((s) => {
       const preferOffline = !s.preferOffline;
@@ -428,13 +465,30 @@ export const useStore = create<AstroState>((set, get) => ({
   },
 
   ask: async (query, depth = "quick") => {
-    const { chart, lens, selection, isSupporter, entitlement, preferOffline } = get();
+    const { chart, birth, lens, selection, isSupporter, entitlement, preferOffline } = get();
     if (!chart) return;
     // Open-paywall gate: deep readings ask for support, but never hard-block.
     if (depth === "deep" && !isSupporter) {
       set({ supportOpen: true });
       return;
     }
+
+    // REPLAY. The same question, of the same chart, at the same tier, must come
+    // back as the same reading — a second answer to one question is a
+    // contradiction here, not a cache miss. Checked before the spend, so it also
+    // costs nothing. Offline-by-choice skips it: that path is already
+    // deterministic and free, and a stored model reading would quietly override
+    // the engine the reader asked for.
+    const replayInputs = { birth, query, lens, depth, entitlement, selection };
+    const sync = get().replaySync;
+    if (!preferOffline) {
+      const remembered = await replayLookup(replayInputs, sync);
+      if (remembered) {
+        set({ aiResult: remembered, aiLoading: false, aiStreaming: false });
+        return;
+      }
+    }
+
     set({ aiLoading: true, aiStreaming: true, aiResult: null });
     let acc = "";
     let meta: Partial<AIResult> = {};
@@ -453,16 +507,16 @@ export const useStore = create<AstroState>((set, get) => ({
           }));
         },
         onDone: (d) => {
-          set({
-            aiResult: {
-              ...EMPTY_RESULT,
-              ...meta,
-              ...d,
-              interpretation: acc || (d.interpretation ?? ""),
-            } as AIResult,
-            aiStreaming: false,
-            aiLoading: false,
-          });
+          const finished = {
+            ...EMPTY_RESULT,
+            ...meta,
+            ...d,
+            interpretation: acc || (d.interpretation ?? ""),
+          } as AIResult;
+          set({ aiResult: finished, aiStreaming: false, aiLoading: false });
+          // Fire-and-forget: a replay write must never delay the reading or
+          // fail the ask.
+          void replayStore(replayInputs, finished, sync);
         },
         onError: (msg) => set({ error: msg, aiStreaming: false, aiLoading: false }),
       }, entitlement, undefined, preferOffline);
@@ -477,6 +531,7 @@ export const useStore = create<AstroState>((set, get) => ({
         const aiResult = await aiAsk(
           query, chart, lens, selection, depth, entitlement, preferOffline);
         set({ aiResult, aiLoading: false, aiStreaming: false });
+        void replayStore(replayInputs, aiResult, sync);
       } catch (e2) {
         const msg = (e2 as Error).message;
         if (msg.includes("402")) {

@@ -14,6 +14,10 @@ export const LibraryVault: React.FC = () => {
   // is that last mile, and it works identically in every browser.
   const importEntitlement = useStore((s) => s.importEntitlement);
   const isSupporter = useStore((s) => s.isSupporter);
+  const replaySync = useStore((s) => s.replaySync);
+  const toggleReplaySync = useStore((s) => s.toggleReplaySync);
+  const forgetSyncedReadings = useStore((s) => s.forgetSyncedReadings);
+  const [syncNote, setSyncNote] = useState("");
   const [keyDraft, setKeyDraft] = useState("");
   const [keyNote, setKeyNote] = useState("");
   const [keyBusy, setKeyBusy] = useState(false);
@@ -74,6 +78,60 @@ export const LibraryVault: React.FC = () => {
 
   return (
     <div className="lib-surface lib-vault">
+      {/* Replay sync — the opt-in half of the guardrail. Its home is here, next
+          to the vault and the key, because it is the same kind of decision:
+          what of yours lives where. Shown only to readers who hold a key,
+          since without one there is no owner for the readings. */}
+      {isSupporter && (
+        <section className="lib-replay-sync" style={{ marginBottom: 18 }}>
+          <h2 className="lib-title">↺ Remembered readings</h2>
+          <p className="shelf-sub">
+            Ask the same question of the same chart and Astra gives you the same
+            reading back rather than writing a second, different one. That
+            happens on this device already, and costs you nothing.
+            {" "}
+            <b>Turn this on</b> and your readings are also held on the server, so
+            they follow you to another device or survive a cleared browser — which
+            means the question you asked is stored there too, inside its answer.
+            Off unless you say otherwise.
+          </p>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <span
+              className={`chip ${replaySync ? "active" : ""}`}
+              onClick={() => {
+                toggleReplaySync();
+                setSyncNote("");
+              }}
+              role="switch"
+              aria-checked={replaySync}
+              aria-label="Sync remembered readings"
+            >
+              {replaySync ? "\u25c9" : "\u25cb"} sync across devices
+            </span>
+            <button
+              className="ghost replay-forget"
+              style={{ width: "auto", fontSize: 12, padding: "4px 12px" }}
+              title="Delete every reading held for you on the server"
+              onClick={async () => {
+                if (!window.confirm(
+                  "Delete every reading held for you on the server? Readings stored on this device stay."
+                )) return;
+                try {
+                  const n = await forgetSyncedReadings();
+                  setSyncNote(`${n} reading${n === 1 ? "" : "s"} deleted from the server`);
+                } catch {
+                  setSyncNote("could not reach the server — nothing was deleted");
+                }
+                setTimeout(() => setSyncNote(""), 4000);
+              }}
+            >
+              Forget synced readings
+            </button>
+            {syncNote && <span className="shelf-sub">{syncNote}</span>}
+          </div>
+        </section>
+      )}
+
       <h2 className="lib-title">⇓ The Vault</h2>
       <p className="shelf-sub">
         Everything the observatory keeps lives in this browser — profiles,

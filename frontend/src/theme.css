@@ -3250,3 +3250,13 @@ button.is-live { color: var(--ion); background: rgba(127, 231, 220, 0.08); }
 .engine-note--info {
   color: var(--ink);
 }
+
+/* A replayed reading — the same answer, on purpose. Amethyst rather than the
+   ion reserved for on-device compute or the gold that means something fell
+   short: this is neither a degraded reading nor a different engine, it is the
+   reading the reader was already given. */
+.engine-note--replayed {
+  color: var(--amethyst-soft);
+  border-color: var(--amethyst);
+  background: rgba(142, 124, 195, 0.07);
+}

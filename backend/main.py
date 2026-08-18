@@ -96,6 +96,7 @@ from models import (
     AIRequest,
     ChartRequest,
     ChartResponse,
+    ReplayStoreRequest,
     TransitRequest,
     TransitResponse,
 )
@@ -105,6 +106,7 @@ import course as COURSE
 import deck_art as DA
 import plate_art as PLATE
 import oracle_report as ORACLE
+import replay as REPLAY
 import personal_report as PERSONAL
 from tarot_models import (
     ArcanaCalendarRequest,
@@ -440,6 +442,69 @@ async def ai_ask(req: AIRequest, request: Request):
 # --------------------------------------------------------------------------- #
 # Treasury + open-paywall entitlements
 # --------------------------------------------------------------------------- #
+
+
+# --------------------------------------------------------------------------- #
+# Replay — the opt-in, cross-device half. See replay.py for why it is opt-in.
+# --------------------------------------------------------------------------- #
+
+
+def _replay_owner(token: Optional[str]) -> str:
+    """The owner for this caller, or 401.
+
+    Anonymous callers cannot use replay sync at all: without an entitlement
+    there is no owner, and an unowned row is one anybody holding the key could
+    read. The client-side store needs none of this and is the default path.
+
+    The token arrives in X-AAE-Token, never a query string: issue #54 §3.4
+    established that a ?token= lands in access logs and proxy caches, and these
+    endpoints are the last place to leak a credential — they guard a reader's
+    stored questions.
+    """
+    owner = REPLAY.owner_for(token)
+    if not owner:
+        raise HTTPException(
+            status_code=401,
+            detail="Replay sync needs a key. Readings are remembered on this "
+                   "device either way.",
+        )
+    return owner
+
+
+@app.get("/api/replay/{key}")
+def replay_fetch(key: str, x_aae_token: Optional[str] = Header(None)):
+    """A reading this reader stored for these inputs, or 404.
+
+    Scoped to the owner, so possession of a key is not possession of the
+    reading — two readers who happen to ask the same question of the same chart
+    at the same tier produce the same key and still cannot see each other's.
+    """
+    owner = _replay_owner(x_aae_token)
+    hit = REPLAY.get(key, owner)
+    if not hit:
+        raise HTTPException(status_code=404, detail="No stored reading.")
+    return {"text": hit["text"], "model": hit["model"], "created": hit["created"]}
+
+
+@app.post("/api/replay", status_code=204)
+def replay_store(req: ReplayStoreRequest,
+                 x_aae_token: Optional[str] = Header(None)):
+    """Hold a reading for this reader across devices. `consent` must be True."""
+    owner = _replay_owner(x_aae_token)
+    if not REPLAY.put(req.key, owner, req.text, req.model):
+        raise HTTPException(status_code=413, detail="Reading too large to sync.")
+    return Response(status_code=204)
+
+
+@app.delete("/api/replay", status_code=200)
+def replay_forget(x_aae_token: Optional[str] = Header(None)):
+    """Delete every reading held for this reader.
+
+    Consent that cannot be withdrawn is not consent, so this is part of the
+    feature rather than an admin chore.
+    """
+    owner = _replay_owner(x_aae_token)
+    return {"forgotten": REPLAY.forget(owner)}
 
 
 @app.get("/api/treasury")

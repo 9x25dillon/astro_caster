@@ -125,6 +125,11 @@ export interface AIResult {
    *  "chosen" is a feature; the other three are the product falling short, and
    *  the reader is entitled to know which one they got. */
   offline_reason?: "chosen" | "capped" | "degraded" | "unconfigured";
+  /** Set when this reading came from the replay store rather than a fresh
+   *  generation — an ISO timestamp of when it was first written. The reader is
+   *  told: an answer that silently never changes is indistinguishable from a
+   *  broken one. */
+  replayed_at?: string;
   focal_house?: number;
   // kgirl topological-consensus metadata (present only for the kgirl provider).
   coherence?: number;
@@ -1226,4 +1231,65 @@ export async function localMidpointTree(natal: BirthInput, orb = 1.0): Promise<M
 export async function localFixedStars(natal: BirthInput, orb = 1.5): Promise<FixedStarResponse> {
   const c = await core();
   return { orb, hits: c.fixedStarHits(natal, orb), disclaimer: ADV_DISCLAIMER };
+}
+
+// --------------------------------------------------------------------------- //
+// Replay sync (opt-in) — the cross-device half of the replay guardrail.
+// --------------------------------------------------------------------------- //
+//
+// The default guardrail is entirely local (lib/replay.ts + the IndexedDB store);
+// these calls run only for a reader who has explicitly turned sync on. The token
+// travels in X-AAE-Token, never a query string — a ?token= lands in access logs
+// and proxy caches (issue #54 §3.4), and these endpoints guard stored questions.
+
+export interface SyncedReading {
+  text: string;
+  model: string | null;
+  created: number;
+}
+
+export async function replaySyncFetch(
+  key: string,
+  entitlement: string
+): Promise<SyncedReading | null> {
+  try {
+    const res = await fetch(`${BASE}/replay/${encodeURIComponent(key)}`, {
+      headers: { "X-AAE-Token": entitlement },
+    });
+    if (!res.ok) return null; // 404 = not stored, 401 = no longer entitled
+    return (await res.json()) as SyncedReading;
+  } catch {
+    return null; // sync is a convenience; never fail an ask over it
+  }
+}
+
+export async function replaySyncPut(
+  key: string,
+  text: string,
+  model: string | null,
+  entitlement: string
+): Promise<boolean> {
+  try {
+    const res = await fetch(`${BASE}/replay`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-AAE-Token": entitlement },
+      // `consent: true` is required by the endpoint's schema. It is sent from
+      // exactly one place — this function, which runs only when the reader has
+      // turned sync on — so the flag and the consent cannot drift apart.
+      body: JSON.stringify({ key, text, model, consent: true }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+/** Delete every reading the server holds for this reader. */
+export async function replaySyncForget(entitlement: string): Promise<number> {
+  const res = await fetch(`${BASE}/replay`, {
+    method: "DELETE",
+    headers: { "X-AAE-Token": entitlement },
+  });
+  if (!res.ok) throw new Error(`forget failed (${res.status})`);
+  return ((await res.json()) as { forgotten: number }).forgotten;
 }
