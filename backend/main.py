@@ -363,6 +363,22 @@ async def transits(req: TransitRequest):
         raise _client_error("transit calculation failed", exc)
 
 
+def _offline_reason(chose_offline: bool, within_budget: bool, note: object) -> str:
+    """Why this reading came from the deterministic engine rather than a model.
+
+    Shared by the streamed and non-streamed ask paths so the two can never drift
+    into telling a reader different stories about the same event.
+
+    `note` is set only by ai.py's exception path, which is what separates a
+    provider that broke from one that was never configured.
+    """
+    if chose_offline:
+        return "chosen"
+    if not within_budget:
+        return "capped"
+    return "degraded" if note else "unconfigured"
+
+
 @app.post("/api/ai-ask")
 async def ai_ask(req: AIRequest, request: Request):
     RL.check(request, "ai", req.entitlement)
@@ -375,7 +391,11 @@ async def ai_ask(req: AIRequest, request: Request):
     # nothing against it. `budget.py` already knew the "ask" kind; nothing here
     # ever asked it.
     ip = CLIENTIP.client_ip(request)
-    allow_ai, _cap = BUDGET.allow_call(req.entitlement, "ask", ip)
+    within_budget, _cap = BUDGET.allow_call(req.entitlement, "ask", ip)
+    # Two very different roads to the same engine, kept apart end to end so the
+    # reader can be told which one they are on.
+    chose_offline = bool(req.prefer_offline)
+    allow_ai = within_budget and not chose_offline
     result = await interpret(
         query=req.query,
         chart=req.chart.model_dump(),
@@ -400,12 +420,17 @@ async def ai_ask(req: AIRequest, request: Request):
     if result.get("source") == "llm":
         MET.observe_ai_call("ask", len(result.get("interpretation", "")))
         BUDGET.record(req.entitlement, "ask", len(result.get("interpretation", "")), ip)
-    elif not allow_ai:
-        MET.observe_ai_fallback("ask", "capped")
     else:
-        # `note` is set only by ai.py's exception path, so its presence is the
-        # difference between "the provider broke" and "there is no provider".
-        MET.observe_ai_fallback("ask", "degraded" if result.get("note") else "unconfigured")
+        # WHY this reaches the client. An offline reading is a good product when
+        # it was asked for and a broken promise when it was not, and the two were
+        # indistinguishable on the wire: a subscriber past the daily cap simply
+        # started receiving a different engine, silently, with nothing in the
+        # response saying so. `note` alone could not carry it — it is set only by
+        # ai.py's exception path, so it separates "the provider broke" from
+        # "there is no provider" and says nothing about the other two cases.
+        reason = _offline_reason(chose_offline, within_budget, result.get("note"))
+        result["offline_reason"] = reason
+        MET.observe_ai_fallback("ask", reason)
     return result
 
 
@@ -840,7 +865,9 @@ async def ai_ask_stream(req: AIRequest, request: Request):
     # Request object must not be touched from inside the generator, which runs
     # after the handler has returned.
     ip = CLIENTIP.client_ip(request)
-    allow_ai, _cap = BUDGET.allow_call(req.entitlement, "ask", ip)
+    within_budget, _cap = BUDGET.allow_call(req.entitlement, "ask", ip)
+    chose_offline = bool(req.prefer_offline)
+    allow_ai = within_budget and not chose_offline
 
     async def gen():
         final: dict = {}
@@ -854,6 +881,11 @@ async def ai_ask_stream(req: AIRequest, request: Request):
                 if event == "chunk":
                     char_count += len(payload)
                 elif event == "done":
+                    if payload.get("source") != "llm":
+                        # Attach BEFORE the yield — this is the only frame the
+                        # client sees, so a reason added afterwards reaches nobody.
+                        payload = {**payload, "offline_reason": _offline_reason(
+                            chose_offline, within_budget, payload.get("note"))}
                     final = payload
                 yield f"event: {event}\ndata: {_json.dumps(payload)}\n\n"
         except Exception:  # last-resort guard
@@ -871,10 +903,9 @@ async def ai_ask_stream(req: AIRequest, request: Request):
         if final.get("source") == "llm":
             MET.observe_ai_call("ask", char_count)
             BUDGET.record(req.entitlement, "ask", char_count, ip)
-        elif not allow_ai:
-            MET.observe_ai_fallback("ask", "capped")
         else:
-            MET.observe_ai_fallback("ask", "degraded" if final.get("note") else "unconfigured")
+            MET.observe_ai_fallback("ask", _offline_reason(
+                chose_offline, within_budget, final.get("note")))
 
     return StreamingResponse(
         gen(),

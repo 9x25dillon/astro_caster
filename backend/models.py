@@ -69,6 +69,13 @@ class AIRequest(BaseModel):
     # feature — pass the entitlement token to unlock it.
     depth: Literal["quick", "deep"] = "quick"
     entitlement: Optional[str] = None
+    # The reader has ASKED for the deterministic engine. Offline readings cost
+    # nothing, answer instantly, never leave the device's request, and are
+    # reproducible — reasons to want one that have nothing to do with failure.
+    # Kept distinct from the spend cap on purpose: a chosen offline reading and a
+    # rationed one look identical on the wire otherwise, and conflating them is
+    # what let a paying subscriber be quietly downgraded without being told.
+    prefer_offline: bool = False
     # FREE-1 — the client's claim that this free reading is still inside today's
     # allowance of premium-model readings. Honoured for the FREE TIER ONLY, and
     # only to pick a better writer at a short length; it can never unlock a paid

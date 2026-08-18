@@ -28,6 +28,17 @@ const BAD_KEY_NOTE =
   "That key didn't verify — expired, revoked, or mistyped. Nothing was stored.";
 const LAST_CHART_KEY = "aae.last_chart";
 const ASK_QUEUE_KEY = "aae.ask_queue";
+const OFFLINE_PREF_KEY = "aae.prefer_offline";
+
+/** Persisted so a deliberate choice survives a reload — a preference the reader
+ *  has to re-make every visit is one they will stop making. */
+function loadOfflinePref(): boolean {
+  try {
+    return localStorage.getItem(OFFLINE_PREF_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
 import type {
   BirthInput,
   ChartResponse,
@@ -142,6 +153,9 @@ interface AstroState {
   loading: boolean;
   error: string | null;
   autoSpeak: boolean; // read each new interpretation aloud automatically
+  /** Reader has ASKED for the deterministic engine: free, instant, private,
+   *  reproducible. Distinct from being pushed there by the spend cap. */
+  preferOffline: boolean;
 
   // AI
   aiResult: AIResult | null;
@@ -172,6 +186,7 @@ interface AstroState {
   generate: () => Promise<void>;
   loadTransit: (iso: string) => Promise<void>;
   ask: (query: string, depth?: "quick" | "deep") => Promise<void>;
+  toggleOfflineMode: () => void;
   flushAskQueue: () => Promise<void>;
   suggest: () => Promise<void>;
 
@@ -323,6 +338,7 @@ export const useStore = create<AstroState>((set, get) => ({
   loading: false,
   error: null,
   autoSpeak: false,
+  preferOffline: loadOfflinePref(),
 
   aiResult: null,
   aiLoading: false,
@@ -354,6 +370,16 @@ export const useStore = create<AstroState>((set, get) => ({
   hover: (hovered) => set({ hovered }),
   setTransitIso: (transitIso) => set({ transitIso }),
   toggleAutoSpeak: () => set((s) => ({ autoSpeak: !s.autoSpeak })),
+  toggleOfflineMode: () =>
+    set((s) => {
+      const preferOffline = !s.preferOffline;
+      try {
+        localStorage.setItem(OFFLINE_PREF_KEY, preferOffline ? "1" : "0");
+      } catch {
+        /* private mode / quota — the preference simply won't persist */
+      }
+      return { preferOffline };
+    }),
 
   generate: async () => {
     set({ loading: true, error: null });
@@ -402,7 +428,7 @@ export const useStore = create<AstroState>((set, get) => ({
   },
 
   ask: async (query, depth = "quick") => {
-    const { chart, lens, selection, isSupporter, entitlement } = get();
+    const { chart, lens, selection, isSupporter, entitlement, preferOffline } = get();
     if (!chart) return;
     // Open-paywall gate: deep readings ask for support, but never hard-block.
     if (depth === "deep" && !isSupporter) {
@@ -439,7 +465,7 @@ export const useStore = create<AstroState>((set, get) => ({
           });
         },
         onError: (msg) => set({ error: msg, aiStreaming: false, aiLoading: false }),
-      }, entitlement);
+      }, entitlement, undefined, preferOffline);
     } catch (e) {
       // 402 means supporter gate — open the modal rather than surfacing a raw error.
       if ((e as Error).message.includes("402")) {
@@ -448,7 +474,8 @@ export const useStore = create<AstroState>((set, get) => ({
       }
       // Network/abort — fall back to the non-streaming endpoint once.
       try {
-        const aiResult = await aiAsk(query, chart, lens, selection, depth, entitlement);
+        const aiResult = await aiAsk(
+          query, chart, lens, selection, depth, entitlement, preferOffline);
         set({ aiResult, aiLoading: false, aiStreaming: false });
       } catch (e2) {
         const msg = (e2 as Error).message;

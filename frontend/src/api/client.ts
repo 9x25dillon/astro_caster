@@ -121,6 +121,10 @@ export interface AIResult {
   model: string;
   provider?: "kgirl" | "ollama" | "openai" | "offline";
   note?: string;
+  /** Why a reading came from the deterministic engine rather than a model.
+   *  "chosen" is a feature; the other three are the product falling short, and
+   *  the reader is entitled to know which one they got. */
+  offline_reason?: "chosen" | "capped" | "degraded" | "unconfigured";
   focal_house?: number;
   // kgirl topological-consensus metadata (present only for the kgirl provider).
   coherence?: number;
@@ -136,7 +140,8 @@ export function aiAsk(
   lens: Lens,
   selection: Selection | null,
   depth: "quick" | "deep" = "quick",
-  entitlement?: string | null
+  entitlement?: string | null,
+  preferOffline = false
 ): Promise<AIResult> {
   // FREE-1 — claim today's premium allowance if any is left. The server honours
   // this for the FREE TIER ONLY and only to pick a better writer at a short
@@ -152,6 +157,7 @@ export function aiAsk(
     selected_type: selection?.type ?? null,
     selected_id: selection?.id ?? null,
     free_premium: claimed,
+    prefer_offline: preferOffline,
   }).then((r) => {
     // Only a real provider call spends the allowance. The offline compiler is
     // free to run, so a reading that fell back to it must not cost a turn.
@@ -195,7 +201,8 @@ export async function aiAskStream(
   depth: "quick" | "deep",
   handlers: StreamHandlers,
   entitlement?: string | null,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  preferOffline = false
 ): Promise<void> {
   const res = await fetch(`${BASE}/ai-ask-stream`, {
     method: "POST",
@@ -206,6 +213,7 @@ export async function aiAskStream(
       lens,
       depth,
       entitlement: entitlement ?? null,
+      prefer_offline: preferOffline,
       selected_type: selection?.type ?? null,
       selected_id: selection?.id ?? null,
     }),
