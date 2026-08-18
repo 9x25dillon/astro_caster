@@ -1,11 +1,195 @@
 # Hand_off.md
 
-_Last updated: 2026-08-15 (session 29 — **the money rail works end to end and a
-real subscription is running on the operator's own phone**. The card rail was
-open and silently minting nothing; the eclipse anchors were acquired and
-asserted on both engines; v1.0.5 is published. Servers are UP and the rail is
-LIVE — this is the first handoff written with real money flowing.)
+_Last updated: 2026-08-17 (session 30 — **every supporter reading had been
+ending mid-sentence for the product's whole history and 488 tests never
+noticed**. Fixed, plus an eval suite that watches what the model actually
+wrote, offline as a chosen mode, a spend cap priced by the model that answers,
+and the replay guardrail. All of it is on `reading-completion-guarantee`,
+pushed and UNMERGED — `main` is untouched. Servers are DOWN.)
 Re-derive before trusting any of this: `git fetch && git status -sb`._
+
+---
+
+# SESSION 30 — 2026-08-17
+
+## Start here
+
+**`main` is untouched. All of today's work is on `reading-completion-guarantee`,
+pushed to origin, 5 commits, NOT merged and no PR opened.** Merging is the
+operator's call as usual.
+
+```
+89c202f  The replay guardrail: the same question keeps its answer
+17ef199  Price the cap by the model that answers; stop rationing subscribers
+c8a143a  Offline becomes a mode you choose, and says so when it wasn't
+1f2d5a6  An eval suite, because 488 mocked tests watched the truncation and passed
+93e857c  Every supporter reading ended mid-sentence, and nothing read finish_reason
+```
+
+Green at close: **565 backend**, **100 desktop e2e** (6 skipped by design),
+ruff clean, eval suite 9/9 on replay, frontend build clean. **Servers are
+DOWN** — `./run.sh` to bring them back.
+
+PR link: https://github.com/9x25dillon/astro_caster/pull/new/reading-completion-guarantee
+
+---
+
+## The bug that mattered most today
+
+**Every supporter reading had been ending mid-sentence for the product's entire
+history, and nothing detected it.** The operator pasted a reading that stopped
+at `- Profound psychological insight an`.
+
+`finish_reason` was read **nowhere** in `ai.py`. Measured against a real chart
+with the cap lifted to 9000:
+
+| tier | model | natural need | old budget | verdict |
+|---|---|---|---|---|
+| free | claude-haiku-4-5 | 1,138–1,257 | 700 | cut ~44% short |
+| supporter | claude-sonnet-5 | 4,367–4,911 | 3,000 | cut ~39%, **every time** |
+| oracle | claude-opus-5 | 3,886–4,521 | 6,000 | fit |
+
+Supporter shares `ORACLE_EXTENSION` with oracle ("800–1200 words", five
+sections) but had half the room that brief costs. **Supporter needs MORE than
+oracle** — sonnet-5 spends 4.2–5.0 tokens/word against opus-5's 3.4–3.8 — so
+the old "strictly tiered budget" comment was ranking a quantity the models do
+not honour.
+
+**Diagnose this class of thing with a wire probe, never by reading the code:**
+
+```bash
+# from backend/, in the venv — prints finish_reason per tier
+.venv/bin/python /path/to/probe.py   # pattern: call the provider directly,
+                                     # print choices[0].finish_reason + usage
+```
+
+---
+
+## What is in the branch
+
+1. **Completion guarantee** (`ai.py`). `finish_reason` read on both the
+   streaming and non-streaming paths; on `"length"` the partial is fed back as
+   an assistant turn and the model resumes, bounded at 2 continuations; if that
+   bound is hit the text is trimmed to its last complete sentence. Budgets
+   floored by measurement (free 700→1600, supporter 3000→6600, oracle
+   6000→8000, ollama 520→1200). The `free < supporter < oracle` ladder is
+   KEPT — an existing test asserts it as a deliberate product decision.
+
+2. **Eval suite** (`backend/evals/`). Checks what the model WROTE:
+   completeness, structure, grounding, length, voice. Replay by default from
+   committed cassettes (free, deterministic, wired into the backend CI job);
+   `--record` re-records from the live provider. `evals/regressions/` holds
+   known-bad readings that the tests assert are REJECTED — water down
+   `check_completeness` and those go green while `test_evals.py` goes red.
+
+3. **Offline as a chosen mode** (`prefer_offline` + `offline_reason`).
+   Responses now say WHY they are offline: chosen / capped / degraded /
+   unconfigured. A capped subscriber is told rather than silently downgraded.
+
+4. **Cap priced by model** (`budget.py`). The `kind == "ask"` × 0.2 multiplier
+   is gone; a per-model table at Anthropic list rates (fable-5 $50, opus-5 $25,
+   sonnet-5 $15, haiku-4.5 $5 per MTok out) matched on the bare name so an
+   OpenRouter route prefix resolves the same. **Subscribers are exempt from the
+   per-user cap** — spend still RECORDED, only the refusal removed.
+
+5. **Replay guardrail** (`frontend/src/lib/replay.ts`, `backend/replay.py`).
+   Same question + same chart + same tier → same reading. Local by default
+   (bookshelf DB **v5**, new `replay` store); server sync is opt-in behind a
+   required `consent: true`, owner-scoped, TTL'd, deletable.
+
+---
+
+## Gotchas learned today — read these before touching e2e
+
+1. **Kill :5173 and :8787 before any full Playwright run.** The suite's
+   `reuseExistingServer` will adopt a dev stack you left running. If that stack
+   is in **personal mode**, everyone is oracle tier and 7 specs fail
+   confusingly (`app-shell` expects a free-tier `.support-pill`). This cost a
+   full debug cycle today and it is already in memory — heed it.
+
+2. **Route globs must omit the version segment.** The API is served under
+   `/api/v1/…`, so `page.route("**/api/ai-ask-stream")` matches **nothing** and
+   every ask sails through to the real provider. That presents as a broken test,
+   not a broken stub. Use `**/ai-ask-stream*`.
+
+3. **Never wait on "the reading is non-empty".** `.interp` still holds the
+   PREVIOUS reading, so the poll passes instantly and you read stale text. Wait
+   on something specific — a numbered generation from the stub, or the
+   `.engine-note--replayed` marker.
+
+4. **sonnet-5 can return `content: null` at the ceiling.** Observed live while
+   recording eval fixtures: `finish_reason="length"`, whole 3,000-token budget
+   spent, no text. `None.strip()` was a 500 on a call already paid for. Both the
+   old code and the first cut of the fix crashed on it.
+
+5. **A TRAILING assistant turn is a prefill and 400s** on Fable 5 / Opus 5 /
+   Sonnet 5 / the 4.6–4.8 family. An assistant turn FOLLOWED BY a user turn is
+   ordinary history and is fine — that is the continuation shape both
+   `_chat_openai_compat` and `_call_fable` use. In `_call_fable`, `msg.content`
+   is echoed back VERBATIM (thinking blocks included, even with empty text
+   under the default display) because editing them breaks the turn.
+
+6. **Load the `claude-api` skill for any model pricing / API-shape question.**
+   Today's price table came from it, not from memory. Memory had fable-5 and
+   opus-4-8 but not opus-5 / sonnet-5 / haiku-4.5.
+
+---
+
+## Open items, in the order I would take them
+
+1. **`_NOMINAL_CHARS["ask"]` is 3000** (`budget.py:81`) and now under-estimates
+   — readings run 5–24k chars. Only the PRE-FLIGHT guess is low; `record()`
+   uses real output, so the cap is crossed slightly late rather than never.
+   Measure before tuning.
+
+2. **`_ARCANA_BUDGET`** (`ai.py`) is `{oracle: 2600, supporter: 1600, free:
+   900}` and was never measured the way the reading budgets were. The
+   continuation loop backstops it, so a tight number costs an extra round-trip
+   rather than a truncated reading. Measure, then tune.
+
+3. **The global-cap exposure introduced deliberately today.** One subscriber
+   can now walk the $100 global cap down alone, degrading everyone. Remaining
+   controls: the global ceiling, the 80% alarm, `ratelimit.py`'s 20/60s window.
+   If it ever happens, the answer is a **high per-subscriber sanity ceiling that
+   ALARMS rather than degrades** — not a return to the per-user cap.
+
+4. **Replay sync UI is gated on `isSupporter`.** Free-tier readers get the local
+   guardrail (which is the whole product benefit) but never see the section.
+   That is intentional — without an entitlement there is no owner — but worth a
+   look if free-tier readers ask where their readings went after clearing a
+   browser.
+
+5. **Re-record the eval cassettes** whenever a prompt, model, or budget changes:
+   `cd backend && .venv/bin/python -m evals.runner --record` (costs real money).
+   The cassette diff is then a readable before/after of the product itself.
+
+---
+
+## The astrology thread (resolved — no action needed)
+
+The session opened with "the readings are wrong — I'm a Scorpio rising but it
+says Pisces." **The engine was right the whole time.**
+
+- Measured against JPL Horizons anchors: **median 0.137″**, worst 1.297″,
+  39/40 under 1″. All 70 anchor tests pass.
+- The operator's real birth time is **13:11 local, 1987-11-11, Barstow CA,
+  PST (UTC−8)** → **Ascendant 1°09′ Pisces**. Verified two ways: the backend
+  returns 280.73→331.16°, and an independent spherical-trig computation (no
+  ephemeris library) agrees to 9 arcsec.
+- The "Scorpio" belief has no provenance. The chart is Scorpio-HEAVY — Sun
+  18°56′, Pluto 10°16′, Part of Fortune 12°26′, all in Scorpio, Pluto in the
+  8th — which very plausibly became "Scorpio rising" somewhere along the way.
+- **Two cusp warnings for this chart:** the Ascendant is **3.2 minutes** of
+  clock from Aquarius (Pisces starts 13:08), and the Moon is **0°12′ Leo**,
+  ~24 minutes past the Cancer boundary. If precision ever matters here, pull
+  the birth certificate time rather than the remembered one.
+- The wrong readings came from hand-typed TZ values (`-5.7`, then `+7`).
+  **`resolveOffset` (`packages/astra-core/src/timezone.ts:210`) is correct and
+  handles 1987 DST properly** — it only runs when a city is picked on the map.
+  The bare "TZ ±h" box has **no validation against longitude**. A guard warning
+  when the offset disagrees with `lng / 15` by more than ~1.5h would have caught
+  all three bad values at entry. **Offered, not built — operator's call.**
+
 
 ---
 
