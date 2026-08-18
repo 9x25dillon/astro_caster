@@ -34,7 +34,7 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 import tarot as TAROT
 from tarot_models import (
@@ -46,6 +46,18 @@ from tarot_models import (
 from tarot_prompts import ARCANA_SYSTEM
 
 import promptsafe as PS
+
+# Completion guarantee for the long-form reports, mirroring ai.py's. Bounded so a
+# runaway generation cannot bill without limit; two continuations on a 32k budget
+# is ~96k tokens, far past anything these prompts ask for.
+_MAX_CONTINUATIONS = 2
+
+_CONTINUE_INSTRUCTION = (
+    "Continue the report from exactly where it stopped. Do not repeat any text "
+    "you have already written, do not greet or re-introduce yourself, and do not "
+    "summarise what came before. Resume mid-sentence if that is where it ended, "
+    "and carry through to a proper close."
+)
 
 _log = logging.getLogger("aae.oracle_report")
 
@@ -181,28 +193,56 @@ async def _call_fable(
         from anthropic import AsyncAnthropic
 
         client = AsyncAnthropic(api_key=_ANTHROPIC_KEY, timeout=_TIMEOUT_S)
-        # Fable 5: no `thinking` param (always on), no sampling params. Streamed
-        # because a long report can run minutes. Server-side fallbacks re-serve a
-        # safety decline on Opus 4.8 inside the same call, repriced automatically.
-        async with client.beta.messages.stream(
-            model=model or _REPORT_MODEL,
-            max_tokens=max_tokens or _MAX_TOKENS,
-            system=system,
-            output_config={"effort": effort or _EFFORT},
-            betas=["server-side-fallback-2026-06-01"],
-            fallbacks=[{"model": _FALLBACK_MODEL}],
-            messages=[{"role": "user", "content": user}],
-        ) as stream:
-            msg = await stream.get_final_message()
-        if msg.stop_reason == "refusal":
-            # Whole chain declined (requested model AND fallback) — check
-            # stop_reason before reading content; a refusal's content is empty.
-            _log.warning("oracle report refused by the full model chain")
-            return None
-        text = "".join(b.text for b in msg.content if b.type == "text").strip()
+        messages = [{"role": "user", "content": user}]
+        parts: List[str] = []
+        served_by = model or _REPORT_MODEL
+
+        # These reports are the longest and dearest text the product makes, and
+        # until now `stop_reason` was checked ONLY for "refusal" — a report that
+        # hit its 16k/24k/32k ceiling was returned as though finished. Same
+        # defect the ask path had, on the output a reader pays the most for.
+        for _ in range(_MAX_CONTINUATIONS + 1):
+            # Fable 5: no `thinking` param (always on), no sampling params. Streamed
+            # because a long report can run minutes. Server-side fallbacks re-serve a
+            # safety decline on Opus 4.8 inside the same call, repriced automatically.
+            async with client.beta.messages.stream(
+                model=model or _REPORT_MODEL,
+                max_tokens=max_tokens or _MAX_TOKENS,
+                system=system,
+                output_config={"effort": effort or _EFFORT},
+                betas=["server-side-fallback-2026-06-01"],
+                fallbacks=[{"model": _FALLBACK_MODEL}],
+                messages=messages,
+            ) as stream:
+                msg = await stream.get_final_message()
+            if msg.stop_reason == "refusal":
+                # Whole chain declined (requested model AND fallback) — check
+                # stop_reason before reading content; a refusal's content is empty.
+                _log.warning("oracle report refused by the full model chain")
+                return None
+            served_by = msg.model
+            parts.append(
+                "".join(b.text for b in msg.content if b.type == "text"))
+            if msg.stop_reason != "max_tokens":
+                break
+            if not "".join(parts).strip():
+                break          # nothing to continue from; let the caller fall back
+
+            # Continue as ORDINARY HISTORY, not a prefill. A trailing assistant
+            # turn is a prefill and 400s on this model family; an assistant turn
+            # followed by a user turn is just conversation. `msg.content` is
+            # passed back VERBATIM — thinking blocks included, even when their
+            # text is empty under the default display — because editing or
+            # dropping them breaks the turn.
+            messages = messages[:1] + [
+                {"role": "assistant", "content": msg.content},
+                {"role": "user", "content": _CONTINUE_INSTRUCTION},
+            ]
+
+        text = "".join(parts).strip()
         if not text:
             return None
-        return {"text": text, "model": msg.model}
+        return {"text": text, "model": served_by}
     except Exception as exc:
         _log.warning("oracle report AI layer failed: %r", exc)
         return None

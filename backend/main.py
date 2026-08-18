@@ -90,6 +90,7 @@ import telemetry as TEL
 import treasury as TR
 import tts as T
 from ai import ai_status, interpret, interpret_arcana, interpret_stream
+from ai import model_for_tier as AI_MODEL_FOR_TIER
 from forecast import generate_forecast
 from models import (
     AIRequest,
@@ -391,7 +392,8 @@ async def ai_ask(req: AIRequest, request: Request):
     # nothing against it. `budget.py` already knew the "ask" kind; nothing here
     # ever asked it.
     ip = CLIENTIP.client_ip(request)
-    within_budget, _cap = BUDGET.allow_call(req.entitlement, "ask", ip)
+    within_budget, _cap = BUDGET.allow_call(
+        req.entitlement, "ask", ip, model=AI_MODEL_FOR_TIER(tier))
     # Two very different roads to the same engine, kept apart end to end so the
     # reader can be told which one they are on.
     chose_offline = bool(req.prefer_offline)
@@ -419,7 +421,8 @@ async def ai_ask(req: AIRequest, request: Request):
     ))
     if result.get("source") == "llm":
         MET.observe_ai_call("ask", len(result.get("interpretation", "")))
-        BUDGET.record(req.entitlement, "ask", len(result.get("interpretation", "")), ip)
+        BUDGET.record(req.entitlement, "ask", len(result.get("interpretation", "")), ip,
+                      model=result.get("model"))
     else:
         # WHY this reaches the client. An offline reading is a good product when
         # it was asked for and a broken promise when it was not, and the two were
@@ -865,7 +868,8 @@ async def ai_ask_stream(req: AIRequest, request: Request):
     # Request object must not be touched from inside the generator, which runs
     # after the handler has returned.
     ip = CLIENTIP.client_ip(request)
-    within_budget, _cap = BUDGET.allow_call(req.entitlement, "ask", ip)
+    within_budget, _cap = BUDGET.allow_call(
+        req.entitlement, "ask", ip, model=AI_MODEL_FOR_TIER(tier))
     chose_offline = bool(req.prefer_offline)
     allow_ai = within_budget and not chose_offline
 
@@ -902,7 +906,8 @@ async def ai_ask_stream(req: AIRequest, request: Request):
         ))
         if final.get("source") == "llm":
             MET.observe_ai_call("ask", char_count)
-            BUDGET.record(req.entitlement, "ask", char_count, ip)
+            BUDGET.record(req.entitlement, "ask", char_count, ip,
+                          model=final.get("model"))
         else:
             MET.observe_ai_fallback("ask", _offline_reason(
                 chose_offline, within_budget, final.get("note")))

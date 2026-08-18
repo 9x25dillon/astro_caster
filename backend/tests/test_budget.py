@@ -35,7 +35,15 @@ def test_estimate_cost(monkeypatch):
     # 40k chars ≈ 10k tokens · $50/Mtok = $0.50
     assert abs(B.estimate_cost("deluxe", 40000) - 0.50) < 1e-9
     assert B.estimate_cost("plate", 0) == 0.02
-    assert B.estimate_cost("ask", 40000) < B.estimate_cost("oracle", 40000)
+    # WAS: assert estimate_cost("ask", ...) < estimate_cost("oracle", ...).
+    # That asserted the defect. `ask` was cheaper only because estimate_cost
+    # multiplied that one kind by 0.2 on the assumption it ran on a cheap model —
+    # but an oracle-tier ask runs on opus-5, so the cap under-counted it fivefold.
+    # Price now follows the MODEL, so kind must not change it.
+    assert B.estimate_cost("ask", 40000, "claude-opus-5") == \
+        B.estimate_cost("oracle", 40000, "claude-opus-5")
+    assert B.estimate_cost("ask", 40000, "claude-haiku-4-5") < \
+        B.estimate_cost("ask", 40000, "claude-opus-5")
 
 
 def test_user_key_prefers_jti():
@@ -127,7 +135,7 @@ def test_plate_429_when_over_budget(monkeypatch):
     monkeypatch.setattr(ENT, "_DEV_TOKEN", "op")
     monkeypatch.setattr(PLATE, "plates_available", lambda: True)
     monkeypatch.setattr(B, "allow_call",
-                        lambda tok, kind, client_ip=None: (False, "user"))
+                        lambda tok, kind, client_ip=None, model=None: (False, "user"))
     chart = client.post("/api/generate-chart", json=_BIRTH).json()
     r = client.post("/api/deck-art-image",
                     json={"chart": chart, "card_id": "the_star", "entitlement": "op"})
@@ -148,7 +156,12 @@ def test_anonymous_visitors_do_not_share_one_bucket(monkeypatch):
     served the offline compiler instead of the product.
     """
     B.reset()
-    monkeypatch.setenv("AAE_USER_DAILY_USD", "0.02")
+    # 0.10, not the 0.02 this used to use: estimate_cost no longer discounts an
+    # "ask" by 0.2, so one nominal call is now ~$0.0375 and a $0.02 ceiling
+    # refused the very first request — the loop below never ran and the test
+    # passed for the wrong reason. The scenario is unchanged; only the ceiling
+    # moved to stay above a single call.
+    monkeypatch.setenv("AAE_USER_DAILY_USD", "0.10")
 
     # One address burns its own allowance...
     while B.allow_call(None, "ask", "203.0.113.7")[0]:
@@ -201,7 +214,7 @@ def test_the_free_ask_path_is_actually_capped(monkeypatch):
 
     monkeypatch.setattr(main, "interpret", fake_interpret)
     monkeypatch.setattr(B, "allow_call",
-                        lambda tok, kind, client_ip=None: (False, "global"))
+                        lambda tok, kind, client_ip=None, model=None: (False, "global"))
 
     chart = client.post("/api/generate-chart", json=_BIRTH).json()
     r = client.post("/api/ai-ask",

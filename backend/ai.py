@@ -167,6 +167,16 @@ def ai_status() -> dict:
     }
 
 
+def model_for_tier(tier: str) -> str:
+    """The cloud model a tier's reading will be written by.
+
+    Exists so budget.py can price a call BEFORE it is made: the pre-flight
+    estimate has only the tier to go on, and pricing every tier at one flat rate
+    is what let an oracle ask be counted at a fifth of its cost.
+    """
+    return {"oracle": _MODEL_ORACLE, "supporter": _MODEL_SUPPORTER}.get(tier, _MODEL)
+
+
 def _resolve_provider_for_tier(tier: str) -> str:
     """Force cloud for paid tiers when a key is available; otherwise auto-resolve."""
     if tier in ("supporter", "oracle") and _API_KEY:
