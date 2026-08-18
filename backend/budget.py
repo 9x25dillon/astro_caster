@@ -82,16 +82,45 @@ _NOMINAL_CHARS = {"oracle": 13000, "deluxe": 40000, "course": 24000,
                   "tarot": 1200, "ask": 3000, "tts": 2000, "plate": 0}
 
 
-def estimate_cost(kind: str, chars: int) -> float:
+# Output $ per 1e6 tokens, Anthropic list prices (2026-06-24 catalogue). Matched
+# on the bare model name so an OpenRouter route prefix ("anthropic/claude-opus-5")
+# resolves the same as a first-party id.
+#
+# WHY A TABLE. This used to be one flat rate with a `kind == "ask"` multiplier of
+# 0.2, commented "usually a local/cheap model". An oracle-tier ask is answered by
+# opus-5, so the cap counted that call at a fifth of its price and the ceiling sat
+# five times higher than the number in the config said. Cost follows the model
+# that actually answered, never the shape of the request.
+_MTOK_OUTPUT = {
+    "claude-fable-5": 50.0,
+    "claude-opus-5": 25.0,
+    "claude-opus-4-8": 25.0,
+    "claude-sonnet-5": 15.0,
+    "claude-haiku-4-5": 5.0,
+}
+
+
+def output_price(model: str | None) -> float:
+    """$ per 1e6 output tokens for `model`.
+
+    An unrecognised model bills at AAE_COST_PER_MTOK_OUTPUT (default 50, the
+    dearest rate in the catalogue). Guessing HIGH on an unknown model degrades a
+    reader early; guessing low overspends silently, and only one of those is
+    recoverable.
+    """
+    name = (model or "").rsplit("/", 1)[-1]
+    for known, price in _MTOK_OUTPUT.items():
+        if name.startswith(known):
+            return price
+    return _f("AAE_COST_PER_MTOK_OUTPUT", 50.0)
+
+
+def estimate_cost(kind: str, chars: int, model: str | None = None) -> float:
     if kind == "plate":
         return _f("AAE_COST_PER_IMAGE", 0.02)
     if kind == "tts":
         return chars / 1000.0 * _f("AAE_COST_PER_KTTS", 0.03)
-    per_mtok = _f("AAE_COST_PER_MTOK_OUTPUT", 50.0)
-    char_cost = chars / 4.0 / 1e6 * per_mtok
-    if kind == "ask":
-        return char_cost * 0.2         # usually a local/cheap model
-    return char_cost                   # oracle / course / deluxe / tarot
+    return chars / 4.0 / 1e6 * output_price(model)
 
 
 def _anon_bucket(client_ip: str) -> str:
@@ -148,8 +177,25 @@ def user_key(token: str | None, client_ip: str | None = None) -> str:
     return "h:" + hashlib.sha256(token.encode()).hexdigest()[:16]
 
 
+def is_subscriber(token: str | None) -> bool:
+    """True for a paid, unexpired entitlement (supporter or oracle).
+
+    Deliberately fail-CLOSED on any error: an unreadable token is treated as a
+    non-subscriber and stays capped. The opposite default would turn a malformed
+    token into an uncapped one.
+    """
+    if not token:
+        return False
+    try:
+        import entitlements as _ENT
+        return _ENT.entitlement_status(token).get("tier") in ("supporter", "oracle")
+    except Exception:
+        return False
+
+
 def allow_call(token: str | None, kind: str,
-               client_ip: str | None = None) -> tuple[bool, str]:
+               client_ip: str | None = None,
+               model: str | None = None) -> tuple[bool, str]:
     """(allowed, reason). A conservative PRE-call check using a nominal output
     size for `kind`. reason is '' | 'user' | 'global' — the caller degrades to
     offline (or refuses, for image-only paths) when not allowed.
@@ -157,33 +203,56 @@ def allow_call(token: str | None, kind: str,
     Pass `client_ip` for anonymous callers so they get their own daily bucket
     instead of sharing one with every other tokenless visitor — see
     `_anon_bucket`. Omitting it is safe but collapses them back into 'anon'.
+
+    Pass `model` so the estimate is priced for the model that will answer; see
+    `output_price`.
+
+    SUBSCRIBERS ARE EXEMPT FROM THE PER-USER CAP. A subscription is sold as
+    unlimited readings, and a daily ceiling that silently swaps the writer they
+    pay for is not that. Their spend is still RECORDED, so the global cap, the
+    alarm, and /api/admin/stats all still see it — what is removed is the
+    per-user refusal, not the accounting.
+
+    The exposure this accepts: one subscriber can now consume the global daily
+    cap alone, which degrades every other reader. The remaining controls are the
+    global ceiling, the spend alarm at 80% of it, and ratelimit.py's sliding
+    window (20 requests/60s on the ask path). If a single account ever walks the
+    global cap down on its own, the answer is a high per-subscriber sanity
+    ceiling that ALARMS rather than degrades — not a return to this cap.
     """
     if not enabled():
         return True, ""
-    est = estimate_cost(kind, _NOMINAL_CHARS.get(kind, 8000))
+    est = estimate_cost(kind, _NOMINAL_CHARS.get(kind, 8000), model)
     uk = user_key(token, client_ip)
     day = _today()
     with _lock:
         u = _user_spend.get((day, uk), 0.0)
         g = _global_spend.get(day, 0.0)
+    # The global ceiling binds everyone, subscribers included — it is the only
+    # thing standing between one runaway account and the provider bill.
     if g + est > global_daily_cap():
         return False, "global"
-    if u + est > user_daily_cap():
+    if not is_subscriber(token) and u + est > user_daily_cap():
         return False, "user"
     return True, ""
 
 
 def record(token: str | None, kind: str, chars: int,
-           client_ip: str | None = None) -> float:
+           client_ip: str | None = None,
+           model: str | None = None) -> float:
     """Record the ACTUAL spend of a completed provider call (post-call, real
     output size). Fires the global alarm once per day when crossed.
 
     `client_ip` must match whatever was passed to `allow_call` for the same
     request, or the pre-check and the record land in different buckets.
+
+    `model` is the model that ACTUALLY answered — post-call this is known
+    exactly, so it is the more accurate of the two pricing points. Subscriber
+    spend is recorded here like everyone else's, exemption or not.
     """
     if not enabled():
         return 0.0
-    cost = estimate_cost(kind, chars)
+    cost = estimate_cost(kind, chars, model)
     uk = user_key(token, client_ip)
     day = _today()
     with _lock:
