@@ -3,7 +3,7 @@ uvicorn[standard]==0.52.1
 pydantic==2.13.4
 pyswisseph==2.10.3.2
 httpx==0.28.1
-python-dotenv==1.2.2
+python-dotenv==1.2.3
 tzdata==2026.3
 anthropic==0.121.0
 cryptography==50.0.0
