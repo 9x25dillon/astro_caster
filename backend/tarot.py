@@ -445,27 +445,17 @@ def _default_seed(
 # placements hands the model names it cannot ground, in every single reading.
 UNSIGNED_BODIES = ["Chiron", "Lilith", "Part of Fortune", "South Node"]
 
-# The five Ptolemaic aspects. Kept as a set rather than read from ASPECT_DEFS'
-# ordering so that adding a minor aspect to the engine cannot silently promote it.
-_MAJOR_ASPECTS = {"Conjunction", "Opposition", "Trine", "Square", "Sextile"}
-
 ASPECT_PROMPT_LIMIT = 18
 
 
 def _relative_tightness(aspect) -> float:
     """Orb as a fraction of the orb THAT aspect is allowed.
 
-    Ranking by raw orb looks right and is not: a conjunction is allowed 8° and a
-    semisextile 2°, so a half-degree semisextile outranks a half-degree
-    conjunction while meaning far less. Measured over 120 charts, raw orb fills
-    the eighteen with 45% major aspects; this ranking gives 70%, at identical
-    prompt cost.
-
-    An aspect the engine does not define sorts last rather than raising — a new
-    minor aspect should not be able to crash a reading.
+    Thin adapter over astrology.relative_orb, which carries the reasoning and is
+    shared with ai._build_context — the ask path ranks the same way, so the rule
+    lives with ASPECT_DEFS rather than in either consumer.
     """
-    d = A.ASPECT_BY_NAME.get(aspect.type)
-    return aspect.orb / d.default_orb if d and d.default_orb else 1.0
+    return A.relative_orb(aspect.type, aspect.orb)
 
 
 def aspect_prompt_lines(
@@ -483,7 +473,7 @@ def aspect_prompt_lines(
     for a in ranked:
         motion = "" if a.applying is None else (
             ", applying" if a.applying else ", separating")
-        weight = "" if a.type in _MAJOR_ASPECTS else ", minor"
+        weight = "" if a.type in A.MAJOR_ASPECTS else ", minor"
         out.append(f"{a.p1} {a.type.lower()} {a.p2} "
                    f"(orb {a.orb:.2f}°{motion}{weight})")
     return out

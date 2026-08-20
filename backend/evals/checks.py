@@ -189,6 +189,20 @@ def _canon(name: str) -> str:
     return name
 
 
+# A body introduced as the OBJECT of "of" is being referred to, not placed:
+# "Venus, ruler of your Ascendant, floating alone in Gemini" says Venus is in
+# Gemini, and Venus is. Caught on a live recording 2026-08-19, where this check
+# read the appositive as the subject and accused a correct reading of putting the
+# Ascendant in the wrong sign. _binds already guards the mirror case — a sign
+# belonging to a LATER body — and this is the same error pointing backwards.
+_REFERENT = re.compile(r"\bof\s+(?:your\s+|the\s+|his\s+|her\s+|their\s+)?$",
+                       re.IGNORECASE)
+
+
+def _is_referent(text: str, at: int) -> bool:
+    return _REFERENT.search(text[max(0, at - 24):at]) is not None
+
+
 def _binds(text: str, m: re.Match, body_group: int, sign_group: int) -> bool:
     """True when the body and the sign in this match belong to each other.
 
@@ -204,6 +218,8 @@ def _binds(text: str, m: re.Match, body_group: int, sign_group: int) -> bool:
     it guards nothing — so a claim is only counted when no other body sits
     between the two halves of it.
     """
+    if _is_referent(text, m.start(body_group)):
+        return False
     between = text[m.end(body_group):m.start(sign_group)]
     return _ANY_BODY.search(between) is None
 
@@ -307,7 +323,7 @@ _ASPECT_VERBS = {
 }
 
 _ASPECT_CLAIM = re.compile(
-    r"\b(" + "|".join(BODIES) + r")\b\s+"
+    r"\b(" + "|".join(BODIES) + r")\b(?:['\u2019]s)?\s+"
     r"(?:is\s+|sits\s+|lies\s+)?"
     r"\b(" + "|".join(sorted(_ASPECT_VERBS, key=len, reverse=True)) + r")\b\s+"
     r"(?:to\s+|with\s+|your\s+|the\s+|natal\s+){0,2}"
@@ -337,6 +353,11 @@ def aspect_key(a: str, b: str) -> str:
 # check's survival on every tarot reading the product serves.
 _CARD_NAMED_BODIES = {"Sun", "Moon"}
 
+# A trailing possessive turns the second body into a modifier: "Pluto's sign",
+# "Saturn's house", "Venus's ruler". The sentence is then about that thing, not
+# about an aspect to the planet.
+_POSSESSIVE = re.compile(r"['\u2019]s\b")
+
 
 def _in_card_form(text: str, at: int, body: str) -> bool:
     return _canon(body) in _CARD_NAMED_BODIES and text[max(0, at - 4):at] == "The "
@@ -355,6 +376,14 @@ def check_aspect_grounding(gen: Generation, case: Case) -> List[Finding]:
         if (_in_card_form(gen.text, m.start(1), body_a)
                 and _in_card_form(gen.text, m.start(3), body_b)):
             continue                      # two trumps on the cloth, not two bodies
+        if _POSSESSIVE.match(gen.text, m.end(3)):
+            # "Lilith conjunct Pluto's SIGN" is a claim about a sign, not about
+            # Pluto. Caught on a live recording 2026-08-19, where the model was
+            # being careful — it wrote "nearly kissing Pluto's sign" in the same
+            # paragraph — and this check called it a hallucination. Lilith and
+            # Pluto really are 12° apart and really are both in Scorpio; the
+            # reading said so correctly and the checker read past the apostrophe.
+            continue
         key = aspect_key(body_a, body_b)
         claimed = _ASPECT_VERBS[verb]
         actual = case.aspects.get(key)

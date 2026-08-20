@@ -270,3 +270,70 @@ def test_each_distinct_claim_is_reported_once():
 
 def test_aspect_key_is_order_independent():
     assert aspect_key("Moon", "Mercury") == aspect_key("Mercury", "Moon")
+
+
+def test_a_possessive_makes_it_a_claim_about_something_else():
+    """"Lilith conjunct Pluto's sign" is about a SIGN, not about Pluto.
+
+    From a live recording, 2026-08-19. The model was being careful — the same
+    paragraph says "nearly kissing Pluto's sign" — and the first cut of this
+    check reported it as a fabricated aspect. Lilith and Pluto are 12° apart and
+    both in Scorpio; every word of the reading was true and the checker read
+    past the apostrophe. This is the cry-wolf failure that gets a check deleted.
+    """
+    gen = Generation(
+        text="Lilith conjunct Pluto's sign in the 2nd house suggests shadow-work.",
+        finish_reason="stop")
+    assert check_aspect_grounding(gen, _aspect_case()) == []
+
+
+def test_a_possessive_on_the_first_body_is_still_judged():
+    """"Pluto's square to Venus" IS an aspect claim about Pluto."""
+    gen = Generation(text="Pluto's square to Venus is the ache.", finish_reason="stop")
+    assert len(check_aspect_grounding(gen, _aspect_case())) == 1
+
+
+def test_a_body_named_as_a_referent_is_not_being_placed():
+    """"Venus, ruler of your Ascendant, floating alone in Gemini" places VENUS.
+
+    From a live recording, 2026-08-19. Venus really is in Gemini and the
+    Ascendant really is in Libra; the reading said both correctly, and this
+    check bound the sign to the appositive and called it a hallucination.
+    _binds already guards the mirror case — a sign belonging to a LATER body —
+    and this is the same error pointing backwards.
+    """
+    gen = Generation(text=("the unaspected Venus, ruler of your Ascendant, "
+                           "floating alone in Gemini's 8th house"),
+                     finish_reason="stop")
+    case = Case(id="c", tier="oracle", lens="psychological", query="q",
+                placements={"Ascendant": "Libra", "Venus": "Gemini"})
+    assert check_grounding(gen, case) == []
+
+
+def test_the_referent_guard_does_not_excuse_a_direct_claim():
+    gen = Generation(text="Your Ascendant in Gemini shapes how you arrive.",
+                     finish_reason="stop")
+    case = Case(id="c", tier="oracle", lens="psychological", query="q",
+                placements={"Ascendant": "Libra"})
+    assert len(check_grounding(gen, case)) == 1
+
+
+def test_the_runner_pins_the_same_ephemeris_for_record_and_replay():
+    """Cassettes must be checked against the chart they were generated from.
+
+    The runner loads .env when --record (swiss-files: 17 bodies, 40 major
+    aspects) and loaded nothing when replaying (moshier: 16 bodies, 33, and no
+    Chiron at all, because Moshier has no asteroids). Every cassette was being
+    graded against a different chart than it came from, which surfaced as a
+    grounding check accusing a reading of inventing the aspect list it had
+    actually been handed.
+    """
+    from evals.runner import chart_dict
+    assert chart_dict()["meta"]["ephemeris"] == "swiss-files"
+
+
+def test_the_reference_chart_contains_the_asteroid_bodies():
+    """The tell for a silent Moshier fallback, stated as an assertion."""
+    from evals.runner import chart_dict
+    ids = {p["id"] for p in chart_dict()["planets"]}
+    assert "Chiron" in ids, "Moshier fallback — SE_EPHE_PATH is not pinned"

@@ -36,6 +36,28 @@ from typing import Dict, List, Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+# Pin the ephemeris, FORCED, exactly as tests/conftest.py does — and for a
+# sharper reason here than there.
+#
+# `main()` loads .env when --record, so a RECORDING used the operator's
+# SE_EPHE_PATH and got swiss-files: 17 bodies, 40 major aspects. A REPLAY loaded
+# no .env at all, fell back to Moshier, and got 16 bodies and 33 major aspects —
+# no Chiron, because Moshier has no asteroids. So every cassette was being
+# checked against a chart that was not the one it had been generated from.
+#
+# It surfaced on 2026-08-19 as a false "Jupiter conjunct Chiron — chart has no
+# major aspect between them" against a reading that was quoting the aspect list
+# it had actually been handed. A grounding check comparing prose to the wrong
+# chart does not merely miss defects; it manufactures them.
+#
+# The vendored directory is the drift-lock set the parity vectors are generated
+# against and the exact files the on-device engine ships. Must precede any
+# ephemeris import — the lazy imports inside chart_dict() are what make setting
+# it here sufficient.
+os.environ["SE_EPHE_PATH"] = str(
+    Path(__file__).resolve().parents[2]
+    / "packages" / "astra-core" / "src" / "vendor" / "swisseph")
+
 from .cases import CHART_REQUEST, build_cases          # noqa: E402
 from .checks import Case, Generation, failed, run_checks  # noqa: E402
 

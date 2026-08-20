@@ -1,6 +1,6 @@
 # Hand_off.md
 
-_Last updated: 2026-08-19 (session 31 — three traditional spreads with real
+_Last updated: 2026-08-19 (session 31 + addendum — three traditional spreads with real
 tableau geometry, and the discovery that **every arcana reading the product has
 ever served was truncated**, the one-card daily draw included. Budgets measured
 and refitted, the reading prompt now sized to the spread, and the arcana path
@@ -152,11 +152,81 @@ observations with 1.30 headroom.
 
 ---
 
+## Addendum — the ask path's aspect ranking (done, and what it uncovered)
+
+`ai._build_context` now ranks by `astrology.relative_orb` too. The rule moved to
+`astrology.py` beside `ASPECT_DEFS`; `tarot._relative_tightness` delegates to it,
+so there is one rule and two callers. On the eval chart the eighteen sent went
+from **6/18 to 13/18 major aspects**, swapping in Sun–Mercury, Sun–Pluto,
+Mars–Saturn and Jupiter–Saturn for a handful of Lilith minors.
+
+Re-recording the nine chart cassettes turned up **three defects that had nothing
+to do with the ranking**, and all three were checks accusing correct readings:
+
+1. **The eval suite graded cassettes against the wrong chart.** `runner.main()`
+   loads `.env` when `--record`, so a recording used `swiss-files` — 17 bodies,
+   40 major aspects. A REPLAY loaded nothing, fell back to **Moshier**, and got
+   16 bodies and 33 aspects with **no Chiron at all**. Cassettes were being
+   checked against a chart they had not been generated from, and CI ran the
+   replay side. It surfaced as a false *"Jupiter conjunct Chiron — chart has no
+   major aspect between them"* against a reading quoting the aspect list it had
+   been handed. `runner.py` now pins `SE_EPHE_PATH` forced, as `conftest.py`
+   does, and two tests assert `meta["ephemeris"] == "swiss-files"` and that
+   Chiron is present. **Verified to bite.**
+
+2. **`check_aspect_grounding` read past a possessive.** *"Lilith conjunct
+   Pluto's SIGN"* is a claim about a sign — the model was being careful, writing
+   "nearly kissing Pluto's sign" in the same paragraph — and the check called it
+   a fabricated aspect. Lilith and Pluto are 12.02° apart AND both in Scorpio;
+   every word was true. A trailing `'s` on the second body now exempts the match.
+
+3. **`check_grounding` bound a sign to an appositive.** *"the unaspected Venus,
+   ruler of your Ascendant, floating alone in Gemini"* places **Venus**, which
+   is in Gemini. `_binds` already guarded the mirror case — a sign belonging to
+   a LATER body — and this is the same error pointing backwards. A body that is
+   the object of "of" is now treated as a referent, not a subject.
+
+**I called the first of these a true positive before reading the sentence.** The
+astronomy checked out (12.02° apart, genuinely not conjunct) so it looked
+confirmed; the claim was about something else entirely. Verify what the sentence
+SAYS, not only whether the numbers in it are right.
+
+---
+
+## ⚠️ Reasoning tokens are eating the chart-reading budget
+
+Measured 2026-08-19 on `anthropic/claude-sonnet-5` via OpenRouter, supporter
+whole-chart, `max_tokens=6600`:
+
+```
+completion_tokens          4,951
+  reasoning_tokens         2,729     <-- 55%, never shown to the reader
+  visible                 ~2,222     for 1,035 words
+message keys: content, reasoning, reasoning_details, refusal, role
+```
+
+**`reasoning_tokens` count against `max_tokens`.** One re-recording spent the
+whole 6,600 and returned **484 words**, `finish_reason="length"` — 13.6
+tokens/word, which is not prose. Reasoning had eaten the ceiling.
+
+This is pre-existing and NOT caused by anything in this session; session 30's
+budgets were fitted to `completion_tokens`, which silently conflates reasoning
+with visible output, so they happen to accommodate a typical reasoning spend and
+not a large one. In production `_chat_openai_compat` continues past `"length"`
+so the reader still gets a whole reading — at the cost of another full reasoning
+pass. **`evals/runner.record_case` calls the provider directly and does NOT use
+the continuation loop, so the eval is stricter than the product.**
+
+If this is picked up: measure `usage.completion_tokens_details.reasoning_tokens`
+separately, and either budget visible output plus a reasoning allowance, or make
+`record_case` go through `_chat_openai_compat` so cassettes record what a reader
+actually receives. Do not simply raise the ceiling — that funds more thinking.
+
+---
+
 ## Open items, in the order I would take them
 
-1. **The ask path's aspect selection** (`ai._build_context`, `[:18]` by raw
-   orb). One-line change to the same ranking used by the arcana path, plus
-   ~$1 to re-record nine cassettes. The argument for it is measured above.
+1. **The reasoning-token headroom above.** The largest unresolved thing here.
 
 2. **The print path has no tableau.** `printReport.ts` renders the new spreads
    as a plain card grid. A printed Celtic Cross looks like a printed list.
