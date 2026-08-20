@@ -224,9 +224,73 @@ actually receives. Do not simply raise the ceiling — that funds more thinking.
 
 ---
 
+## Addendum 2 — the reasoning-token fix (done)
+
+`reasoning: {"effort": "medium"}` now goes to the thinking models on both the
+streaming and non-streaming OpenAI-compatible paths, and to `record_case`, which
+builds its own request and had to be mirrored.
+
+Measured, supporter whole-chart at `max_tokens=6600`, one call per variant:
+
+| variant | finish | total | reasoning | words | cost |
+|---|---|---|---|---|---|
+| **no parameter (what shipped)** | **length** | 6,600 | 5,498 (83%) | **482** | $0.0720 |
+| `effort: low` | stop | 1,560 | 0 | 633 | $0.0216 |
+| **`effort: medium`** | stop | 3,751 | 1,757 (47%) | 979 | $0.0435 |
+| `enabled: false` | stop | 1,916 | 0 | 860 | $0.0251 |
+| `exclude: true` | stop | 5,502 | 3,379 (61%) | 987 | $0.0610 |
+| `max_tokens: 1024` | stop | 4,964 | 2,734 (55%) | 992 | $0.0556 |
+
+Two of those knobs are traps. **`exclude` only hides reasoning** — 3,379 tokens
+were still generated and billed. **`max_tokens` was ignored entirely**;
+Anthropic removed `budget_tokens` on this family, so the gateway has nothing to
+translate it into. `low` finished but at 633 words, under the 700 the prompt
+asks for. Thinking is lowered rather than disabled because disabling it on Opus
+5 is documented to leak reasoning tags into the visible answer.
+
+**IT IS AN ALLOW-LIST AND THAT DIRECTION IS LOAD-BEARING.** On
+`claude-haiku-4-5` reasoning is OFF by default and the parameter TURNS IT ON:
+the free tier's own call went from 0 reasoning tokens / 990 words to 1,127
+reasoning tokens / **234 words**. The fix for the paid tiers is a regression for
+the free one. Anything not in `_EFFORT_CAPABLE` is sent nothing.
+
+After, through the shipped policy — every path finishing with real headroom:
+
+| case | ceiling | total | reasoning | words | headroom |
+|---|---|---|---|---|---|
+| chart/free (haiku) | 1,600 | 1,441 | 0 | 856 | 1.11× |
+| chart/supporter | 6,600 | 3,006 | 881 | 939 | 2.20× |
+| chart/oracle | 8,000 | 3,292 | 925 | 1,088 | 2.43× |
+| arcana/celtic-cross | 5,000 | 1,987 | 41 | 917 | 2.52× |
+| arcana/twelve-house | 8,000 | 4,179 | 399 | 1,981 | 1.91× |
+
+A supporter reading went from a truncated 482 words at $0.072 to a complete 939
+at $0.036. **The ceilings are deliberately NOT lowered to match** — the whole
+defect was reasoning variance, and that headroom is what absorbs it.
+
+---
+
+## ⚠️ THE OPENROUTER ACCOUNT IS OUT OF CREDIT
+
+`/api/v1/credits`: total_credits **10**, total_usage **10.06**, balance
+**−$0.06**. Recording stopped mid-way with `402 Payment Required`.
+
+**Check the account, not the key.** `/api/v1/key` cheerfully reported $9.94
+remaining of that key's own $20 limit at the same moment — a per-key limit is
+not a balance, and reading it is how you conclude the rail is fine while every
+call 402s.
+
+Consequence: **eight of eleven cassettes predate the reasoning parameter** and
+must be re-recorded when credit is topped up (`python -m evals.runner --record`).
+They still pass every check; they simply record a request shape the product no
+longer sends. The three `free__*` ones ARE accurate, because haiku is
+deliberately sent nothing. Written up in `evals/README.md` too.
+
+---
+
 ## Open items, in the order I would take them
 
-1. **The reasoning-token headroom above.** The largest unresolved thing here.
+1. **Re-record the eight stale cassettes** once the account has credit.
 
 2. **The print path has no tableau.** `printReport.ts` renders the new spreads
    as a plain card grid. A printed Celtic Cross looks like a printed list.

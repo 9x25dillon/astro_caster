@@ -15,6 +15,30 @@ Every supporter reading had ended mid-sentence for the product's entire history.
 passing tests reported a healthy system. This directory exists so that class of
 defect fails a build instead of reaching a reader.
 
+## ⚠️ Eight cassettes predate the reasoning-effort parameter (2026-08-19)
+
+The product now sends `reasoning: {"effort": "medium"}` to the thinking models
+(`ai._reasoning_param`). Recording ran out of OpenRouter credit part-way through
+— account balance **−$0.06**, confirmed at `/api/v1/credits`; note the KEY still
+reported $9.94 of its own $20 limit, so the key-status endpoint is not the one
+to check — so the cassettes are currently a mix:
+
+| cassette | reflects the shipped request? |
+|---|---|
+| `free__*` (3) | **yes** — haiku is not sent the parameter, by design |
+| `supporter__*` (3), `oracle__*` (3), the two arcana | **no** — recorded before it |
+
+Those eight are still real generations and still pass every check; they simply
+came from a request shape the product no longer sends, and their token counts
+are correspondingly high. **Re-record them when credit is available:**
+
+```bash
+.venv/bin/python -m evals.runner --record
+```
+
+The fix itself was verified by direct measurement through `_reasoning_param`,
+not by these cassettes — see the table in `ai.py` above `_REASONING_EFFORT`.
+
 ## Running it
 
 ```bash

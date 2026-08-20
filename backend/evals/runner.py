@@ -177,6 +177,16 @@ async def record_case(case: Case, chart: Dict) -> Generation:
                "messages": [{"role": "system", "content": system},
                             {"role": "user", "content": user}],
                "temperature": 0.8, "max_tokens": budget, "stream": False}
+    # The reasoning-effort ceiling the product sends. This function builds its
+    # own request rather than going through ai._chat_openai_compat, so anything
+    # added there has to be mirrored here — and on 2026-08-19 it was not: a
+    # recording spent 6,320 tokens where the shipped path spends ~3,000, because
+    # the cassette was made without the parameter the reader's call carries.
+    # A cassette that does not match the request the product makes is not
+    # evidence about the product.
+    reasoning = ai._reasoning_param(model)
+    if reasoning:
+        payload["reasoning"] = reasoning
     headers = {"Content-Type": "application/json",
                "Authorization": f"Bearer {ai._API_KEY}",
                "HTTP-Referer": "https://localhost",

@@ -735,6 +735,68 @@ async def interpret_stream(
 # 800–1200) and in the model doing the writing. It must never live in a ceiling
 # that truncates an answer somebody already paid for: that sells a short reading
 # and delivers a broken one.
+# --------------------------------------------------------------------------- #
+# Reasoning tokens
+#
+# On Sonnet 5 and Opus 5 extended thinking is ON BY DEFAULT, and reasoning tokens
+# count against `max_tokens` while never reaching the reader. Nothing here asked
+# for thinking; the model does it because that is the default for its family.
+#
+# MEASURED 2026-08-19, supporter whole-chart, max_tokens=6600, one call each:
+#
+#   variant                    finish   total  reasoning  visible  words     cost
+#   (ships today, no param)    LENGTH   6,600  5,498 83%    1,102    482   $0.0720
+#   reasoning.effort=low       stop     1,560      0  0%    1,560    633   $0.0216
+#   reasoning.effort=medium    stop     3,751  1,757 47%    1,994    979   $0.0435
+#   reasoning.enabled=false    stop     1,916      0  0%    1,916    860   $0.0251
+#   reasoning.exclude=true     stop     5,502  3,379 61%    2,123    987   $0.0610
+#   reasoning.max_tokens=1024  stop     4,964  2,734 55%    2,230    992   $0.0556
+#
+# The baseline row IS the bug, reproduced live: 83% of a paid ceiling spent on
+# thinking, the reading guillotined at 482 words.
+#
+# Two of these knobs are traps. `exclude` only stops reasoning being RETURNED —
+# 3,379 tokens were still generated and still billed. `max_tokens: 1024` was
+# ignored outright (2,734 generated): Anthropic removed `budget_tokens` on this
+# model family, so there is nothing for the gateway to translate it into.
+#
+# `effort: "medium"` is the choice: it finishes, doubles the words against the
+# baseline, and costs 40% less. `low` is cheaper still but came in at 633 words,
+# under the 700 the prompt asks for. Thinking is left ON rather than disabled —
+# disabling it on Opus 5 is documented to leak reasoning tags into the visible
+# answer, and lowering effort achieves the saving without that risk.
+#
+# ⚠️ THIS IS AN ALLOW-LIST, AND IT HAS TO BE. On claude-haiku-4-5 reasoning is
+# OFF by default, and sending the parameter TURNS IT ON — measured at the free
+# tier's own budget, the same call went from 0 reasoning tokens and 990 words to
+# 1,127 reasoning tokens and 234 words. The knob that fixes the paid tiers
+# breaks the free one. A model absent from this table is sent nothing at all.
+_REASONING_EFFORT = os.environ.get("AAE_REASONING_EFFORT", "medium").strip()
+
+# Matched on the BARE model name so an OpenRouter route prefix
+# ("anthropic/claude-sonnet-5") resolves the same, exactly as budget.output_price
+# does. Opus 4.6+ and Sonnet 4.6+ take effort; Haiku 4.5 and older must not.
+_EFFORT_CAPABLE = (
+    "claude-fable-5", "claude-opus-5", "claude-opus-4-8", "claude-opus-4-7",
+    "claude-opus-4-6", "claude-sonnet-5", "claude-sonnet-4-6",
+)
+
+
+def _reasoning_param(model: str) -> Optional[Dict[str, str]]:
+    """The `reasoning` body field for `model`, or None to send nothing.
+
+    None is the safe answer for anything unrecognised: sending the parameter to
+    a model that does not think by default switches thinking ON, which is the
+    failure this exists to prevent.
+    """
+    if not _REASONING_EFFORT:
+        return None
+    name = (model or "").rsplit("/", 1)[-1]
+    if any(name.startswith(known) for known in _EFFORT_CAPABLE):
+        return {"effort": _REASONING_EFFORT}
+    return None
+
+
 _MAX_CONTINUATIONS = 2
 
 _CONTINUE_INSTRUCTION = (
@@ -792,6 +854,13 @@ async def _stream_openai_compat(base_url, api_key, system, user, model, max_toke
                 "model": model, "messages": messages,
                 "temperature": 0.8, "max_tokens": max_tokens, "stream": True,
             }
+            # Same policy as the non-streaming path. It matters more here: a
+            # reader watching a stream sees nothing at all while the model
+            # thinks, so uncapped reasoning reads as a hang before it reads as
+            # a truncation.
+            reasoning = _reasoning_param(model)
+            if reasoning:
+                payload["reasoning"] = reasoning
             async with client.stream(
                 "POST", f"{base_url}/v1/chat/completions", headers=headers, json=payload
             ) as r:
@@ -895,6 +964,12 @@ async def _chat_openai_compat(
                 "max_tokens": max_tokens,
                 "stream": False,
             }
+            # Keep thinking from eating the ceiling this reading was paid for.
+            # Omitted entirely for models that do not think by default — see
+            # _reasoning_param; sending it to those turns thinking ON.
+            reasoning = _reasoning_param(model)
+            if reasoning:
+                payload["reasoning"] = reasoning
             r = await client.post(
                 f"{base_url}/v1/chat/completions", headers=headers, json=payload)
             r.raise_for_status()
