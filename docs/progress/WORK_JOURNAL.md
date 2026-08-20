@@ -5,6 +5,121 @@ PR bodies; this is the story. Started session 15 at the operator's request._
 
 ---
 
+## Session 31 · 2026-08-19 — the reading that was always too small for the spread
+
+The operator asked for two things: some traditional spreads, a Celtic Cross
+chief among them, and a fix for the large spreads whose readings were coming out
+cut off. The first was a feature. The second turned out not to be about large
+spreads at all.
+
+There is a comment in `ai.py`, written last session, that says the arcana
+budgets were left unmeasured on purpose — the continuation loop would catch any
+shortfall, so a tight number would cost a round-trip rather than a truncated
+reading. Measure before tuning, it said. Nobody had. The number underneath it
+was one figure per tier: 1,600 tokens for a supporter, 2,600 for an oracle, with
+no idea how many cards were on the cloth. A one-card daily draw and a twelve-card
+house spread were handed exactly the same room.
+
+Measured with the cap lifted, a supporter's *daily draw* — one card — wanted
+1,989 tokens. An oracle's wanted 3,199. Both over their ceiling. Not the big
+spreads: all of them, every reading the product has ever served, back to the
+beginning. The bug the operator reported was the visible corner of it, and the
+reason only that corner was visible is that the continuation loop had been
+quietly rescuing the rest — three round-trips, the whole prompt resent each
+time, and whatever was still unwritten at the bound trimmed back to the last
+full stop. It never looked broken. It looked expensive, if anyone had been
+watching the bill.
+
+The instructive part is *why* a flat per-tier number seemed reasonable enough to
+ship. It encodes a belief that a reading is long because the reader paid more.
+It isn't. A reading is long because the spread is big. The tier decides how
+richly each position gets treated and which model does the writing; those are
+different quantities, and collapsing them into one ceiling means the ceiling is
+wrong for every spread except whichever one it was quietly calibrated against.
+Session 30 reached exactly this conclusion for the chart readings and wrote it
+down. The arcana prompts sat six inches away and did not get the same treatment,
+because the file said "measure before tuning" and measuring costs money.
+
+It cost $1.88.
+
+The other half of the fix was the prompt, and it mattered more than the ceiling.
+The arcana brief asked for seven sections and named no length at all, so the
+model wrote until something stopped it. Given a target that scales with the
+spread — and told, in as many words, that arriving at the closing sections
+matters more than any single passage — a supporter's daily draw went from 519
+words to 326 against a 300-word target, and started *ending*. The ceiling had
+never been the whole bug. The ceiling was where the bug became visible.
+
+Then the operator pasted six aspects into the question box and asked whether
+that would still come out whole. It would; four calls at the real ceiling all
+finished with a third of the budget unused. But answering the question properly
+meant reading what the arcana prompt actually contains, and it contains no
+aspects whatsoever, and no positions for Chiron, Lilith, Part of Fortune or the
+South Node. Four of the six aspects they had pasted named bodies the model had
+never been told the whereabouts of. It had been answering questions about
+relationships it could not see, between points it could not place, and doing it
+fluently.
+
+Fixing that looked at first like a one-line change: add the missing bodies to
+the natal signature and let them flow through like everything else. The
+signature is not a description, though. It is the thing that builds the draw
+weights. Adding four bodies to it re-deals a hundred and twenty charts out of a
+hundred and twenty at the same seed. Session 28 spent a day on this exact
+failure at 28.8% and treated it as an emergency, because a stored seed is not a
+cache key, it is the session's identity — every shelved reading would reprint
+with different cards above word-for-word unchanged prose. So the aspects and the
+four bodies go to the prompt and nowhere near a weight, and a test now pins the
+draw card-for-card so that the tidy-up cannot happen later by accident.
+
+Two smaller things are worth keeping.
+
+The first is that a probe script does not load `.env`. Without `SE_EPHE_PATH`
+the engine falls back to Moshier, Moshier has no asteroids, and every chart I
+generated for the first round of measurements had no Chiron in it at all. I
+reported a count of three missing bodies to the operator when it was four. The
+figures were directionally right and the conclusion survived, but they were
+taken on the wrong instrument, and the only reason I noticed is that the
+operator's own pasted aspects mentioned a body my charts did not have. The tell
+was in `chart.meta["ephemeris"]` the whole time, one field away, saying
+`moshier` to nobody.
+
+The second is that a check which cries wolf is worse than no check. The new
+aspect-grounding check found its first false positive on its own recorded
+output: *"The Moon opposite The Sun"*. Both are bodies. Both are also trumps,
+and a Celtic Cross has positions that sit opposite one another, so in a spread
+reading that sentence is about two pieces of card. This is the second time in
+two sessions that a grounding check has had to be taught the difference between
+the sky and the deck — the first was the Golden Dawn naming its minor arcana
+after decans, so that a reading which said "Saturn in Pisces, Hod of Briah" got
+eight hallucination reports for correctly naming the Eight of Cups. Tarot and
+astrology share a vocabulary completely, and any checker that reads one while
+the product is speaking the other will be right about grammar and wrong about
+meaning.
+
+The last thing the day produced was a number that moved after the work was
+done. Re-recording an eval cassette under the new prompt, an oracle twelve-house
+reading used 6,186 tokens of a 6,500 ceiling — inside it, but at ninety-five
+percent, and only because that particular run stopped where it did. It had
+written almost precisely the same number of words as an earlier reading that
+cost 4,712: 1,939 against 1,937, for thirty-one percent more tokens. The same
+reading, more markdown. Tokens per word is not a property of the tier and not a
+property of the prompt; it is a property of the run. Which is the whole argument
+for fitting a ceiling to token observations and never, ever inferring one from a
+word count — and the refit that followed took the worst-case headroom from
+1.05× back to 1.29×, on the strength of a single measurement that only existed
+because the work had been re-measured after changing it rather than before.
+
+---
+
+_Session 30 (2026-08-17) has no entry here. Its work — the reading-completion
+guarantee, the eval suite, offline as a chosen mode, the model-priced spend cap,
+the replay guardrail — is written up in `Hand_off.md`, and session 31 above is
+its direct continuation: the same defect, one layer down, in the arcana prompts
+that session had explicitly deferred. Noting the gap rather than filling it,
+because the story of a session belongs to whoever worked it._
+
+---
+
 ## Session 29 · 2026-08-15 — the rail that took money and gave nothing back
 
 The operator said the payment rail wasn't working. It was working. That was the

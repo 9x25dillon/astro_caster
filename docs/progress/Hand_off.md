@@ -1,12 +1,177 @@
 # Hand_off.md
 
-_Last updated: 2026-08-17 (session 30 — **every supporter reading had been
-ending mid-sentence for the product's whole history and 488 tests never
-noticed**. Fixed, plus an eval suite that watches what the model actually
-wrote, offline as a chosen mode, a spend cap priced by the model that answers,
-and the replay guardrail. All of it is on `reading-completion-guarantee`,
-pushed and UNMERGED — `main` is untouched. Servers are DOWN.)
+_Last updated: 2026-08-19 (session 31 — three traditional spreads with real
+tableau geometry, and the discovery that **every arcana reading the product has
+ever served was truncated**, the one-card daily draw included. Budgets measured
+and refitted, the reading prompt now sized to the spread, and the arcana path
+finally sees the chart's aspects and the four bodies nobody was telling it
+about. Merged to `main`. Servers are DOWN.)
 Re-derive before trusting any of this: `git fetch && git status -sb`._
+
+---
+
+# SESSION 31 — 2026-08-19
+
+## Start here
+
+**Merged to `main`.** Three commits of new work, plus session 30's handoff and
+TZ-3, which had never reached `main`.
+
+```
+b5d25bc  The reading can finally see the aspects, and the four bodies nobody mentioned
+7f23b34  Every arcana reading was being cut short, not just the big spreads
+1c18a1e  The Celtic Cross gets a cross, and three spreads come out of hiding
+d6c0e43  TZ-3: the offset box now checks itself against the longitude below it
+96f7da8  Hand_off, session 30
+```
+
+Green at close: **613 backend**, **11/11 evals on replay**, **69 astra-core**,
+**50 frontend**, **106 desktop e2e** (6 skipped by design), ruff clean, frontend
+build clean. **Servers are DOWN** — `./run.sh` to bring them back.
+
+Live-provider spend this session: **~$2.85** (two budget measurement rounds,
+one question probe, three cassette recordings).
+
+---
+
+## ⚠️ The merge trap this session walked into — read before you merge anything
+
+`origin/main` had **session 30's five commits already on it, at different
+hashes**, rebased by a PR merge. Local `main` was stale and knew nothing about
+it. The branch and `origin/main` therefore contained the same work twice over,
+from git's point of view.
+
+A plain `git merge origin/main` **conflicted** in `test_evals.py` (add/add) and
+`theme.css` — not because the two sides disagreed about session 30, but because
+this branch's LATER commits had edited the same regions. Hand-resolving those
+is how a merge silently applies the same change twice.
+
+**Probe for CONTENT, never for hashes:**
+
+```bash
+git diff origin/main <the-last-shared-commit> --stat   # empty => same tree
+git merge-base --is-ancestor <that-commit> HEAD        # => it's already in here
+```
+
+Both held, which proves the branch already contained every line on `origin/main`.
+The correct resolution was then `git merge -s ours origin/main` — keep this
+tree exactly, record main as an ancestor so it can fast-forward — followed by
+re-checking that the tree was byte-identical afterwards. It was.
+
+---
+
+## The bug that mattered most today
+
+**Every arcana (tarot) reading the product has ever served was cut short**, and
+not only the large spreads the operator reported.
+
+`_ARCANA_BUDGET` was one flat number per tier — `{oracle: 2600, supporter:
+1600}` — with no idea how many cards were on the cloth. A one-card daily draw
+and a twelve-card house spread got the identical ceiling. Session 30 had left it
+explicitly unmeasured, with a comment saying so.
+
+Measured against the OLD prompt, cap lifted to 9,000:
+
+| tier | spread | natural need | old cap | |
+|---|---|---|---|---|
+| supporter | daily (1) | 1,989 | 1,600 | cut |
+| oracle | daily (1) | 3,199 | 2,600 | cut |
+
+The smallest possible draw already overran. The continuation loop from session
+30 hid it — three round-trips, whole prompt resent each time, remainder trimmed
+at a sentence boundary. Quiet, expensive, permanent.
+
+**Both halves were needed.** The prompt asks for a length that follows the
+SPREAD (`tarot_prompts._LENGTH_BRIEF`, 220 + 90/card supporter, 320 + 130/card
+oracle) and names one passage per position; the ceiling is fitted to token
+observations with 1.30 headroom.
+
+---
+
+## What is in the branch
+
+1. **Three traditional spreads** — `celtic_cross` (10), `horseshoe` (7),
+   `tree_of_life` (10) — plus `planetary_seven`, `relationship` and
+   `transit_pressure`, which had worked end-to-end in the backend for months and
+   were never in the picker. All twelve now appear, grouped.
+
+2. **Tableau geometry** (`frontend/src/lib/spreadLayout.ts`). Cross-and-staff
+   for the Celtic Cross, three pillars for the Tree. Keyed by INDEX, never by
+   label — the labels live in two engines and are re-wordable; the ORDER is
+   pinned by the parity vectors. Below 720px it falls back to one column.
+
+3. **The arcana completion guarantee** (`ai._arcana_budget`,
+   `tarot_prompts.arcana_target_words`). Measured, fitted, pinned by
+   `tests/test_arcana_budget.py` against 15 observations.
+
+4. **Aspect-aware readings** (`tarot.aspect_prompt_lines`,
+   `tarot.unsigned_body_lines`). The chart's aspects and the four bodies the
+   signature omits, fed to the PROMPT only.
+
+5. **`evals.check_aspect_grounding`** — catches an aspect the chart does not
+   contain, and the subtler case of a real pair with the wrong aspect.
+
+---
+
+## Gotchas learned today
+
+1. **A spread is declared in four places and only one fails loudly.**
+   `weighted_draw` falls back to `three_card` for an unknown spread, so a
+   `SpreadType` member with no positions deals three cards under a ten-card name
+   — in BOTH engines. Two tests in `test_tarot.py` now assert the Literal
+   matches `SPREAD_POSITIONS`, and that the TS engine's position COUNTS match
+   Python's (parsed from the real file, so it cannot pass by being skipped).
+
+2. **`SE_EPHE_PATH` unset falls back to Moshier, silently, and Moshier has no
+   asteroids.** A standalone probe script does not load `.env`, so it computed
+   charts with **no Chiron at all** and I reported a body count that was wrong.
+   `conftest.py` pins this for pytest; anything run outside pytest must set it.
+   Check `chart.meta["ephemeris"]` — it says `moshier` or `swiss-files`.
+
+3. **Never rank aspects by raw orb.** A conjunction is allowed 8° and a
+   semisextile 2°, so raw orb ranks a half-degree semisextile above a
+   half-degree conjunction. Over 120 charts raw orb fills the eighteen sent with
+   45% major aspects; orb ÷ that aspect's allowed orb gives 70%, same cost.
+   **`ai._build_context` still uses raw orb on the ask path** — same argument
+   applies, left alone because changing it invalidates nine cassettes.
+
+4. **Tokens per word is a property of the RUN, not the tier.** One recorded
+   reading wrote 1,939 words for 6,186 tokens where another wrote 1,937 for
+   4,712 — same reading, more markdown. Fit ceilings to TOKEN observations;
+   never infer one from a word target.
+
+5. **A validation test can quietly stop testing validation.**
+   `test_tarot_reading_rejects_bad_spread_and_date` used `"celtic_cross"` as its
+   example of an unsupported spread. It is one now.
+
+6. **The Sun and The Moon are trumps as well as bodies.** A Celtic Cross has
+   positions that sit opposite one another, so "The Moon opposite The Sun" is
+   two cards on a cloth, and the first cut of `check_aspect_grounding` reported
+   it as a fabricated aspect. Both sides in card form is exempt; one side is
+   still judged.
+
+---
+
+## Open items, in the order I would take them
+
+1. **The ask path's aspect selection** (`ai._build_context`, `[:18]` by raw
+   orb). One-line change to the same ranking used by the arcana path, plus
+   ~$1 to re-record nine cassettes. The argument for it is measured above.
+
+2. **The print path has no tableau.** `printReport.ts` renders the new spreads
+   as a plain card grid. A printed Celtic Cross looks like a printed list.
+
+3. **The Crossing card is adjacent, not overlapping.** On a real table card 2
+   lies bodily across card 1. These are text panels of variable height, so it
+   sits directly beneath The Heart, landscape, with the crossing rule. The
+   literal overlap needs a compact tableau with the full readings below —
+   which is how `printReport.ts` already splits plates from readings.
+
+4. **`_MAX_CONTINUATIONS` is still 2** and the arcana path now rarely needs it.
+   Worth checking whether it ever fires post-refit before assuming it does.
+
+5. **The global-cap exposure from session 30** is unchanged: one subscriber can
+   still walk the $100 global cap down alone.
 
 ---
 
