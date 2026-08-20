@@ -5,6 +5,70 @@ PR bodies; this is the story. Started session 15 at the operator's request._
 
 ---
 
+## Session 32 · 2026-08-20 — the thinking nobody asked for, and four ways to be told you are wrong
+
+The reading had been paying for thoughts the reader never saw.
+
+On Sonnet 5 and Opus 5 extended thinking is on by default, and reasoning tokens
+come out of the same `max_tokens` the visible answer does. Nothing in this
+codebase ever requested thinking. Measured at the shipped settings, a supporter
+chart reading spent 5,498 of its 6,600 tokens reasoning — eighty-three percent —
+and handed back 482 words, cut off mid-thought, for seven cents. Every budget in
+the product had been fitted to `completion_tokens`, a number that silently adds
+together the part the reader gets and the part they never will.
+
+Six candidate fixes, all measured rather than reasoned about, and two of them
+were traps that would have survived review. `exclude: true` reads like it stops
+the thinking; it stops the thinking being *returned*, and 3,379 tokens were
+still generated and still billed. `reasoning.max_tokens: 1024` reads like a cap;
+it was ignored outright, because Anthropic removed the fixed thinking budget on
+this model family and there is nothing left for a gateway to translate it into.
+Both would have shipped as fixes and neither would have saved a token.
+
+The one that mattered was the direction. Lowering effort works beautifully on
+the paid tiers — half the cost, twice the words, and the reading actually
+finishes. Send the same parameter to the free tier's Haiku and it *turns
+thinking on*, because Haiku doesn't think by default: nine hundred and ninety
+words became two hundred and thirty-four. The fix and the regression were the
+same line of code pointed at different models. It is an allow-list now, and the
+allow-list is the whole feature; the effort value is almost incidental.
+
+Then the day's real lesson, which arrived four times in a row wearing different
+clothes.
+
+Re-recording the eval cassettes under the new parameter produced three failures.
+The first said a reading had put the Ascendant in Scorpio. What the reading
+actually said was "Pluto rising in Scorpio" — and Pluto is in Scorpio; the
+checker had taken the word "rising" and attached the nearest sign to the
+Ascendant regardless of whose sign it was. The second said a reading had
+invented a conjunction between the South Node and the Midheaven. They are three
+degrees and forty-eight minutes apart, comfortably inside any conjunction orb
+ever used; the engine simply doesn't emit an aspect for that pair, and the
+checker had read the absence of a record as the absence of a fact.
+
+The third was real. "Mars square your Ascendant", where the chart has an
+opposition at not quite four degrees — right pair, wrong aspect, exactly the
+subtle miss the check was built to catch, and it caught it.
+
+Three false and one true is a decent day for a checker that is four days old.
+But it is the fourth thing that will actually shape the next session, and it
+only became visible because the third one was genuine: **there is nowhere to put
+a true finding.** The suite requires every cassette to pass. A recording that
+contains one real model error therefore cannot be committed, and the available
+moves are to re-roll until the model happens not to make it — which converts a
+quality gate into a slot machine — or to file the edge off the check until it
+stops noticing. The suite has a place for known-bad fixtures that must fail. It
+has no place for a known-imperfect recording that should be kept and seen.
+
+So nothing was recorded. The cassettes are exactly as stale as they were this
+morning, the suite is green on the old ones, and the honest state is written
+down instead of papered over. That is a worse-looking outcome than eight fresh
+cassettes and a green tick, and a considerably better one: the alternative was
+to keep rolling the dice until the readings came back innocent, and then to
+believe them.
+
+---
+
 ## Session 31 · 2026-08-19 — the reading that was always too small for the spread
 
 The operator asked for two things: some traditional spreads, a Celtic Cross

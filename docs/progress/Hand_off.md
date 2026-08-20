@@ -1,12 +1,134 @@
 # Hand_off.md
 
-_Last updated: 2026-08-19 (session 31 + addendum — three traditional spreads with real
-tableau geometry, and the discovery that **every arcana reading the product has
-ever served was truncated**, the one-card daily draw included. Budgets measured
-and refitted, the reading prompt now sized to the spread, and the arcana path
-finally sees the chart's aspects and the four bodies nobody was telling it
-about. Merged to `main`. Servers are DOWN.)
+_Last updated: 2026-08-20 (session 32 — the reasoning-token fix is MERGED and
+measured; re-recording the stale cassettes was attempted and DEFERRED because it
+surfaced three checker false positives and one genuine model error. `main` is
+green, cassettes are unchanged and still stale. Servers are DOWN.)
 Re-derive before trusting any of this: `git fetch && git status -sb`._
+
+---
+
+# SESSION 32 — 2026-08-20
+
+## Start here
+
+**`main` is at `847f419`, pushed, clean, all suites green. Nothing is in flight.**
+
+```
+847f419  Stop extended thinking from eating the ceiling the reader paid for
+9386618  Rank the ask path's aspects the way the arcana path does
+```
+
+Green: **644 backend**, **11/11 evals on replay**, 69 astra-core, 50 frontend,
+106 desktop e2e (6 skipped), ruff clean. **Servers are DOWN** (`./run.sh`).
+
+OpenRouter balance **$9.94** at close (topped up during the session).
+
+---
+
+## THE ONE THING TO PICK UP
+
+**Eight eval cassettes are still stale** — they predate
+`reasoning: {"effort": "medium"}`. Re-recording was ATTEMPTED and then reverted,
+because three of the first three recordings failed. Do NOT simply re-run
+`--record` until the four items below are settled: you will get the same
+failures, and re-rolling until green is how a suite stops meaning anything.
+
+**The reasoning fix itself is confirmed working.** `supporter:whole-chart`
+recorded at **3,294 tokens / 886 words / finish=stop**, against **6,320** for
+the same case before. That is the fix doing exactly what was measured.
+
+### Finding 1 — `_RISES_IN` binds "rising" to a sign belonging to someone else
+
+`evals/checks.py`. Two live false positives:
+
+- *"**Pluto** rising in Scorpio, trine to Sun and Mercury…"* → reported as
+  "Ascendant in Scorpio". Pluto **is** in Scorpio; the Ascendant is Libra.
+- *"…rising, the locked wisdom of your **Capricorn** [Saturn]…"* → reported as
+  "Ascendant in Capricorn".
+
+The regex takes any "rising"/"rises" within range of a sign name and attributes
+it to the Ascendant. `_binds` guards the body-in-sign matcher against exactly
+this and `_RISES_IN` has no equivalent guard. Note the fix is NOT "require no
+other body between" — in case one the body (`Pluto`) sits *before* "rising",
+which is the same backwards-pointing shape as the appositive bug fixed
+yesterday (`_is_referent`).
+
+### Finding 2 — the aspect map inherits the engine's pair coverage
+
+*"the Leo South Node conjunct Midheaven"* → reported as "no major aspect between
+them". **They are 3.80° apart** (South Node 127.484°, Midheaven 123.686°), well
+inside the 8° conjunction orb. The reading is right; `chart.aspects` simply
+contains no entry for that pair.
+
+**Establish first whether the engine excludes node×angle pairs deliberately**
+(`astrology.py` / `ephemeris.py` aspect generation) before touching the check. If
+the exclusion is intentional, `check_aspect_grounding` must treat a pair the
+engine never considers as UNJUDGEABLE — silent — rather than as fabricated.
+Absence of evidence is being read as evidence of absence.
+
+### Finding 3 — one REAL model error, and the check caught it
+
+*"With Mars square your Ascendant…"* — the chart has **Opposition, orb 3.82°**
+(separation 176.18°). Right pair, wrong aspect. This is `check_aspect_grounding`
+working precisely as intended, on the subtle half it was built for.
+
+### Finding 4 — the suite has no way to accept a known-bad generation
+
+Findings 1 and 2 are checker bugs and will be fixed. Finding 3 will not: models
+occasionally get an aspect wrong, and `evals/runner.evaluate` requires **every**
+cassette to pass. So a recording containing one genuine error cannot be
+committed at all, and the only ways out are to re-roll until the model happens
+not to err — which quietly converts the suite into a slot machine — or to
+weaken the check.
+
+Neither is acceptable. The suite needs a third state: a cassette may carry
+**accepted findings**, recorded explicitly with a reason, that do not fail the
+build but stay visible in the report. `evals/regressions/` already holds the
+inverse idea (fixtures asserted to FAIL); this is the same discipline pointed
+the other way. **Design this before the next re-record.**
+
+---
+
+## How to re-record, once the above is settled
+
+```bash
+cd backend
+.venv/bin/python -m evals.runner --record            # all 11, ~$1.50
+# or one at a time while iterating:
+.venv/bin/python -m evals.runner --record --case supporter:angles
+```
+
+The three `free__*` cassettes are ALREADY accurate — haiku is deliberately sent
+no reasoning parameter — so only these eight need it: `supporter:whole-chart`,
+`supporter:angles`, `supporter:pluto-8th`, `oracle:whole-chart`,
+`oracle:angles`, `oracle:pluto-8th`, `supporter:celtic-cross`,
+`oracle:twelve-house`.
+
+**Check the balance the right way before starting** — a 402 mid-run leaves the
+recording half-done:
+
+```bash
+K=$(grep -E '^AAE_AI_API_KEY=' backend/.env | cut -d= -f2-)
+curl -s https://openrouter.ai/api/v1/credits -H "Authorization: Bearer $K"
+```
+
+`/api/v1/key` is the WRONG endpoint: it reported $9.94 remaining on the key's
+own $20 limit while the account balance was −$0.06 and every call was 402ing.
+
+---
+
+## Standing traps, shortest form
+
+1. **`SE_EPHE_PATH` unset ⇒ Moshier ⇒ no Chiron.** Any script outside pytest
+   must set it. Tell: `chart.meta["ephemeris"]`.
+2. **The reasoning parameter is an ALLOW-LIST.** On haiku it TURNS THINKING ON
+   (0 → 1,127 reasoning tokens, 990 → 234 words).
+3. **Verify what a sentence SAYS, not just whether its numbers are right.** Two
+   "confirmed hallucinations" this week were the model being careful and the
+   checker reading past a possessive or an appositive.
+4. **Probe main for CONTENT before merging.** See the four merge shapes in
+   `[[stacked-pr-orphan-trap]]`.
 
 ---
 
