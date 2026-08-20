@@ -37,6 +37,71 @@ Tone: mystical, grounded, warm, and empowering — a mentor in an observatory, n
 an oracle of fate."""
 
 
+# Appended ONLY on the tarot-reading path (main.py's /api/tarot-reading).
+#
+# It deliberately does NOT live in ARCANA_SYSTEM. oracle_report.py and course.py
+# both extend that prefix with a structure of their own ("exactly these
+# sections"), so a second, differently-shaped structure sitting in the shared
+# text would be arguing with theirs inside the same prompt. What those two want
+# to inherit is the voice and the hard rules; the shape of a spread reading is
+# this path's business alone.
+#
+# The old brief — the seven-item "cover:" list still in ARCANA_SYSTEM above —
+# described a reading of no particular size. It reads the same for a one-card
+# daily draw and a twelve-card house spread, which is why a large spread used to
+# produce a wall of text that ran into the ceiling: nothing ever told the writer
+# how much room each position was owed, or that arriving at the end mattered.
+ARCANA_READING_STRUCTURE = """
+
+Structure the reading this way. The middle part is the one that grows with the \
+spread; the rest stay the same size whether one card was drawn or twelve:
+
+OPENING — name the pattern the whole spread makes, in two or three sentences.
+
+THE POSITIONS — take the drawn cards IN ORDER, one passage each, under the \
+position's own name as a heading. Every position gets its passage: a ten-card \
+spread that discusses six of them has failed the reader who laid out ten. Give \
+each what the length brief allows — the archetype active there, and how it \
+already appears in the natal signature.
+
+CLOSING — then, once, for the reading as a whole: its gift (healthy expression), \
+its shadow (integration edge), one small optional alignment action, one journal \
+prompt, and one creative-expression prompt.
+
+Write to the length asked for and then stop. Arriving at the closing sections \
+matters more than any single passage — a reading that never reaches its ending \
+is worth less to the reader than a shorter one that lands."""
+
+
+# Words asked for, per tier: a fixed allowance for the opening and the closing
+# sections, plus an allowance for every card on the cloth.
+#
+# WHY THE PROMPT AND NOT THE CEILING. A reading is long because the spread is
+# big, not because the reader paid more. Until now the brief was size-blind and
+# the only thing that moved with tier was the token ceiling — so every spread was
+# asked for an unbounded reading and then cut off at whatever number the tier
+# carried. Session 30 reached this same conclusion for the chart readings:
+# the tier ladder belongs in what is ASKED FOR, and in the model that writes it.
+# The ceiling's only job is to sit comfortably above what the brief costs.
+#
+# Oracle is asked for more per card than supporter because opus-5 is the writer
+# and the tier is what the subscriber bought. Free never arrives here — the
+# endpoint gates AI enrichment to the paid tiers — but it resolves to the
+# supporter brief rather than raising if that gate ever moves.
+_LENGTH_BRIEF = {
+    #             opening+closing   per card
+    "supporter": (220, 90),
+    "oracle": (320, 130),
+}
+
+
+def arcana_target_words(tier: str, card_count: int) -> int:
+    """The word count the brief asks for, rounded to 50 so it reads as an
+    instruction to a writer rather than a quota from an accountant."""
+    fixed, per_card = _LENGTH_BRIEF.get(tier, _LENGTH_BRIEF["supporter"])
+    return int(round((fixed + per_card * max(1, card_count)) / 50.0) * 50)
+
+
 def build_arcana_user_prompt(
     question: str,
     spread: str,
@@ -47,8 +112,14 @@ def build_arcana_user_prompt(
     signature_lines: List[str],
     drawn: List[Dict[str, str]],
     source_lens: str = "",
+    tier: str = "supporter",
 ) -> str:
-    """Compose the user message: chart signature + drawn cards + question."""
+    """Compose the user message: chart signature + drawn cards + question.
+
+    The length brief is derived from how many cards were actually dealt, so a
+    Celtic Cross is asked for a Celtic Cross's worth of words and a daily draw
+    is not padded out to match it.
+    """
     sig = "\n".join(f"- {line}" for line in signature_lines)
     cards = "\n".join(
         f"- {d['position']}: {d['name']} ({d['orientation']})"
@@ -56,6 +127,17 @@ def build_arcana_user_prompt(
         for d in drawn
     )
     lens_line = f"INTERPRETIVE LINEAGE (read the cards through this tradition): {source_lens}\n" if source_lens else ""
+    n = len(drawn)
+    target = arcana_target_words(tier, n)
+    per_card = _LENGTH_BRIEF.get(tier, _LENGTH_BRIEF["supporter"])[1]
+    # A one-card draw has nothing to apportion, and "each of the 1 positions"
+    # reads like a mail-merge that misfired.
+    length_line = (
+        f"about {target} words in total."
+        if n == 1 else
+        f"about {target} words in total — roughly {per_card} words on each of "
+        f"the {n} positions, plus the opening and the closing sections."
+    )
     return (
         f"NATAL ARCANA SIGNATURE (do not contradict):\n"
         f"{lens_line}"
@@ -63,8 +145,9 @@ def build_arcana_user_prompt(
         f"Strongest archetypes: {', '.join(themes)}.\n"
         f"Growth-ward / quieter archetypes: {', '.join(shadows) or 'in balance'}.\n"
         f"Body-to-card map:\n{sig}\n\n"
-        f"SPREAD: {spread}\n"
+        f"SPREAD: {spread} — {n} card{'' if n == 1 else 's'}\n"
         f"CARDS DRAWN:\n{cards}\n\n"
         f"QUESTION: {question}\n\n"
+        f"LENGTH: {length_line} Reach the closing sections.\n\n"
         f"Give the reading now, following the required structure."
     )

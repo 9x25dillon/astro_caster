@@ -77,9 +77,19 @@ def alarm_threshold() -> float:
     return _f("AAE_SPEND_ALARM_FRAC", 0.80) * global_daily_cap()
 
 
-# nominal pre-call output size (chars) used before the true size is known
+# Nominal pre-call output size (chars), used to decide whether a call may
+# START. `record()` then books the TRUE size, so a low guess crosses the cap
+# slightly late rather than never — the failure is soft, which is exactly why
+# these numbers had gone unexamined.
+#
+# MEASURED 2026-08-19, twelve live arcana readings across both paid tiers and
+# six spreads: 1,999 to 11,340 chars, median 5,856 (supporter 5,268, oracle
+# 7,852). "tarot" had been 1,200 — under a fifth of a typical reading and under
+# a ninth of the largest. Set to the median rather than the max: this is the
+# expected size of the NEXT call, and guessing the worst case here would refuse
+# readers with room left in their budget.
 _NOMINAL_CHARS = {"oracle": 13000, "deluxe": 40000, "course": 24000,
-                  "tarot": 1200, "ask": 3000, "tts": 2000, "plate": 0}
+                  "tarot": 5800, "ask": 3000, "tts": 2000, "plate": 0}
 
 
 # Output $ per 1e6 tokens, Anthropic list prices (2026-06-24 catalogue). Matched

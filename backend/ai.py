@@ -498,11 +498,73 @@ async def interpret(
         }
 
 
-# NOT measured the way the reading budgets above were — the arcana prompts are
-# built by callers and vary. They are left as-is deliberately: _chat_openai_compat
-# now continues past "length", so a tight number here costs an extra round-trip
-# rather than a truncated reading. Measure before tuning.
-_ARCANA_BUDGET = {"oracle": 2600, "supporter": 1600, "free": 900}
+# MEASURED 2026-08-19 (see the table in _arcana_budget). The old flat table was
+# {oracle: 2600, supporter: 1600, free: 900} — one number per tier, blind to how
+# many cards were dealt. A one-card daily draw and a twelve-card house spread
+# were handed the identical ceiling, so the large spreads ran into it every
+# single time: the continuation loop fired on every reading (three round-trips,
+# whole prompt resent each time) and whatever was still unwritten at the bound
+# was trimmed away at a sentence boundary. Quiet, expensive, and permanent.
+#
+# The size of a reading follows the SPREAD, not the tier. The tier decides how
+# richly each position is treated (tarot_prompts._LENGTH_BRIEF) and which model
+# writes it; the ceiling's only job is to sit comfortably above what that brief
+# costs at that model's tokens-per-word rate.
+# MEASURED against a real chart with the cap lifted to 9,000, twelve readings,
+# every one returning finish_reason="stop" — so these are lengths the writers
+# CHOSE, not lengths they were cut off at.
+#
+#   tier       cards  spread          natural need   old flat cap
+#   supporter    1    daily                    683          1,600
+#   supporter    3    three_card             1,092          1,600
+#   supporter    7    horseshoe              2,908          1,600  cut
+#   supporter   10    celtic_cross           3,292          1,600  cut
+#   supporter   10    tree_of_life           3,444          1,600  cut
+#   supporter   12    twelve_house           4,279          1,600  cut
+#   oracle       1    daily                  1,264          2,600
+#   oracle       3    three_card             1,881          2,600
+#   oracle       7    horseshoe              3,107          2,600  cut
+#   oracle      10    celtic_cross           3,612          2,600  cut
+#   oracle      10    tree_of_life           4,383          2,600  cut
+#   oracle      12    twelve_house           4,712          2,600  cut
+#
+# Those figures are against the length brief added at the same time. Measured
+# against the OLD size-blind prompt, the smallest draw at either tier already
+# overran its cap (supporter daily 1,989 > 1,600; oracle daily 3,199 > 2,600) —
+# so before this change EVERY arcana reading the product ever served was cut
+# short, not merely the large spreads.
+#
+# The line is fitted by least squares and then its intercept raised until no
+# observation sits above it, because a fit that runs THROUGH the measurements
+# leaves half of them truncated by construction. Headroom is applied on top.
+#
+# Over-provisioning here is close to free: max_tokens is a ceiling, not a
+# reservation, and the bill follows tokens actually generated. The floor and
+# _ARCANA_CEILING are what keep that from becoming a licence to run away.
+_ARCANA_HEADROOM = 1.30      # over the measured envelope
+
+_ARCANA_FIT = {
+    #              fixed  per card
+    "oracle": (1300, 310),
+    "supporter": (650, 320),
+    # Free never arrives — /api/tarot-reading gates AI enrichment to the paid
+    # tiers — but it resolves rather than raising if that gate ever moves.
+    "free": (650, 320),
+}
+_ARCANA_FLOOR = 1200
+_ARCANA_CEILING = 12000
+
+
+def _arcana_budget(tier: str, card_count: int) -> int:
+    """Token ceiling for an arcana reading of `card_count` cards.
+
+    Bounded at both ends: the floor keeps a one-card draw from being handed a
+    ceiling too small to finish a paragraph, and the cap stops a malformed
+    card_count from authorising an unbounded spend.
+    """
+    fixed, per_card = _ARCANA_FIT.get(tier, _ARCANA_FIT["free"])
+    want = (fixed + per_card * max(1, card_count)) * _ARCANA_HEADROOM
+    return int(min(_ARCANA_CEILING, max(_ARCANA_FLOOR, round(want / 100.0) * 100)))
 
 
 async def interpret_arcana(
@@ -510,6 +572,7 @@ async def interpret_arcana(
     user: str,
     tier: str = "free",
     allow_ai: bool = True,
+    card_count: int = 3,
 ) -> Dict[str, object]:
     """
     Card-aware Astra Arcana reading. The caller (tarot endpoint) builds the
@@ -528,12 +591,18 @@ async def interpret_arcana(
     provider = _demote_kgirl_if_prompt_too_long(provider, system, user)
     if provider == "offline":
         return {"text": "", "source": "offline", "provider": "offline", "model": ""}
-    budget = _ARCANA_BUDGET.get(tier, _ARCANA_BUDGET["free"])
+    budget = _arcana_budget(tier, card_count)
     try:
         if provider == "kgirl":
             text, _meta = await _chat_kgirl(system, user, budget)
             return {"text": text, "source": "llm", "provider": "kgirl", "model": "kgirl-consensus"}
         if provider == "ollama":
+            # The local model gets the SAME scaled ceiling rather than a smaller
+            # one. _build_prompts makes the argument for the reading path and it
+            # holds here: on a CPU-bound model a continuation round-trip costs
+            # far more wall-clock than the extra room does, so the right move is
+            # to fit the whole spread in one pass. A twelve-card draw is slow on
+            # local hardware either way; this is the cheaper of the two slows.
             model = _OLLAMA_MODEL_DEEP if tier in ("supporter", "oracle") else _OLLAMA_MODEL
             text = await _chat_openai_compat(_OLLAMA_URL, None, system, user, model, max_tokens=budget)
             return {"text": _strip_reasoning(text), "source": "llm", "provider": "ollama", "model": model}

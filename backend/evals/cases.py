@@ -68,4 +68,95 @@ def build_cases(placements: Dict[str, str]) -> List[Case]:
                 words_min=words[0],
                 words_max=words[1],
             ))
+    cases.extend(_arcana_cases(placements))
     return cases
+
+
+# --------------------------------------------------------------------------- #
+# Arcana — the tarot-spread readings
+#
+# MEASURED 2026-08-19: every arcana reading the product had ever served was
+# truncated, at both paid tiers and at every spread size including the one-card
+# daily draw, because the ceiling was a flat per-tier number that never knew how
+# many cards were on the cloth. The unit suite could not see it (it mocks the
+# provider) and this suite could not see it either (it only ever covered the
+# chart-reading path). These cases close that second gap.
+#
+# The two spreads chosen are the largest, because a big spread is where a
+# size-blind budget fails first and hardest.
+#
+# WHAT MAKES THESE WORTH THE MONEY: required_sections is the POSITION LIST. A
+# reading that runs out of room before it reaches "The Outcome" fails
+# check_structure by name, and one that stops mid-sentence fails
+# check_completeness. Those are the two ways a spread reading arrives
+# incomplete, and both are now assertions rather than hopes.
+# --------------------------------------------------------------------------- #
+
+_ARCANA_QUESTION = "What do I need to understand right now?"
+
+
+def _deck_attributions() -> List[str]:
+    """Every "Planet in Sign" the deck asserts about its OWN cards.
+
+    Read from the deck rather than transcribed, because these are facts of the
+    Golden Dawn attribution table (the Five of Wands IS Saturn in Leo) and not a
+    prompt instruction that could drift. Any of the thirty-six decans can turn up
+    in a reading whichever cards were dealt, so the whole set is exempted rather
+    than the drawn subset — see _about_the_querent in checks.py for what that
+    exemption does and does not cover.
+    """
+    import tarot_data as TD
+    out = set()
+    for card in list(TD.MAJOR_ARCANA) + list(TD.MINOR_ARCANA):
+        for attr in card.get("astrology", []):
+            if " in " in attr:
+                out.add(attr)
+    return sorted(out)
+
+# Transcribed from tarot.py SPREAD_POSITIONS. Deliberately a copy and not an
+# import: if somebody reorders or renames a position, these cases should FAIL
+# and be re-recorded, not silently follow along. Same coupling as the section
+# headers above, for the same reason.
+_CELTIC_CROSS_POSITIONS = [
+    "The Heart", "The Crossing", "The Foundation", "The Recent Past",
+    "The Crown", "The Near Future", "The Self", "The Environment",
+    "Hopes and Fears", "The Outcome",
+]
+_TWELVE_HOUSE_POSITIONS = [f"House {i}" for i in range(1, 13)]
+
+
+def _arcana_cases(placements: Dict[str, str]) -> List[Case]:
+    """One large-spread case per paid tier. Free never reaches the arcana AI
+    path — /api/tarot-reading gates enrichment to supporter and oracle — so a
+    free case here would be recording a call the product cannot make."""
+    return [
+        Case(
+            id="supporter:celtic-cross",
+            tier="supporter",
+            lens="psychological",
+            query=_ARCANA_QUESTION,
+            placements=placements,
+            spread="celtic_cross",
+            card_attributions=_deck_attributions(),
+            required_sections=_CELTIC_CROSS_POSITIONS,
+            # tarot_prompts asks supporter for 220 + 90/card = 1,120 words here.
+            # The band is generous on both sides: the point of the check is to
+            # catch a reading that collapsed or ran away, not to police a writer
+            # against a word count they were only ever asked to approximate.
+            words_min=650,
+            words_max=1700,
+        ),
+        Case(
+            id="oracle:twelve-house",
+            tier="oracle",
+            lens="psychological",
+            query=_ARCANA_QUESTION,
+            placements=placements,
+            spread="twelve_house",
+            card_attributions=_deck_attributions(),
+            required_sections=_TWELVE_HOUSE_POSITIONS,
+            # oracle: 320 + 130/card = 1,880 words for twelve cards.
+            words_min=1000,
+            words_max=2700,
+        ),
+    ]

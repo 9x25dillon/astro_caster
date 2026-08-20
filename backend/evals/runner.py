@@ -89,14 +89,51 @@ def chart_dict() -> Dict:
 # --------------------------------------------------------------------------- #
 # recording
 # --------------------------------------------------------------------------- #
+def _arcana_prompts(case: Case, chart: Dict):
+    """System, user, model and budget for a tarot-spread case.
+
+    Mirrors what main.py's /api/tarot-reading builds. It is assembled here
+    rather than imported from the endpoint because the endpoint is a FastAPI
+    handler that also mints entitlements, rate-limits and records spend; what
+    the eval needs is the prompt pair and the ceiling, which is the part that
+    decides whether the reading arrives whole.
+    """
+    import ai
+    import tarot as TAROT
+    from models import ChartResponse
+    from tarot_models import TarotReadingRequest
+    from tarot_prompts import (ARCANA_READING_STRUCTURE, ARCANA_SYSTEM,
+                               build_arcana_user_prompt)
+
+    reading = TAROT.build_reading_core(TarotReadingRequest(
+        chart=ChartResponse(**chart), spread=case.spread, question=case.query))
+    sig = reading.signature
+    drawn = [{"position": c.position, "name": c.card.name,
+              "orientation": "reversed" if c.reversed else "upright",
+              "natal_link": c.natal_link or ""} for c in reading.cards]
+    user = build_arcana_user_prompt(
+        question=case.query, spread=case.spread,
+        dominant_element=sig.dominant_element,
+        dominant_modality=sig.dominant_modality,
+        themes=sig.themes, shadows=sig.shadows,
+        signature_lines=[l.note for l in sig.links], drawn=drawn,
+        source_lens=TAROT.source_meta(reading.source)["lens"], tier=case.tier)
+    model = ai._MODEL_ORACLE if case.tier == "oracle" else ai._MODEL_SUPPORTER
+    budget = ai._arcana_budget(case.tier, len(reading.cards))
+    return ARCANA_SYSTEM + ARCANA_READING_STRUCTURE, user, model, budget
+
+
 async def record_case(case: Case, chart: Dict) -> Generation:
     """One real provider call, capturing the wire facts the checks need."""
     import httpx
     import ai
 
-    ctx = ai._build_context(chart, None, None)
-    system, user, model, budget = ai._build_prompts(
-        case.query, ctx, case.lens, None, None, "quick", "cloud", case.tier, False)
+    if case.spread:
+        system, user, model, budget = _arcana_prompts(case, chart)
+    else:
+        ctx = ai._build_context(chart, None, None)
+        system, user, model, budget = ai._build_prompts(
+            case.query, ctx, case.lens, None, None, "quick", "cloud", case.tier, False)
     payload = {"model": model,
                "messages": [{"role": "system", "content": system},
                             {"role": "user", "content": user}],

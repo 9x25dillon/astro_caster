@@ -126,7 +126,7 @@ from tarot_models import (
     TarotReadingRequest,
     TarotReadingResponse,
 )
-from tarot_prompts import ARCANA_SYSTEM, build_arcana_user_prompt
+from tarot_prompts import ARCANA_READING_STRUCTURE, ARCANA_SYSTEM, build_arcana_user_prompt
 import synastry as SYN
 from synastry import (
     CompositeChart,
@@ -1174,10 +1174,14 @@ async def tarot_reading(req: TarotReadingRequest, request: Request):
             themes=sig.themes, shadows=sig.shadows,
             signature_lines=[l.note for l in sig.links], drawn=drawn,
             source_lens=TAROT.source_meta(req.source)["lens"],
+            tier=tier,
         )
         t_ip = CLIENTIP.client_ip(request)
         t_allow, _t_cap = BUDGET.allow_call(req.entitlement, "tarot", t_ip)
-        ai = await interpret_arcana(ARCANA_SYSTEM, user, tier=tier, allow_ai=t_allow)
+        ai = await interpret_arcana(
+            ARCANA_SYSTEM + ARCANA_READING_STRUCTURE, user, tier=tier,
+            allow_ai=t_allow, card_count=len(reading.cards),
+        )
         if ai.get("source") == "llm" and ai.get("text"):
             reading.interpretation = ai["text"]
             reading.ai_source = "llm"

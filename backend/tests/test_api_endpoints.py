@@ -47,11 +47,16 @@ class _FakeAI:
     def __init__(self, result):
         self.result = result
         self.calls = []
+        self.card_counts = []
 
-    async def __call__(self, system, user, tier, allow_ai=True):
+    async def __call__(self, system, user, tier, allow_ai=True, card_count=3):
         # allow_ai arrives from the 4.4 spend gate; the tarot path passes it
-        # through so a capped call never reaches a provider.
+        # through so a capped call never reaches a provider. card_count sizes
+        # the token ceiling to the spread — recorded so a caller that stops
+        # passing it (and silently budgets a Celtic Cross as three cards) fails
+        # a test rather than a reader.
         self.calls.append(tier)
+        self.card_counts.append(card_count)
         return self.result
 
 
@@ -90,8 +95,11 @@ def test_tarot_reading_endpoint_deterministic():
 
 
 def test_tarot_reading_rejects_bad_spread_and_date():
+    # NOT "celtic_cross" — that used to be the stand-in for an unsupported
+    # spread and became a real one, which is exactly how a validation test
+    # quietly stops testing validation. Use a name no spread will ever have.
     assert client.post("/api/tarot-reading",
-                       json=_reading_payload(spread="celtic_cross")).status_code == 422
+                       json=_reading_payload(spread="no_such_spread")).status_code == 422
     assert client.post("/api/tarot-reading",
                        json=_reading_payload(spread="daily",
                                              date="not-a-date")).status_code == 400
@@ -119,6 +127,25 @@ def test_supporter_gets_ai_interpretation(monkeypatch):
     assert r.json()["ai_source"] == "llm"
     assert r.json()["interpretation"] == "the enriched reading"
     assert fake.calls == ["supporter"]               # tier threads into the AI layer
+    assert fake.card_counts == [3]                   # three_card payload -> three
+
+
+def test_card_count_reaches_the_ai_layer_for_a_large_spread(monkeypatch):
+    """The token ceiling is sized from this number.
+
+    If the endpoint stops passing it, `interpret_arcana` falls back to its
+    three-card default and a ten-card Celtic Cross is budgeted as though three
+    cards had been dealt — which is the exact shape of the bug this replaced,
+    reintroduced silently. Nothing else in the response would look wrong.
+    """
+    fake = _FakeAI({"source": "llm", "text": "x", "provider": "t", "model": "m"})
+    monkeypatch.setattr(main, "interpret_arcana", fake)
+    token = ENT.mint_entitlement("oracle", ref="test", verified=True)["token"]
+    r = client.post("/api/tarot-reading", json=_reading_payload(
+        include_ai=True, entitlement=token, spread="celtic_cross"))
+    assert r.status_code == 200
+    assert len(r.json()["cards"]) == 10
+    assert fake.card_counts == [10]
 
 
 def test_oracle_tier_also_unlocks_ai(monkeypatch):

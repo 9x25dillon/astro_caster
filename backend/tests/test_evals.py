@@ -132,3 +132,66 @@ def test_grounding_does_not_cry_wolf(text):
     """A check that reports false positives gets switched off, and then guards nothing."""
     case = Case(id="t", tier="oracle", lens="natal", query="q", placements=PLACEMENTS)
     assert check_grounding(Generation(text=text, finish_reason="stop"), case) == []
+
+
+# --------------------------------------------------------------------------- #
+# Grounding vs the tarot deck (2026-08-19)
+#
+# A minor arcana card IS a decan — the Five of Wands is Saturn in Leo — so an
+# honest tarot reading says "Planet in Sign" constantly while claiming nothing
+# about the querent. Recording the first arcana cassette produced eight
+# grounding "failures", every one of them the deck naming its own cards.
+#
+# The exemption that fixes that could very easily be a hole big enough to drive
+# the original defect through, so both directions are pinned here: the deck's
+# own decan is allowed, and the same words claimed as the READER's placement are
+# still caught.
+# --------------------------------------------------------------------------- #
+
+_DECANS = ["Saturn in Leo", "Mercury in Sagittarius"]
+_PLACEMENTS = {"Saturn": "Capricorn", "Mercury": "Cancer", "Sun": "Cancer"}
+
+
+def _arcana_case(**kw):
+    base = dict(id="t", tier="oracle", lens="psychological", query="q",
+                placements=dict(_PLACEMENTS), spread="celtic_cross",
+                card_attributions=list(_DECANS))
+    base.update(kw)
+    return Case(**base)
+
+
+def test_a_cards_own_decan_is_not_a_hallucination():
+    gen = Generation(text=(
+        "**Five of Wands** — Saturn in Leo, Hod of Atziluth — the Golden Dawn "
+        "called this one strife, and it sits in your third house."), finish_reason="stop")
+    assert check_grounding(gen, _arcana_case()) == []
+
+
+def test_the_same_decan_claimed_as_the_readers_own_still_fails():
+    """The half of the exemption that must not leak.
+
+    Same four words, one possessive in front of them, opposite verdict — that
+    is the whole distinction the check now rests on.
+    """
+    gen = Generation(text=(
+        "This card answers your natal Saturn in Leo, which has been asking "
+        "for patience."), finish_reason="stop")
+    found = check_grounding(gen, _arcana_case())
+    assert len(found) == 1 and "Saturn" in found[0].detail
+
+
+def test_a_placement_that_is_no_cards_decan_still_fails_in_a_tarot_reading():
+    """Exempting the deck must not exempt the sky."""
+    gen = Generation(text="The Tower speaks to Sun in Aquarius here.",
+                     finish_reason="stop")
+    found = check_grounding(gen, _arcana_case())
+    assert len(found) == 1 and "Sun" in found[0].detail
+
+
+def test_chart_readings_get_no_exemption_at_all():
+    """A case with no card_attributions is unchanged by any of this."""
+    gen = Generation(text="Your chart shows Saturn in Leo.", finish_reason="stop")
+    found = check_grounding(gen, Case(
+        id="c", tier="oracle", lens="psychological", query="q",
+        placements=dict(_PLACEMENTS)))
+    assert len(found) == 1

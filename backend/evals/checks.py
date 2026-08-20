@@ -77,6 +77,18 @@ class Case:
     # Word range the prompt asks for, inclusive.
     words_min: int = 0
     words_max: int = 10_000
+    # Set for an ARCANA case (a tarot spread reading) — the spread id, e.g.
+    # "celtic_cross". None means the chart-reading path. The two go through
+    # different prompts and different budgets, so the runner needs to know which
+    # it is recording; everything downstream of the text is identical, which is
+    # why the checks needed no changes to cover both.
+    spread: Optional[str] = None
+    # "Planet in Sign" strings the DECK asserts about its own cards, e.g.
+    # "Saturn in Leo" for the Five of Wands. A minor arcana card IS a decan, so
+    # an honest tarot reading names planet-in-sign constantly without making any
+    # claim about the querent's chart. Empty for chart-reading cases, where
+    # every such phrase is about the querent by construction.
+    card_attributions: List[str] = field(default_factory=list)
 
 
 @dataclass
@@ -191,6 +203,27 @@ def _binds(text: str, m: re.Match, body_group: int, sign_group: int) -> bool:
     return _ANY_BODY.search(between) is None
 
 
+# How far back to look for the word that turns a decan into a claim about the
+# reader. One clause: "your natal Mercury in Cancer" binds, a sentence that
+# mentioned "your" thirty words earlier does not.
+_QUERENT_WINDOW = 40
+_QUERENT = re.compile(r"\byour\b|\bnatal\b|\byou\b", re.IGNORECASE)
+
+
+def _about_the_querent(text: str, at: int) -> bool:
+    """True when this placement is being asserted about the READER.
+
+    THE HOLE THIS LEAVES, stated rather than implied: a reading that says
+    "Saturn in Leo" with no possessive nearby, about a chart whose Saturn is in
+    Capricorn, is now let through IF Saturn-in-Leo is also some card's decan.
+    That is a real gap and it is the deliberate price of the check surviving
+    contact with tarot at all. The half that matters — a placement claimed as
+    the reader's own — is still caught, and that is the half a reader would
+    act on.
+    """
+    return _QUERENT.search(text[max(0, at - _QUERENT_WINDOW):at]) is not None
+
+
 def check_grounding(gen: Generation, case: Case) -> List[Finding]:
     """Every placement the prose asserts must match the chart it was given.
 
@@ -211,21 +244,30 @@ def check_grounding(gen: Generation, case: Case) -> List[Finding]:
     claims: List[tuple] = []
     for m in _IN_SIGN.finditer(gen.text):
         if _binds(gen.text, m, 1, 2):
-            claims.append((_canon(m.group(1)), _canon(m.group(2)), m.group(0)))
+            claims.append((_canon(m.group(1)), _canon(m.group(2)), m.group(0), m.start()))
     for m in _SIGN_FIRST.finditer(gen.text):
         # Adjacent by construction ("Scorpio Sun") — nothing can intervene.
-        claims.append((_canon(m.group(2)), _canon(m.group(1)), m.group(0)))
+        claims.append((_canon(m.group(2)), _canon(m.group(1)), m.group(0), m.start()))
     for m in _RISES_IN.finditer(gen.text):
         if _ANY_BODY.search(m.group(0)) is None:
-            claims.append(("Ascendant", _canon(m.group(1)), m.group(0)))
+            claims.append(("Ascendant", _canon(m.group(1)), m.group(0), m.start()))
 
-    for body, sign, phrase in claims:
+    attributions = {a.lower() for a in case.card_attributions}
+    for body, sign, phrase, at in claims:
         actual = case.placements.get(body)
-        if actual and actual != sign:
-            out.append(Finding(
-                "grounding", "fail",
-                f"says {body} in {sign}, chart has {body} in {actual} "
-                f"— {phrase.strip()!r}"))
+        if not actual or actual == sign:
+            continue
+        if f"{body} in {sign}".lower() in attributions and not _about_the_querent(gen.text, at):
+            # The card's own decan, not a claim about this chart. Recorded live
+            # 2026-08-19: "Saturn in Pisces, Hod of Briah — the Golden Dawn
+            # called it *abandoned success*" is the Eight of Cups being named,
+            # and flagging it would have made this check useless on every tarot
+            # reading the product serves.
+            continue
+        out.append(Finding(
+            "grounding", "fail",
+            f"says {body} in {sign}, chart has {body} in {actual} "
+            f"— {phrase.strip()!r}"))
     return out
 
 
