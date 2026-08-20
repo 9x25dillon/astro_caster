@@ -8,7 +8,7 @@ symbolic mirrors, never fortune-telling.
 
 from __future__ import annotations
 
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 ARCANA_SYSTEM = """You are Astra Arcana, a symbolic guide who reads tarot through \
 the lens of a person's natal chart. You do NOT predict fixed future events. You \
@@ -113,12 +113,19 @@ def build_arcana_user_prompt(
     drawn: List[Dict[str, str]],
     source_lens: str = "",
     tier: str = "supporter",
+    aspect_lines: Optional[List[str]] = None,
+    further_points: Optional[List[str]] = None,
 ) -> str:
     """Compose the user message: chart signature + drawn cards + question.
 
     The length brief is derived from how many cards were actually dealt, so a
     Celtic Cross is asked for a Celtic Cross's worth of words and a daily draw
     is not padded out to match it.
+
+    `aspect_lines` and `further_points` come from tarot.aspect_prompt_lines and
+    tarot.unsigned_body_lines. Both are optional and both default to nothing,
+    because they are prompt material only: no caller is obliged to supply them
+    and nothing deterministic depends on them.
     """
     sig = "\n".join(f"- {line}" for line in signature_lines)
     cards = "\n".join(
@@ -127,6 +134,27 @@ def build_arcana_user_prompt(
         for d in drawn
     )
     lens_line = f"INTERPRETIVE LINEAGE (read the cards through this tradition): {source_lens}\n" if source_lens else ""
+    # The two blocks below are GROUNDING MATERIAL. The instruction attached to the
+    # aspects matters as much as the aspects: handed a list, a model will happily
+    # recite it, and a reading that inventories a chart instead of reading the
+    # cards is worse than one that never saw the aspects at all.
+    aspect_block = ""
+    if aspect_lines:
+        aspect_block = (
+            "\nASPECTS IN THIS CHART (the most exact ones, tightest first for the "
+            "orb each aspect is allowed). Use these to GROUND what you say about "
+            "the cards — cite one when it explains why a card lands the way it "
+            "does. Do not list them, do not work through them in order, and do "
+            "not mention an aspect that is not written here:\n"
+            + "\n".join(f"- {line}" for line in aspect_lines) + "\n"
+        )
+    points_block = ""
+    if further_points:
+        points_block = (
+            "\nFURTHER POINTS (these carry an archetype but do not weight the "
+            "draw):\n" + "\n".join(f"- {line}" for line in further_points) + "\n"
+        )
+
     n = len(drawn)
     target = arcana_target_words(tier, n)
     per_card = _LENGTH_BRIEF.get(tier, _LENGTH_BRIEF["supporter"])[1]
@@ -144,7 +172,8 @@ def build_arcana_user_prompt(
         f"Dominant element: {dominant_element}. Dominant modality: {dominant_modality}.\n"
         f"Strongest archetypes: {', '.join(themes)}.\n"
         f"Growth-ward / quieter archetypes: {', '.join(shadows) or 'in balance'}.\n"
-        f"Body-to-card map:\n{sig}\n\n"
+        f"Body-to-card map:\n{sig}\n"
+        f"{points_block}{aspect_block}\n"
         f"SPREAD: {spread} — {n} card{'' if n == 1 else 's'}\n"
         f"CARDS DRAWN:\n{cards}\n\n"
         f"QUESTION: {question}\n\n"

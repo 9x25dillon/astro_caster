@@ -1175,6 +1175,10 @@ async def tarot_reading(req: TarotReadingRequest, request: Request):
             signature_lines=[l.note for l in sig.links], drawn=drawn,
             source_lens=TAROT.source_meta(req.source)["lens"],
             tier=tier,
+            # Grounding material the natal signature does not carry. Prompt-only:
+            # see the note above tarot.UNSIGNED_BODIES for why it must stay that way.
+            aspect_lines=TAROT.aspect_prompt_lines(req.chart),
+            further_points=TAROT.unsigned_body_lines(req.chart),
         )
         t_ip = CLIENTIP.client_ip(request)
         t_allow, _t_cap = BUDGET.allow_call(req.entitlement, "tarot", t_ip)

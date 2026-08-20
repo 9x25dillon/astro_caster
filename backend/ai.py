@@ -528,6 +528,20 @@ async def interpret(
 #   oracle      10    tree_of_life           4,383          2,600  cut
 #   oracle      12    twelve_house           4,712          2,600  cut
 #
+# REFIT 2026-08-19 after the aspect-aware prompt landed, with two further
+# observations from the eval cassettes recorded under it:
+#
+#   supporter   10    celtic_cross           3,852 / 2,223
+#   oracle      12    twelve_house           6,186
+#
+# The 6,186 is the one that mattered. It sat at 95% of the 6,500 ceiling the
+# first fit produced — inside it, but only just, and only because that run
+# happened to stop where it did. Note it wrote almost exactly the same number of
+# WORDS as the 4,712 observation (1,939 vs 1,937) for 31% more tokens: the same
+# reading, more markdown. Tokens per word is not a property of the tier, it is a
+# property of the run, which is precisely why the ceiling is fitted to token
+# observations and never inferred from a word target.
+#
 # Those figures are against the length brief added at the same time. Measured
 # against the OLD size-blind prompt, the smallest draw at either tier already
 # overran its cap (supporter daily 1,989 > 1,600; oracle daily 3,199 > 2,600) —
@@ -545,11 +559,11 @@ _ARCANA_HEADROOM = 1.30      # over the measured envelope
 
 _ARCANA_FIT = {
     #              fixed  per card
-    "oracle": (1300, 310),
-    "supporter": (650, 320),
+    "oracle": (1800, 360),
+    "supporter": (850, 300),
     # Free never arrives — /api/tarot-reading gates AI enrichment to the paid
     # tiers — but it resolves rather than raising if that gate ever moves.
-    "free": (650, 320),
+    "free": (850, 300),
 }
 _ARCANA_FLOOR = 1200
 _ARCANA_CEILING = 12000

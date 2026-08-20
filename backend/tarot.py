@@ -425,6 +425,93 @@ def _default_seed(
     return f"{bodies}#{spread}#{question.strip().lower()}{day}{src}"
 
 
+# --------------------------------------------------------------------------- #
+# Prompt material the natal signature does not carry
+#
+# The signature is built for the DRAW: _SIGNATURE_ORDER decides major_weights,
+# major_weights decide which cards come up. That is why it holds thirteen bodies
+# and no aspects — and why it must keep holding exactly those. Adding the four
+# omitted bodies to it re-deals 120 of 120 measured charts at the same seed
+# (2026-08-19, Swiss ephemeris, three spreads), which would reprint every shelved
+# reading in every bookshelf with different cards above unchanged prose.
+#
+# So the extra material is assembled HERE, for the prompt only, and never touches
+# a weight. Both functions are pure reads of the chart.
+# --------------------------------------------------------------------------- #
+
+# Computed on every chart, absent from _SIGNATURE_ORDER. Measured across 120
+# charts: 100% of them name at least one of these in their tightest eighteen
+# aspects, a mean of 2.75 per chart. Sending aspects without also sending these
+# placements hands the model names it cannot ground, in every single reading.
+UNSIGNED_BODIES = ["Chiron", "Lilith", "Part of Fortune", "South Node"]
+
+# The five Ptolemaic aspects. Kept as a set rather than read from ASPECT_DEFS'
+# ordering so that adding a minor aspect to the engine cannot silently promote it.
+_MAJOR_ASPECTS = {"Conjunction", "Opposition", "Trine", "Square", "Sextile"}
+
+ASPECT_PROMPT_LIMIT = 18
+
+
+def _relative_tightness(aspect) -> float:
+    """Orb as a fraction of the orb THAT aspect is allowed.
+
+    Ranking by raw orb looks right and is not: a conjunction is allowed 8° and a
+    semisextile 2°, so a half-degree semisextile outranks a half-degree
+    conjunction while meaning far less. Measured over 120 charts, raw orb fills
+    the eighteen with 45% major aspects; this ranking gives 70%, at identical
+    prompt cost.
+
+    An aspect the engine does not define sorts last rather than raising — a new
+    minor aspect should not be able to crash a reading.
+    """
+    d = A.ASPECT_BY_NAME.get(aspect.type)
+    return aspect.orb / d.default_orb if d and d.default_orb else 1.0
+
+
+def aspect_prompt_lines(
+    chart: ChartResponse, limit: int = ASPECT_PROMPT_LIMIT
+) -> List[str]:
+    """The chart's aspects, tightest-by-allowance first, as prompt lines.
+
+    A chart averages 49 aspects; all of them is mostly noise for the model to
+    rank itself, so this sends the most exact ones and says so in the prompt.
+    `applying` is None for pairs with no motion of their own (angles, Part of
+    Fortune) and is simply omitted there rather than guessed.
+    """
+    ranked = sorted(chart.aspects or [], key=_relative_tightness)[:limit]
+    out: List[str] = []
+    for a in ranked:
+        motion = "" if a.applying is None else (
+            ", applying" if a.applying else ", separating")
+        weight = "" if a.type in _MAJOR_ASPECTS else ", minor"
+        out.append(f"{a.p1} {a.type.lower()} {a.p2} "
+                   f"(orb {a.orb:.2f}°{motion}{weight})")
+    return out
+
+
+def unsigned_body_lines(chart: ChartResponse) -> List[str]:
+    """Placements for the bodies the signature omits, with a trump where one exists.
+
+    Chiron and South Node already have trumps in PLANET_MAJOR; Lilith and Part of
+    Fortune do not, and take the trump of the sign they fall in exactly as the
+    angles do in _card_for_body. Naming the trump is PROSE FRAMING ONLY — the
+    moment one of these enters major_weights we are back to re-dealing every
+    stored seed.
+    """
+    index = {p.id: p for p in chart.planets}
+    out: List[str] = []
+    for body in UNSIGNED_BODIES:
+        p = index.get(body)
+        if p is None:
+            continue          # Chiron is absent on the Moshier fallback.
+        card_id = PLANET_MAJOR.get(body) or SIGN_MAJOR.get(getattr(p, "sign", None))
+        trump = MAJOR_BY_ID[card_id]["name"] if card_id else None
+        house = getattr(p, "house", None)
+        where = f"{body} in {p.sign}" + (f", house {house}" if house else "")
+        out.append(f"{where} — {trump}" if trump else where)
+    return out
+
+
 def _offline_meaning(card_id: str, reversed: bool, position: str, link_note: Optional[str]) -> str:
     d = CARD_BY_ID[card_id]
     face = d.get("reversed") if reversed else d.get("upright")

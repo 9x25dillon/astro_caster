@@ -28,7 +28,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from evals.cases import build_cases  # noqa: E402
 from evals.checks import (  # noqa: E402
-    Case, Generation, check_completeness, check_grounding, failed, run_checks,
+    Case, Generation, aspect_key, check_aspect_grounding, check_completeness,
+    check_grounding, failed, run_checks,
 )
 from evals.runner import load_cassette  # noqa: E402
 
@@ -195,3 +196,77 @@ def test_chart_readings_get_no_exemption_at_all():
         id="c", tier="oracle", lens="psychological", query="q",
         placements=dict(_PLACEMENTS)))
     assert len(found) == 1
+
+
+# --------------------------------------------------------------------------- #
+# Aspect grounding (2026-08-19)
+#
+# The arcana prompt now hands the model eighteen of the chart's aspects, which
+# opens a failure check_grounding cannot see: a fluent sentence naming an aspect
+# the chart does not contain. It reads exactly as authoritative as a true one.
+#
+# The check has to survive tarot prose, where two trumps are named after bodies,
+# so both its teeth and its restraint are pinned below.
+# --------------------------------------------------------------------------- #
+
+_ASPECTS = {"Mercury|Moon": "Square", "Jupiter|Mars": "Opposition"}
+
+
+def _aspect_case(**kw):
+    base = dict(id="t", tier="oracle", lens="psychological", query="q",
+                spread="celtic_cross", aspects=dict(_ASPECTS))
+    base.update(kw)
+    return Case(**base)
+
+
+def test_an_aspect_the_chart_does_not_have_is_caught():
+    gen = Generation(text="Your Saturn square Venus is the ache underneath.",
+                     finish_reason="stop")
+    found = check_aspect_grounding(gen, _aspect_case())
+    assert len(found) == 1
+    assert "no major aspect" in found[0].detail
+
+
+def test_the_right_pair_with_the_wrong_aspect_is_caught():
+    """The subtler half: these two ARE in aspect, just not that one."""
+    gen = Generation(text="Mercury trine Moon opens the throat.", finish_reason="stop")
+    found = check_aspect_grounding(gen, _aspect_case())
+    assert len(found) == 1
+    assert "chart has square" in found[0].detail
+
+
+def test_a_true_aspect_passes_whichever_way_round_it_is_written():
+    """An aspect is a relationship, not a direction."""
+    for text in ("The Moon squares Mercury here.", "Mercury square Moon here."):
+        assert check_aspect_grounding(Generation(text=text), _aspect_case()) == []
+
+
+def test_two_trumps_facing_each_other_are_not_an_aspect_claim():
+    """The Sun and The Moon are cards as well as bodies, and a Celtic Cross has
+    positions that literally sit opposite one another."""
+    gen = Generation(text="The Moon opposite The Sun in this spread speaks of a split.",
+                     finish_reason="stop")
+    assert check_aspect_grounding(gen, _aspect_case()) == []
+
+
+def test_the_card_exemption_does_not_cover_a_natal_claim():
+    """One side in card form, the other a bare body, is how a reading writes a
+    claim about the chart — still judged."""
+    gen = Generation(text="The Moon trine Saturn in your chart.", finish_reason="stop")
+    assert len(check_aspect_grounding(gen, _aspect_case())) == 1
+
+
+def test_a_case_with_no_aspects_is_silent_rather_than_failing_everything():
+    """Absent aspects means "not given", never "the chart has none"."""
+    gen = Generation(text="Your Saturn square Venus is the ache.", finish_reason="stop")
+    assert check_aspect_grounding(gen, _aspect_case(aspects={})) == []
+
+
+def test_each_distinct_claim_is_reported_once():
+    gen = Generation(text=("Saturn square Venus. Later, Saturn square Venus again, "
+                           "and once more Saturn square Venus."), finish_reason="stop")
+    assert len(check_aspect_grounding(gen, _aspect_case())) == 1
+
+
+def test_aspect_key_is_order_independent():
+    assert aspect_key("Moon", "Mercury") == aspect_key("Mercury", "Moon")

@@ -89,6 +89,11 @@ class Case:
     # claim about the querent's chart. Empty for chart-reading cases, where
     # every such phrase is about the querent by construction.
     card_attributions: List[str] = field(default_factory=list)
+    # Aspects the chart actually contains, as {"Body|Body": "type"} with the
+    # pair sorted so lookup does not care which way round the prose says it.
+    # Empty means "this case was not given aspects", and the aspect check stays
+    # silent rather than failing every claim.
+    aspects: Dict[str, str] = field(default_factory=dict)
 
 
 @dataclass
@@ -272,6 +277,106 @@ def check_grounding(gen: Generation, case: Case) -> List[Finding]:
 
 
 # --------------------------------------------------------------------------- #
+# aspect grounding — the check for an aspect the chart does not contain
+#
+# Added 2026-08-19 with the aspect-aware arcana prompt. Handing a model a list of
+# aspects opens a failure the sign-based grounding check cannot see: a fluent
+# sentence about "your Saturn square Venus" in a chart where those two are not in
+# aspect at all. It reads exactly as authoritative as a true one.
+#
+# Two ways to be wrong here, and only one of them is recoverable:
+#   * Miss a fabricated aspect and the product ships confident astrology it made
+#     up.
+#   * Flag a true one and the check gets switched off within a week, after which
+#     it guards nothing — the reasoning _binds already records for signs.
+# So this is deliberately narrow. It judges only the five Ptolemaic aspects
+# named as an explicit verb between two bodies, and stays silent on everything
+# else it cannot read unambiguously.
+# --------------------------------------------------------------------------- #
+
+# The aspect words a reading actually uses as a verb. Minor aspects are excluded
+# on purpose: "quincunx" and "semisextile" are rare in prose and their orbs are
+# tight enough that near-misses would generate argument rather than signal.
+_ASPECT_VERBS = {
+    "conjunct": "Conjunction", "conjunction": "Conjunction",
+    "opposite": "Opposition", "opposition": "Opposition", "opposing": "Opposition",
+    "opposes": "Opposition",
+    "trine": "Trine", "trines": "Trine",
+    "square": "Square", "squares": "Square", "squaring": "Square",
+    "sextile": "Sextile", "sextiles": "Sextile",
+}
+
+_ASPECT_CLAIM = re.compile(
+    r"\b(" + "|".join(BODIES) + r")\b\s+"
+    r"(?:is\s+|sits\s+|lies\s+)?"
+    r"\b(" + "|".join(sorted(_ASPECT_VERBS, key=len, reverse=True)) + r")\b\s+"
+    r"(?:to\s+|with\s+|your\s+|the\s+|natal\s+){0,2}"
+    r"\b(" + "|".join(BODIES) + r")\b",
+    re.IGNORECASE)
+
+
+def aspect_key(a: str, b: str) -> str:
+    """Order-independent key for a pair of bodies.
+
+    The prose says "Moon square Mercury" and the chart stores "Mercury square
+    Moon" as readily; an aspect is a relationship, not a direction.
+    """
+    return "|".join(sorted((_canon(a), _canon(b))))
+
+
+# Two trumps are named after bodies: The Sun and The Moon. In a spread reading
+# "The Moon opposite The Sun" is overwhelmingly about two CARDS facing each other
+# on the cloth — the Celtic Cross has positions that literally do — and reporting
+# it as a fabricated aspect is the cry-wolf failure that gets a check deleted.
+#
+# The rule is narrow on purpose: only skip when BOTH sides are written in card
+# form, capital "The" included. One side in card form and the other a bare body
+# ("The Moon trine Saturn") is still judged, because that is how a reading writes
+# a natal claim, not how it writes a card. The residual gap — a genuinely
+# fabricated aspect phrased entirely in card form — is the price, and it buys the
+# check's survival on every tarot reading the product serves.
+_CARD_NAMED_BODIES = {"Sun", "Moon"}
+
+
+def _in_card_form(text: str, at: int, body: str) -> bool:
+    return _canon(body) in _CARD_NAMED_BODIES and text[max(0, at - 4):at] == "The "
+
+
+def check_aspect_grounding(gen: Generation, case: Case) -> List[Finding]:
+    """Every aspect the prose names must be one the chart actually has."""
+    out: List[Finding] = []
+    if not case.aspects:
+        return out
+    seen = set()
+    for m in _ASPECT_CLAIM.finditer(gen.text):
+        body_a, verb, body_b = m.group(1), m.group(2).lower(), m.group(3)
+        if _canon(body_a) == _canon(body_b):
+            continue                      # "Mercury square Mercury" — a parse artefact
+        if (_in_card_form(gen.text, m.start(1), body_a)
+                and _in_card_form(gen.text, m.start(3), body_b)):
+            continue                      # two trumps on the cloth, not two bodies
+        key = aspect_key(body_a, body_b)
+        claimed = _ASPECT_VERBS[verb]
+        actual = case.aspects.get(key)
+        if actual == claimed:
+            continue
+        if (key, claimed) in seen:
+            continue                      # report each distinct claim once
+        seen.add((key, claimed))
+        if actual is None:
+            out.append(Finding(
+                "aspect-grounding", "fail",
+                f"says {_canon(body_a)} {claimed.lower()} {_canon(body_b)}, "
+                f"chart has no major aspect between them — {m.group(0).strip()!r}"))
+        else:
+            out.append(Finding(
+                "aspect-grounding", "fail",
+                f"says {_canon(body_a)} {claimed.lower()} {_canon(body_b)}, "
+                f"chart has {actual.lower()} — {m.group(0).strip()!r}"))
+    return out
+
+
+# --------------------------------------------------------------------------- #
 # length
 # --------------------------------------------------------------------------- #
 def check_length(gen: Generation, case: Case) -> List[Finding]:
@@ -318,6 +423,7 @@ ALL_CHECKS = [
     check_completeness,
     check_structure,
     check_grounding,
+    check_aspect_grounding,
     check_length,
     check_voice,
 ]

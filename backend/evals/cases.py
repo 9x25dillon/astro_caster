@@ -13,7 +13,7 @@ drift this suite is here to catch.
 """
 from __future__ import annotations
 
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from .checks import Case
 
@@ -41,7 +41,8 @@ QUERIES = {
 }
 
 
-def build_cases(placements: Dict[str, str]) -> List[Case]:
+def build_cases(placements: Dict[str, str],
+                aspects: Optional[Dict[str, str]] = None) -> List[Case]:
     """Cases for every tier, sharing one chart.
 
     `placements` comes from the real engine at record time (planet id -> sign) so
@@ -67,8 +68,13 @@ def build_cases(placements: Dict[str, str]) -> List[Case]:
                 required_sections=_ORACLE_SECTIONS if tier != "free" else [],
                 words_min=words[0],
                 words_max=words[1],
+                # The ask path has always sent the chart's aspects (ai.py's
+                # _build_context), so a fabricated aspect was always possible
+                # here — it simply had no check looking for it until the arcana
+                # work needed one. Costs nothing to point it at these too.
+                aspects=aspects or {},
             ))
-    cases.extend(_arcana_cases(placements))
+    cases.extend(_arcana_cases(placements, aspects or {}))
     return cases
 
 
@@ -125,7 +131,8 @@ _CELTIC_CROSS_POSITIONS = [
 _TWELVE_HOUSE_POSITIONS = [f"House {i}" for i in range(1, 13)]
 
 
-def _arcana_cases(placements: Dict[str, str]) -> List[Case]:
+def _arcana_cases(placements: Dict[str, str],
+                  aspects: Dict[str, str]) -> List[Case]:
     """One large-spread case per paid tier. Free never reaches the arcana AI
     path — /api/tarot-reading gates enrichment to supporter and oracle — so a
     free case here would be recording a call the product cannot make."""
@@ -138,6 +145,7 @@ def _arcana_cases(placements: Dict[str, str]) -> List[Case]:
             placements=placements,
             spread="celtic_cross",
             card_attributions=_deck_attributions(),
+            aspects=aspects,
             required_sections=_CELTIC_CROSS_POSITIONS,
             # tarot_prompts asks supporter for 220 + 90/card = 1,120 words here.
             # The band is generous on both sides: the point of the check is to
@@ -154,6 +162,7 @@ def _arcana_cases(placements: Dict[str, str]) -> List[Case]:
             placements=placements,
             spread="twelve_house",
             card_attributions=_deck_attributions(),
+            aspects=aspects,
             required_sections=_TWELVE_HOUSE_POSITIONS,
             # oracle: 320 + 130/card = 1,880 words for twelve cards.
             words_min=1000,

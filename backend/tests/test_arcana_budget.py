@@ -31,6 +31,11 @@ MEASURED = [
     ("supporter", 10, 3292), ("supporter", 10, 3444), ("supporter", 12, 4279),
     ("oracle", 1, 1264), ("oracle", 3, 1881), ("oracle", 7, 3107),
     ("oracle", 10, 3612), ("oracle", 10, 4383), ("oracle", 12, 4712),
+    # Recorded under the aspect-aware prompt (evals/cassettes). The last of
+    # these sat at 95% of the ceiling the first fit produced, which is what
+    # forced the refit — a ceiling a reading only just fits under is a
+    # truncation waiting for a slightly wordier run.
+    ("supporter", 10, 3852), ("supporter", 10, 2223), ("oracle", 12, 6186),
 ]
 
 
@@ -60,7 +65,7 @@ def test_the_old_flat_ceilings_would_fail_this_suite():
     """
     old = {"supporter": 1600, "oracle": 2600}
     cut = [(t, c, o) for t, c, o in MEASURED if o > old[t]]
-    assert len(cut) == 8, "the historical failure set changed — re-derive it"
+    assert len(cut) == 11, "the historical failure set changed — re-derive it"
     assert all(c >= 7 for _, c, _ in cut), "the cut readings were the big spreads"
 
 

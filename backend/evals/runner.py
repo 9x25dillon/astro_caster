@@ -80,6 +80,20 @@ def chart_placements() -> Dict[str, str]:
     return {p["id"]: p["sign"] for p in chart["planets"]}
 
 
+def chart_aspects() -> Dict[str, str]:
+    """{"Body|Body": aspect type} for the MAJOR aspects the chart really has.
+
+    The aspect check's source of truth, computed the same way the placements are
+    rather than transcribed — an aspect table typed by hand rots the moment the
+    reference chart or the orb rules move.
+    """
+    from evals.checks import aspect_key
+    chart = chart_dict()
+    majors = {"Conjunction", "Opposition", "Trine", "Square", "Sextile"}
+    return {aspect_key(a["p1"], a["p2"]): a["type"]
+            for a in chart["aspects"] if a["type"] in majors}
+
+
 def chart_dict() -> Dict:
     from ephemeris import calculate_chart
     from models import ChartRequest
@@ -105,8 +119,9 @@ def _arcana_prompts(case: Case, chart: Dict):
     from tarot_prompts import (ARCANA_READING_STRUCTURE, ARCANA_SYSTEM,
                                build_arcana_user_prompt)
 
+    chart_obj = ChartResponse(**chart)
     reading = TAROT.build_reading_core(TarotReadingRequest(
-        chart=ChartResponse(**chart), spread=case.spread, question=case.query))
+        chart=chart_obj, spread=case.spread, question=case.query))
     sig = reading.signature
     drawn = [{"position": c.position, "name": c.card.name,
               "orientation": "reversed" if c.reversed else "upright",
@@ -117,7 +132,9 @@ def _arcana_prompts(case: Case, chart: Dict):
         dominant_modality=sig.dominant_modality,
         themes=sig.themes, shadows=sig.shadows,
         signature_lines=[l.note for l in sig.links], drawn=drawn,
-        source_lens=TAROT.source_meta(reading.source)["lens"], tier=case.tier)
+        source_lens=TAROT.source_meta(reading.source)["lens"], tier=case.tier,
+        aspect_lines=TAROT.aspect_prompt_lines(chart_obj),
+        further_points=TAROT.unsigned_body_lines(chart_obj))
     model = ai._MODEL_ORACLE if case.tier == "oracle" else ai._MODEL_SUPPORTER
     budget = ai._arcana_budget(case.tier, len(reading.cards))
     return ARCANA_SYSTEM + ARCANA_READING_STRUCTURE, user, model, budget
@@ -222,7 +239,7 @@ def main() -> int:
         except ImportError:
             pass
 
-    cases = build_cases(chart_placements())
+    cases = build_cases(chart_placements(), chart_aspects())
     if args.case:
         cases = [c for c in cases if c.id == args.case]
         if not cases:
