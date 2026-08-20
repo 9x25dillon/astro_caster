@@ -2266,6 +2266,47 @@ button.ghost:hover {
 .arc-draw-btn:disabled { opacity: 0.5; cursor: default; }
 
 .arc-cards-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 16px; }
+
+/* ── The traditional tableaux (spreadLayout.ts) ────────────────────────────
+   A Celtic Cross laid out as a flat row is ten cards in a line; where a card
+   sits on the cloth is half of what it means. Spreads with a geometry override
+   the auto-fit columns with grid areas supplied inline by spreadLayout.ts, so
+   the arrangement lives in one module rather than in the stylesheet. */
+.arc-cards-row--geo { grid-template-columns: unset; align-items: start; }
+/* The crossing card: wide and short, the shape a quarter-turned card has, with
+   the hairline that marks it as laid ACROSS the card above rather than beside
+   it. Rotating the panel itself would make the meaning unreadable — the reason
+   is written up in spreadLayout.ts. */
+.arc-cards-row--geo .tarot-card--across .arc-drawn {
+  border-color: var(--gold);
+  border-left-width: 3px;
+  background:
+    linear-gradient(90deg, rgba(201, 168, 76, 0.08) 0%, transparent 40%),
+    var(--obsidian-3);
+}
+.arc-cards-row--geo .tarot-card--across .arc-drawn-pos::before {
+  content: "✕ ";
+  color: var(--gold);
+}
+.arc-geo-note {
+  grid-column: 1 / -1;
+  font-size: 11px;
+  font-style: italic;
+  color: var(--ink);
+  opacity: 0.8;
+  margin: 2px 0 0;
+}
+/* Below the tableau's breakpoint the geometry stops helping and starts
+   squeezing: ten panels across four columns on a phone is four unreadable
+   ones. Fall back to the honest single column and let the position labels
+   carry the order. */
+@media (max-width: 720px) {
+  .arc-cards-row--geo {
+    grid-template-areas: none !important;
+    grid-template-columns: 1fr !important;
+  }
+  .arc-cards-row--geo .tarot-card { grid-area: auto !important; }
+}
 .arc-drawn { border: 1px solid var(--rule); border-radius: 10px; padding: 12px; background: var(--obsidian-3); }
 .arc-drawn-pos { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold-soft); margin-bottom: 7px; }
 .arc-drawn-meaning { font-size: 12.5px; color: var(--sepia); line-height: 1.5; margin: 8px 0 0; }

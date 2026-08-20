@@ -140,3 +140,71 @@ def test_arcana_for_event_maps_target():
           "significance": "high", "summary": "Saturn squares natal Sun"}
     card_id, link = TAROT.arcana_for_event(ev)
     assert card_id == "sun" and link == "Sun"
+
+
+# --------------------------------------------------------------------------- #
+# Spread registry integrity
+#
+# Three places declare a spread and only one of them fails loudly when they
+# disagree. `weighted_draw` falls back to three_card for an unknown spread, so a
+# SpreadType member with no positions does not raise — it silently deals three
+# cards under a ten-card name, and the offline engine in packages/astra-core does
+# the same. These tests turn both silences into a failing assertion.
+# --------------------------------------------------------------------------- #
+
+import pathlib  # noqa: E402
+import re  # noqa: E402
+import typing  # noqa: E402
+
+import tarot_models as TM  # noqa: E402
+
+_CORE_TS = (pathlib.Path(__file__).resolve().parents[2]
+            / "packages" / "astra-core" / "src" / "tarot.ts")
+
+
+def test_every_spread_type_has_positions():
+    declared = set(typing.get_args(TM.SpreadType))
+    assert declared == set(TAROT.SPREAD_POSITIONS), (
+        "SpreadType and SPREAD_POSITIONS disagree; the difference deals a "
+        "three-card fallback under another spread's name"
+    )
+
+
+def _ts_spread_positions() -> dict:
+    """Parse SPREAD_POSITIONS out of the TypeScript engine.
+
+    A parse rather than a build step so the test runs in the backend CI job with
+    no node toolchain. Deliberately strict: anything it cannot read fails the
+    test rather than being skipped, because a skip here is indistinguishable
+    from agreement.
+    """
+    src = _CORE_TS.read_text(encoding="utf-8")
+    m = re.search(r"export const SPREAD_POSITIONS[^=]*=\s*\{(.*?)\n\};", src, re.S)
+    assert m, "could not locate SPREAD_POSITIONS in astra-core/src/tarot.ts"
+    body = re.sub(r"//[^\n]*", "", m.group(1))
+    out = {}
+    for key, arr in re.findall(r"(\w+)\s*:\s*(\[.*?\]|Array\.from\([^)]*\))", body, re.S):
+        if arr.startswith("Array.from"):
+            n = re.search(r"length:\s*(\d+)", arr)
+            assert n, f"unreadable Array.from for {key}"
+            out[key] = int(n.group(1))
+        else:
+            # Count string literals rather than parsing the array. A dropped
+            # entry leaves a trailing comma, and a JSON round-trip would then
+            # blow up with a decoder error instead of reporting the count
+            # mismatch that is the actual finding.
+            out[key] = len(re.findall(r'"(?:[^"\\]|\\.)*"', arr))
+    return out
+
+
+def test_offline_engine_declares_the_same_spreads():
+    """The TS engine draws offline; the Python engine draws on the server.
+
+    Only the position COUNT is asserted, not the labels: the count is what the
+    draw consumes, so a mismatch means one card set online and another offline
+    for the same seed. Labels are cosmetic and may legitimately be re-worded on
+    one side ahead of the other.
+    """
+    ts = _ts_spread_positions()
+    py = {k: len(v) for k, v in TAROT.SPREAD_POSITIONS.items()}
+    assert ts == py

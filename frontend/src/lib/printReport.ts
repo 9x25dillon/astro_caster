@@ -435,6 +435,8 @@ const SPREAD_TITLES: Record<string, string> = {
   twelve_house: "The Twelve Houses", relationship: "Relationship Spread",
   transit_pressure: "Transit Pressure", shadow_integration: "Shadow Integration",
   creative_expression: "Creative Expression",
+  celtic_cross: "The Celtic Cross", horseshoe: "The Horseshoe",
+  tree_of_life: "The Tree of Life",
 };
 
 /** "Plates — The Spread": engraved card plates + two-column readings, per the

@@ -74,15 +74,23 @@ export const TarotCard: React.FC<{
   position: string;
   revealed: boolean;
   onReveal: () => void;
+  /** Grid-area name when the spread has a tableau geometry (spreadLayout.ts).
+   *  Absent for the spreads that render as a plain auto-fit row. */
+  gridArea?: string;
+  /** The card laid across another — rendered wide and short, the shape a
+   *  quarter-turned card actually has. */
+  landscape?: boolean;
   children: React.ReactNode; // the card's face — the existing .arc-drawn body
-}> = ({ position, revealed, onReveal, children }) => {
+}> = ({ position, revealed, onReveal, gridArea, landscape, children }) => {
   const hostRef = useRef<HTMLDivElement>(null);
   useTiltParallax(hostRef);
 
   return (
     <div
       ref={hostRef}
-      className={`tarot-card ${revealed ? "is-revealed" : "is-facedown"}`}
+      className={`tarot-card ${revealed ? "is-revealed" : "is-facedown"}`
+        + (landscape ? " tarot-card--across" : "")}
+      style={gridArea ? { gridArea } : undefined}
     >
       <div className="tarot-flip">
         {/* `inert` keeps the face-down front's buttons (journal pad, copy)

@@ -27,6 +27,12 @@ SpreadType = Literal[
     "transit_pressure",
     "shadow_integration",
     "creative_expression",
+    # Traditional spreads. Keep in step with tarot.py's SPREAD_POSITIONS and
+    # packages/astra-core/src/tarot.ts — a member here with no positions there
+    # silently falls back to a three-card draw.
+    "celtic_cross",
+    "horseshoe",
+    "tree_of_life",
 ]
 
 SourceSystem = Literal["golden_dawn", "rws", "thoth", "jungian"]

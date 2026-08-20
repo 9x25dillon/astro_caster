@@ -69,6 +69,27 @@ export const SPREAD_POSITIONS: Record<string, string[]> = {
   transit_pressure: ["The Pressure", "What It Asks", "The Resource", "The Release"],
   shadow_integration: ["The Mask", "The Shadow", "The Gift", "The Integration"],
   creative_expression: ["The Spark", "The Form", "The Block", "The Offering"],
+  // --- Traditional spreads --------------------------------------------------
+  // Must stay byte-identical to backend/tarot.py's SPREAD_POSITIONS: the offline
+  // draw and the server draw are pinned against each other by
+  // parity/tarot-draw.json, and a position label is part of neither the seed nor
+  // the RNG — but the COUNT is, so a spread with a different length here deals a
+  // different set of cards offline than online for the same seed.
+  celtic_cross: [
+    "The Heart", "The Crossing", "The Foundation", "The Recent Past",
+    "The Crown", "The Near Future", "The Self", "The Environment",
+    "Hopes and Fears", "The Outcome",
+  ],
+  horseshoe: [
+    "The Past", "The Present", "Hidden Influences", "The Obstacle",
+    "The Others", "What To Do", "The Outcome",
+  ],
+  tree_of_life: [
+    "Kether · Crown", "Chokmah · Wisdom", "Binah · Understanding",
+    "Chesed · Mercy", "Geburah · Severity", "Tiphareth · Beauty",
+    "Netzach · Victory", "Hod · Splendour", "Yesod · Foundation",
+    "Malkuth · Kingdom",
+  ],
 };
 
 // Moved to ./pyround.js so forecast.ts and advanced.ts can share it without

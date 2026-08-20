@@ -482,7 +482,8 @@ export async function localForecast(
 export type SpreadType =
   | "daily" | "three_card" | "elemental_balance" | "planetary_seven"
   | "twelve_house" | "relationship" | "transit_pressure"
-  | "shadow_integration" | "creative_expression";
+  | "shadow_integration" | "creative_expression"
+  | "celtic_cross" | "horseshoe" | "tree_of_life";
 
 export interface TarotCard {
   id: string;

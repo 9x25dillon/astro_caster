@@ -5,6 +5,170 @@
     {
      "cards": [
       {
+       "card": "sun",
+       "position": "The Heart",
+       "reversed": false
+      },
+      {
+       "card": "tower",
+       "position": "The Crossing",
+       "reversed": false
+      },
+      {
+       "card": "queen_of_pentacles",
+       "position": "The Foundation",
+       "reversed": false
+      },
+      {
+       "card": "knight_of_swords",
+       "position": "The Recent Past",
+       "reversed": true
+      },
+      {
+       "card": "two_of_pentacles",
+       "position": "The Crown",
+       "reversed": false
+      },
+      {
+       "card": "king_of_swords",
+       "position": "The Near Future",
+       "reversed": false
+      },
+      {
+       "card": "eight_of_swords",
+       "position": "The Self",
+       "reversed": false
+      },
+      {
+       "card": "king_of_cups",
+       "position": "The Environment",
+       "reversed": false
+      },
+      {
+       "card": "moon",
+       "position": "Hopes and Fears",
+       "reversed": false
+      },
+      {
+       "card": "ace_of_cups",
+       "position": "The Outcome",
+       "reversed": false
+      }
+     ],
+     "seed": "natal-seed-1",
+     "spread": "celtic_cross"
+    },
+    {
+     "cards": [
+      {
+       "card": "four_of_pentacles",
+       "position": "The Heart",
+       "reversed": false
+      },
+      {
+       "card": "ten_of_wands",
+       "position": "The Crossing",
+       "reversed": true
+      },
+      {
+       "card": "emperor",
+       "position": "The Foundation",
+       "reversed": false
+      },
+      {
+       "card": "magician",
+       "position": "The Recent Past",
+       "reversed": false
+      },
+      {
+       "card": "two_of_pentacles",
+       "position": "The Crown",
+       "reversed": false
+      },
+      {
+       "card": "moon",
+       "position": "The Near Future",
+       "reversed": true
+      },
+      {
+       "card": "nine_of_wands",
+       "position": "The Self",
+       "reversed": false
+      },
+      {
+       "card": "nine_of_cups",
+       "position": "The Environment",
+       "reversed": false
+      },
+      {
+       "card": "devil",
+       "position": "Hopes and Fears",
+       "reversed": false
+      },
+      {
+       "card": "star",
+       "position": "The Outcome",
+       "reversed": false
+      }
+     ],
+     "seed": "2026-07-05|oracle",
+     "spread": "celtic_cross"
+    },
+    {
+     "cards": [
+      {
+       "card": "emperor",
+       "position": "The Spark",
+       "reversed": false
+      },
+      {
+       "card": "nine_of_pentacles",
+       "position": "The Form",
+       "reversed": true
+      },
+      {
+       "card": "ten_of_wands",
+       "position": "The Block",
+       "reversed": false
+      },
+      {
+       "card": "nine_of_wands",
+       "position": "The Offering",
+       "reversed": true
+      }
+     ],
+     "seed": "natal-seed-1",
+     "spread": "creative_expression"
+    },
+    {
+     "cards": [
+      {
+       "card": "ten_of_wands",
+       "position": "The Spark",
+       "reversed": true
+      },
+      {
+       "card": "eight_of_wands",
+       "position": "The Form",
+       "reversed": false
+      },
+      {
+       "card": "tower",
+       "position": "The Block",
+       "reversed": false
+      },
+      {
+       "card": "knight_of_pentacles",
+       "position": "The Offering",
+       "reversed": false
+      }
+     ],
+     "seed": "2026-07-05|oracle",
+     "spread": "creative_expression"
+    },
+    {
+     "cards": [
+      {
        "card": "ten_of_wands",
        "position": "Today",
        "reversed": false
@@ -23,48 +187,6 @@
      ],
      "seed": "2026-07-05|oracle",
      "spread": "daily"
-    },
-    {
-     "cards": [
-      {
-       "card": "hermit",
-       "position": "Self",
-       "reversed": false
-      },
-      {
-       "card": "star",
-       "position": "Mirror",
-       "reversed": false
-      },
-      {
-       "card": "judgement",
-       "position": "Shadow",
-       "reversed": false
-      }
-     ],
-     "seed": "natal-seed-1",
-     "spread": "three_card"
-    },
-    {
-     "cards": [
-      {
-       "card": "five_of_cups",
-       "position": "Self",
-       "reversed": false
-      },
-      {
-       "card": "nine_of_pentacles",
-       "position": "Mirror",
-       "reversed": false
-      },
-      {
-       "card": "world",
-       "position": "Shadow",
-       "reversed": false
-      }
-     ],
-     "seed": "2026-07-05|oracle",
-     "spread": "three_card"
     },
     {
      "cards": [
@@ -127,6 +249,88 @@
      ],
      "seed": "2026-07-05|oracle",
      "spread": "elemental_balance"
+    },
+    {
+     "cards": [
+      {
+       "card": "ten_of_wands",
+       "position": "The Past",
+       "reversed": false
+      },
+      {
+       "card": "high_priestess",
+       "position": "The Present",
+       "reversed": true
+      },
+      {
+       "card": "ten_of_cups",
+       "position": "Hidden Influences",
+       "reversed": false
+      },
+      {
+       "card": "five_of_pentacles",
+       "position": "The Obstacle",
+       "reversed": false
+      },
+      {
+       "card": "nine_of_wands",
+       "position": "The Others",
+       "reversed": true
+      },
+      {
+       "card": "sun",
+       "position": "What To Do",
+       "reversed": false
+      },
+      {
+       "card": "two_of_pentacles",
+       "position": "The Outcome",
+       "reversed": false
+      }
+     ],
+     "seed": "natal-seed-1",
+     "spread": "horseshoe"
+    },
+    {
+     "cards": [
+      {
+       "card": "six_of_cups",
+       "position": "The Past",
+       "reversed": false
+      },
+      {
+       "card": "empress",
+       "position": "The Present",
+       "reversed": false
+      },
+      {
+       "card": "temperance",
+       "position": "Hidden Influences",
+       "reversed": false
+      },
+      {
+       "card": "sun",
+       "position": "The Obstacle",
+       "reversed": true
+      },
+      {
+       "card": "ten_of_pentacles",
+       "position": "The Others",
+       "reversed": false
+      },
+      {
+       "card": "death",
+       "position": "What To Do",
+       "reversed": false
+      },
+      {
+       "card": "king_of_pentacles",
+       "position": "The Outcome",
+       "reversed": false
+      }
+     ],
+     "seed": "2026-07-05|oracle",
+     "spread": "horseshoe"
     },
     {
      "cards": [
@@ -209,6 +413,326 @@
      ],
      "seed": "2026-07-05|oracle",
      "spread": "planetary_seven"
+    },
+    {
+     "cards": [
+      {
+       "card": "four_of_wands",
+       "position": "You",
+       "reversed": false
+      },
+      {
+       "card": "hierophant",
+       "position": "The Other",
+       "reversed": false
+      },
+      {
+       "card": "four_of_cups",
+       "position": "The Bond",
+       "reversed": false
+      },
+      {
+       "card": "three_of_cups",
+       "position": "The Lesson",
+       "reversed": false
+      },
+      {
+       "card": "king_of_cups",
+       "position": "The Becoming",
+       "reversed": true
+      }
+     ],
+     "seed": "natal-seed-1",
+     "spread": "relationship"
+    },
+    {
+     "cards": [
+      {
+       "card": "king_of_wands",
+       "position": "You",
+       "reversed": false
+      },
+      {
+       "card": "emperor",
+       "position": "The Other",
+       "reversed": true
+      },
+      {
+       "card": "six_of_pentacles",
+       "position": "The Bond",
+       "reversed": false
+      },
+      {
+       "card": "fool",
+       "position": "The Lesson",
+       "reversed": false
+      },
+      {
+       "card": "nine_of_cups",
+       "position": "The Becoming",
+       "reversed": false
+      }
+     ],
+     "seed": "2026-07-05|oracle",
+     "spread": "relationship"
+    },
+    {
+     "cards": [
+      {
+       "card": "justice",
+       "position": "The Mask",
+       "reversed": false
+      },
+      {
+       "card": "five_of_wands",
+       "position": "The Shadow",
+       "reversed": false
+      },
+      {
+       "card": "two_of_cups",
+       "position": "The Gift",
+       "reversed": false
+      },
+      {
+       "card": "nine_of_cups",
+       "position": "The Integration",
+       "reversed": false
+      }
+     ],
+     "seed": "natal-seed-1",
+     "spread": "shadow_integration"
+    },
+    {
+     "cards": [
+      {
+       "card": "five_of_pentacles",
+       "position": "The Mask",
+       "reversed": true
+      },
+      {
+       "card": "six_of_cups",
+       "position": "The Shadow",
+       "reversed": false
+      },
+      {
+       "card": "six_of_wands",
+       "position": "The Gift",
+       "reversed": false
+      },
+      {
+       "card": "death",
+       "position": "The Integration",
+       "reversed": false
+      }
+     ],
+     "seed": "2026-07-05|oracle",
+     "spread": "shadow_integration"
+    },
+    {
+     "cards": [
+      {
+       "card": "hermit",
+       "position": "Self",
+       "reversed": false
+      },
+      {
+       "card": "star",
+       "position": "Mirror",
+       "reversed": false
+      },
+      {
+       "card": "judgement",
+       "position": "Shadow",
+       "reversed": false
+      }
+     ],
+     "seed": "natal-seed-1",
+     "spread": "three_card"
+    },
+    {
+     "cards": [
+      {
+       "card": "five_of_cups",
+       "position": "Self",
+       "reversed": false
+      },
+      {
+       "card": "nine_of_pentacles",
+       "position": "Mirror",
+       "reversed": false
+      },
+      {
+       "card": "world",
+       "position": "Shadow",
+       "reversed": false
+      }
+     ],
+     "seed": "2026-07-05|oracle",
+     "spread": "three_card"
+    },
+    {
+     "cards": [
+      {
+       "card": "four_of_pentacles",
+       "position": "The Pressure",
+       "reversed": true
+      },
+      {
+       "card": "king_of_wands",
+       "position": "What It Asks",
+       "reversed": false
+      },
+      {
+       "card": "ten_of_swords",
+       "position": "The Resource",
+       "reversed": false
+      },
+      {
+       "card": "high_priestess",
+       "position": "The Release",
+       "reversed": true
+      }
+     ],
+     "seed": "natal-seed-1",
+     "spread": "transit_pressure"
+    },
+    {
+     "cards": [
+      {
+       "card": "ten_of_wands",
+       "position": "The Pressure",
+       "reversed": false
+      },
+      {
+       "card": "empress",
+       "position": "What It Asks",
+       "reversed": false
+      },
+      {
+       "card": "three_of_cups",
+       "position": "The Resource",
+       "reversed": false
+      },
+      {
+       "card": "king_of_pentacles",
+       "position": "The Release",
+       "reversed": true
+      }
+     ],
+     "seed": "2026-07-05|oracle",
+     "spread": "transit_pressure"
+    },
+    {
+     "cards": [
+      {
+       "card": "emperor",
+       "position": "Kether \u00b7 Crown",
+       "reversed": true
+      },
+      {
+       "card": "king_of_cups",
+       "position": "Chokmah \u00b7 Wisdom",
+       "reversed": false
+      },
+      {
+       "card": "high_priestess",
+       "position": "Binah \u00b7 Understanding",
+       "reversed": false
+      },
+      {
+       "card": "seven_of_cups",
+       "position": "Chesed \u00b7 Mercy",
+       "reversed": false
+      },
+      {
+       "card": "ten_of_cups",
+       "position": "Geburah \u00b7 Severity",
+       "reversed": true
+      },
+      {
+       "card": "four_of_pentacles",
+       "position": "Tiphareth \u00b7 Beauty",
+       "reversed": false
+      },
+      {
+       "card": "hermit",
+       "position": "Netzach \u00b7 Victory",
+       "reversed": false
+      },
+      {
+       "card": "world",
+       "position": "Hod \u00b7 Splendour",
+       "reversed": false
+      },
+      {
+       "card": "sun",
+       "position": "Yesod \u00b7 Foundation",
+       "reversed": false
+      },
+      {
+       "card": "knight_of_swords",
+       "position": "Malkuth \u00b7 Kingdom",
+       "reversed": false
+      }
+     ],
+     "seed": "natal-seed-1",
+     "spread": "tree_of_life"
+    },
+    {
+     "cards": [
+      {
+       "card": "two_of_swords",
+       "position": "Kether \u00b7 Crown",
+       "reversed": false
+      },
+      {
+       "card": "queen_of_cups",
+       "position": "Chokmah \u00b7 Wisdom",
+       "reversed": false
+      },
+      {
+       "card": "ace_of_wands",
+       "position": "Binah \u00b7 Understanding",
+       "reversed": true
+      },
+      {
+       "card": "page_of_pentacles",
+       "position": "Chesed \u00b7 Mercy",
+       "reversed": false
+      },
+      {
+       "card": "ten_of_pentacles",
+       "position": "Geburah \u00b7 Severity",
+       "reversed": false
+      },
+      {
+       "card": "wheel_of_fortune",
+       "position": "Tiphareth \u00b7 Beauty",
+       "reversed": false
+      },
+      {
+       "card": "page_of_wands",
+       "position": "Netzach \u00b7 Victory",
+       "reversed": true
+      },
+      {
+       "card": "four_of_wands",
+       "position": "Hod \u00b7 Splendour",
+       "reversed": true
+      },
+      {
+       "card": "four_of_cups",
+       "position": "Yesod \u00b7 Foundation",
+       "reversed": false
+      },
+      {
+       "card": "four_of_swords",
+       "position": "Malkuth \u00b7 Kingdom",
+       "reversed": false
+      }
+     ],
+     "seed": "2026-07-05|oracle",
+     "spread": "tree_of_life"
     },
     {
      "cards": [
@@ -341,68 +865,6 @@
      ],
      "seed": "2026-07-05|oracle",
      "spread": "twelve_house"
-    },
-    {
-     "cards": [
-      {
-       "card": "four_of_wands",
-       "position": "You",
-       "reversed": false
-      },
-      {
-       "card": "hierophant",
-       "position": "The Other",
-       "reversed": false
-      },
-      {
-       "card": "four_of_cups",
-       "position": "The Bond",
-       "reversed": false
-      },
-      {
-       "card": "three_of_cups",
-       "position": "The Lesson",
-       "reversed": false
-      },
-      {
-       "card": "king_of_cups",
-       "position": "The Becoming",
-       "reversed": true
-      }
-     ],
-     "seed": "natal-seed-1",
-     "spread": "relationship"
-    },
-    {
-     "cards": [
-      {
-       "card": "king_of_wands",
-       "position": "You",
-       "reversed": false
-      },
-      {
-       "card": "emperor",
-       "position": "The Other",
-       "reversed": true
-      },
-      {
-       "card": "six_of_pentacles",
-       "position": "The Bond",
-       "reversed": false
-      },
-      {
-       "card": "fool",
-       "position": "The Lesson",
-       "reversed": false
-      },
-      {
-       "card": "nine_of_cups",
-       "position": "The Becoming",
-       "reversed": false
-      }
-     ],
-     "seed": "2026-07-05|oracle",
-     "spread": "relationship"
     }
    ],
    "id": "einstein-ulm-1879",
@@ -453,6 +915,170 @@
     {
      "cards": [
       {
+       "card": "sun",
+       "position": "The Heart",
+       "reversed": false
+      },
+      {
+       "card": "devil",
+       "position": "The Crossing",
+       "reversed": false
+      },
+      {
+       "card": "queen_of_pentacles",
+       "position": "The Foundation",
+       "reversed": false
+      },
+      {
+       "card": "two_of_pentacles",
+       "position": "The Recent Past",
+       "reversed": true
+      },
+      {
+       "card": "four_of_pentacles",
+       "position": "The Crown",
+       "reversed": false
+      },
+      {
+       "card": "ace_of_pentacles",
+       "position": "The Near Future",
+       "reversed": false
+      },
+      {
+       "card": "knight_of_swords",
+       "position": "The Self",
+       "reversed": false
+      },
+      {
+       "card": "five_of_swords",
+       "position": "The Environment",
+       "reversed": false
+      },
+      {
+       "card": "star",
+       "position": "Hopes and Fears",
+       "reversed": false
+      },
+      {
+       "card": "ace_of_cups",
+       "position": "The Outcome",
+       "reversed": false
+      }
+     ],
+     "seed": "natal-seed-1",
+     "spread": "celtic_cross"
+    },
+    {
+     "cards": [
+      {
+       "card": "six_of_pentacles",
+       "position": "The Heart",
+       "reversed": false
+      },
+      {
+       "card": "ten_of_wands",
+       "position": "The Crossing",
+       "reversed": true
+      },
+      {
+       "card": "emperor",
+       "position": "The Foundation",
+       "reversed": false
+      },
+      {
+       "card": "magician",
+       "position": "The Recent Past",
+       "reversed": false
+      },
+      {
+       "card": "four_of_pentacles",
+       "position": "The Crown",
+       "reversed": false
+      },
+      {
+       "card": "star",
+       "position": "The Near Future",
+       "reversed": true
+      },
+      {
+       "card": "nine_of_wands",
+       "position": "The Self",
+       "reversed": false
+      },
+      {
+       "card": "queen_of_cups",
+       "position": "The Environment",
+       "reversed": false
+      },
+      {
+       "card": "devil",
+       "position": "Hopes and Fears",
+       "reversed": false
+      },
+      {
+       "card": "sun",
+       "position": "The Outcome",
+       "reversed": false
+      }
+     ],
+     "seed": "2026-07-05|oracle",
+     "spread": "celtic_cross"
+    },
+    {
+     "cards": [
+      {
+       "card": "emperor",
+       "position": "The Spark",
+       "reversed": false
+      },
+      {
+       "card": "ten_of_pentacles",
+       "position": "The Form",
+       "reversed": true
+      },
+      {
+       "card": "page_of_wands",
+       "position": "The Block",
+       "reversed": false
+      },
+      {
+       "card": "nine_of_wands",
+       "position": "The Offering",
+       "reversed": true
+      }
+     ],
+     "seed": "natal-seed-1",
+     "spread": "creative_expression"
+    },
+    {
+     "cards": [
+      {
+       "card": "nine_of_wands",
+       "position": "The Spark",
+       "reversed": true
+      },
+      {
+       "card": "eight_of_wands",
+       "position": "The Form",
+       "reversed": false
+      },
+      {
+       "card": "devil",
+       "position": "The Block",
+       "reversed": false
+      },
+      {
+       "card": "queen_of_pentacles",
+       "position": "The Offering",
+       "reversed": false
+      }
+     ],
+     "seed": "2026-07-05|oracle",
+     "spread": "creative_expression"
+    },
+    {
+     "cards": [
+      {
        "card": "ten_of_wands",
        "position": "Today",
        "reversed": false
@@ -471,48 +1097,6 @@
      ],
      "seed": "2026-07-05|oracle",
      "spread": "daily"
-    },
-    {
-     "cards": [
-      {
-       "card": "wheel_of_fortune",
-       "position": "Self",
-       "reversed": false
-      },
-      {
-       "card": "star",
-       "position": "Mirror",
-       "reversed": false
-      },
-      {
-       "card": "world",
-       "position": "Shadow",
-       "reversed": false
-      }
-     ],
-     "seed": "natal-seed-1",
-     "spread": "three_card"
-    },
-    {
-     "cards": [
-      {
-       "card": "seven_of_cups",
-       "position": "Self",
-       "reversed": false
-      },
-      {
-       "card": "ten_of_pentacles",
-       "position": "Mirror",
-       "reversed": false
-      },
-      {
-       "card": "world",
-       "position": "Shadow",
-       "reversed": false
-      }
-     ],
-     "seed": "2026-07-05|oracle",
-     "spread": "three_card"
     },
     {
      "cards": [
@@ -575,6 +1159,88 @@
      ],
      "seed": "2026-07-05|oracle",
      "spread": "elemental_balance"
+    },
+    {
+     "cards": [
+      {
+       "card": "ten_of_wands",
+       "position": "The Past",
+       "reversed": false
+      },
+      {
+       "card": "high_priestess",
+       "position": "The Present",
+       "reversed": true
+      },
+      {
+       "card": "king_of_cups",
+       "position": "Hidden Influences",
+       "reversed": false
+      },
+      {
+       "card": "seven_of_pentacles",
+       "position": "The Obstacle",
+       "reversed": false
+      },
+      {
+       "card": "nine_of_wands",
+       "position": "The Others",
+       "reversed": true
+      },
+      {
+       "card": "sun",
+       "position": "What To Do",
+       "reversed": false
+      },
+      {
+       "card": "four_of_pentacles",
+       "position": "The Outcome",
+       "reversed": false
+      }
+     ],
+     "seed": "natal-seed-1",
+     "spread": "horseshoe"
+    },
+    {
+     "cards": [
+      {
+       "card": "nine_of_cups",
+       "position": "The Past",
+       "reversed": false
+      },
+      {
+       "card": "empress",
+       "position": "The Present",
+       "reversed": false
+      },
+      {
+       "card": "devil",
+       "position": "Hidden Influences",
+       "reversed": false
+      },
+      {
+       "card": "sun",
+       "position": "The Obstacle",
+       "reversed": true
+      },
+      {
+       "card": "page_of_pentacles",
+       "position": "The Others",
+       "reversed": false
+      },
+      {
+       "card": "death",
+       "position": "What To Do",
+       "reversed": false
+      },
+      {
+       "card": "king_of_pentacles",
+       "position": "The Outcome",
+       "reversed": false
+      }
+     ],
+     "seed": "2026-07-05|oracle",
+     "spread": "horseshoe"
     },
     {
      "cards": [
@@ -657,6 +1323,326 @@
      ],
      "seed": "2026-07-05|oracle",
      "spread": "planetary_seven"
+    },
+    {
+     "cards": [
+      {
+       "card": "four_of_wands",
+       "position": "You",
+       "reversed": false
+      },
+      {
+       "card": "emperor",
+       "position": "The Other",
+       "reversed": false
+      },
+      {
+       "card": "seven_of_cups",
+       "position": "The Bond",
+       "reversed": false
+      },
+      {
+       "card": "five_of_cups",
+       "position": "The Lesson",
+       "reversed": false
+      },
+      {
+       "card": "seven_of_swords",
+       "position": "The Becoming",
+       "reversed": true
+      }
+     ],
+     "seed": "natal-seed-1",
+     "spread": "relationship"
+    },
+    {
+     "cards": [
+      {
+       "card": "king_of_wands",
+       "position": "You",
+       "reversed": false
+      },
+      {
+       "card": "emperor",
+       "position": "The Other",
+       "reversed": true
+      },
+      {
+       "card": "eight_of_pentacles",
+       "position": "The Bond",
+       "reversed": false
+      },
+      {
+       "card": "fool",
+       "position": "The Lesson",
+       "reversed": false
+      },
+      {
+       "card": "king_of_cups",
+       "position": "The Becoming",
+       "reversed": false
+      }
+     ],
+     "seed": "2026-07-05|oracle",
+     "spread": "relationship"
+    },
+    {
+     "cards": [
+      {
+       "card": "hanged_man",
+       "position": "The Mask",
+       "reversed": false
+      },
+      {
+       "card": "five_of_wands",
+       "position": "The Shadow",
+       "reversed": false
+      },
+      {
+       "card": "four_of_cups",
+       "position": "The Gift",
+       "reversed": false
+      },
+      {
+       "card": "king_of_cups",
+       "position": "The Integration",
+       "reversed": false
+      }
+     ],
+     "seed": "natal-seed-1",
+     "spread": "shadow_integration"
+    },
+    {
+     "cards": [
+      {
+       "card": "seven_of_pentacles",
+       "position": "The Mask",
+       "reversed": true
+      },
+      {
+       "card": "eight_of_cups",
+       "position": "The Shadow",
+       "reversed": false
+      },
+      {
+       "card": "six_of_wands",
+       "position": "The Gift",
+       "reversed": false
+      },
+      {
+       "card": "temperance",
+       "position": "The Integration",
+       "reversed": false
+      }
+     ],
+     "seed": "2026-07-05|oracle",
+     "spread": "shadow_integration"
+    },
+    {
+     "cards": [
+      {
+       "card": "wheel_of_fortune",
+       "position": "Self",
+       "reversed": false
+      },
+      {
+       "card": "star",
+       "position": "Mirror",
+       "reversed": false
+      },
+      {
+       "card": "world",
+       "position": "Shadow",
+       "reversed": false
+      }
+     ],
+     "seed": "natal-seed-1",
+     "spread": "three_card"
+    },
+    {
+     "cards": [
+      {
+       "card": "seven_of_cups",
+       "position": "Self",
+       "reversed": false
+      },
+      {
+       "card": "ten_of_pentacles",
+       "position": "Mirror",
+       "reversed": false
+      },
+      {
+       "card": "world",
+       "position": "Shadow",
+       "reversed": false
+      }
+     ],
+     "seed": "2026-07-05|oracle",
+     "spread": "three_card"
+    },
+    {
+     "cards": [
+      {
+       "card": "six_of_pentacles",
+       "position": "The Pressure",
+       "reversed": true
+      },
+      {
+       "card": "king_of_wands",
+       "position": "What It Asks",
+       "reversed": false
+      },
+      {
+       "card": "king_of_swords",
+       "position": "The Resource",
+       "reversed": false
+      },
+      {
+       "card": "high_priestess",
+       "position": "The Release",
+       "reversed": true
+      }
+     ],
+     "seed": "natal-seed-1",
+     "spread": "transit_pressure"
+    },
+    {
+     "cards": [
+      {
+       "card": "ten_of_wands",
+       "position": "The Pressure",
+       "reversed": false
+      },
+      {
+       "card": "empress",
+       "position": "What It Asks",
+       "reversed": false
+      },
+      {
+       "card": "four_of_cups",
+       "position": "The Resource",
+       "reversed": false
+      },
+      {
+       "card": "king_of_pentacles",
+       "position": "The Release",
+       "reversed": true
+      }
+     ],
+     "seed": "2026-07-05|oracle",
+     "spread": "transit_pressure"
+    },
+    {
+     "cards": [
+      {
+       "card": "emperor",
+       "position": "Kether \u00b7 Crown",
+       "reversed": true
+      },
+      {
+       "card": "seven_of_swords",
+       "position": "Chokmah \u00b7 Wisdom",
+       "reversed": false
+      },
+      {
+       "card": "high_priestess",
+       "position": "Binah \u00b7 Understanding",
+       "reversed": false
+      },
+      {
+       "card": "ten_of_cups",
+       "position": "Chesed \u00b7 Mercy",
+       "reversed": false
+      },
+      {
+       "card": "two_of_swords",
+       "position": "Geburah \u00b7 Severity",
+       "reversed": true
+      },
+      {
+       "card": "six_of_pentacles",
+       "position": "Tiphareth \u00b7 Beauty",
+       "reversed": false
+      },
+      {
+       "card": "wheel_of_fortune",
+       "position": "Netzach \u00b7 Victory",
+       "reversed": false
+      },
+      {
+       "card": "world",
+       "position": "Hod \u00b7 Splendour",
+       "reversed": false
+      },
+      {
+       "card": "sun",
+       "position": "Yesod \u00b7 Foundation",
+       "reversed": false
+      },
+      {
+       "card": "two_of_pentacles",
+       "position": "Malkuth \u00b7 Kingdom",
+       "reversed": false
+      }
+     ],
+     "seed": "natal-seed-1",
+     "spread": "tree_of_life"
+    },
+    {
+     "cards": [
+      {
+       "card": "eight_of_swords",
+       "position": "Kether \u00b7 Crown",
+       "reversed": false
+      },
+      {
+       "card": "five_of_swords",
+       "position": "Chokmah \u00b7 Wisdom",
+       "reversed": false
+      },
+      {
+       "card": "world",
+       "position": "Binah \u00b7 Understanding",
+       "reversed": true
+      },
+      {
+       "card": "page_of_pentacles",
+       "position": "Chesed \u00b7 Mercy",
+       "reversed": false
+      },
+      {
+       "card": "knight_of_pentacles",
+       "position": "Geburah \u00b7 Severity",
+       "reversed": false
+      },
+      {
+       "card": "justice",
+       "position": "Tiphareth \u00b7 Beauty",
+       "reversed": false
+      },
+      {
+       "card": "page_of_wands",
+       "position": "Netzach \u00b7 Victory",
+       "reversed": true
+      },
+      {
+       "card": "three_of_wands",
+       "position": "Hod \u00b7 Splendour",
+       "reversed": true
+      },
+      {
+       "card": "six_of_cups",
+       "position": "Yesod \u00b7 Foundation",
+       "reversed": false
+      },
+      {
+       "card": "nine_of_swords",
+       "position": "Malkuth \u00b7 Kingdom",
+       "reversed": false
+      }
+     ],
+     "seed": "2026-07-05|oracle",
+     "spread": "tree_of_life"
     },
     {
      "cards": [
@@ -789,68 +1775,6 @@
      ],
      "seed": "2026-07-05|oracle",
      "spread": "twelve_house"
-    },
-    {
-     "cards": [
-      {
-       "card": "four_of_wands",
-       "position": "You",
-       "reversed": false
-      },
-      {
-       "card": "emperor",
-       "position": "The Other",
-       "reversed": false
-      },
-      {
-       "card": "seven_of_cups",
-       "position": "The Bond",
-       "reversed": false
-      },
-      {
-       "card": "five_of_cups",
-       "position": "The Lesson",
-       "reversed": false
-      },
-      {
-       "card": "seven_of_swords",
-       "position": "The Becoming",
-       "reversed": true
-      }
-     ],
-     "seed": "natal-seed-1",
-     "spread": "relationship"
-    },
-    {
-     "cards": [
-      {
-       "card": "king_of_wands",
-       "position": "You",
-       "reversed": false
-      },
-      {
-       "card": "emperor",
-       "position": "The Other",
-       "reversed": true
-      },
-      {
-       "card": "eight_of_pentacles",
-       "position": "The Bond",
-       "reversed": false
-      },
-      {
-       "card": "fool",
-       "position": "The Lesson",
-       "reversed": false
-      },
-      {
-       "card": "king_of_cups",
-       "position": "The Becoming",
-       "reversed": false
-      }
-     ],
-     "seed": "2026-07-05|oracle",
-     "spread": "relationship"
     }
    ],
    "id": "greenwich-noon-j2000",

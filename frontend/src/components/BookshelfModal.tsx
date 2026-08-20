@@ -20,6 +20,7 @@ const SPREAD_LABEL: Record<string, string> = {
   planetary_seven: "Planetary Seven", twelve_house: "Twelve Houses",
   relationship: "Relationship", transit_pressure: "Transit Pressure",
   shadow_integration: "Shadow", creative_expression: "Creative",
+  celtic_cross: "Celtic Cross", horseshoe: "Horseshoe", tree_of_life: "Tree of Life",
   course: "✶ Course",   // curriculum entries shelve beside the readings
 };
 

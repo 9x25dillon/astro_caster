@@ -145,8 +145,12 @@ def build_mt_payload() -> dict:
 # Tarot draws — signature + weighted spread, exact.
 # --------------------------------------------------------------------------- #
 
-TAROT_SPREADS = ["daily", "three_card", "elemental_balance", "planetary_seven",
-                 "twelve_house", "relationship"]
+# Every spread the engine defines, derived rather than listed. The old hardcoded
+# subset covered six of nine, so three spreads shipped with no parity vector at
+# all and the offline engine could have dealt a different set of cards for them
+# without any test noticing. Sorted so the fixture diff stays readable when a
+# spread is added.
+TAROT_SPREADS = sorted(TAROT.SPREAD_POSITIONS)
 TAROT_SEEDS = ["natal-seed-1", "2026-07-05|oracle"]
 
 # @astra/core computes the FULL backend body set: Sun–Pluto via

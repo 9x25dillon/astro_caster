@@ -48,6 +48,7 @@ import { TarotCard } from "./TarotCard";
 import { DailyCardPanel } from "./DailyCardPanel";
 import { ConstellationPath } from "./ConstellationPath";
 import { chaosLetters, wordValue, reduceDigit, planetToKamea } from "../lib/sigil";
+import { layoutFor, gridStyle } from "../lib/spreadLayout";
 import { deriveSoulProfile } from "../lib/archetypes";
 import { computeLifePath, LIFE_PATH_DATA, getResonance } from "../lib/numerology";
 import { loadReportToken, saveReportToken, stashPendingReportSeed } from "../lib/reportTokens";
@@ -62,14 +63,24 @@ const ORACLE_MODEL_LABELS: Record<string, string> = {
 
 type Tab = "natal" | "draw" | "transit" | "classroom" | "studio";
 
-const SPREADS: { id: SpreadType; label: string }[] = [
-  { id: "daily", label: "Daily card" },
-  { id: "three_card", label: "Self · Mirror · Shadow" },
-  { id: "elemental_balance", label: "Elemental balance" },
-  { id: "twelve_house", label: "Twelve-house" },
-  { id: "shadow_integration", label: "Shadow integration" },
-  { id: "creative_expression", label: "Creative expression" },
+// Every spread the engines define. Grouped so the picker reads as a menu rather
+// than a flat list; `group` is presentation only — the ids are what travel.
+const SPREADS: { id: SpreadType; label: string; group: string }[] = [
+  { id: "daily", label: "Daily card", group: "Quick" },
+  { id: "three_card", label: "Self · Mirror · Shadow", group: "Quick" },
+  { id: "celtic_cross", label: "Celtic Cross (10)", group: "Traditional" },
+  { id: "horseshoe", label: "Horseshoe (7)", group: "Traditional" },
+  { id: "tree_of_life", label: "Tree of Life (10)", group: "Traditional" },
+  { id: "elemental_balance", label: "Elemental balance", group: "Chart-native" },
+  { id: "planetary_seven", label: "The Planetary Seven", group: "Chart-native" },
+  { id: "twelve_house", label: "Twelve-house", group: "Chart-native" },
+  { id: "relationship", label: "Relationship", group: "Themed" },
+  { id: "transit_pressure", label: "Transit pressure", group: "Themed" },
+  { id: "shadow_integration", label: "Shadow integration", group: "Themed" },
+  { id: "creative_expression", label: "Creative expression", group: "Themed" },
 ];
+
+const SPREAD_GROUPS = ["Quick", "Traditional", "Chart-native", "Themed"];
 
 function CardChip({ name, reversed }: { name: string; reversed?: boolean }) {
   return (
@@ -628,6 +639,11 @@ export const ArcanaModal: React.FC<{
     navigator.clipboard?.writeText(text).catch(() => undefined);
   }
 
+  // Geometry for the spread that was actually DEALT, not the one the picker is
+  // showing — changing the picker after a draw must not re-arrange the cards on
+  // the cloth in front of you.
+  const drawLayout = reading ? layoutFor(reading.spread) : null;
+
   return (
     <div className="arcana-modal">
         <div className="arcana-header">
@@ -709,7 +725,12 @@ export const ArcanaModal: React.FC<{
               <div className="arc-draw-controls">
                 <label>Spread
                   <select value={spread} onChange={(e) => setSpread(e.target.value as SpreadType)}>
-                    {SPREADS.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+                    {SPREAD_GROUPS.map((g) => (
+                      <optgroup key={g} label={g}>
+                        {SPREADS.filter((s) => s.group === g).map((s) =>
+                          <option key={s.id} value={s.id}>{s.label}</option>)}
+                      </optgroup>
+                    ))}
                   </select>
                 </label>
                 <label>Lineage
@@ -737,10 +758,15 @@ export const ArcanaModal: React.FC<{
 
               {reading && (
                 <div className="arc-reading">
-                  <div className="arc-cards-row">
-                    {reading.cards.map((c) => (
+                  <div
+                    className={`arc-cards-row${drawLayout ? " arc-cards-row--geo" : ""}`}
+                    style={drawLayout ? gridStyle(drawLayout) : undefined}
+                  >
+                    {reading.cards.map((c, ci) => (
                       <TarotCard
                         key={c.position}
+                        gridArea={drawLayout?.cells[ci]}
+                        landscape={drawLayout?.landscape?.includes(ci)}
                         position={c.position}
                         revealed={!!revealed[c.position]}
                         onReveal={() => {
@@ -801,6 +827,7 @@ export const ArcanaModal: React.FC<{
                       </div>
                       </TarotCard>
                     ))}
+                    {drawLayout && <p className="arc-geo-note">{drawLayout.note}</p>}
                   </div>
                   <div className="arc-interp">
                     <div className="arc-interp-head">

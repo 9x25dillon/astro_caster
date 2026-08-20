@@ -80,6 +80,31 @@ SPREAD_POSITIONS: Dict[str, List[str]] = {
     "transit_pressure": ["The Pressure", "What It Asks", "The Resource", "The Release"],
     "shadow_integration": ["The Mask", "The Shadow", "The Gift", "The Integration"],
     "creative_expression": ["The Spark", "The Form", "The Block", "The Offering"],
+    # --- Traditional spreads ------------------------------------------------- #
+    # Ordering is the canonical Waite one: the cross is laid 1-6 (heart, crossing,
+    # foundation, recent past, crown, near future) and the staff 7-10 read upward.
+    # The ORDER is load-bearing twice over — it is the order the layout renders
+    # positions in (frontend/src/lib/spreadLayout.ts keys on index, not label) and
+    # the order the draw assigns cards in, so reordering these strings re-deals
+    # every stored Celtic Cross seed. Rename with care; reorder never.
+    "celtic_cross": [
+        "The Heart", "The Crossing", "The Foundation", "The Recent Past",
+        "The Crown", "The Near Future", "The Self", "The Environment",
+        "Hopes and Fears", "The Outcome",
+    ],
+    "horseshoe": [
+        "The Past", "The Present", "Hidden Influences", "The Obstacle",
+        "The Others", "What To Do", "The Outcome",
+    ],
+    # Sephirothic spread — sits naturally under the Golden Dawn lineage the app
+    # already ships as a source system. Numbered 1-10 down the Tree, Kether to
+    # Malkuth, which is also the render order.
+    "tree_of_life": [
+        "Kether · Crown", "Chokmah · Wisdom", "Binah · Understanding",
+        "Chesed · Mercy", "Geburah · Severity", "Tiphareth · Beauty",
+        "Netzach · Victory", "Hod · Splendour", "Yesod · Foundation",
+        "Malkuth · Kingdom",
+    ],
 }
 
 
