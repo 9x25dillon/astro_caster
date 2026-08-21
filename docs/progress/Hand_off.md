@@ -1160,6 +1160,49 @@ filename and checksum — then the origin box needs
 `git pull && docker compose up -d --build` or the site keeps advertising
 v1.0.3. That deploy loop is exercised and reliable; see §"Deploying" below.
 
+### 6. Inspecting a running Android build — session 26's slow-way findings
+
+_Salvaged 2026-08-20 from the `session-26-handoff` branch (`2efae4a`), which was
+never merged. Everything above it on that branch was v1.0.3-era ordering and is
+superseded; this part is technique and does not go stale. `webview_devtools_remote`
+and `aapt2 dump resources` appeared nowhere else in this repository._
+
+**Drive the WebView, not the pixels.** Tapping screen coordinates parsed out of
+screenshots is slow and it lies — a tap lands mid-animation, a system dialog eats
+it, the shade opens instead. Capacitor debug builds have WebView debugging on, so
+drive the running app directly:
+
+```bash
+PID=$(adb shell pidof com.astraarcana.observatory.dev)
+adb forward tcp:9222 localabstract:webview_devtools_remote_$PID
+curl -s http://localhost:9222/json/list        # -> webSocketDebuggerUrl
+# then Runtime.evaluate over that socket; node 22+ has a global WebSocket.
+```
+
+That is how the notification was tested end-to-end: read the real prefs, schedule
+a probe 45 s out, watch it fire. Reach for it the moment you need more than one
+interaction.
+
+**Reading what actually shipped.** Release builds shorten resource paths, so
+`unzip -l | grep ic_launcher` finds nothing and proves nothing. Use the resource
+table:
+
+```bash
+$BT/aapt2 dump resources app-release.apk | grep -A8 "mipmap/ic_launcher\b"
+# -> (xxxhdpi) (file) res/o-.png    then unzip -p that path
+```
+
+**Verifying a notification without waiting for morning.** `dumpsys alarm | grep
+-A2 <package>` shows `origWhen` and the delivery `window`. `dumpsys notification
+--noredact | grep -A80 "id=<id>"` shows the posted `android.title` and
+`android.text` — which is how the content was checked rather than squinting at a
+screenshot.
+
+**Signing is a script, not a command line.** Beyond the `--ks-pass env:` rule
+above: writing the whole invocation to a `.sh` and running it under `bash` also
+sidesteps this shell's quoting, which mangles inline `$VAR` and command
+substitution.
+
 ---
 
 ## What shipped to production this session
