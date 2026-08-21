@@ -42,7 +42,8 @@ QUERIES = {
 
 
 def build_cases(placements: Dict[str, str],
-                aspects: Optional[Dict[str, str]] = None) -> List[Case]:
+                aspects: Optional[Dict[str, str]] = None,
+                non_aspecting: Optional[List[str]] = None) -> List[Case]:
     """Cases for every tier, sharing one chart.
 
     `placements` comes from the real engine at record time (planet id -> sign) so
@@ -73,8 +74,9 @@ def build_cases(placements: Dict[str, str],
                 # here — it simply had no check looking for it until the arcana
                 # work needed one. Costs nothing to point it at these too.
                 aspects=aspects or {},
+                non_aspecting=list(non_aspecting or []),
             ))
-    cases.extend(_arcana_cases(placements, aspects or {}))
+    cases.extend(_arcana_cases(placements, aspects or {}, list(non_aspecting or [])))
     return cases
 
 
@@ -132,7 +134,8 @@ _TWELVE_HOUSE_POSITIONS = [f"House {i}" for i in range(1, 13)]
 
 
 def _arcana_cases(placements: Dict[str, str],
-                  aspects: Dict[str, str]) -> List[Case]:
+                  aspects: Dict[str, str],
+                  non_aspecting: List[str]) -> List[Case]:
     """One large-spread case per paid tier. Free never reaches the arcana AI
     path — /api/tarot-reading gates enrichment to supporter and oracle — so a
     free case here would be recording a call the product cannot make."""
@@ -146,6 +149,7 @@ def _arcana_cases(placements: Dict[str, str],
             spread="celtic_cross",
             card_attributions=_deck_attributions(),
             aspects=aspects,
+            non_aspecting=non_aspecting,
             required_sections=_CELTIC_CROSS_POSITIONS,
             # tarot_prompts asks supporter for 220 + 90/card = 1,120 words here.
             # The band is generous on both sides: the point of the check is to
@@ -163,6 +167,7 @@ def _arcana_cases(placements: Dict[str, str],
             spread="twelve_house",
             card_attributions=_deck_attributions(),
             aspects=aspects,
+            non_aspecting=non_aspecting,
             required_sections=_TWELVE_HOUSE_POSITIONS,
             # oracle: 320 + 130/card = 1,880 words for twelve cards.
             words_min=1000,

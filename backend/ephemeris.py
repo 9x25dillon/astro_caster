@@ -422,7 +422,14 @@ def _tally_elements(planets: List[PlanetData]):
 
 # Points that are mathematically derived and shouldn't aspect their own source
 # (e.g. Descendant always opposes Ascendant — not an interesting "aspect").
-_NON_ASPECTING = {"Descendant", "Imum Coeli", "South Node"}
+#
+# PUBLIC because the absence it creates is not self-explanatory downstream. A
+# chart's aspect list holds no entry for ANY pair involving one of these, which
+# reads identically to "these two are not in aspect" — and the eval suite's
+# aspect check duly accused a correct reading of inventing the South Node's
+# conjunction to the Midheaven, 3.80° apart (2026-08-20). Anything asking the
+# aspect table a question must be able to ask which pairs it never considered.
+NON_ASPECTING = {"Descendant", "Imum Coeli", "South Node"}
 
 
 def calculate_aspects(
@@ -433,7 +440,7 @@ def calculate_aspects(
     scaled by orb_factor. Determines 'applying' from relative speeds.
     """
     aspects: List[Aspect] = []
-    bodies = [p for p in planets if p.id not in _NON_ASPECTING]
+    bodies = [p for p in planets if p.id not in NON_ASPECTING]
     for i in range(len(bodies)):
         for j in range(i + 1, len(bodies)):
             a, b = bodies[i], bodies[j]
@@ -510,7 +517,7 @@ def aspects_between(
 ) -> List[Aspect]:
     """Cross-aspects from transiting bodies to natal bodies (tighter orbs)."""
     out: List[Aspect] = []
-    natal_core = [p for p in natal if p.id not in _NON_ASPECTING]
+    natal_core = [p for p in natal if p.id not in NON_ASPECTING]
     for t in transiting:
         for n in natal_core:
             sep = A.angular_separation(t.longitude, n.longitude)

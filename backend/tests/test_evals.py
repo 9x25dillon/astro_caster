@@ -49,7 +49,14 @@ PLACEMENTS = chart_placements()
 
 
 def _cases():
-    return build_cases(PLACEMENTS)
+    # Aspects were left off here while `runner.main()` passed them, so
+    # check_aspect_grounding ran on the operator's machine and never in CI —
+    # the one check with a live false-positive history was the one the build
+    # could not see. All eleven cassettes pass it (verified 2026-08-20), so
+    # there is no reason for the two entry points to disagree about what a
+    # cassette must satisfy.
+    from evals.runner import chart_aspects, non_aspecting_bodies
+    return build_cases(PLACEMENTS, chart_aspects(), non_aspecting_bodies())
 
 
 # --------------------------------------------------------------------------- #
@@ -133,6 +140,63 @@ def test_grounding_does_not_cry_wolf(text):
     """A check that reports false positives gets switched off, and then guards nothing."""
     case = Case(id="t", tier="oracle", lens="natal", query="q", placements=PLACEMENTS)
     assert check_grounding(Generation(text=text, finish_reason="stop"), case) == []
+
+
+# --------------------------------------------------------------------------- #
+# Who owns the word "rising" (2026-08-20)
+#
+# The reference chart has the Ascendant in Libra, Pluto in Scorpio and Saturn in
+# Capricorn — so both readings below are entirely correct, and both were reported
+# as putting the Ascendant in someone else's sign while re-recording cassettes.
+#
+# The claims are not silently dropped: each is still judged, against the body it
+# actually belongs to, by _IN_SIGN and _SIGN_FIRST respectively. That is what
+# makes the guard safe, and the pair of tests underneath it is what keeps it so.
+# --------------------------------------------------------------------------- #
+@pytest.mark.parametrize("text", [
+    # The body doing the rising owns the sign, and it is not the Ascendant.
+    "Pluto rising in Scorpio, trine to Sun and Mercury, insists on depth",
+    "with your Moon, rising into Cancer, the tide comes in",
+    # A sign in a later clause, reached only by walking past the punctuation.
+    "...rising, the locked wisdom of your Capricorn asks for patience",
+    # A sign bound to the body immediately after it.
+    "rising in your Capricorn Saturn, the long apprenticeship",
+])
+def test_the_ascendant_does_not_own_every_rising(text):
+    case = Case(id="t", tier="oracle", lens="natal", query="q", placements=PLACEMENTS)
+    assert check_grounding(Generation(text=text, finish_reason="stop"), case) == []
+
+
+@pytest.mark.parametrize("text,sign", [
+    ("You rise in Pisces, dreamer of the twelfth wave.", "Pisces"),
+    ("Your rising sign is Pisces and it colours every arrival.", "Pisces"),
+    ("Your rising sign, Pisces, is how you meet the door.", "Pisces"),
+    ("You rise in watery Pisces.", "Pisces"),
+    # Mars is too far back to own the verb — this is still the Ascendant's claim.
+    ("Mars in Aries and you rise in Pisces.", "Pisces"),
+    # A sentence boundary ends ownership outright.
+    ("The chart's engine is Pluto. You rise in Pisces.", "Pisces"),
+])
+def test_the_ascendant_claim_is_still_caught(text, sign):
+    """The guard must not cost the check the defect it was built for."""
+    case = Case(id="t", tier="oracle", lens="natal", query="q", placements=PLACEMENTS)
+    found = check_grounding(Generation(text=text, finish_reason="stop"), case)
+    assert len(found) == 1, found
+    assert f"Ascendant in {sign}" in found[0].detail and "Libra" in found[0].detail
+
+
+def test_a_rising_body_in_the_wrong_sign_is_still_caught():
+    """Suppressing the Ascendant claim must not suppress the real one.
+
+    "Pluto rising in Aries" is a claim that Pluto is in Aries, and _IN_SIGN
+    judges it as one — which is the whole argument for this matcher staying
+    quiet when another body owns the verb.
+    """
+    case = Case(id="t", tier="oracle", lens="natal", query="q", placements=PLACEMENTS)
+    found = check_grounding(
+        Generation(text="Pluto rising in Aries drives you", finish_reason="stop"), case)
+    assert len(found) == 1
+    assert "Pluto in Aries" in found[0].detail and "Scorpio" in found[0].detail
 
 
 # --------------------------------------------------------------------------- #
@@ -270,6 +334,50 @@ def test_each_distinct_claim_is_reported_once():
 
 def test_aspect_key_is_order_independent():
     assert aspect_key("Moon", "Mercury") == aspect_key("Mercury", "Moon")
+
+
+# --------------------------------------------------------------------------- #
+# A pair the engine never considered (2026-08-20)
+#
+# The engine skips the derived points — the South Node mirrors the North exactly,
+# the Descendant the Ascendant — so no aspect involving them ever reaches the
+# table. That reads identically to "these two are not in aspect", and the check
+# duly reported "the Leo South Node conjunct Midheaven" as fabricated. They are
+# 3.80° apart. The reading was right and the table was simply silent.
+# --------------------------------------------------------------------------- #
+def test_a_pair_the_engine_never_considers_is_unjudgeable():
+    gen = Generation(text="the Leo South Node conjunct Midheaven marks the summit.",
+                     finish_reason="stop")
+    case = _aspect_case(non_aspecting=["Descendant", "Imum Coeli", "South Node"])
+    assert check_aspect_grounding(gen, case) == []
+
+
+def test_the_unjudgeable_exemption_covers_only_those_points():
+    """It must not become a general amnesty for anything absent from the table."""
+    gen = Generation(text="Your Saturn square Venus is the ache underneath.",
+                     finish_reason="stop")
+    case = _aspect_case(non_aspecting=["Descendant", "Imum Coeli", "South Node"])
+    assert len(check_aspect_grounding(gen, case)) == 1
+
+
+def test_the_engine_really_does_omit_those_pairs():
+    """The property the exemption rests on, asserted against the real chart.
+
+    If the engine ever starts aspecting these points, this test fails and the
+    exemption should be deleted rather than kept as a blind spot.
+    """
+    from evals.runner import chart_aspects, non_aspecting_bodies
+    keys = chart_aspects()
+    assert "South Node" in non_aspecting_bodies()
+    for body in non_aspecting_bodies():
+        assert not [k for k in keys if body in k.split("|")], body
+
+
+def test_the_eval_asks_the_engine_rather_than_transcribing_it():
+    """A hand-typed copy of this set is how the false positive comes back."""
+    import ephemeris
+    from evals.runner import non_aspecting_bodies
+    assert set(non_aspecting_bodies()) == set(ephemeris.NON_ASPECTING)
 
 
 def test_a_possessive_makes_it_a_claim_about_something_else():

@@ -116,6 +116,18 @@ def chart_aspects() -> Dict[str, str]:
             for a in chart["aspects"] if a["type"] in majors}
 
 
+def non_aspecting_bodies() -> List[str]:
+    """The points the engine deliberately never aspects.
+
+    Asked of the engine rather than transcribed, for the same reason the
+    placements and the aspects are: a list typed out here would silently stop
+    matching the day someone adds a derived point, and the check would go back
+    to calling a true statement a hallucination.
+    """
+    from ephemeris import NON_ASPECTING
+    return sorted(NON_ASPECTING)
+
+
 def chart_dict() -> Dict:
     from ephemeris import calculate_chart
     from models import ChartRequest
@@ -271,7 +283,7 @@ def main() -> int:
         except ImportError:
             pass
 
-    cases = build_cases(chart_placements(), chart_aspects())
+    cases = build_cases(chart_placements(), chart_aspects(), non_aspecting_bodies())
     if args.case:
         cases = [c for c in cases if c.id == args.case]
         if not cases:

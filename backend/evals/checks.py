@@ -94,6 +94,14 @@ class Case:
     # Empty means "this case was not given aspects", and the aspect check stays
     # silent rather than failing every claim.
     aspects: Dict[str, str] = field(default_factory=dict)
+    # Points the ENGINE never emits an aspect for. They are derived by mirroring
+    # another point exactly — the South Node is always 180° from the North, the
+    # Descendant from the Ascendant — so aspecting them would duplicate every
+    # aspect the source already has. `aspects` is therefore EMPTY for these pairs
+    # because nothing looked, not because nothing is there, and the check must
+    # keep those two states apart. Asked of the engine at build time
+    # (`runner.non_aspecting_bodies`), never transcribed.
+    non_aspecting: List[str] = field(default_factory=list)
 
 
 @dataclass
@@ -171,8 +179,33 @@ _IN_SIGN = re.compile(
 _SIGN_FIRST = re.compile(
     r"\b(" + "|".join(SIGNS) + r")\s+(" + "|".join(BODIES) + r")\b",
     re.IGNORECASE)
+# "rising" places the ASCENDANT only when nothing else owns the word.
+#
+# The first cut allowed thirty characters of anything between "rising" and a
+# sign, and produced two false positives on live recordings, 2026-08-20:
+#
+#   "Pluto rising in Scorpio, trine to Sun and Mercury"  -> "Ascendant in Scorpio"
+#   "...rising, the locked wisdom of your Capricorn"     -> "Ascendant in Capricorn"
+#
+# In the first, the sign belongs to the body DOING the rising. In the second it
+# belongs to a different clause altogether. Both readings were correct: Pluto is
+# in Scorpio and the Ascendant is in Libra.
+#
+# Nothing is lost by staying quiet on either, because the true claim inside each
+# is already judged against the right body — "Pluto rising in Scorpio" is an
+# _IN_SIGN match about Pluto, "your Capricorn Saturn" a _SIGN_FIRST match about
+# Saturn. This matcher exists for the one case the other two cannot see: the
+# Ascendant named by its verb and by nothing else.
+#
+# So the gap is no longer "any thirty characters" but the words that actually
+# BIND a sign to the rising — "in", "into", "sign is", "sign,". A sign merely
+# mentioned downstream of the word is no longer a placement.
 _RISES_IN = re.compile(
-    r"\b(?:rise|rises|rising)\b[^.\n]{0,30}?\b(" + "|".join(SIGNS) + r")\b",
+    r"\b(?:rise|rises|rising)\b\s+"
+    r"(?:sign\s*(?:,\s*|\s+is\s+)|in\s+(?:the\s+sign\s+of\s+)?|into\s+)"
+    r"(?:your\s+|the\s+)?"
+    r"(?:\w+\s+)?"                     # one modifier: "rising in fiery Aries"
+    r"\b(" + "|".join(SIGNS) + r")\b",
     re.IGNORECASE)
 
 
@@ -201,6 +234,24 @@ _REFERENT = re.compile(r"\bof\s+(?:your\s+|the\s+|his\s+|her\s+|their\s+)?$",
 
 def _is_referent(text: str, at: int) -> bool:
     return _REFERENT.search(text[max(0, at - 24):at]) is not None
+
+
+# A body sitting immediately in front of "rising" is the one doing it: "Pluto
+# rising", "your Moon, rising", "Saturn is rising". Twelve characters is a
+# possessive and a verb, not a clause — so "Mars in Aries and you rise in
+# Pisces" is still read as the Ascendant's claim, because Mars is too far back
+# to own the word. A sentence boundary in between ends ownership outright.
+_RISE_OWNER = re.compile(
+    r"\b(" + "|".join(BODIES) + r")\b[^.\n]{0,12}$", re.IGNORECASE)
+
+# A sign followed immediately by a body belongs to that body: "your Capricorn
+# Saturn" places Saturn, and _SIGN_FIRST judges it as such.
+_SIGN_OWNER_AFTER = re.compile(r"\s+(" + "|".join(BODIES) + r")\b", re.IGNORECASE)
+
+
+def _rise_is_owned(text: str, at: int) -> bool:
+    """True when some other body, not the Ascendant, is the thing rising."""
+    return _RISE_OWNER.search(text[max(0, at - 40):at]) is not None
 
 
 def _binds(text: str, m: re.Match, body_group: int, sign_group: int) -> bool:
@@ -270,8 +321,13 @@ def check_grounding(gen: Generation, case: Case) -> List[Finding]:
         # Adjacent by construction ("Scorpio Sun") — nothing can intervene.
         claims.append((_canon(m.group(2)), _canon(m.group(1)), m.group(0), m.start()))
     for m in _RISES_IN.finditer(gen.text):
-        if _ANY_BODY.search(m.group(0)) is None:
-            claims.append(("Ascendant", _canon(m.group(1)), m.group(0), m.start()))
+        if _ANY_BODY.search(m.group(0)) is not None:
+            continue                      # a body inside the phrase owns the sign
+        if _rise_is_owned(gen.text, m.start()):
+            continue                      # "Pluto rising in Scorpio" — Pluto's claim
+        if _SIGN_OWNER_AFTER.match(gen.text, m.end(1)):
+            continue                      # "rising in your Capricorn Saturn" — Saturn's
+        claims.append(("Ascendant", _canon(m.group(1)), m.group(0), m.start()))
 
     attributions = {a.lower() for a in case.card_attributions}
     for body, sign, phrase, at in claims:
@@ -368,6 +424,7 @@ def check_aspect_grounding(gen: Generation, case: Case) -> List[Finding]:
     out: List[Finding] = []
     if not case.aspects:
         return out
+    unjudgeable = {_canon(b) for b in case.non_aspecting}
     seen = set()
     for m in _ASPECT_CLAIM.finditer(gen.text):
         body_a, verb, body_b = m.group(1), m.group(2).lower(), m.group(3)
@@ -388,6 +445,21 @@ def check_aspect_grounding(gen: Generation, case: Case) -> List[Finding]:
         claimed = _ASPECT_VERBS[verb]
         actual = case.aspects.get(key)
         if actual == claimed:
+            continue
+        if actual is None and (
+                _canon(body_a) in unjudgeable or _canon(body_b) in unjudgeable):
+            # The engine never considers this pair, so the chart cannot answer
+            # the question and silence is the only honest verdict. Live
+            # 2026-08-20: "the Leo South Node conjunct Midheaven" reported as
+            # fabricated, when the two are 3.80° apart — well inside the 8°
+            # conjunction orb. The reading was right; the aspect table was
+            # merely empty, and the check was reading absence of evidence as
+            # evidence of absence.
+            #
+            # THE HOLE THIS LEAVES: an aspect to one of these points that IS
+            # fabricated now passes unseen. That is the price of not accusing
+            # true statements, and it is bounded to the handful of derived
+            # points the engine skips — everything else is judged as before.
             continue
         if (key, claimed) in seen:
             continue                      # report each distinct claim once
