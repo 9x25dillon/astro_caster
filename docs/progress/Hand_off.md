@@ -1,10 +1,181 @@
 # Hand_off.md
 
-_Last updated: 2026-08-20 (session 32 — the reasoning-token fix is MERGED and
-measured; re-recording the stale cassettes was attempted and DEFERRED because it
-surfaced three checker false positives and one genuine model error. `main` is
-green, cassettes are unchanged and still stale. Servers are DOWN.)
+_Last updated: 2026-08-20 (session 33 — **PRODUCTION WAS FIVE DAYS AND THREE
+SESSIONS BEHIND AND IS NOW CURRENT.** The origin ran `bbd9422` (2026-08-15)
+until today; sessions 30, 31 and 32 are deployed and verified against the live
+API. Checker findings 1 and 2 are fixed and pushed. Findings 3 and 4 are still
+the open work. Cassettes are still stale.)
 Re-derive before trusting any of this: `git fetch && git status -sb`._
+
+---
+
+# SESSION 33 — 2026-08-20
+
+## Start here
+
+**`main` is at `de3cbd8`, pushed. Production is at `a8c2b34` and healthy.**
+
+```
+de3cbd8  Three ways the checker called a correct reading a liar   <- local work
+a8c2b34  Hand_off + journal, session 32                            <- DEPLOYED
+```
+
+Green: **659 backend**, **11/11 evals on replay**, ruff clean. Local dev servers
+are DOWN; the production stack is UP.
+
+OpenRouter balance **$9.50** (one oracle verification reading, $0.0995).
+
+---
+
+## THE DEPLOY — what was actually wrong, and how it was measured
+
+The origin was at **`bbd9422`, 2026-08-15** — one commit *older* than session
+29's own handoff. Everything sessions 30, 31 and 32 built had been sitting on
+`main` unshipped. In production that meant, for five days:
+
+- every chart reading truncated (`finish_reason` was never read),
+- every arcana reading cut short at a spread-blind ceiling,
+- 83% of a supporter's token budget spent on reasoning nobody sees,
+- and the fallback to offline prose was **silent**, because the build that says
+  so is exactly the one that wasn't deployed.
+
+**The deployment was dated from OUTSIDE, before touching the box**, and the
+technique is worth keeping — the API tells you its own version if you ask it the
+right question:
+
+```bash
+# the SpreadType Literal, read out of a 422
+curl -sS -X POST https://app.astra-arcana.com/api/tarot-reading \
+  -H 'Content-Type: application/json' -d @req.json | jq -r '.detail[0].msg'
+# -> "Input should be 'daily', 'three_card', ..."   <- 9 members = pre-session-31
+
+# a route that does not exist yet answers differently from one that does
+curl -sS https://app.astra-arcana.com/api/replay/anykey
+# {"detail":"Not Found"}                  <- FastAPI router: route absent
+# {"detail":"Replay sync needs a key..."} <- the handler: route present
+```
+
+That distinction is the whole trick. A 404 from the router and a 404 from a
+handler look identical in the status code and nowhere else. Frontend dating is
+the same idea against the bundle: fetch `/assets/index-*.js` and grep for a
+string a known commit introduced (`celtic_cross`, `preferOffline`,
+`Sync remembered readings`), and `tz-warning` in the CSS. **Grep the CSS class,
+not the TS identifier** — `offsetWarning` is minified away, the class name
+survives.
+
+### Pre-flight, which is the part that made it a non-event
+
+```
+git diff 0b718a5..HEAD -- .env.example docker-compose.yml \
+    frontend/nginx.conf frontend/Dockerfile backend/Dockerfile
+```
+
+**Empty except dependency bumps.** No new required env var, so
+`[[compose-env-passthrough-trap]]` did not apply. The four vars session 30
+introduced (`AAE_REPLAY_DB`, `AAE_REPLAY_TTL_DAYS`, `AAE_REPLAY_MAX_CHARS`,
+`AAE_REASONING_EFFORT`) all default in code, and `replay.db` self-creates with
+`CREATE TABLE IF NOT EXISTS` on `backend-data:/app/data`, which is the persisted
+volume. Do this diff first every time; it is the difference between a pull and
+an outage.
+
+### The deploy itself
+
+```bash
+ssh -i ~/.ssh/astra_hetzner astra@$ORIGIN_IP \
+  'set -e; cd /home/astra/astro-aae; git pull --ff-only origin main;
+   docker compose up -d --build; docker compose ps'
+```
+
+`set -e` matters: a failed fast-forward must abort *before* the rebuild, or you
+serve a half-updated stack. Repo path on the box is **`/home/astra/astro-aae`**,
+tree clean, both containers healthy. The frontend publishes **80 and 443**, so
+the TLS-to-origin question in `DEPLOY.md` §3.3 was resolved with a real 443
+listener at some point — that section is stale and reads as unresolved.
+
+### Verified after, from outside
+
+| probe | before | after |
+|---|---|---|
+| `celtic_cross` / `tree_of_life` / `horseshoe` | 422 | **200 — 10 / 10 / 7 cards** |
+| `/api/replay/{key}` | router 404 | **401, handler message** |
+| bundle | `index-C5esyc0B.js` | **`index-BhuUU9_T.js`** |
+| apex landing | identical to repo | **still identical** |
+
+The apex staying byte-identical is not cosmetic — the signed APK's
+`PURCHASE_URL` is the immutable string `https://astra-arcana.com/#support`.
+
+### The proof that mattered: a real paid reading
+
+Oracle tier, live API, the operator's own chart (1987-11-11 13:09, UTC-8,
+34.0591/-117.9124 — Aquarius rising, Scorpio Sun 9th, Leo Moon 6th):
+
+```
+1,203 words   all five oracle sections   ends on a finished sentence
+source=llm   model=anthropic/claude-opus-5   offline_reason=None
+run through all six eval checks -> ZERO findings
+```
+
+**A deployed commit is not a working product.** Everything above the last line
+proves the code shipped; only the reading proves a subscriber gets what they
+paid for. Spend the ten cents.
+
+⚠️ **`~/Downloads` holds charts at three different offsets** — `+7`, `-7` and
+`-8` — and two different times (10:23 AM in the older files, 1:09 PM in the
+newer). The operator confirmed **1:09 PM** and the correct offset is **-8**
+(November 1987 is past DST end). The older readings describe a different sky.
+TZ-3 is live now and will reject `+7` outright, so this stops accumulating.
+
+---
+
+## What was fixed in the checker (findings 1 and 2, `de3cbd8`)
+
+`_RISES_IN` allowed thirty characters of anything between "rising" and a sign,
+so it bound the word to a sign owned by someone else. The gap is now the words
+that actually bind — "in", "into", "sign is", "sign," — plus two ownership
+guards: a body within twelve characters *in front of* the verb owns it, and a
+sign followed immediately by a body belongs to that body.
+
+**The guards are safe because nothing goes unjudged.** "Pluto rising in Scorpio"
+is still judged by `_IN_SIGN` against Pluto; "your Capricorn Saturn" by
+`_SIGN_FIRST` against Saturn. A test puts Pluto in the wrong sign and asserts
+the finding comes back, against Pluto.
+
+`check_aspect_grounding` treated an empty aspect table as a fabricated aspect.
+`ephemeris.NON_ASPECTING` (now public) excludes the derived points on purpose —
+the South Node mirrors the North exactly — so the chart holds no entry for ANY
+South Node pair. Such a pair is now UNJUDGEABLE and silent. The set is asked of
+the engine, never transcribed.
+
+**And the gap that let both live:** `tests/test_evals.py` built its cases
+WITHOUT aspects while `runner.main()` passed them, so `check_aspect_grounding`
+ran on the operator's machine and **never in CI**. Both entry points now demand
+the same things of a cassette.
+
+---
+
+## THE ONE THING TO PICK UP (unchanged from session 32, minus the two fixed)
+
+**Findings 3 and 4 are still open, and 4 is the design work.**
+
+- **Finding 3** — *"With Mars square your Ascendant"* where the chart has an
+  Opposition at 3.82° is a REAL model error, and the check catches it. It will
+  not be "fixed".
+- **Finding 4** — the suite has nowhere to put a true finding. `evals/runner.
+  evaluate` requires every cassette to pass, so a recording containing one
+  genuine model error cannot be committed at all. The only moves are re-rolling
+  until the model happens not to err — which converts a quality gate into a slot
+  machine — or blunting the check. **Neither is acceptable.** The suite needs a
+  third state: a cassette may carry *accepted findings*, recorded with a reason,
+  that do not fail the build but stay visible. `evals/regressions/` is the same
+  discipline pointed the other way. **Design this before re-recording.**
+
+Then re-record the eight stale cassettes (~$1.50). Check the balance the RIGHT
+way first — `/api/v1/credits`, never `/api/v1/key`; see
+`[[openrouter-credit-vs-key-limit]]`.
+
+⚠️ **Production and `backend/.env` share the OpenRouter key** (`sk-or-…f973`).
+Cassette recording draws down the same balance that serves paying readers, and
+at zero the paid tiers fall back to offline prose.
 
 ---
 

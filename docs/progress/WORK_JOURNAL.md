@@ -5,6 +5,84 @@ PR bodies; this is the story. Started session 15 at the operator's request._
 
 ---
 
+## Session 33 · 2026-08-20 — the work was finished; it just wasn't anywhere
+
+Three sessions of fixes had been sitting on `main` doing nothing for anyone.
+
+The session began as a checker cleanup and turned, halfway through, into the
+discovery that the product people were actually using did not contain any of the
+last five days' work. The origin was running a commit from the fifteenth — one
+older than session 29's own handoff, which is to say it predated even the
+paperwork of the session that preceded the three whose work was missing. Every
+reading served since then had been truncated, because the commit that reads
+`finish_reason` was on `main` and not on the box. Every tarot reading had been
+cut short at a spread-blind ceiling. Eighty-three percent of a supporter's token
+budget had been going to reasoning nobody sees. And the fallback to offline
+prose had been silent the entire time, for the specific and slightly awful
+reason that the build which *tells* the reader is the build that wasn't
+deployed.
+
+None of this was visible from the repo. `main` was green, everything was merged,
+every suite passed, the handoff said the work was done — and it was done. Done
+is not the same as delivered, and there is no test in this project that can tell
+the difference, because every test runs against the tree rather than against the
+thing on the internet.
+
+So the deployment got dated from outside, before anyone touched the server, and
+that turned out to be the interesting part of the day. A running API will tell
+you its own version if you ask it a question it cannot answer without revealing
+one. Post a Celtic Cross to the tarot endpoint and the 422 comes back carrying
+the entire `SpreadType` literal — nine members where the repo has twelve, which
+dates the backend to before the spreads landed. Ask for a replay key and the
+answer distinguishes itself: `{"detail":"Not Found"}` is FastAPI's router saying
+the route does not exist, while the handler's own 404 says *"No stored
+reading."* Identical status code, completely different fact, and the difference
+is the whole measurement. The frontend dates the same way against its bundle,
+with one wrinkle worth remembering: grep the CSS class and not the TypeScript
+identifier, because `offsetWarning` is minified into oblivion while
+`tz-warning` survives into the stylesheet.
+
+The deploy itself was a non-event, which was the point of spending twenty
+minutes on pre-flight first. A diff of `.env.example`, the compose file, the
+nginx config and both Dockerfiles across five days came back empty but for
+dependency bumps — no new required variable, so the trap this project has fallen
+into three separate times could not fire. Pull, rebuild, containers healthy,
+about four minutes.
+
+Then the part that actually settles it. Every probe above proves the *code*
+arrived; not one of them proves a subscriber gets what they paid for. That takes
+a real reading, at a real tier, billed to a real balance — so: an oracle reading
+of the operator's own chart, against production. Twelve hundred and three words.
+All five sections. A last sentence that ends. Opus 5, not a silent downgrade to
+the deterministic engine. Run back through all six eval checks, including the
+two repaired this morning: zero findings. Ten cents, and it is the only number
+from the whole day that means the thing everyone actually wanted to know.
+
+The morning's work reads differently in that light. Two of the three checker
+false positives were repaired — the matcher that took the word "rising" and
+attached whatever sign came near it to the Ascendant regardless of whose sign it
+was, and the aspect check that read an empty table as a fabricated claim when
+the engine had simply never considered the pair. Both fixes rest on the same
+argument, which is worth stating plainly because it is what makes them safe
+rather than a quiet weakening: *nothing goes unjudged.* "Pluto rising in Scorpio"
+stops being read as a claim about the Ascendant and is still read as a claim
+about Pluto, by a different matcher, against the right body — and there is a
+test that puts Pluto in the wrong sign and demands the finding come back.
+
+Underneath that sat a smaller and more embarrassing discovery: the aspect check,
+the one with a documented history of accusing correct readings, was not running
+in CI at all. The test file built its cases without aspects while the runner
+passed them, so the check lived exclusively on one laptop. A check that only
+runs where its author is watching is a check that stops running the day they
+look away.
+
+Which rhymes with the day's larger lesson more than I would like. A quality gate
+that CI cannot see, and a fix that production does not have, fail in exactly the
+same way: everything looks finished, and nothing is protected. The repo is not
+the product. The green tick is not the deploy. Somebody has to go and look.
+
+---
+
 ## Session 32 · 2026-08-20 — the thinking nobody asked for, and four ways to be told you are wrong
 
 The reading had been paying for thoughts the reader never saw.
