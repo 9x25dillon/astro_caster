@@ -3,8 +3,9 @@
 _Last updated: 2026-08-20 (session 33 — **PRODUCTION WAS FIVE DAYS AND THREE
 SESSIONS BEHIND AND IS NOW CURRENT.** The origin ran `bbd9422` (2026-08-15)
 until today; sessions 30, 31 and 32 are deployed and verified against the live
-API. Checker findings 1 and 2 are fixed and pushed. Findings 3 and 4 are still
-the open work. Cassettes are still stale.)
+API with a real paid reading. Checker findings 1 and 2 are fixed and pushed;
+3 and 4 are the open work. Cassettes are still stale. The remote is down to a
+single branch.)
 Re-derive before trusting any of this: `git fetch && git status -sb`._
 
 ---
@@ -13,17 +14,32 @@ Re-derive before trusting any of this: `git fetch && git status -sb`._
 
 ## Start here
 
-**`main` is at `de3cbd8`, pushed. Production is at `a8c2b34` and healthy.**
+**`main` is at `5efca9d`, pushed. Production is at `a8c2b34` and healthy.**
+**`origin` now has exactly one branch.**
 
 ```
-de3cbd8  Three ways the checker called a correct reading a liar   <- local work
-a8c2b34  Hand_off + journal, session 32                            <- DEPLOYED
+5efca9d  Salvage session 26's Android findings before the branch is deleted
+e9cadef  Hand_off + journal, session 33
+de3cbd8  Three ways the checker called a correct reading a liar
+a8c2b34  Hand_off + journal, session 32                     <- WHAT PRODUCTION RUNS
 ```
+
+**Production is three commits behind `main` ON PURPOSE — all three are
+docs and eval-only, nothing a reader touches.** Do not deploy to "catch up";
+deploy when there is product code to ship. Re-read §THE DEPLOY below first.
 
 Green: **659 backend**, **11/11 evals on replay**, ruff clean. Local dev servers
-are DOWN; the production stack is UP.
+are DOWN (`./run.sh` to raise them); the production stack is UP.
 
 OpenRouter balance **$9.50** (one oracle verification reading, $0.0995).
+Production and `backend/.env` share the key — see the warning at the end.
+
+### The five-minute orientation, in order
+
+1. `git fetch && git status -sb` — trust nothing above this line until you have.
+2. `curl -s https://app.astra-arcana.com/api/health | jq` — is the product alive.
+3. Read §THE DEPLOY for how to date what is actually running, then §THE ONE
+   THING TO PICK UP for the work.
 
 ---
 
@@ -150,6 +166,33 @@ the engine, never transcribed.
 WITHOUT aspects while `runner.main()` passed them, so `check_aspect_grounding`
 ran on the operator's machine and **never in CI**. Both entry points now demand
 the same things of a cassette.
+
+---
+
+## The remote was reconciled down to one branch
+
+Five branches existed. **Four were pure ancestors** — 0 commits ahead of `main`,
+identical trees — leftovers from merges that rebased them to new hashes, which is
+the shape `[[stacked-pr-orphan-trap]]` describes. Deleting them removed labels
+and nothing else.
+
+The fifth, `session-26-handoff`, held two real commits. Its journal entry was
+already in `main` byte-identical; its Hand_off section was 150 lines against
+main's 78. Those extra lines split cleanly: durable Android technique (now §6 of
+the release section, `5efca9d`) and a v1.0.3-era "Start here" that would have
+pointed the next reader at a superseded release. Rebasing it would have replayed
+a 2026-08-12 handoff onto a 2026-08-20 one in the same region of the same file.
+
+**Nothing was destroyed.** Before deletion it was tagged and the tag pushed:
+
+```bash
+git checkout archive/session-26-handoff     # the whole branch, still on GitHub
+# tip 2efae4a, parent 6708e29, forked from dc2e3d5
+```
+
+**The order is the lesson: salvage → verify the salvage is on `origin/main` →
+archive → delete.** Verify *after* pushing, not before. Deleting on the strength
+of a check made three commits ago is how the trap gets sprung.
 
 ---
 
