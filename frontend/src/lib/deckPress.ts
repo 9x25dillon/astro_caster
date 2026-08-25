@@ -16,7 +16,15 @@ const CARD_W = "2.75in";
 const CARD_H = "4.75in";
 
 function esc(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  // Quotes included: everything esc() guards lands inside double-quoted
+  // attributes as well as text nodes, and an unescaped `"` in an attribute
+  // is an attribute-breakout XSS, not a rendering quirk.
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 function deckToHtml(plates: GalleryItem[]): string {
@@ -24,7 +32,7 @@ function deckToHtml(plates: GalleryItem[]): string {
     .map(
       (p) => `
       <figure class="card">
-        <img src="${p.data}" alt="${esc(p.title)}" />
+        <img src="${esc(p.data)}" alt="${esc(p.title)}" />
         <figcaption>${esc(p.title)}${
           p.source ? ` · <span class="src">${esc(p.source)}</span>` : ""
         }</figcaption>

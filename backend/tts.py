@@ -59,15 +59,20 @@ def tts_status() -> dict:
 
 def speakable(text: str) -> str:
     """Strip Astra's light markdown so the spoken output reads naturally."""
-    # Cap BEFORE the regex passes: they backtrack polynomially on
-    # pathological whitespace runs, so bound the input they ever see.
+    # Cap BEFORE the regex passes to bound what they ever see — and keep the
+    # passes themselves linear: every quantifier below is followed by a
+    # character it cannot itself consume, so there is no ambiguity for the
+    # engine to backtrack over. `^##\s*(.+)$` and `\s*\n\s*` were the old
+    # shapes; both were polynomial on whitespace runs (\s overlaps both . and
+    # \n), and the first could even eat the newline and swallow the next line
+    # into the heading.
     text = text[:_MAX_TOTAL_CHARS]
-    text = re.sub(r"^##\s*(.+)$", r"\1. ", text, flags=re.MULTILINE)
+    text = re.sub(r"^##[ \t]*(\S.*)$", r"\1. ", text, flags=re.MULTILINE)
     text = re.sub(r"\*\*(.*?)\*\*", r"\1", text)
     text = re.sub(r"^[-•]\s*", ", ", text, flags=re.MULTILINE)
     text = re.sub(r"[#*_`>]", "", text)
     text = re.sub(r"\n{2,}", ". ", text)
-    text = re.sub(r"\s*\n\s*", " ", text)
+    text = re.sub(r"[^\S\n]*\n\s*", " ", text)
     text = re.sub(r"\s{2,}", " ", text)
     return text.strip()[:_MAX_TOTAL_CHARS]
 

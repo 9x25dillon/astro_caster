@@ -7,7 +7,12 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+<!-- SRI hash independently confirmed: byte-identical to the locally vendored
+     copy (resonarium/vendor/three.min.js) that was verified in a real browser.
+     If cdnjs ever serves anything else, the browser refuses to run it. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"
+        integrity="sha384-9EQoUIJYrv09/oYhSxnw1VpLcfPw3BM9dE7+D/3wGUPeLLa7F9Z6OAoD+i/M6FK9"
+        crossorigin="anonymous"></script>
 <style>
 :root{
   --void:#050713;--deep:#0b1026;--panel:#121936;--panel2:#0d132b;--line:#29335f;
