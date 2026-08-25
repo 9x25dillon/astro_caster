@@ -101,19 +101,24 @@ if [ "$RUN_E2E" = 1 ]; then
     && ok "e2e — desktop + mobile" \
     || bad "e2e — $(grep -cE '^\s+[0-9]+\) ' /tmp/pr_e2e.log) failing; see /tmp/pr_e2e.log"
 else
-  note "e2e skipped (--e2e to run; this is the gate currently red on CI)"
+  note "e2e skipped (--e2e to run; the slowest gate, and the one CI caught last)"
 fi
 
 # ── 3. What CI actually says ─────────────────────────────────────────────────
 hdr "3. CI on origin/main"
 if command -v gh >/dev/null 2>&1; then
-  concl=$(gh run list --workflow=CI --limit 1 --json conclusion,headSha -q '.[0] | "\(.conclusion) \(.headSha[0:7])"' 2>/dev/null)
+  # status FIRST: a run still in flight has a null conclusion, and reporting
+  # that as a failure is how a report earns the right to be ignored.
+  concl=$(gh run list --workflow=CI --limit 1 \
+            --json status,conclusion,headSha \
+            -q '.[0] | "\(.status) \(.conclusion // "pending") \(.headSha[0:7])"' 2>/dev/null)
   case "$concl" in
-    success*) ok "CI $concl" ;;
-    "")       note "gh could not reach GitHub" ;;
-    *)        bad "CI $concl"
+    "")                    note "gh could not reach GitHub" ;;
+    completed\ success*)   ok "CI success ${concl##* }" ;;
+    completed*)            bad "CI ${concl#completed }"
               gh run view "$(gh run list --workflow=CI --limit 1 --json databaseId -q '.[0].databaseId')" \
                 --json jobs -q '.jobs[] | select(.conclusion=="failure") | "        failing job: \(.name)"' 2>/dev/null ;;
+    *)                     note "CI still running on ${concl##* } (${concl%% *}) — not a verdict yet" ;;
   esac
 else
   note "gh not installed — CI status unknown"
