@@ -1,12 +1,171 @@
 # Hand_off.md
 
-_Last updated: 2026-08-20 (session 33 — **PRODUCTION WAS FIVE DAYS AND THREE
-SESSIONS BEHIND AND IS NOW CURRENT.** The origin ran `bbd9422` (2026-08-15)
-until today; sessions 30, 31 and 32 are deployed and verified against the live
-API with a real paid reading. Checker findings 1 and 2 are fixed and pushed;
-3 and 4 are the open work. Cassettes are still stale. The remote is down to a
-single branch.)
+_Last updated: 2026-08-25 (session 35 — **CI IS GREEN ON `origin/main` FOR THE
+FIRST TIME SINCE 2026-08-19.** Session 34 diagnosed the one red test and then
+closed without committing anything, so its fix sat in the working tree for five
+days while the tree said red. That fix, session 34's tooling, and the Studio's
+full 78-card picker are pushed. **Production is now 7 commits behind and the
+delta finally contains reader-facing code** — see §SESSION 35 / THE DEPLOY
+QUESTION. Cassettes are still stale; eval findings 3 and 4 are still the open
+design work.)
 Re-derive before trusting any of this: `git fetch && git status -sb`._
+
+---
+
+# SESSION 35 — 2026-08-25
+
+## Start here
+
+**`main` is at `93c244e`, pushed. CI is GREEN on `49f01d7` — the first green
+run since `fccd6be` on 2026-08-19. Production is at `a8c2b34` and healthy.**
+
+```
+93c244e  The Studio can paint the whole deck, not just the trumps your chart carries
+49f01d7  A report that names which layer is green, and the opener that explains why
+9bdebfa  Let the Celtic Cross assertion follow the breakpoint, not the project name
+42a2301  Hand_off: the remote is one branch ...                <- session 33's last
+a8c2b34  Hand_off + journal, session 32                        <- WHAT PRODUCTION RUNS
+```
+
+Green, and this time say which layer: **local** 660 backend / 73 core / e2e on
+both Playwright projects / `tsc -b && vite build` clean, **CI** green on
+`origin/main`, **production** answering `/api/health` with `swiss-files` and
+`ai.mode=llm`. Local dev servers are DOWN. OpenRouter balance unspent this
+session — no model was called.
+
+Read `docs/progress/NEXT_SESSION.md` first; it is session 34's orientation doc
+and it is still accurate except for §3, whose blocking issue is now fixed.
+
+---
+
+## What was actually wrong, and why nobody saw it
+
+CI had been red on `origin/main` for **15 consecutive runs**, since `983c0f5`
+(2026-08-20T05:44Z). One job, one test, deterministic:
+
+```
+E2E — Playwright:  arcana-offline.spec.ts:79  [mobile-chromium only]
+expect(new Set(areas).size).toBe(10)      Expected: 10   Received: 1
+```
+
+`theme.css:2304` collapses the Celtic Cross to one column below 720px on
+purpose — *"ten panels across four columns on a phone is four unreadable
+ones"* — and `mobile-chromium` is a 412px Pixel 7. The assertion was
+unsatisfiable there **by construction**, from the moment `1c18a1e` landed. The
+CSS was right; the test was wrong.
+
+The fix asks the browser the same question the CSS asks:
+
+```ts
+const stacked = await page.evaluate(() => matchMedia("(max-width: 720px)").matches);
+```
+
+**Not the project name.** Pinning an assertion to `mobile-chromium` would have
+gone stale the day a project is renamed or a third viewport is added; reading
+the breakpoint keeps the test and the stylesheet arguing about the same number.
+Neither branch is weakened — desktop still demands ten distinct areas and no
+implicit placement, mobile asserts the honest single-column stack, so a card
+that keeps a tableau area on a phone (the override missing a panel) still
+fails. The original bug this catches — a card dropping into the implicit grid
+with no error, symptom a crooked spread — is caught on both sides now.
+
+**The fix already existed.** Session 34 wrote it, verified it, wrote a whole
+orientation document about how CI-red-while-reporting-green happens — and
+closed without `git commit`. Five more days of red. See §SESSION 34.
+
+---
+
+## The Studio picks from the whole deck now (`93c244e`)
+
+The ask: render the trumps alongside the Major Arcana in the Studio. The probe
+said the engine was already there and only the surface disagreed:
+
+| layer | before |
+|---|---|
+| `tarot_models.py:206` | *"One card id (major or minor)"* |
+| `deck_art.build_card_prompt` | resolves against all 78 in `CARD_BY_ID` |
+| `plate_art` | delegates to the same function — no major-only branch |
+| `GalleryPanel.tsx:56` | already counts *"N of 78 cards collected"* |
+| `ArcanaModal.tsx:1216` | offered `sig.links` — the ~12 trumps the chart carries |
+
+So the Gallery had always been counting toward a deck the picker could not
+reach. Three notes for whoever touches this next:
+
+- **`FULL_DECK_IDS` is now exported from `@astra/core`.** It is the same list
+  `weightedDraw` deals from, so the picker and the draw cannot drift apart.
+  Do not build a second card list anywhere.
+- **`deckCatalog()` in `client.ts` is a bare `import("@astra/core")`, not
+  `core()`.** `core()` awaits `initSwisseph`; a list of card names has no
+  business booting a WASM ephemeris. Same module, same chunk, no WASM. It
+  rejects silently — the signature group alone is still a working picker.
+- **Signature trumps are excluded from the Major Arcana group** so no id is
+  offered twice; they sit above, labelled by the body that carries them.
+
+Known and deliberate: a minor gets **no `Personal resonance:` line**, because
+`_natal_context` looks the card up in the signature links and minors are never
+there. The brief is still chart-conditioned — the seed carries the signature
+and the palette carries the querent's dominant element — but if the minors
+should say something natal, that is a design decision, not a bug to patch.
+
+---
+
+## THE DEPLOY QUESTION — the answer changed today
+
+Sessions 33 and 34 both said *"production is behind `main` on purpose, do not
+deploy to catch up."* **That advice expired with `93c244e`.** The delta is now:
+
+```
+a8c2b34..93c244e   7 commits
+  reader-facing:  frontend/src/api/client.ts, frontend/src/components/ArcanaModal.tsx,
+                  packages/astra-core/src/{tarot,browser,index}.ts
+  everything else: docs, evals, tests, ops tooling, .gitignore
+```
+
+Pre-flight is already done and **clean** — nothing in `.env.example`,
+`docker-compose.yml`, `frontend/nginx.conf` or either Dockerfile changed, so
+`[[compose-env-passthrough-trap]]` does not apply and no new variable is
+required. The deploy is a `git pull --ff-only` + `docker compose up -d --build`
+away (§7 of `NEXT_SESSION.md`). It had not been done as of this writing because
+shipping is the operator's call, not the session's.
+
+---
+
+## Open work, unchanged
+
+Findings 3 and 4, then the eight stale cassettes — see §SESSION 33 and §4 of
+`NEXT_SESSION.md`. Finding 4 is still the design work and still comes *before*
+re-recording.
+
+---
+
+# SESSION 34 — 2026-08-20 (reconstructed on 2026-08-25 from what it left behind)
+
+**This section was not written by session 34.** It closed without the ritual:
+no Hand_off entry, no journal entry, nothing committed. What it did is
+recoverable only because three artifacts were left in the working tree, and
+they are good ones:
+
+- `docs/progress/NEXT_SESSION.md` — the session opener. The three-layer
+  local/CI/production table in §1 is the most useful thing written about this
+  project's workflow; §5's eight gotchas are each a session someone already
+  paid for. **Read it.**
+- `ops/production_report.sh` — runs every gate CI enforces, probes production
+  from outside, diffs the deployed SHA against `main` and flags any non-docs
+  file in the delta. `bash ops/production_report.sh [--e2e] [--ssh]`.
+- the fix to `frontend/e2e/arcana-offline.spec.ts` — correct, complete, and
+  uncommitted.
+
+It found the CI failure that four sessions had been reporting as "green", named
+the exact mechanism (the three truths drift apart independently), built the tool
+that measures all three at once, fixed the test — and then none of it existed
+anywhere but one laptop.
+
+**The lesson is the same one session 33 wrote down, one turn further along.**
+Session 33: *the repo is not the product.* Session 34: *the working tree is not
+the repo.* A fix that is not committed is indistinguishable, from every other
+vantage point in the world, from a fix that was never written. The close ritual
+— `Hand_off.md` + a narrative `WORK_JOURNAL.md` entry, **both committed to
+`main`** — is not paperwork; it is the step that makes the work exist.
 
 ---
 

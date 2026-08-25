@@ -1,8 +1,9 @@
 # Session opener — Astra Arcana (astro-aae)
 
 You are picking up a solo-operator production product. Read this whole block before
-running anything. It was written at the close of session 34 (2026-08-20) and every
-number in it was measured, not remembered. Re-derive anyway — see step 0.
+running anything. Written at the close of session 34 (2026-08-20), updated at the
+close of session 35 (2026-08-25); every number in it was measured, not remembered.
+Re-derive anyway — see step 0.
 
 The operator is **xar**. How they work, and what they will not tolerate:
 lead with the probe, not the prose. Do not re-read them their own documentation —
@@ -38,9 +39,11 @@ Sessions keep collapsing them into one word — "green" — and shipping the con
 | **CI** | what GitHub Actions enforces on `origin/main` | `gh run list --workflow=CI` |
 | **production** | what a paying reader actually receives | curl probes + `ssh` |
 
-A commit can be locally green, CI-red, and correctly deployed all at once. That is
-the **current state**, exactly. When you report status, name the layer. "Green" with
-no layer attached is the failure mode this document exists to prevent.
+A commit can be locally green, CI-red, and correctly deployed all at once — that was
+this repo's literal state for five days in August. When you report status, name the
+layer. "Green" with no layer attached is the failure mode this document exists to
+prevent. As of 2026-08-25 local and CI agree; production is deliberately behind
+(§2).
 
 Corollary, learned expensively: **a deployed commit is not a working product.**
 Probes prove code shipped; only a real generated reading proves a subscriber gets
@@ -48,33 +51,42 @@ what they paid for. Oracle tier costs ~$0.10 a reading. Spend it.
 
 ---
 
-## 2. Verified state at handoff (session 34, 2026-08-20)
+## 2. Verified state at handoff (session 35, 2026-08-25)
 
 ```
-main = origin/main = 42a2301   clean, 0 ahead / 0 behind
+main = origin/main = 93c244e   clean, 0 ahead / 0 behind
+CI on origin/main  = GREEN     (49f01d7, 2026-08-25 — first green since 08-19)
 production HEAD    = a8c2b34   tree clean, both containers healthy
 origin has exactly ONE branch. Tags: archive/session-26-handoff, v1.0.0/1/3/4/5
 ```
 
-- **659 pytest passed** (7.2s), **11/11 evals on replay**, frontend `tsc -b && vite build`
-  clean, `@astra/core` golden vectors, resonarium Python↔JS parity, parity-vector and
-  gazetteer tripwires, tolerance ratchet, boot smoke (**49 /api routes**) — all pass.
+- **660 pytest passed** (4.7s), **73 `@astra/core` tests**, **11/11 evals on replay**,
+  frontend `tsc -b && vite build` clean, golden vectors, resonarium Python↔JS parity,
+  parity-vector and gazetteer tripwires, tolerance ratchet, boot smoke (**49 /api
+  routes**) — all pass, and CI agrees.
 - Production externally: `swiss-files` ephemeris, ai mode `llm`, key `sk-or-…f973`,
   tiers free=`claude-haiku-4-5` / supporter=`claude-sonnet-5` / oracle=`claude-opus-5`,
   spread Literal has **12** members, `/api/replay/{key}` answers from the handler,
   bundle `index-BhuUU9_T.js`, apex byte-identical to `landing/index.html`.
-- **Production is 4 commits behind `main` and that is CORRECT.** The delta is docs,
-  evals, tests — plus `backend/ephemeris.py`, which is a `_NON_ASPECTING` →
-  `NON_ASPECTING` rename with a comment. Behavior-identical. **Do not deploy to
-  "catch up."** Deploy when there is product code to ship.
+- ⚠️ **Production is 7 commits behind `main`, and as of `93c244e` the delta
+  CONTAINS PRODUCT CODE** — `frontend/src/api/client.ts`,
+  `frontend/src/components/ArcanaModal.tsx`, `packages/astra-core/src/*` (the
+  Studio's 78-card picker). Earlier sessions' "do not deploy to catch up" advice
+  applied to a docs-and-evals delta and **no longer holds**. Pre-flight (§7) is
+  already run and clean: nothing in `.env.example`, `docker-compose.yml`,
+  `frontend/nginx.conf` or either Dockerfile changed, so no new env var is
+  required. Shipping is the operator's call — ask.
 
 ---
 
-## 3. THE BLOCKING ISSUE — start here unless told otherwise
+## 3. THE BLOCKING ISSUE — RESOLVED 2026-08-25 (`9bdebfa`), kept as the case study
 
-**CI has been red on `origin/main` for 14 consecutive runs**, since
-`983c0f5` at 2026-08-20T05:44Z. Last green was `fccd6be`, 2026-08-19T19:24Z.
-Every session since has reported "green" while meaning *local*.
+**CI was red on `origin/main` for 15 consecutive runs**, from `983c0f5`
+(2026-08-20T05:44Z) until `49f01d7` (2026-08-25). Every session in between
+reported "green" while meaning *local*. Session 34 diagnosed it exactly and
+**closed without committing the fix**, so the tree stayed red for five more
+days — the working tree is not the repo. The rest of this section is the
+anatomy, kept because the shape recurs; the fix is described at the end.
 
 One job, one test, deterministic, reproduces locally in 3 seconds:
 
@@ -101,15 +113,20 @@ cd frontend && npx playwright test e2e/arcana-offline.spec.ts \
   The assertion is unsatisfiable there by construction.
 
 The `mobile-chromium` project has existed since `5870911` (2026-07-04), so this was
-red the moment it landed. **The CSS is right. The test is wrong.** Fix shape: make
-the geometry assertion viewport-aware — assert the cross on desktop, assert the
-honest single-column stack on mobile. Do **not** delete the assertion; it catches a
-real failure (a card silently dropping into the implicit grid, symptom = crooked
-spread, no error). Do **not** weaken it to `>= 1`.
+red the moment it landed. **The CSS is right. The test is wrong.**
+
+**What landed (`9bdebfa`):** the assertion asks the browser the same question the
+CSS asks — `matchMedia("(max-width: 720px)")` — and then asserts BOTH shapes: ten
+distinct areas and no implicit placement on desktop, the honest single-column
+stack on mobile. Reading the breakpoint rather than the project name is the whole
+point; a project name is not a number, and pinning to one goes stale the day a
+third viewport is added. Nothing is skipped and nothing is weakened to `>= 1` —
+the real failure it catches (a card silently dropping into the implicit grid,
+symptom = crooked spread, no error) still fails on both sides.
 
 ---
 
-## 4. Open product work, after CI is green
+## 4. Open product work
 
 - **Eval finding 3** — *"With Mars square your Ascendant"* where the chart holds an
   Opposition at 3.82° is a REAL model error and the check correctly caught it. It

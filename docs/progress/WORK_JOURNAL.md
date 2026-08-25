@@ -5,6 +5,91 @@ PR bodies; this is the story. Started session 15 at the operator's request._
 
 ---
 
+## Session 35 · 2026-08-25 — the fix that existed and the deck that didn't
+
+The red tick had a fix already written for it. It had been sitting in the
+working tree for five days.
+
+Session 34 did the hard part. It ran the one command every previous session had
+skipped — `gh run list` — and found that `origin/main` had been failing for
+fourteen consecutive runs while every handoff in the file said green. It found
+the cause, which is almost funny in how avoidable it was: a stylesheet
+deliberately collapses the Celtic Cross to a single column on a phone, because
+ten panels across four columns at 412 pixels is four unreadable ones, and a test
+asserted all ten cards hold distinct grid areas on every viewport. The two
+landed in the same commit. The assertion was unsatisfiable on mobile from the
+moment it was written, and it said so, loudly, on every run.
+
+Session 34 wrote the fix. It wrote a tool that runs every CI gate and probes
+production and diffs the deployed SHA in one pass, so that the gap between the
+three can never again be a thing you have to remember to check. It wrote a
+session opener whose first section is a table of the three truths — local, CI,
+production — and the sentence *"green with no layer attached is the failure mode
+this document exists to prevent."*
+
+Then it closed without committing any of it.
+
+So the lesson of session 33 got a sequel it did not need. Session 33 learned
+that the repo is not the product: work can be merged, green, and documented as
+done while every reader on the internet receives a build from five days ago.
+Session 35 learned the step before it. The working tree is not the repo. From
+every vantage point outside that one laptop — CI, the origin, the next session,
+the next model — a fix that was never committed and a fix that was never written
+are the same object. The diagnosis was excellent and it protected nobody. Two
+commits and a push, this morning, and the tick went green for the first time
+since the nineteenth.
+
+The fix itself is worth one note, because it could have been made badly. The
+easy version pins the assertion to the project name — skip it on
+`mobile-chromium`, keep it on desktop — and it would have passed and it would
+have been wrong, because the stylesheet's number is 720 pixels and a project
+name is not a number. The version that landed asks the browser the same question
+the CSS asks, `matchMedia("(max-width: 720px)")`, and then asserts *both* shapes:
+the cross on desktop, the honest single-column stack on mobile. Nothing is
+skipped and nothing is weakened. A card that keeps a tableau area on a phone —
+the override missing a panel, which is a real bug with no error message and a
+crooked spread for a symptom — still fails the test.
+
+The second half of the day was the Studio, and it turned out to be an
+archaeology problem rather than a building one. The ask was to let it render the
+rest of the cards. Before designing anything I went looking for what was already
+true, and what was already true was almost all of it: the request model's own
+comment says the card id may be major *or* minor, the prompt builder resolves
+against all seventy-eight, the paid plate renderer just delegates to that same
+function, and the Gallery has been displaying *"N of 78 cards collected"* this
+whole time. Seventy-eight was the intended deck everywhere in the system except
+the one dropdown that decides what a person can ask for, which offered the dozen
+trumps their chart happens to carry.
+
+So the feature was four lines of plumbing and one careful decision about where
+the list comes from. It comes from `FULL_DECK_IDS`, the array the draw engine
+already deals from, now exported rather than copied — because the failure mode
+of a second card list is not that it breaks, it is that it works for a year and
+then quietly disagrees. And it is loaded with a bare dynamic import rather than
+the app's usual `core()` helper, because `core()` awaits the WASM Swiss
+ephemeris and there is no version of "populate a dropdown" that should boot an
+ephemeris. If the load fails, the picker silently keeps the signature group and
+still works. A dropdown is not worth an error surface.
+
+One thing I left alone on purpose. A minor arcana brief comes back with no
+*Personal resonance* line, because that line is looked up in the natal signature
+and the minors are never in it. The brief is still shaped by the chart — the
+seed carries the signature, the palette carries the dominant element — but the
+sentence that says *this card lives in your ninth house* has nothing to say
+about the Ace of Cups. That is a design question about what a minor means in a
+personal deck, and design questions are not mine to answer quietly inside an
+implementation.
+
+The tests, in the same spirit as the morning's: the shared deck list is pinned
+at seventy-eight, unique, trumps first, fourteen to a suit; every one of the
+seventy-eight is walked through the prompt builder in the backend suite, because
+the minors are precisely where a major-only assumption would have been hiding;
+and the picker is asserted offline, from the on-device deck, in a spec written
+to be viewport-agnostic — which is the first thing this project has written down
+since learning that lesson eight hours ago.
+
+---
+
 ## Session 33 · 2026-08-20 — the work was finished; it just wasn't anywhere
 
 Three sessions of fixes had been sitting on `main` doing nothing for anyone.
