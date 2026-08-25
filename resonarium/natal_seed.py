@@ -7,6 +7,14 @@ stay byte-for-byte compatible in their canonical serialization, hashing,
 PRNG, and modulation math. Any change here requires the same change there,
 plus an update to the shared test vectors in ``tests/test_biosentinel.py``.
 
+A THIRD implementation exists: ``packages/astra-core/src/resonarium.ts`` —
+the app's personal-soundtrack (tonal field) derivation. It is locked to THIS
+file via ``parity/resonarium-seed.json`` (written by
+``backend/tools/gen_parity_vectors.py``); any change here also requires the
+same change there plus regenerated vectors. Its seed layer matches exactly;
+bedrock frequencies match within abs 1e-9 (the libm pow boundary the parity
+tests below already document).
+
 Hash strategy (single strategy across both environments):
     SHA-256 over the UTF-8 canonical string, truncated to the first
     8 bytes, interpreted big-endian as an unsigned 64-bit integer.

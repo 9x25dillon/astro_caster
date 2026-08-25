@@ -1,0 +1,1121 @@
+{
+ "adapter_cases": [
+  {
+   "bedrock_hz": [
+    429.135924503658,
+    293.1269517665083,
+    111.33969574997208,
+    117.43510509309293,
+    345.10285717814025,
+    388.21596875427076,
+    111.78915672569278,
+    196.97271156378062,
+    127.27096274335557,
+    135.80479542791147,
+    162.66737750840386,
+    411.7577952062543,
+    352.9206768854085,
+    126.1354673189468
+   ],
+   "binaural": {
+    "beat_hz": 9.149999999999181,
+    "carrier_hz": 213.86528566666667
+   },
+   "canonical": "sun:353.507608|moon:254.523978|mercury:3.143614|venus:16.984839|mars:296.914121|jupiter:327.484069|saturn:4.189812|uranus:151.288605|neptune:37.871960|pluto:54.725562|asc:101.595857|mc:342.772639|true_node:302.731278|chiron:35.544685|aspects_sum:3693.150000|house_cusps_hash:a9dec0ccfcdb2c60",
+   "chart_response": {
+    "angles": {
+     "ascendant": 101.595857,
+     "midheaven": 342.772639
+    },
+    "aspects": [
+     {
+      "p1": "Pluto",
+      "p2": "Midheaven",
+      "separation": 71.95
+     },
+     {
+      "p1": "North Node",
+      "p2": "Part of Fortune",
+      "separation": 59.88
+     },
+     {
+      "p1": "Lilith",
+      "p2": "Midheaven",
+      "separation": 45.2
+     },
+     {
+      "p1": "Mercury",
+      "p2": "North Node",
+      "separation": 60.41
+     },
+     {
+      "p1": "Jupiter",
+      "p2": "Lilith",
+      "separation": 60.49
+     },
+     {
+      "p1": "Mercury",
+      "p2": "Part of Fortune",
+      "separation": 0.53
+     },
+     {
+      "p1": "Mars",
+      "p2": "Jupiter",
+      "separation": 30.57
+     },
+     {
+      "p1": "Sun",
+      "p2": "Neptune",
+      "separation": 44.36
+     },
+     {
+      "p1": "Venus",
+      "p2": "Uranus",
+      "separation": 134.3
+     },
+     {
+      "p1": "Mars",
+      "p2": "Midheaven",
+      "separation": 45.86
+     },
+     {
+      "p1": "Jupiter",
+      "p2": "Ascendant",
+      "separation": 134.11
+     },
+     {
+      "p1": "Moon",
+      "p2": "Jupiter",
+      "separation": 72.96
+     },
+     {
+      "p1": "Mercury",
+      "p2": "Saturn",
+      "separation": 1.05
+     },
+     {
+      "p1": "Mars",
+      "p2": "Lilith",
+      "separation": 91.06
+     },
+     {
+      "p1": "Ascendant",
+      "p2": "Midheaven",
+      "separation": 118.82
+     },
+     {
+      "p1": "Sun",
+      "p2": "Pluto",
+      "separation": 61.22
+     },
+     {
+      "p1": "Uranus",
+      "p2": "Part of Fortune",
+      "separation": 148.68
+     },
+     {
+      "p1": "Saturn",
+      "p2": "Chiron",
+      "separation": 31.35
+     },
+     {
+      "p1": "Uranus",
+      "p2": "North Node",
+      "separation": 151.44
+     },
+     {
+      "p1": "Saturn",
+      "p2": "North Node",
+      "separation": 61.46
+     },
+     {
+      "p1": "Moon",
+      "p2": "Lilith",
+      "separation": 133.45
+     },
+     {
+      "p1": "Saturn",
+      "p2": "Part of Fortune",
+      "separation": 1.58
+     },
+     {
+      "p1": "Jupiter",
+      "p2": "Neptune",
+      "separation": 70.39
+     },
+     {
+      "p1": "Lilith",
+      "p2": "Ascendant",
+      "separation": 73.62
+     },
+     {
+      "p1": "Moon",
+      "p2": "Midheaven",
+      "separation": 88.25
+     },
+     {
+      "p1": "Mercury",
+      "p2": "Uranus",
+      "separation": 148.14
+     },
+     {
+      "p1": "Pluto",
+      "p2": "Ascendant",
+      "separation": 46.87
+     },
+     {
+      "p1": "Mars",
+      "p2": "Pluto",
+      "separation": 117.81
+     },
+     {
+      "p1": "Neptune",
+      "p2": "Chiron",
+      "separation": 2.33
+     },
+     {
+      "p1": "Moon",
+      "p2": "Venus",
+      "separation": 122.46
+     },
+     {
+      "p1": "Jupiter",
+      "p2": "Pluto",
+      "separation": 87.24
+     },
+     {
+      "p1": "North Node",
+      "p2": "Chiron",
+      "separation": 92.81
+     },
+     {
+      "p1": "Saturn",
+      "p2": "Uranus",
+      "separation": 147.1
+     },
+     {
+      "p1": "Moon",
+      "p2": "Ascendant",
+      "separation": 152.93
+     },
+     {
+      "p1": "Uranus",
+      "p2": "Lilith",
+      "separation": 123.31
+     },
+     {
+      "p1": "Sun",
+      "p2": "Mars",
+      "separation": 56.59
+     },
+     {
+      "p1": "Neptune",
+      "p2": "Ascendant",
+      "separation": 63.72
+     },
+     {
+      "p1": "Jupiter",
+      "p2": "Uranus",
+      "separation": 176.2
+     },
+     {
+      "p1": "Uranus",
+      "p2": "Chiron",
+      "separation": 115.74
+     },
+     {
+      "p1": "North Node",
+      "p2": "Lilith",
+      "separation": 85.25
+     },
+     {
+      "p1": "Neptune",
+      "p2": "Midheaven",
+      "separation": 55.1
+     },
+     {
+      "p1": "Neptune",
+      "p2": "North Node",
+      "separation": 95.14
+     },
+     {
+      "p1": "Venus",
+      "p2": "Ascendant",
+      "separation": 84.61
+     },
+     {
+      "p1": "Mars",
+      "p2": "North Node",
+      "separation": 5.82
+     },
+     {
+      "p1": "Uranus",
+      "p2": "Neptune",
+      "separation": 113.42
+     },
+     {
+      "p1": "Chiron",
+      "p2": "Lilith",
+      "separation": 7.57
+     }
+    ],
+    "houses": [
+     {
+      "index": 1,
+      "longitude": 101.595857
+     },
+     {
+      "index": 2,
+      "longitude": 118.567227
+     },
+     {
+      "index": 3,
+      "longitude": 137.752279
+     },
+     {
+      "index": 4,
+      "longitude": 162.772639
+     },
+     {
+      "index": 5,
+      "longitude": 198.253438
+     },
+     {
+      "index": 6,
+      "longitude": 243.038091
+     },
+     {
+      "index": 7,
+      "longitude": 281.595857
+     },
+     {
+      "index": 8,
+      "longitude": 298.567227
+     },
+     {
+      "index": 9,
+      "longitude": 317.752279
+     },
+     {
+      "index": 10,
+      "longitude": 342.772639
+     },
+     {
+      "index": 11,
+      "longitude": 18.253438
+     },
+     {
+      "index": 12,
+      "longitude": 63.038091
+     }
+    ],
+    "planets": [
+     {
+      "id": "Sun",
+      "longitude": 353.507608
+     },
+     {
+      "id": "Moon",
+      "longitude": 254.523978
+     },
+     {
+      "id": "Mercury",
+      "longitude": 3.143614
+     },
+     {
+      "id": "Venus",
+      "longitude": 16.984839
+     },
+     {
+      "id": "Mars",
+      "longitude": 296.914121
+     },
+     {
+      "id": "Jupiter",
+      "longitude": 327.484069
+     },
+     {
+      "id": "Saturn",
+      "longitude": 4.189812
+     },
+     {
+      "id": "Uranus",
+      "longitude": 151.288605
+     },
+     {
+      "id": "Neptune",
+      "longitude": 37.87196
+     },
+     {
+      "id": "Pluto",
+      "longitude": 54.725562
+     },
+     {
+      "id": "North Node",
+      "longitude": 302.731278
+     },
+     {
+      "id": "South Node",
+      "longitude": 122.731278
+     },
+     {
+      "id": "Chiron",
+      "longitude": 35.544685
+     },
+     {
+      "id": "Lilith",
+      "longitude": 27.976707
+     },
+     {
+      "id": "Part of Fortune",
+      "longitude": 2.612227
+     },
+     {
+      "id": "Ascendant",
+      "longitude": 101.595857
+     },
+     {
+      "id": "Midheaven",
+      "longitude": 342.772639
+     }
+    ]
+   },
+   "id": "einstein-ulm-1879",
+   "seed_chart": {
+    "asc": 101.595857,
+    "aspects_sum": 3693.149999999999,
+    "chiron": 35.544685,
+    "house_cusps_hash": "a9dec0ccfcdb2c60",
+    "jupiter": 327.484069,
+    "mars": 296.914121,
+    "mc": 342.772639,
+    "mercury": 3.143614,
+    "moon": 254.523978,
+    "neptune": 37.87196,
+    "pluto": 54.725562,
+    "saturn": 4.189812,
+    "sun": 353.507608,
+    "true_node": 302.731278,
+    "uranus": 151.288605,
+    "venus": 16.984839
+   },
+   "seed_hex": "5c3195d06b27564b"
+  },
+  {
+   "bedrock_hz": [
+    323.80126667261845,
+    259.9422295333344,
+    313.3987677026907,
+    278.85897013557525,
+    388.9330605736823,
+    121.23434395117333,
+    128.51385231669656,
+    369.7226572443248,
+    353.5487482781116,
+    289.68289868531997,
+    120.77403996953018,
+    322.8577049252828,
+    177.29317314540836,
+    289.864614093801
+   ],
+   "binaural": {
+    "beat_hz": 10.050000000001546,
+    "carrier_hz": 188.08841166666667
+   },
+   "canonical": "sun:280.368919|moon:223.323751|mercury:271.889277|venus:241.565788|mars:327.963303|jupiter:25.253087|saturn:40.395663|uranus:314.809188|neptune:303.193013|pluto:251.454779|asc:24.265235|mc:279.611088|true_node:123.954023|chiron:251.617626|aspects_sum:3590.050000|house_cusps_hash:2644d9804d2f0075",
+   "chart_response": {
+    "angles": {
+     "ascendant": 24.265235,
+     "midheaven": 279.611088
+    },
+    "aspects": [
+     {
+      "p1": "Sun",
+      "p2": "Saturn",
+      "separation": 120.03
+     },
+     {
+      "p1": "Pluto",
+      "p2": "Chiron",
+      "separation": 0.16
+     },
+     {
+      "p1": "Mercury",
+      "p2": "Venus",
+      "separation": 30.32
+     },
+     {
+      "p1": "Mars",
+      "p2": "Saturn",
+      "separation": 72.43
+     },
+     {
+      "p1": "Mars",
+      "p2": "Part of Fortune",
+      "separation": 0.74
+     },
+     {
+      "p1": "Sun",
+      "p2": "Midheaven",
+      "separation": 0.76
+     },
+     {
+      "p1": "Neptune",
+      "p2": "North Node",
+      "separation": 179.24
+     },
+     {
+      "p1": "Saturn",
+      "p2": "Midheaven",
+      "separation": 120.78
+     },
+     {
+      "p1": "Lilith",
+      "p2": "Ascendant",
+      "separation": 120.8
+     },
+     {
+      "p1": "Jupiter",
+      "p2": "Ascendant",
+      "separation": 0.99
+     },
+     {
+      "p1": "Saturn",
+      "p2": "Pluto",
+      "separation": 148.94
+     },
+     {
+      "p1": "Sun",
+      "p2": "Pluto",
+      "separation": 28.91
+     },
+     {
+      "p1": "Saturn",
+      "p2": "Part of Fortune",
+      "separation": 73.18
+     },
+     {
+      "p1": "Jupiter",
+      "p2": "Pluto",
+      "separation": 133.8
+     },
+     {
+      "p1": "Saturn",
+      "p2": "Chiron",
+      "separation": 148.78
+     },
+     {
+      "p1": "Venus",
+      "p2": "Uranus",
+      "separation": 73.24
+     },
+     {
+      "p1": "Sun",
+      "p2": "Chiron",
+      "separation": 28.75
+     },
+     {
+      "p1": "Mercury",
+      "p2": "Neptune",
+      "separation": 31.3
+     },
+     {
+      "p1": "Jupiter",
+      "p2": "Chiron",
+      "separation": 133.64
+     },
+     {
+      "p1": "Moon",
+      "p2": "Uranus",
+      "separation": 91.49
+     },
+     {
+      "p1": "Jupiter",
+      "p2": "Uranus",
+      "separation": 70.44
+     },
+     {
+      "p1": "Venus",
+      "p2": "Neptune",
+      "separation": 61.63
+     },
+     {
+      "p1": "Moon",
+      "p2": "Chiron",
+      "separation": 28.29
+     },
+     {
+      "p1": "Jupiter",
+      "p2": "Lilith",
+      "separation": 121.79
+     },
+     {
+      "p1": "Pluto",
+      "p2": "Midheaven",
+      "separation": 28.16
+     },
+     {
+      "p1": "Sun",
+      "p2": "Part of Fortune",
+      "separation": 46.85
+     },
+     {
+      "p1": "Moon",
+      "p2": "Pluto",
+      "separation": 28.13
+     },
+     {
+      "p1": "Saturn",
+      "p2": "Lilith",
+      "separation": 136.93
+     },
+     {
+      "p1": "Jupiter",
+      "p2": "Part of Fortune",
+      "separation": 58.03
+     },
+     {
+      "p1": "Mercury",
+      "p2": "North Node",
+      "separation": 147.94
+     },
+     {
+      "p1": "Venus",
+      "p2": "North Node",
+      "separation": 117.61
+     },
+     {
+      "p1": "Mars",
+      "p2": "Jupiter",
+      "separation": 57.29
+     },
+     {
+      "p1": "Moon",
+      "p2": "Saturn",
+      "separation": 177.07
+     },
+     {
+      "p1": "Sun",
+      "p2": "Moon",
+      "separation": 57.05
+     },
+     {
+      "p1": "Part of Fortune",
+      "p2": "Ascendant",
+      "separation": 57.05
+     },
+     {
+      "p1": "Uranus",
+      "p2": "Chiron",
+      "separation": 63.19
+     },
+     {
+      "p1": "Uranus",
+      "p2": "Pluto",
+      "separation": 63.35
+     },
+     {
+      "p1": "Venus",
+      "p2": "Mars",
+      "separation": 86.4
+     },
+     {
+      "p1": "Mars",
+      "p2": "Ascendant",
+      "separation": 56.3
+     },
+     {
+      "p1": "Moon",
+      "p2": "Midheaven",
+      "separation": 56.29
+     },
+     {
+      "p1": "Lilith",
+      "p2": "Part of Fortune",
+      "separation": 63.76
+     },
+     {
+      "p1": "Mercury",
+      "p2": "Mars",
+      "separation": 56.07
+     },
+     {
+      "p1": "Venus",
+      "p2": "Part of Fortune",
+      "separation": 85.65
+     },
+     {
+      "p1": "Saturn",
+      "p2": "Uranus",
+      "separation": 85.59
+     },
+     {
+      "p1": "Mars",
+      "p2": "Lilith",
+      "separation": 64.5
+     },
+     {
+      "p1": "Mercury",
+      "p2": "Part of Fortune",
+      "separation": 55.33
+     },
+     {
+      "p1": "Mercury",
+      "p2": "Jupiter",
+      "separation": 113.36
+     },
+     {
+      "p1": "Mercury",
+      "p2": "Midheaven",
+      "separation": 7.72
+     }
+    ],
+    "houses": [
+     {
+      "index": 1,
+      "longitude": 24.265235
+     },
+     {
+      "index": 2,
+      "longitude": 61.141524
+     },
+     {
+      "index": 3,
+      "longitude": 82.020398
+     },
+     {
+      "index": 4,
+      "longitude": 99.611088
+     },
+     {
+      "index": 5,
+      "longitude": 119.062295
+     },
+     {
+      "index": 6,
+      "longitude": 147.701257
+     },
+     {
+      "index": 7,
+      "longitude": 204.265235
+     },
+     {
+      "index": 8,
+      "longitude": 241.141524
+     },
+     {
+      "index": 9,
+      "longitude": 262.020398
+     },
+     {
+      "index": 10,
+      "longitude": 279.611088
+     },
+     {
+      "index": 11,
+      "longitude": 299.062295
+     },
+     {
+      "index": 12,
+      "longitude": 327.701257
+     }
+    ],
+    "planets": [
+     {
+      "id": "Sun",
+      "longitude": 280.368919
+     },
+     {
+      "id": "Moon",
+      "longitude": 223.323751
+     },
+     {
+      "id": "Mercury",
+      "longitude": 271.889277
+     },
+     {
+      "id": "Venus",
+      "longitude": 241.565788
+     },
+     {
+      "id": "Mars",
+      "longitude": 327.963303
+     },
+     {
+      "id": "Jupiter",
+      "longitude": 25.253087
+     },
+     {
+      "id": "Saturn",
+      "longitude": 40.395663
+     },
+     {
+      "id": "Uranus",
+      "longitude": 314.809188
+     },
+     {
+      "id": "Neptune",
+      "longitude": 303.193013
+     },
+     {
+      "id": "Pluto",
+      "longitude": 251.454779
+     },
+     {
+      "id": "North Node",
+      "longitude": 123.954023
+     },
+     {
+      "id": "South Node",
+      "longitude": 303.954023
+     },
+     {
+      "id": "Chiron",
+      "longitude": 251.617626
+     },
+     {
+      "id": "Lilith",
+      "longitude": 263.464333
+     },
+     {
+      "id": "Part of Fortune",
+      "longitude": 327.220068
+     },
+     {
+      "id": "Ascendant",
+      "longitude": 24.265235
+     },
+     {
+      "id": "Midheaven",
+      "longitude": 279.611088
+     }
+    ]
+   },
+   "id": "greenwich-noon-j2000",
+   "seed_chart": {
+    "asc": 24.265235,
+    "aspects_sum": 3590.0500000000015,
+    "chiron": 251.617626,
+    "house_cusps_hash": "2644d9804d2f0075",
+    "jupiter": 25.253087,
+    "mars": 327.963303,
+    "mc": 279.611088,
+    "mercury": 271.889277,
+    "moon": 223.323751,
+    "neptune": 303.193013,
+    "pluto": 251.454779,
+    "saturn": 40.395663,
+    "sun": 280.368919,
+    "true_node": 123.954023,
+    "uranus": 314.809188,
+    "venus": 241.565788
+   },
+   "seed_hex": "26cbd59708257349"
+  }
+ ],
+ "cases": [
+  {
+   "bedrock_hz": [
+    190.5867691177273,
+    148.77319711809452,
+    252.63579775848277,
+    366.36490266338734
+   ],
+   "binaural": {
+    "beat_hz": 11.799999999999955,
+    "carrier_hz": 251.97333333333333
+   },
+   "canonical": "sun:142.730000|moon:78.410000|asc:215.920000|mc:312.440000|aspects_sum:1247.800000",
+   "chart": {
+    "asc": 215.92,
+    "aspects_sum": 1247.8,
+    "mc": 312.44,
+    "moon": 78.41,
+    "sun": 142.73
+   },
+   "id": "baseline-demo",
+   "intention": "clarity",
+   "prng": [
+    0.8184991211164743,
+    0.7710712163243443,
+    0.9206399347167462,
+    0.7317368052899837,
+    0.9965401405934244,
+    0.8587432072963566,
+    0.4292184275109321,
+    0.35973946820013225
+   ],
+   "seed32": 4015734856,
+   "seed_hex": "86813727ef5b4048"
+  },
+  {
+   "bedrock_hz": [
+    190.5867691177273,
+    148.77319711809452,
+    252.63579775848277,
+    366.36490266338734
+   ],
+   "binaural": {
+    "beat_hz": 11.799999999999955,
+    "carrier_hz": 251.97333333333333
+   },
+   "canonical": "sun:142.730000|moon:78.410000|asc:215.920000|mc:312.440000|aspects_sum:1247.800000",
+   "chart": {
+    "asc": 215.92,
+    "aspects_sum": 1247.8,
+    "mc": 312.44,
+    "moon": 78.41,
+    "sun": 142.73
+   },
+   "id": "no-intention",
+   "intention": "",
+   "prng": [
+    0.4281730754300952,
+    0.4392256180290133,
+    0.42116348748095334,
+    0.8962829678785056,
+    0.2512199894990772,
+    0.9928725825157017,
+    0.06014516344293952,
+    0.3935559648089111
+   ],
+   "seed32": 1748208864,
+   "seed_hex": "1c9538e268338ce0"
+  },
+  {
+   "bedrock_hz": [
+    190.5867691177273,
+    148.77319711809452,
+    252.63579775848277
+   ],
+   "binaural": {
+    "beat_hz": 4.0,
+    "carrier_hz": 251.97333333333333
+   },
+   "canonical": "sun:142.730000|moon:78.410000|asc:215.920000",
+   "chart": {
+    "asc": 215.92,
+    "moon": 78.41,
+    "sun": 142.73
+   },
+   "id": "unicode-intention",
+   "intention": "\u044f\u0441\u043d\u043e\u0441\u0442\u044c \ud83d\ude00",
+   "prng": [
+    0.2936881445348263,
+    0.6964681027457118,
+    0.7862386391498148,
+    0.003365573473274708,
+    0.17453072569333017,
+    0.33671984006650746,
+    0.3431245437823236,
+    0.5982168714981526
+   ],
+   "seed32": 1077167069,
+   "seed_hex": "f3bb319f403443dd"
+  },
+  {
+   "bedrock_hz": [
+    190.5867691177273,
+    148.77319711809452,
+    252.63579775848277
+   ],
+   "binaural": {
+    "beat_hz": 4.0,
+    "carrier_hz": 251.97333333333333
+   },
+   "canonical": "sun:142.730000|moon:78.410000|asc:215.920000",
+   "chart": {
+    "asc": 215.92,
+    "moon": 78.41,
+    "sun": 142.73
+   },
+   "id": "intention-controls-collapse",
+   "intention": "  focus\tand\u0001   calm  ",
+   "prng": [
+    0.8173649250529706,
+    0.931221149628982,
+    0.8638274583499879,
+    0.41580469999462366,
+    0.15331712807528675,
+    0.8986678884830326,
+    0.17875240580178797,
+    0.18963871453888714
+   ],
+   "seed32": 1694842933,
+   "seed_hex": "16b2283e65054035"
+  },
+  {
+   "bedrock_hz": [
+    190.5867691177273,
+    148.77319711809452,
+    252.63579775848277
+   ],
+   "binaural": {
+    "beat_hz": 4.0,
+    "carrier_hz": 251.97333333333333
+   },
+   "canonical": "sun:142.730000|moon:78.410000|asc:215.920000|zeta:3.000000|\ufffd:1.000000|\ud83d\ude00:2.000000",
+   "chart": {
+    "asc": 215.92,
+    "moon": 78.41,
+    "sun": 142.73,
+    "zeta": 3.0,
+    "\ufffd": 1.0,
+    "\ud83d\ude00": 2.0
+   },
+   "id": "extra-keys-code-point-order",
+   "intention": "",
+   "prng": [
+    0.91855662711896,
+    0.4859579592011869,
+    0.25032358965836465,
+    0.9057104273233563,
+    0.5947372899390757,
+    0.05628254543989897,
+    0.7531491660047323,
+    0.947007495444268
+   ],
+   "seed32": 1632521688,
+   "seed_hex": "474833a1614e4dd8"
+  },
+  {
+   "bedrock_hz": [
+    190.5867691177273,
+    148.77319711809452,
+    252.63579775848277
+   ],
+   "binaural": {
+    "beat_hz": 4.0,
+    "carrier_hz": 251.97333333333333
+   },
+   "canonical": "sun:142.730000|moon:78.410000|asc:215.920000|note:z\ud83d\ude00",
+   "chart": {
+    "asc": 215.92,
+    "moon": 78.41,
+    "note": "z\ud83d\ude00",
+    "sun": 142.73
+   },
+   "id": "string-values",
+   "intention": "",
+   "prng": [
+    0.23170155799016356,
+    0.008818128844723105,
+    0.7124752290546894,
+    0.6305380559060723,
+    0.6068340914789587,
+    0.09107491676695645,
+    0.8412475336808711,
+    0.16592054115608335
+   ],
+   "seed32": 1153366487,
+   "seed_hex": "a3deafbc44bef9d7"
+  },
+  {
+   "bedrock_hz": [
+    110.0,
+    148.77319711809452,
+    252.63579775848277
+   ],
+   "binaural": {
+    "beat_hz": 4.0,
+    "carrier_hz": 251.97333333333333
+   },
+   "canonical": "sun:0.000000|moon:78.410000|asc:215.920000",
+   "chart": {
+    "asc": 215.92,
+    "moon": 78.41,
+    "sun": -0.0
+   },
+   "id": "negative-zero-normalized",
+   "intention": "",
+   "prng": [
+    0.17199531639926136,
+    0.6884936396963894,
+    0.20954879629425704,
+    0.828711417503655,
+    0.6824703391175717,
+    0.22964553302153945,
+    0.626816893229261,
+    0.6910663654562086
+   ],
+   "seed32": 3757814173,
+   "seed_hex": "9c080100dffbb19d"
+  },
+  {
+   "bedrock_hz": [
+    366.8025131875983,
+    129.5594846702727,
+    439.99999830564025
+   ],
+   "binaural": {
+    "beat_hz": 9.7,
+    "carrier_hz": 299.99999966666667
+   },
+   "canonical": "sun:-47.250000|moon:402.500000|asc:359.999999|aspects_sum:-13.700000",
+   "chart": {
+    "asc": 359.999999,
+    "aspects_sum": -13.7,
+    "moon": 402.5,
+    "sun": -47.25
+   },
+   "id": "wrapped-longitudes",
+   "intention": "night walk",
+   "prng": [
+    0.6823023781180382,
+    0.7607535512652248,
+    0.9461307874880731,
+    0.5957979431841522,
+    0.5073384086135775,
+    0.17980426060967147,
+    0.9132793529424816,
+    0.857692657969892
+   ],
+   "seed32": 4090998472,
+   "seed_hex": "39fb1ef9f3d7aec8"
+  },
+  {
+   "bedrock_hz": [
+    190.5867691177273,
+    148.77319711809452,
+    366.36490266338734
+   ],
+   "binaural": {
+    "beat_hz": 4.0,
+    "carrier_hz": 227.57666666666665
+   },
+   "canonical": "sun:142.730000|moon:78.410000|mc:312.440000",
+   "chart": {
+    "mc": 312.44,
+    "moon": 78.41,
+    "sun": 142.73
+   },
+   "id": "binaural-asc-absent",
+   "intention": "",
+   "prng": [
+    0.17362704477272928,
+    0.45138609246350825,
+    0.6462761170696467,
+    0.35791228245943785,
+    0.40907240752130747,
+    0.26014655316248536,
+    0.9545693865511566,
+    0.3196419891901314
+   ],
+   "seed32": 2503407052,
+   "seed_hex": "3d95bdcc9536f5cc"
+  }
+ ],
+ "match": {
+  "bedrock_hz": {
+   "abs_tol": 1e-09
+  },
+  "binaural": "exact",
+  "canonical": "exact",
+  "prng": "exact",
+  "seed32": "exact",
+  "seed_chart": "exact",
+  "seed_hex": "exact"
+ },
+ "reference": "resonarium/natal_seed.py",
+ "schema": "astra-parity/resonarium-seed@1"
+}

@@ -39,6 +39,13 @@ import ephemeris as E  # noqa: E402
 import tarot as TAROT  # noqa: E402
 from models import ChartRequest  # noqa: E402
 
+# The resonarium seed engine's reference implementation. natal_seed.py is the
+# contract holder for the bit-exact pair (natal_seed.js) and now also for the
+# @astra/core port (src/resonarium.ts) that the app's tonal-field derivation
+# uses — the vector below is what locks that third implementation.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "resonarium"))
+import natal_seed  # noqa: E402
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PARITY_DIR = REPO_ROOT / "parity"
 VECTOR_FILE = PARITY_DIR / "natal-chart.json"
@@ -50,6 +57,7 @@ SYNASTRY_FILE = PARITY_DIR / "synastry.json"
 PREDICTIVE_FILE = PARITY_DIR / "predictive.json"
 ADVANCED_FILE = PARITY_DIR / "advanced.json"
 ARCANA_FC_FILE = PARITY_DIR / "arcana-forecast.json"
+RESONARIUM_FILE = PARITY_DIR / "resonarium-seed.json"
 
 # The two reference charts every backend suite already leans on.
 CASES: list[tuple[str, dict]] = [
@@ -573,6 +581,159 @@ def build_advanced_payload() -> dict:
     return _round_floats(payload)
 
 
+# --------------------------------------------------------------------------- #
+# Resonarium seed engine — the personal tonal field. Not music: a holistic,
+# suggestive sound effect derived from the user's personal inputs (natal chart
+# + intention). Reference implementation: resonarium/natal_seed.py, already
+# bit-exact with natal_seed.js under its own suite; this vector extends the
+# same contract to the @astra/core port (src/resonarium.ts) the app consumes.
+# Floats are NOT rounded for stable diffs — the exact double IS the contract —
+# and the match is per-layer, adopting the boundary the reference suite
+# already drew (tests/test_biosentinel.py::test_bedrock_and_modulation_match):
+# seed layer, PRNG and binaural (pure + * / %) compare with ===; bedrock_hz
+# compares within abs 1e-9, because 2.0**x goes through libm pow and
+# transcendentals are not bit-identical across substrates.
+# --------------------------------------------------------------------------- #
+
+# Seed-key mapping from the engine's planet ids. Only the canonical
+# natal_seed keys participate — South Node, Lilith and Part of Fortune are
+# derived/auxiliary points outside the canonical chart contract, and adding
+# them would change every seed.
+SEED_KEY_BY_PLANET = {
+    "Sun": "sun", "Moon": "moon", "Mercury": "mercury", "Venus": "venus",
+    "Mars": "mars", "Jupiter": "jupiter", "Saturn": "saturn",
+    "Uranus": "uranus", "Neptune": "neptune", "Pluto": "pluto",
+    "North Node": "true_node",   # backend/ephemeris.py:135 — swe.TRUE_NODE
+    "Chiron": "chiron",
+}
+
+# Charts + intentions chosen to pin every substrate-sensitive edge the
+# natal_seed pair already guards: code-point key ordering past the BMP,
+# -0.0 normalization, control stripping / space collapsing in intentions,
+# string-valued extra keys, and longitude wrapping in the audio maps.
+RESONARIUM_SEED_CASES: list[tuple[str, dict, str]] = [
+    ("baseline-demo",
+     {"sun": 142.73, "moon": 78.41, "asc": 215.92, "mc": 312.44,
+      "aspects_sum": 1247.8}, "clarity"),
+    ("no-intention",
+     {"sun": 142.73, "moon": 78.41, "asc": 215.92, "mc": 312.44,
+      "aspects_sum": 1247.8}, ""),
+    ("unicode-intention",
+     {"sun": 142.73, "moon": 78.41, "asc": 215.92}, "ясность 😀"),
+    ("intention-controls-collapse",
+     {"sun": 142.73, "moon": 78.41, "asc": 215.92},
+     "  focus\tand\x01   calm  "),
+    ("extra-keys-code-point-order",
+     {"sun": 142.73, "moon": 78.41, "asc": 215.92,
+      "�": 1.0, "\U0001F600": 2.0, "zeta": 3.0}, ""),
+    ("string-values",
+     {"sun": 142.73, "moon": 78.41, "asc": 215.92, "note": "z\U0001F600"}, ""),
+    ("negative-zero-normalized",
+     {"sun": -0.0, "moon": 78.41, "asc": 215.92}, ""),
+    ("wrapped-longitudes",
+     {"sun": -47.25, "moon": 402.5, "asc": 359.999999, "aspects_sum": -13.7},
+     "night walk"),
+    ("binaural-asc-absent",
+     {"sun": 142.73, "moon": 78.41, "mc": 312.44}, ""),
+]
+
+
+def _seed_chart_from_response(chart: dict) -> dict:
+    """Reference adapter: engine ChartResponse -> canonical seed chart.
+
+    Mirrors seedChartFromResponse() in @astra/core src/resonarium.ts — any
+    change here requires the same change there, plus regenerated vectors.
+    Order sensitivity is part of the contract: aspects_sum is a plain
+    left-to-right sequential float accumulation over chart.aspects in engine
+    order — an explicit loop, NOT builtins.sum(), which since CPython 3.12
+    uses Neumaier compensated summation for floats and diverges from a naive
+    JS reduce() in the last bits. house_cusps_hash consumes the cusps sorted
+    by house index at 6 dp (+0.0 normalizes -0.0, as in
+    natal_seed._format_value).
+    """
+    sc: dict = {}
+    for p in chart["planets"]:
+        key = SEED_KEY_BY_PLANET.get(p["id"])
+        if key is not None:
+            sc[key] = p["longitude"]
+    sc["asc"] = chart["angles"]["ascendant"]
+    sc["mc"] = chart["angles"]["midheaven"]
+    aspects_sum = 0.0
+    for a in chart["aspects"]:
+        aspects_sum += a["separation"]
+    sc["aspects_sum"] = aspects_sum
+    cusps = ",".join(f"{h['longitude'] + 0.0:.6f}"
+                     for h in sorted(chart["houses"], key=lambda h: h["index"]))
+    sc["house_cusps_hash"] = hashlib.sha256(cusps.encode("utf-8")).hexdigest()[:16]
+    return sc
+
+
+def build_resonarium_payload() -> dict:
+    cases = []
+    for case_id, chart, intention in RESONARIUM_SEED_CASES:
+        seed = natal_seed.derive_natal_seed(chart, intention)
+        rand = natal_seed.mulberry32(natal_seed.seed_lower32(seed))
+        cases.append({
+            "id": case_id,
+            "chart": chart,
+            "intention": intention,
+            "canonical": natal_seed.canonicalize_chart(chart),
+            "seed_hex": natal_seed.seed_to_hex(seed),
+            "seed32": natal_seed.seed_lower32(seed),
+            "bedrock_hz": natal_seed.bedrock_frequencies(chart),
+            "binaural": natal_seed.binaural_config(chart),
+            "prng": [rand() for _ in range(8)],
+        })
+
+    # The adapter fixture: a real engine chart, slimmed to exactly the fields
+    # the adapter consumes, with every derived stage recorded. The TS test
+    # feeds chart_response back through its adapter and must land on the same
+    # seed chart, canonical string, seed, and audio parameters.
+    adapter_cases = []
+    for case_id, req in CASES:
+        chart = E.calculate_chart(ChartRequest(**req)).model_dump()
+        sc = _seed_chart_from_response(chart)
+        seed = natal_seed.derive_natal_seed(sc, "")
+        adapter_cases.append({
+            "id": case_id,
+            "chart_response": {
+                "planets": [{"id": p["id"], "longitude": p["longitude"]}
+                            for p in chart["planets"]],
+                "angles": {"ascendant": chart["angles"]["ascendant"],
+                           "midheaven": chart["angles"]["midheaven"]},
+                "aspects": [{"p1": a["p1"], "p2": a["p2"],
+                             "separation": a["separation"]}
+                            for a in chart["aspects"]],
+                "houses": [{"index": h["index"], "longitude": h["longitude"]}
+                           for h in chart["houses"]],
+            },
+            "seed_chart": sc,
+            "canonical": natal_seed.canonicalize_chart(sc),
+            "seed_hex": natal_seed.seed_to_hex(seed),
+            "bedrock_hz": natal_seed.bedrock_frequencies(sc),
+            "binaural": natal_seed.binaural_config(sc),
+        })
+
+    return {
+        "schema": "astra-parity/resonarium-seed@1",
+        "reference": "resonarium/natal_seed.py",
+        # Per-layer match contract — mirrors the boundary the resonarium's own
+        # cross-substrate suite draws. Consumers assert === except where a
+        # tolerance is named.
+        "match": {
+            "canonical": "exact",
+            "seed_hex": "exact",
+            "seed32": "exact",
+            "prng": "exact",
+            "seed_chart": "exact",
+            "binaural": "exact",
+            "bedrock_hz": {"abs_tol": 1e-9},
+        },
+        "cases": cases,
+        "adapter_cases": adapter_cases,
+    }
+
+
 def _render(payload: dict) -> str:
     return json.dumps(payload, indent=1, sort_keys=True) + "\n"
 
@@ -593,6 +754,7 @@ def main() -> None:
         (PREDICTIVE_FILE, build_predictive_payload()),
         (ADVANCED_FILE, build_advanced_payload()),
         (ARCANA_FC_FILE, build_arcana_forecast_payload()),
+        (RESONARIUM_FILE, build_resonarium_payload()),
     ]
 
     if args.check:

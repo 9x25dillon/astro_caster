@@ -72,3 +72,22 @@ export {
   type MidpointContact,
   type FixedStarHit,
 } from "./advanced.js";
+export {
+  personalSoundtrack,
+  seedChartFromResponse,
+  deriveNatalSeed,
+  canonicalizeChart,
+  sanitizeIntention,
+  seedToHex,
+  seedLower32,
+  mulberry32,
+  bedrockFrequencies,
+  binauralConfig,
+  clampFrequency,
+  ChartValidationError,
+  RESONARIUM_SCHEMA_VERSION,
+  type SoundtrackSpec,
+  type SoundtrackSource,
+  type SeedChart,
+  type BinauralConfig,
+} from "./resonarium.js";

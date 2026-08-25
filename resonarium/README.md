@@ -14,7 +14,7 @@ toggleable **Sentinel Mode** overlay, plus a headless CLI controller.
 
 | File | Role |
 |---|---|
-| `natal_seed.py` / `natal_seed.js` | Shared deterministic core: canonical chart serialization, intention sanitization, SHA-256/64-bit seed derivation, mulberry32 PRNG, safety clamps, trace privacy guard. **Bit-exact across Python and JS.** |
+| `natal_seed.py` / `natal_seed.js` | Shared deterministic core: canonical chart serialization, intention sanitization, SHA-256/64-bit seed derivation, mulberry32 PRNG, safety clamps, trace privacy guard. **Bit-exact across Python and JS.** A third port, `packages/astra-core/src/resonarium.ts` (the app's personal-soundtrack derivation), is locked to `natal_seed.py` via `parity/resonarium-seed.json`. |
 | `resonarium-enhanced.html` | Browser app: natal bedrock oscillators + binaural pair + canvas field, with the Biosentinel Sentinel Mode panel (`n`, `k`, `perturb`, `spread`). Open next to `natal_seed.js`. |
 | `resonarium_biosentinel_cli.py` | Headless controller: derive seeds, set params, export/import state, print the Temporal Trace. |
 | `state_schema.json` | Versioned shared state schema (`1.0.0`). |

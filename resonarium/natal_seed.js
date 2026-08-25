@@ -2,6 +2,11 @@
  * natal_seed.js — Browser/Node natal-geometry seed derivation and shared
  * Biosentinel math. Byte-for-byte compatible with natal_seed.py.
  *
+ * A third implementation, packages/astra-core/src/resonarium.ts (the app's
+ * personal-soundtrack derivation), is locked to natal_seed.py via
+ * parity/resonarium-seed.json — changes to the shared math here require the
+ * same change there, and vice versa.
+ *
  * Hash strategy (single strategy across both environments):
  *   SHA-256 over the UTF-8 canonical string, truncated to the first
  *   8 bytes, interpreted big-endian as an unsigned 64-bit BigInt.
@@ -298,6 +303,19 @@
     return clamp(hz, 0, VISUAL_MODULATION_MAX_HZ);
   }
 
+  /**
+   * Python's `x % 360.0`, bit-exact: fmod (which JS `%` is), plus the
+   * modulus when the sign disagrees — ONE rounding step, and none at all for
+   * values already in [0, 360). The old `((x % 360) + 360) % 360` idiom was
+   * NOT that: the `+ 360` rounds the intermediate onto a coarser grid before
+   * the second mod subtracts it back, so even the demo chart's asc came back
+   * as 215.91999999999996 and the carrier sat a few ulp off natal_seed.py.
+   */
+  function pymod360(x) {
+    const m = x % 360;
+    return m < 0 ? m + 360 : m;
+  }
+
   function clampSentinelParams(params) {
     const out = Object.assign({}, SENTINEL_DEFAULTS);
     if (typeof params !== "object" || params === null) return out;
@@ -321,7 +339,7 @@
     const freqs = [];
     for (const key of LONGITUDE_KEYS) {
       if (key in chart && typeof chart[key] === "number") {
-        const lon = ((chart[key] % 360) + 360) % 360;
+        const lon = pymod360(chart[key]);
         freqs.push(clampFrequency(110.0 * Math.pow(2.0, lon / 180.0)));
       }
     }
@@ -331,7 +349,7 @@
   function binauralConfig(chart) {
     validateChart(chart);
     const ascRaw = "asc" in chart ? chart.asc : (chart.sun || 0);
-    const asc = ((Number(ascRaw) % 360) + 360) % 360;
+    const asc = pymod360(Number(ascRaw));
     const aspects = Number(chart.aspects_sum || 0);
     return Object.freeze({
       carrier_hz: clampFrequency(180.0 + (asc / 360.0) * 120.0),
