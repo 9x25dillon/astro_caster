@@ -25,6 +25,7 @@ export {
   pyRound,
   PLANET_MAJOR,
   MAJOR_IDS,
+  FULL_DECK_IDS,
   type NatalArcanaSignature,
   dailyArcanaFromEvents,
   arcanaForEvent,

@@ -965,6 +965,30 @@ export function fetchDeckArt(
   });
 }
 
+/** One card as a picker needs it — the id that travels, and enough to group
+ *  and label it. */
+export interface DeckEntry {
+  id: string;
+  name: string;
+  arcana: "major" | "minor";
+  suit: string | null;
+}
+
+/** The whole 78-card deck in canonical order (22 trumps, then the suits), read
+ *  from @astra/core so the Studio offers exactly the deck the engines deal.
+ *
+ *  Deliberately NOT via core() — that awaits initSwisseph, and a list of card
+ *  names needs no ephemeris. Same module, same chunk, no WASM boot. Callers
+ *  fall back to a narrower list if this rejects; a picker is not worth an
+ *  error surface. */
+export async function deckCatalog(): Promise<DeckEntry[]> {
+  const m = await import("@astra/core");
+  return m.FULL_DECK_IDS.flatMap((id) => {
+    const c = m.cardById(id);
+    return c ? [{ id: c.id, name: c.name, arcana: c.arcana, suit: c.suit }] : [];
+  });
+}
+
 // ── Deck-art plates (P3) — the Studio's briefs painted via OpenAI images ─────
 
 export interface PlateResponse {

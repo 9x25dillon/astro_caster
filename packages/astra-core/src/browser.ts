@@ -74,6 +74,7 @@ export {
   weightedDraw,
   buildLocalReading,
   cardById,
+  FULL_DECK_IDS,
   defaultSeed,
   SPREAD_POSITIONS,
   DISCLAIMER,

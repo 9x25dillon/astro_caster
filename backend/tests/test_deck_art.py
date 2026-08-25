@@ -18,7 +18,7 @@ import deck_art as DA  # noqa: E402
 import ephemeris as E  # noqa: E402
 from models import ChartRequest  # noqa: E402
 import tarot as TAROT  # noqa: E402
-from tarot_data import HOUSE_THEMES, MAJOR_BY_ID  # noqa: E402
+from tarot_data import CARD_BY_ID, HOUSE_THEMES, MAJOR_BY_ID  # noqa: E402
 from tarot_models import DISCLAIMER, DeckArtRequest  # noqa: E402
 
 _EINSTEIN = dict(year=1879, month=3, day=14, hour=11, minute=30, second=0,
@@ -96,6 +96,19 @@ def test_minor_card_prompts_work():
     assert p.palette  # suit element resolves a palette
     b = _deck_art(card_id="ace_of_wands", source="rws").prompts[0]
     assert p.prompt == b.prompt
+
+
+def test_every_card_in_the_deck_briefs():
+    """The Studio's picker offers all 78, so all 78 must compose — the minors
+    have no `lesson` corpus and never appear in a natal signature, which are
+    exactly the two places a major-only assumption would hide."""
+    assert len(CARD_BY_ID) == 78
+    for cid, d in CARD_BY_ID.items():
+        p = DA.build_card_prompt(cid, _SIG, "golden_dawn")
+        assert p.card.id == cid
+        assert d["name"] in p.prompt
+        assert p.palette and p.palette in p.prompt
+        assert p.motifs and all(m in p.prompt for m in p.motifs)
 
 
 def test_unknown_card_id_rejected():

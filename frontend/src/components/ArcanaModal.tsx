@@ -3,7 +3,7 @@
 // Deterministic core works offline; AI enrichment is opt-in for supporters.
 // Track R (R-2): a chapter surface (II · Reading / VI · Study / VII · Studio),
 // not a modal — no overlay, no ✕; Esc and the dial navigate home via the App shell.
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useStore } from "../store/useStore";
 import {
   fetchNatalArcana,
@@ -13,6 +13,8 @@ import {
   fetchArcanaForecast,
   fetchLearningPath,
   fetchDeckArt,
+  deckCatalog,
+  type DeckEntry,
   renderPlate,
   type PlateResponse,
   fetchOracleReport,
@@ -63,6 +65,15 @@ const ORACLE_MODEL_LABELS: Record<string, string> = {
 
 type Tab = "natal" | "draw" | "transit" | "classroom" | "studio";
 
+// Suit → its heading in the Studio's card picker, in canonical order. Like
+// SPREADS below, `label` is presentation only — the card ids are what travel.
+const SUIT_GROUPS: { suit: string; label: string }[] = [
+  { suit: "wands", label: "Wands" },
+  { suit: "cups", label: "Cups" },
+  { suit: "swords", label: "Swords" },
+  { suit: "pentacles", label: "Pentacles" },
+];
+
 // Every spread the engines define. Grouped so the picker reads as a menu rather
 // than a flat list; `group` is presentation only — the ids are what travel.
 const SPREADS: { id: SpreadType; label: string; group: string }[] = [
@@ -112,6 +123,7 @@ export const ArcanaModal: React.FC<{
   const [artifact, setArtifact] = useState<Artifact | null>(null);
   const [deckArt, setDeckArt] = useState<DeckArtResponse | null>(null);
   const [deckCard, setDeckCard] = useState<string>("");   // "" = whole soul deck
+  const [deck, setDeck] = useState<DeckEntry[]>([]);       // all 78, for the picker
   const [oracle, setOracle] = useState<OracleReportResponse | null>(null);
   const [oracleLoading, setOracleLoading] = useState(false);
   // The Course — premium curriculum over the learning path (Classroom tab).
@@ -205,6 +217,35 @@ export const ArcanaModal: React.FC<{
         });
     }
   }, [chart, sig]);
+
+  // The Studio can brief any of the 78 — /deck-art has always taken a minor's
+  // id as readily as a trump's — so the picker loads the whole deck the first
+  // time the tab is opened, and not on app boot. Failure is silent on purpose:
+  // the signature group alone is still a working picker, and this is a
+  // dropdown, not a reading.
+  useEffect(() => {
+    if (tab !== "studio" || deck.length) return;
+    let alive = true;
+    deckCatalog().then((d) => { if (alive) setDeck(d); }).catch(() => {});
+    return () => { alive = false; };
+  }, [tab, deck.length]);
+
+  // The rest of the deck, grouped for that picker: the trumps this chart does
+  // NOT carry (the ones it does sit in their own group above, labelled by the
+  // body carrying them, so no id appears twice), then the four suits.
+  const deckGroups = useMemo(() => {
+    if (!deck.length) return [];
+    const inSignature = new Set(sig?.links.map((l) => l.card.id) ?? []);
+    return [
+      {
+        label: "Major Arcana",
+        cards: deck.filter((c) => c.arcana === "major" && !inSignature.has(c.id)),
+      },
+      ...SUIT_GROUPS.map(({ suit, label }) => ({
+        label, cards: deck.filter((c) => c.suit === suit),
+      })),
+    ].filter((g) => g.cards.length > 0);
+  }, [deck, sig]);
 
   // Restore previously collected plates from the Gallery so the Studio shows
   // the deck you've built so far, not just this session's fresh renders.
@@ -1215,8 +1256,17 @@ export const ArcanaModal: React.FC<{
                 <label>Card
                   <select value={deckCard} onChange={(e) => setDeckCard(e.target.value)}>
                     <option value="">Whole soul deck</option>
-                    {sig.links.map((l) => (
-                      <option key={l.body} value={l.card.id}>{l.card.name} ({l.body})</option>
+                    <optgroup label="Your signature">
+                      {sig.links.map((l) => (
+                        <option key={l.body} value={l.card.id}>{l.card.name} ({l.body})</option>
+                      ))}
+                    </optgroup>
+                    {deckGroups.map((g) => (
+                      <optgroup key={g.label} label={g.label}>
+                        {g.cards.map((c) => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                      </optgroup>
                     ))}
                   </select>
                 </label>

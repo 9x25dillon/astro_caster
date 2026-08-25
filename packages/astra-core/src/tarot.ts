@@ -40,7 +40,11 @@ interface TarotData {
   element_suit: Record<string, string>;
 }
 const D = DECK as TarotData;
-const FULL_DECK_IDS = [...D.major_ids, ...D.minor.map((c) => c.id)];
+/** Every card id in canonical order — the 22 trumps, then the four suits.
+ *  The draw reads this, and so does the Studio's picker: a surface that offers
+ *  a deck and an engine that deals one can then never disagree about what the
+ *  deck contains. */
+export const FULL_DECK_IDS = [...D.major_ids, ...D.minor.map((c) => c.id)];
 
 /** Planet → its Major Arcana card id (port of tarot_data.PLANET_MAJOR). Exposed
  *  for the relational engine's bond-card weighting. */
