@@ -54,11 +54,15 @@ what they paid for. Oracle tier costs ~$0.10 a reading. Spend it.
 ## 2. Verified state at handoff (session 35, 2026-08-25)
 
 ```
-main = origin/main = 93c244e   clean, 0 ahead / 0 behind
-CI on origin/main  = GREEN     (49f01d7, 2026-08-25 — first green since 08-19)
+main = origin/main = dba3e1b   clean, 0 ahead / 0 behind
+CI on origin/main  = GREEN     (4 runs deep; first green since 08-19 was 49f01d7)
 production HEAD    = a8c2b34   tree clean, both containers healthy
 origin has exactly ONE branch. Tags: archive/session-26-handoff, v1.0.0/1/3/4/5
 ```
+
+⚠️ **Sessions 35 and 36 both ran on 2026-08-25, in parallel.** If you find edits
+in the working tree you did not make, that is what they look like from the
+inside. Do not `git add -A`; stage the paths you touched.
 
 - **660 pytest passed** (4.7s), **73 `@astra/core` tests**, **11/11 evals on replay**,
   frontend `tsc -b && vite build` clean, golden vectors, resonarium Python↔JS parity,
@@ -68,14 +72,15 @@ origin has exactly ONE branch. Tags: archive/session-26-handoff, v1.0.0/1/3/4/5
   tiers free=`claude-haiku-4-5` / supporter=`claude-sonnet-5` / oracle=`claude-opus-5`,
   spread Literal has **12** members, `/api/replay/{key}` answers from the handler,
   bundle `index-BhuUU9_T.js`, apex byte-identical to `landing/index.html`.
-- ⚠️ **Production is 7 commits behind `main`, and as of `93c244e` the delta
-  CONTAINS PRODUCT CODE** — `frontend/src/api/client.ts`,
-  `frontend/src/components/ArcanaModal.tsx`, `packages/astra-core/src/*` (the
-  Studio's 78-card picker). Earlier sessions' "do not deploy to catch up" advice
-  applied to a docs-and-evals delta and **no longer holds**. Pre-flight (§7) is
-  already run and clean: nothing in `.env.example`, `docker-compose.yml`,
-  `frontend/nginx.conf` or either Dockerfile changed, so no new env var is
-  required. Shipping is the operator's call — ask.
+- ⚠️ **Production is 11 commits behind `main` and the delta holds TWO SECURITY
+  FIXES** (`dba3e1b`): an attribute-breakout XSS in `frontend/src/lib/deckPress.ts`
+  and polynomial-time regexes in `backend/tts.py`. It also holds the Studio's
+  78-card picker (`93c244e`). Earlier sessions' "do not deploy to catch up"
+  advice applied to a docs-and-evals delta and **no longer holds**. Pre-flight
+  (§7) is already run and clean across all eleven: nothing in `.env.example`,
+  `docker-compose.yml`, `frontend/nginx.conf` or either Dockerfile changed, so
+  no new env var is required. Shipping is the operator's call — **ask first, and
+  ask early.**
 
 ---
 

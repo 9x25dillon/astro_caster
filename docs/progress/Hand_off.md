@@ -1,13 +1,15 @@
 # Hand_off.md
 
 _Last updated: 2026-08-25 (session 35 — **CI IS GREEN ON `origin/main` FOR THE
-FIRST TIME SINCE 2026-08-19.** Session 34 diagnosed the one red test and then
-closed without committing anything, so its fix sat in the working tree for five
-days while the tree said red. That fix, session 34's tooling, and the Studio's
-full 78-card picker are pushed. **Production is now 7 commits behind and the
-delta finally contains reader-facing code** — see §SESSION 35 / THE DEPLOY
-QUESTION. Cassettes are still stale; eval findings 3 and 4 are still the open
-design work.)
+FIRST TIME SINCE 2026-08-19**, four runs deep, `main` at `dba3e1b`. Session 34
+diagnosed the one red test and closed without committing anything, so its fix
+sat in the working tree for five days while the tree said red. That fix, the ops
+tooling and the Studio's full 78-card picker are pushed; session 36 ran in
+parallel the same day and pushed the resonarium engine and a security pass.
+**⚠️ PRODUCTION IS 11 COMMITS BEHIND AND THE DELTA HOLDS TWO SECURITY FIXES —
+an XSS in the print window and a ReDoS in the TTS path. Deploying is the first
+thing to ask about.** See §SESSION 35 / THE DEPLOY QUESTION. Cassettes are still
+stale; eval findings 3 and 4 are still the open design work.)
 Re-derive before trusting any of this: `git fetch && git status -sb`._
 
 ---
@@ -16,10 +18,18 @@ Re-derive before trusting any of this: `git fetch && git status -sb`._
 
 ## Start here
 
-**`main` is at `93c244e`, pushed. CI is GREEN on `49f01d7` — the first green
-run since `fccd6be` on 2026-08-19. Production is at `a8c2b34` and healthy.**
+**`main` is at `dba3e1b`, pushed, CI green. Production is at `a8c2b34` and
+healthy — 11 commits behind, and the delta now carries TWO SECURITY FIXES.
+Read §THE DEPLOY QUESTION before anything else.**
+
+CI is green on `origin/main` for the first time since `fccd6be` on 2026-08-19.
+Four consecutive successes: `49f01d7`, `9e35ab6`, `3f93960`, `dba3e1b`.
 
 ```
+dba3e1b  Security pass: linear regexes, escaped quotes, a CDN that proves itself  ] session 36,
+78dfde4  The personal soundtrack gets its engine: one seed, three substrates      ] in parallel
+3f93960  A run still in flight is not a failing run
+9e35ab6  Hand_off + journal, session 35
 93c244e  The Studio can paint the whole deck, not just the trumps your chart carries
 49f01d7  A report that names which layer is green, and the opener that explains why
 9bdebfa  Let the Celtic Cross assertion follow the breakpoint, not the project name
@@ -29,12 +39,35 @@ a8c2b34  Hand_off + journal, session 32                        <- WHAT PRODUCTIO
 
 Green, and this time say which layer: **local** 660 backend / 73 core / e2e on
 both Playwright projects / `tsc -b && vite build` clean, **CI** green on
-`origin/main`, **production** answering `/api/health` with `swiss-files` and
-`ai.mode=llm`. Local dev servers are DOWN. OpenRouter balance unspent this
-session — no model was called.
+`origin/main` (`dba3e1b`), **production** answering `/api/health` with
+`swiss-files` and `ai.mode=llm` — but running none of the above. Local dev
+servers are DOWN. OpenRouter balance unspent by session 35; no model was called.
 
-Read `docs/progress/NEXT_SESSION.md` first; it is session 34's orientation doc
-and it is still accurate except for §3, whose blocking issue is now fixed.
+### Read in this order
+
+1. `git fetch && git status -sb`, then `bash ops/production_report.sh` — it
+   answers most of this section in ~40 seconds and it now reports an in-flight
+   CI run as a NOTE rather than a failure (`3f93960`).
+2. `docs/progress/NEXT_SESSION.md` — session 34's orientation doc, updated at
+   the close of session 35. §1 (the three truths) and §5 (the eight gotchas)
+   are the load-bearing parts.
+3. §THE DEPLOY QUESTION below.
+
+### ⚠️ Two sessions ran on 2026-08-25, in parallel
+
+Session 35 (this section) did the CI fix, the Studio picker and the ops tooling.
+**Session 36 ran concurrently** and landed `78dfde4` + `dba3e1b` — the
+resonarium soundtrack engine and a CodeQL security pass. Its work appeared in
+this session's working tree mid-flight as uncommitted files, which is exactly
+what a parallel session looks like from the inside: **files you did not write,
+in a tree you thought was yours.** Session 35 left them alone and said so;
+session 36 committed them cleanly. As of this writing session 36 had written no
+Hand_off section and no journal entry — check whether that has since landed
+before assuming its context is lost, and see `[[resonarium-soundtrack-engine]]`.
+
+**If you see unexplained edits in the working tree, do not stage them.** `git
+add -A` in a parallel-session world is how one session's half-finished work
+ships under another session's commit message.
 
 ---
 
@@ -109,32 +142,91 @@ should say something natal, that is a design decision, not a bug to patch.
 
 ---
 
-## THE DEPLOY QUESTION — the answer changed today
+## THE DEPLOY QUESTION — the answer changed today, twice
 
 Sessions 33 and 34 both said *"production is behind `main` on purpose, do not
-deploy to catch up."* **That advice expired with `93c244e`.** The delta is now:
+deploy to catch up."* **That advice expired with `93c244e`, and `dba3e1b` made
+it urgent.** The delta:
 
 ```
-a8c2b34..93c244e   7 commits
-  reader-facing:  frontend/src/api/client.ts, frontend/src/components/ArcanaModal.tsx,
-                  packages/astra-core/src/{tarot,browser,index}.ts
-  everything else: docs, evals, tests, ops tooling, .gitignore
+a8c2b34..dba3e1b   11 commits
+
+  SECURITY (session 36, dba3e1b) — the reason this is no longer optional:
+    frontend/src/lib/deckPress.ts   esc() escaped & < > but NOT quotes while
+                                    feeding double-quoted attributes — an
+                                    attribute-breakout XSS in the print window
+    backend/tts.py                  both speakable() regexes polynomial on
+                                    whitespace runs; seconds of CPU per request
+                                    at the 25k cap
+  FEATURE (session 35, 93c244e)   the Studio's 78-card picker
+                                    frontend/src/{api/client.ts,components/ArcanaModal.tsx}
+                                    packages/astra-core/src/{tarot,browser,index}.ts
+  ENGINE  (session 36, 78dfde4)   packages/astra-core/src/resonarium.ts — no UI
+                                    reaches it yet; inert in production
+  the rest: docs, evals, tests, ops tooling, parity vectors, SECURITY.md
 ```
 
-Pre-flight is already done and **clean** — nothing in `.env.example`,
-`docker-compose.yml`, `frontend/nginx.conf` or either Dockerfile changed, so
-`[[compose-env-passthrough-trap]]` does not apply and no new variable is
-required. The deploy is a `git pull --ff-only` + `docker compose up -d --build`
-away (§7 of `NEXT_SESSION.md`). It had not been done as of this writing because
-shipping is the operator's call, not the session's.
+**Pre-flight is already run and clean** — nothing in `.env.example`,
+`docker-compose.yml`, `frontend/nginx.conf` or either Dockerfile changed across
+all eleven commits, so `[[compose-env-passthrough-trap]]` does not apply and no
+new variable is required. Re-run it anyway; it costs one command:
+
+```bash
+git diff a8c2b34..HEAD -- .env.example docker-compose.yml \
+    frontend/nginx.conf frontend/Dockerfile backend/Dockerfile
+```
+
+Then §7 of `NEXT_SESSION.md`: `git pull --ff-only` + `docker compose up -d
+--build`, `set -e` so a failed fast-forward aborts before the rebuild. Verify
+from outside afterward (§6), then **buy one real oracle reading** — a deployed
+commit is not a working product, and ten cents is the only probe that proves a
+subscriber gets what they paid for.
+
+It was not deployed by session 35 because shipping is the operator's call, not
+the session's. **Ask, then do it.**
 
 ---
 
-## Open work, unchanged
+## Open work, in the order I would take it
 
-Findings 3 and 4, then the eight stale cassettes — see §SESSION 33 and §4 of
-`NEXT_SESSION.md`. Finding 4 is still the design work and still comes *before*
-re-recording.
+1. **Deploy** (above) — two security fixes are sitting on `main`.
+2. **Eval finding 4**, the design work: the suite has nowhere to put a *true*
+   finding, so a cassette carrying one genuine model error cannot be committed
+   at all. It needs a third state — accepted findings, recorded with a reason,
+   not fatal but visible in the report. `evals/regressions/` is the same
+   discipline pointed the other way. **Design it before re-recording.** Finding
+   3 is a real model error and will not be "fixed". See §SESSION 33.
+3. **The eight stale cassettes** (~$1.50), only after 2. Check the balance the
+   right way — `/api/v1/credits`, never `/api/v1/key`
+   (`[[openrouter-credit-vs-key-limit]]`). Production and `backend/.env` share
+   the key, so recording draws down the balance that serves paying readers.
+4. **Optional, from session 35's Studio work:** a minor-arcana brief has no
+   `Personal resonance:` line, because `_natal_context` looks the card up in the
+   natal signature and minors are never in it. The brief is still
+   chart-conditioned (the seed carries the signature, the palette carries the
+   dominant element). Whether a minor should say something natal — and what — is
+   a design question for the operator, not a gap to patch.
+
+---
+
+## Standing instructions this session learned the hard way
+
+- **Name the layer.** "Green" alone is the failure mode
+  `NEXT_SESSION.md` exists to prevent. Local, CI, and production drift
+  independently; say which one you measured.
+- **The working tree is not the repo.** Session 34's fix was correct, complete,
+  and invisible to everyone for five days because it was never committed. Close
+  the ritual: `Hand_off.md` + a narrative `WORK_JOURNAL.md` entry, **both
+  committed and pushed to `main`**, dev servers down.
+- **Never `git add -A` blind.** Sessions run in parallel here (see §Start here).
+  Stage paths you touched.
+- **Read the breakpoint, not the project name.** When a test and a stylesheet
+  disagree, make them argue about the same number. Pinning an assertion to
+  `mobile-chromium` passes today and lies the day a viewport is added.
+- **Probe before designing.** The Studio ask looked like a feature and was a
+  dropdown: the request model already documented `card_id` as *"major or
+  minor"*, the prompt builder already resolved all 78, and the Gallery was
+  already counting toward 78. Three greps decided the shape of the work.
 
 ---
 
