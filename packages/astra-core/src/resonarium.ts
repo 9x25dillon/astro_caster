@@ -86,7 +86,14 @@ export function sanitizeIntention(intention?: string | null): string {
     const code = ch.codePointAt(0)!;
     if (code >= 32 && code !== 127) cleaned += ch;
   }
-  cleaned = cleaned.replace(/ +/g, " ").replace(/^ +| +$/g, "");
+  // Collapse first, then trim. After the collapse every space run is exactly
+  // one space long, so trimming is a single startsWith/endsWith check — the
+  // regex form (/^ +| +$/) was flagged as polynomial by CodeQL, and while the
+  // collapse made it linear in practice, this form is linear by construction
+  // and provably identical (mirrors Python's collapse + strip(" ")).
+  cleaned = cleaned.replace(/ +/g, " ");
+  if (cleaned.startsWith(" ")) cleaned = cleaned.slice(1);
+  if (cleaned.endsWith(" ")) cleaned = cleaned.slice(0, -1);
   return Array.from(cleaned).slice(0, MAX_INTENTION_LENGTH).join("");
 }
 

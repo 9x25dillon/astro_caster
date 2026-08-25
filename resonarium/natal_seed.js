@@ -162,7 +162,13 @@
       const code = ch.codePointAt(0);
       if (code >= 32 && code !== 127) cleaned += ch;
     }
-    cleaned = cleaned.replace(/ +/g, " ").replace(/^ +| +$/g, "");
+    // Collapse first, then trim. After the collapse every space run is one
+    // space long, so a startsWith/endsWith pair is identical to the old
+    // /^ +| +$/ regex and linear by construction (matches the @astra/core
+    // port; Python's collapse + strip(" ") is unchanged).
+    cleaned = cleaned.replace(/ +/g, " ");
+    if (cleaned.startsWith(" ")) cleaned = cleaned.slice(1);
+    if (cleaned.endsWith(" ")) cleaned = cleaned.slice(0, -1);
     return Array.from(cleaned).slice(0, MAX_INTENTION_LENGTH).join("");
   }
 
