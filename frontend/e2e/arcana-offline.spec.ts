@@ -69,13 +69,35 @@ test("deals a Celtic Cross on-device and lays it out as a cross, not a row", asy
   // The crossing card is the second position and is marked as laid across.
   await expect(page.locator(".tarot-card--across")).toHaveCount(1);
 
-  // Every position lands in its OWN named grid area. A missing or duplicated
-  // area name is the failure this catches: CSS drops the card into the implicit
-  // grid with no error, so the only visible symptom is a crooked spread.
+  // The tableau's geometry is viewport-conditional BY DESIGN: below 720px
+  // theme.css collapses the cross to one column, because ten panels across four
+  // columns on a phone is four unreadable ones. Ask the browser the same
+  // question the CSS asks rather than pinning this to a project name — that way
+  // the assertion follows the breakpoint instead of drifting away from it.
+  const stacked = await page.evaluate(() => matchMedia("(max-width: 720px)").matches);
+
+  const tracks = await page
+    .locator(".arc-cards-row--geo")
+    .evaluate((n) => getComputedStyle(n as HTMLElement).gridTemplateColumns.trim().split(/\s+/).length);
   const areas = await page.locator(".arc-cards-row--geo .tarot-card").evaluateAll(
     (nodes) => nodes.map((n) => getComputedStyle(n as HTMLElement).gridArea),
   );
   expect(areas).toHaveLength(10);
-  expect(new Set(areas).size).toBe(10);
-  expect(areas.some((a) => a.startsWith("auto"))).toBe(false);
+
+  if (stacked) {
+    // The honest single-column stack, with the position labels carrying the
+    // order. Asserted, not skipped: a card still holding a tableau area here
+    // means the override missed it and one panel is being squeezed into a
+    // four-column grid on a 412px screen.
+    expect(tracks).toBe(1);
+    expect(new Set(areas).size).toBe(1);
+    expect(areas.every((a) => a.startsWith("auto"))).toBe(true);
+  } else {
+    // Every position lands in its OWN named grid area. A missing or duplicated
+    // area name is the failure this catches: CSS drops the card into the implicit
+    // grid with no error, so the only visible symptom is a crooked spread.
+    expect(tracks).toBeGreaterThan(1);
+    expect(new Set(areas).size).toBe(10);
+    expect(areas.some((a) => a.startsWith("auto"))).toBe(false);
+  }
 });
