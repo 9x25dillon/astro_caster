@@ -3,6 +3,39 @@
 Per-phase log for the Production Hardening & Symbolic Intelligence Expansion pass.
 Baseline: `d9afc4b` (36 backend tests, clean frontend build).
 
+## The Torus — aspects as intersections (2026-08-25, 3d-torus-chart-viz)
+
+The chart in polar form: a longitude is a phase `z = e^{iλ}`, a planet pair
+is a point on the torus T² = S¹×S¹, an aspect is a fixed (1,1)-diagonal
+circle there, and "Mars squares Venus on March 4th" becomes a visible
+geometric fact — the pair's trajectory crossing the square circle. New
+**Torus** tab in chapter V · Depths.
+
+- **`lib/torus.ts`** — pure math, no dependencies: harmonic residues
+  (the whole aspect table as one roots-of-unity formula), crossing detection
+  on sampled trajectories (wrap-seam safe, pinned by an analytic
+  synthetic-Moon synodic test), winding numbers, and two embeddings — the
+  donut, and the **Clifford torus** (T² flat in S³ ⊂ ℝ⁴, stereographically
+  projected). On the Clifford projection every aspect circle lands as a true
+  round circle in space (a Villarceau circle / Hopf fiber; unit-tested to
+  1e-9), any two of them linked — and the **Hopf flow** button animates the
+  4D isoclinic rotation whose orbits are the aspect circles themselves.
+- **`localPairTrajectory`** (client.ts) — entirely on-device: samples the
+  pair through time with the same parity-locked `eclipticLonSpeed` the
+  forecast scanner uses, in the chart's own zodiac frame; no backend
+  endpoint, no second ephemeris. Moon pairs sample 8/day so the crossing
+  detector's contract holds.
+- **`TorusPanel`** — hand-rolled canvas-2D renderer (depth-sorted strokes,
+  drag-rotate, not a byte of new dependency): wireframe whose meridians are
+  the ring body's sign cusps, aspect circles in the wheel's canonical
+  colors, the trajectory, the natal pair as a fixed point (its distances to
+  the circles ARE its orbs), a today marker, a time scrub, and a clickable
+  ledger of every exact aspect in the window wired to the margin glass.
+- Design contract + the full complex-number reformulation (midpoints as
+  ±√(z₁z₂), harmonics as z↦zⁿ, antiscia as conjugation, resonances as torus
+  knots): `docs/design/TORUS_GEOMETRY.md`. 14 new unit tests; 64 frontend
+  green.
+
 ## The Journal — the pen half of the loop (2026-07-08, next-arc-journal)
 
 P1 of the next arc: readings shipped journal prompts that were displayed and

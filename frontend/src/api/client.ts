@@ -1258,6 +1258,83 @@ export async function localFixedStars(natal: BirthInput, orb = 1.5): Promise<Fix
   return { orb, hits: c.fixedStarHits(natal, orb), disclaimer: ADV_DISCLAIMER };
 }
 
+// ── Torus geometry (chapter V) — the pair-trajectory sampler ────────────────
+// Entirely on-device: there is no backend endpoint for this, because the
+// deterministic engine is already in the browser. Longitudes come from the
+// same eclipticLonSpeed primitive the forecast scanner uses, in the chart's
+// own zodiac frame, so the torus and the wheel never disagree about where a
+// planet is.
+
+export interface PairTrajectory {
+  /** Ephemeris samples for lib/torus.findAspectEvents & the drawn curve. */
+  samples: { jd: number; lonA: number; lonB: number }[];
+  /** The natal pair — one fixed point on the torus (null if either body is
+   *  outside the natal chart's set, e.g. Chiron under Moshier). */
+  natal: { lonA: number; lonB: number } | null;
+}
+
+/** Bodies the sampler can move through time (the WASM Swiss set — derived
+ *  points like the South Node mirror the North and add no curve of their own). */
+export const TORUS_BODIES = [
+  "Sun", "Moon", "Mercury", "Venus", "Mars", "Jupiter", "Saturn",
+  "Uranus", "Neptune", "Pluto", "North Node", "Chiron", "Lilith",
+] as const;
+
+/** The engine's aspect table (angles + canonical colors), without booting the
+ *  WASM ephemeris — a table of constants has no business awaiting it. */
+export async function localAspectDefs() {
+  const m = await import("@astra/core");
+  return m.ASPECT_DEFS;
+}
+
+/**
+ * Sample (λ_A(t), λ_B(t)) across `days` from `start`. The sampling rate is
+ * chosen from the fastest body so the per-step relative motion stays far
+ * below the 180° the crossing detector needs: the Moon (~13.2°/day) gets 8
+ * samples/day; Mercury/Venus/Sun (≤ ~2°/day) get 2; the rest 1.
+ */
+export async function localPairTrajectory(
+  natal: BirthInput,
+  bodyA: string,
+  bodyB: string,
+  start: Date,
+  days: number
+): Promise<PairTrajectory> {
+  const c = await core();
+  const fast = (b: string) =>
+    b === "Moon" ? 8 : b === "Mercury" || b === "Venus" || b === "Sun" ? 2 : 1;
+  const perDay = Math.max(fast(bodyA), fast(bodyB));
+  const ut =
+    start.getUTCHours() + start.getUTCMinutes() / 60 + start.getUTCSeconds() / 3600;
+  const jd0 = c.julianDay(
+    start.getUTCFullYear(), start.getUTCMonth() + 1, start.getUTCDate(), ut
+  );
+  const n = Math.round(days * perDay);
+  const samples: PairTrajectory["samples"] = [];
+  for (let i = 0; i <= n; i++) {
+    const jd = jd0 + i / perDay;
+    const a = c.eclipticLonSpeed(jd, bodyA, natal);
+    const b = c.eclipticLonSpeed(jd, bodyB, natal);
+    if (!a || !b) continue; // WASM unavailable for an extended body — skip
+    samples.push({ jd, lonA: a.lon, lonB: b.lon });
+  }
+  if (samples.length < 2) {
+    throw new Error(
+      `The ephemeris could not move ${bodyA}/${bodyB} through time on this device.`
+    );
+  }
+  let natalPair: PairTrajectory["natal"] = null;
+  try {
+    const chart = c.calculateChart(natal);
+    const pa = chart.planets.find((p) => p.id === bodyA);
+    const pb = chart.planets.find((p) => p.id === bodyB);
+    if (pa && pb) natalPair = { lonA: pa.longitude, lonB: pb.longitude };
+  } catch {
+    // the natal marker is a garnish; the trajectory is the dish
+  }
+  return { samples, natal: natalPair };
+}
+
 // --------------------------------------------------------------------------- //
 // Replay sync (opt-in) — the cross-device half of the replay guardrail.
 // --------------------------------------------------------------------------- //

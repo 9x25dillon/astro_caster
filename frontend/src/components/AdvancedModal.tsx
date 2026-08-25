@@ -10,8 +10,9 @@ import {
 } from "../api/client";
 import { shelveReading } from "../lib/shelveDoc";
 import type { DocChapter } from "../lib/bookshelf";
+import { TorusPanel } from "./TorusPanel";
 
-type Tab = "harmonics" | "midpoints" | "stars";
+type Tab = "harmonics" | "midpoints" | "stars" | "torus";
 
 export const AdvancedModal: React.FC = () => {
   const birth = useStore((s) => s.birth);
@@ -53,12 +54,12 @@ export const AdvancedModal: React.FC = () => {
         <div className="arcana-header">
           <div>
             <h2 className="arcana-title">✴ Advanced Techniques</h2>
-            <p className="arcana-sub">Harmonics, midpoint trees, and fixed-star contacts — symbolic lenses.</p>
+            <p className="arcana-sub">Harmonics, midpoint trees, fixed-star contacts, and the torus of pairs — symbolic lenses.</p>
           </div>
         </div>
 
         <div className="arcana-tabs">
-          {([["harmonics", "Harmonics"], ["midpoints", "Midpoint Tree"], ["stars", "Fixed Stars"]] as [Tab, string][])
+          {([["harmonics", "Harmonics"], ["midpoints", "Midpoint Tree"], ["stars", "Fixed Stars"], ["torus", "Torus"]] as [Tab, string][])
             .map(([id, label]) => (
               <button key={id} className={`arcana-tab ${tab === id ? "is-active" : ""}`}
                       onClick={() => setTab(id)}>{label}</button>
@@ -149,6 +150,8 @@ export const AdvancedModal: React.FC = () => {
               {stars && stars.hits.length === 0 && <p className="arc-empty">No fixed-star conjunctions within orb.</p>}
             </div>
           )}
+
+          {tab === "torus" && <TorusPanel />}
         </div>
     </div>
   );
