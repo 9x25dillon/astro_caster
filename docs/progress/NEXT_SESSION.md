@@ -42,8 +42,8 @@ Sessions keep collapsing them into one word — "green" — and shipping the con
 A commit can be locally green, CI-red, and correctly deployed all at once — that was
 this repo's literal state for five days in August. When you report status, name the
 layer. "Green" with no layer attached is the failure mode this document exists to
-prevent. As of 2026-08-25 local and CI agree; production is deliberately behind
-(§2).
+prevent. As of session 36's close (2026-08-25, same day): all three layers
+agree — production runs `dba3e1b`, deployed and verified (§2).
 
 Corollary, learned expensively: **a deployed commit is not a working product.**
 Probes prove code shipped; only a real generated reading proves a subscriber gets
@@ -72,15 +72,13 @@ inside. Do not `git add -A`; stage the paths you touched.
   tiers free=`claude-haiku-4-5` / supporter=`claude-sonnet-5` / oracle=`claude-opus-5`,
   spread Literal has **12** members, `/api/replay/{key}` answers from the handler,
   bundle `index-BhuUU9_T.js`, apex byte-identical to `landing/index.html`.
-- ⚠️ **Production is 11 commits behind `main` and the delta holds TWO SECURITY
-  FIXES** (`dba3e1b`): an attribute-breakout XSS in `frontend/src/lib/deckPress.ts`
-  and polynomial-time regexes in `backend/tts.py`. It also holds the Studio's
-  78-card picker (`93c244e`). Earlier sessions' "do not deploy to catch up"
-  advice applied to a docs-and-evals delta and **no longer holds**. Pre-flight
-  (§7) is already run and clean across all eleven: nothing in `.env.example`,
-  `docker-compose.yml`, `frontend/nginx.conf` or either Dockerfile changed, so
-  no new env var is required. Shipping is the operator's call — **ask first, and
-  ask early.**
+- ✅ **DEPLOYED (session 36, 2026-08-25, on the operator's instruction):**
+  production HEAD = `dba3e1b` — the security fixes (deckPress XSS, tts ReDoS),
+  the Studio's 78-card picker, and the dormant soundtrack engine are LIVE.
+  Verified from outside: health `ok/swiss-files/llm`, bundle `index-CUMyqnHz.js`,
+  Literal 12, replay handler, apex byte-identical, plus one real generated
+  reading (`/api/ai-ask`, live Haiku — dev token resolves FREE tier; an oracle
+  proof needs an oracle-entitled token). Full detail: `Hand_off.md` § SESSION 36.
 
 ---
 

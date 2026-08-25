@@ -1,16 +1,127 @@
 # Hand_off.md
 
-_Last updated: 2026-08-25 (session 35 — **CI IS GREEN ON `origin/main` FOR THE
-FIRST TIME SINCE 2026-08-19**, four runs deep, `main` at `dba3e1b`. Session 34
-diagnosed the one red test and closed without committing anything, so its fix
-sat in the working tree for five days while the tree said red. That fix, the ops
-tooling and the Studio's full 78-card picker are pushed; session 36 ran in
-parallel the same day and pushed the resonarium engine and a security pass.
-**⚠️ PRODUCTION IS 11 COMMITS BEHIND AND THE DELTA HOLDS TWO SECURITY FIXES —
-an XSS in the print window and a ReDoS in the TTS path. Deploying is the first
-thing to ask about.** See §SESSION 35 / THE DEPLOY QUESTION. Cassettes are still
-stale; eval findings 3 and 4 are still the open design work.)
+_Last updated: 2026-08-25 (session 36, second entry of the day — **THE THREE
+TRUTHS AGREE**: `main` = `origin/main`, CI green five runs deep, and production
+runs `dba3e1b` — deployed, probed from outside, and proven with a real generated
+reading. The personal-soundtrack engine exists in @astra/core behind a
+three-implementation parity lock; the two security fixes are LIVE. Operator
+action item: dismiss CodeQL alerts 19/5/4 (deliberate masks). Open design work
+unchanged: eval findings 3 & 4, stale cassettes, soundtrack player UI.)
 Re-derive before trusting any of this: `git fetch && git status -sb`._
+
+---
+
+# SESSION 36 — 2026-08-25 (ran in parallel with session 35's close, then deployed)
+
+## Start here
+
+**Everything is shipped.** `main` = `origin/main`, CI green (5 consecutive
+through `dba3e1b`), production HEAD = `dba3e1b`, both containers healthy,
+verified from OUTSIDE, plus one real generated reading. Production trails main
+only by this close-ritual commit (docs). There is no deploy question pending —
+session 35's §THE DEPLOY QUESTION was answered the same day it was written.
+
+```
+dba3e1b  Security pass: linear regexes, escaped quotes, CDN proves itself   DEPLOYED
+78dfde4  The personal soundtrack gets its engine: one seed, three substrates DEPLOYED
+```
+
+The verification that backed the deploy, so the next session can re-run it:
+pre-flight diff `a8c2b34..HEAD` over env/compose/docker/nginx was EMPTY (no new
+vars, gotcha #3 moot); ff-only pull + rebuild; then externally: health
+`ok/swiss-files/llm`, bundle `index-CUMyqnHz.js` (was `index-BhuUU9_T.js`),
+spread Literal 12, replay handler answers, apex byte-identical to
+`landing/index.html`, and `/api/ai-ask` returned live Haiku prose for the
+operator's chart (Sun 228.9365° Scorpio/9th). `bash ops/production_report.sh`
+re-derives most of this in 40 seconds.
+
+## The engine (`78dfde4`)
+
+The "personal soundtrack" is NOT music — the operator's framing: a holistic,
+tonal, suggestive sound effect from the user's personal inputs. Chart
+longitudes → bedrock drones (110–440 Hz), asc + aspect geometry → binaural
+carrier/beat, intention folds into the seed.
+
+- `packages/astra-core/src/resonarium.ts` — third implementation of the
+  `natal_seed.{py,js}` contract: port + `seedChartFromResponse()` adapter +
+  `personalSoundtrack()` composite. Locked by `parity/resonarium-seed.json`
+  (generated from natal_seed.py — the reference — by `gen_parity_vectors.py`,
+  guarded by `--check`, enforced by `test/resonarium.test.ts`).
+- **Adapter contract** (changing any of this re-deals every seed): canonical
+  bodies only — South Node, Lilith, PoF excluded; North Node IS the true node
+  (`ephemeris.py:135`); `aspects_sum` = explicit-loop sum of separations in
+  engine order; `house_cusps_hash` = sha256 of 6-dp cusps, first 16 hex.
+- **Persist the whole SoundtrackSpec with the profile.** The seed is identity;
+  re-derivation under a changed engine re-deals the field, and bedrock
+  re-derived on another substrate can move in its last bits.
+- Deliberately NOT ported: sentinel overlay, ghost placement, trace/redact —
+  instrument-only until a UI needs them. **No player UI exists.** The engine is
+  exported from @astra/core but nothing imports it yet, so Vite tree-shakes it
+  out of the served bundle — wiring the UI is what makes it audible.
+
+## Three float traps, all measured (full detail in `78dfde4`'s message)
+
+1. CPython ≥3.12 `sum()` is Neumaier-compensated — diverges from JS `reduce`
+   in the last bits. Parity contracts must pin an explicit accumulation loop.
+2. `((x % 360) + 360) % 360` loses a ulp on in-range values (even the demo
+   chart's 215.92). Python `%` is exact there; both JS implementations now use
+   fmod-plus-conditional-add.
+3. libm `pow` is not bit-identical across substrates → bedrock compares within
+   abs 1e-9 (the boundary tests/test_biosentinel.py already drew); everything
+   built from `+ * / %` compares `===`. The vector file's `match` block is the
+   per-layer contract in machine-readable form.
+
+## Security (`dba3e1b` + repo settings)
+
+Code, now live: `tts.py` speakable() regexes linear (were polynomial behind a
+25k cap — seconds of CPU per hostile request; also fixed a latent
+heading-eats-next-line bug); `deckPress.ts` `esc()` escapes quotes (attribute
+breakout XSS in the print window); cymatic HTML three.js tag carries SRI
+(hash byte-identical to the vendored copy; serve.py rewrite unaffected);
+`SECURITY.md` at root.
+
+Settings, applied via API and verified: branch protection on `main`
+(force-push + deletion blocked, NO gates on direct pushes), private
+vulnerability reporting ON. Already on: secret scanning + push protection,
+Dependabot ×3, CodeQL, gitleaks, read-only workflow token.
+
+- **Plan-gated, do not retry**: `secret_scanning_validity_checks` and
+  `secret_scanning_non_provider_patterns` — the PATCH returns 200 and silently
+  keeps them disabled (paid Secret Protection add-on).
+- **OPERATOR ACTION**: CodeQL alerts 19/5/4 (clear-text-logging) are false
+  positives — each prints a deliberate `first6…last4` mask. Dismissal via API
+  was permission-blocked from this seat:
+  `gh api -X PATCH repos/9x25dillon/astro_caster/code-scanning/alerts/{19,5,4} -f state=dismissed -f dismissed_reason="false positive"`
+
+## Fresh gotchas (session 36)
+
+1. Cloudflare 403s `Python-urllib` on BOTH hostnames — documented in
+   m5_preflight.py and it still bit. Any scripted probe needs a User-Agent.
+2. The chart route is `/api/generate-chart`, not `/api/chart` — the 404 body
+   saved as a "chart" reads back as `{"detail":"Not Found"}` and fails ai-ask
+   with a confusing 422. Grep `@app.post` before probing.
+3. `AAE_DEV_TOKEN`'s entitlement resolves to FREE tier — a dev-token reading
+   proves the LLM path but exercises Haiku only. An oracle-tier deploy proof
+   needs an oracle-entitled token (see `dev.py unlock | token`).
+4. Two sessions shared this working tree today. Commits landed under session
+   36 mid-flight (that is why handoff files "vanished" from `git status`).
+   Protocol: `git fetch && git status -sb && git log --oneline -3` before every
+   commit, and treat a file disappearing from status as a signal someone else
+   committed it, not as noise.
+
+## Open threads / next candidates
+
+1. **Soundtrack player UI** — the engine is dormant until something calls
+   `personalSoundtrack()` and sounds it (Web Audio; roadmap §4.4 constraints:
+   audio-session handling, keep-awake, no background audio, photosensitivity
+   gate carries over). Design the persistence first: the spec is identity.
+2. **Eval finding 4** (design before re-recording): cassettes need an
+   accepted-findings third state. Then finding 3 stays a correctly-caught
+   model error, and the 8 stale cassettes get re-recorded (~$1.50).
+3. **CodeQL dismissals** — operator, one command (above).
+4. Carried: cancel→refund ordering, APK import flow, optional wallet.
+5. `NEXT_SESSION.md` §2/§3 are superseded (CI is green; production is NOT
+   behind) — its §0/§1/§5/§6 orientation remains the right first read.
 
 ---
 

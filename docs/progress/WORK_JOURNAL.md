@@ -5,6 +5,60 @@ PR bodies; this is the story. Started session 15 at the operator's request._
 
 ---
 
+## Session 36 · 2026-08-25 — the sky learns to hum, and the three truths finally rhyme
+
+The seed already had two bodies — a Python reference and a browser twin that
+swore they were bit-exact — and today it grew a third, the one the app can
+actually reach. The operator's brief was a single sentence with a correction
+mid-flight: not a soundtrack, not music at all, but a holistic tonal suggestion
+derived from a person's own inputs. That correction changed nothing in the code
+and everything in the documentation, which is the best kind.
+
+The port should have been transcription. It was instead a small tour of every
+place two computers can disagree about the same arithmetic. Python's `sum()`
+stopped being left-to-right addition in 3.12 and nobody tells you; the
+folk-idiom for wrapping an angle into [0,360) quietly shaves a ulp off values
+that were already in range — the browser instrument has been humming a carrier
+one ulp flat since the day it was written, on its own demo chart; and `pow` is
+libm's opinion, different in every engine. None of this was visible until the
+adapter fed the engine real full-precision longitudes instead of tidy
+two-decimal demo values. The fix for each was to write the disagreement down
+and make it the contract: an explicit loop, an exact modulo, a 1e-9 boundary
+for the one transcendental — per-layer truth in a machine-readable `match`
+block, enforced from a vector file the reference implementation writes.
+
+Mid-session the working tree started losing files. Not corruption — company.
+Session 35 was closing in the next terminal over, committing the fix this
+session had been told to leave alone, and the handoff it pushed named this
+session's commits before this session had finished making them. Two clocks,
+one tree. The protocol that fell out is cheap: fetch, status, log, every time,
+and treat a vanished dirty file as news rather than noise.
+
+The security pass was triage more than heroics: two regexes that could be
+walked into polynomial time from the paid TTS path, now linear; a print-window
+sanitizer that escaped everything except the one character that ends an
+attribute; a CDN script tag that now has to prove its bytes match the vendored
+copy before the browser will run it. Three of CodeQL's high findings turned
+out to be the tools doing exactly what they should — printing masked key
+tails — and the honest move was to say so on the record rather than launder
+the dashboard.
+
+And then, for the first time in this log, all three truths were made to agree
+on the same afternoon: local green, CI green, and production running the very
+commit that was just blessed — pulled fast-forward, rebuilt, probed from
+outside, and finally asked to do its actual job. It drew the operator's own
+chart and said something true-shaped about a Scorpio Sun in the ninth house.
+A deployed commit is not a working product; a generated reading is. The engine
+itself ships dormant — exported, locked, tree-shaken out of the bundle until a
+player UI gives it a voice. That is next session's instrument to build.
+
+**State at close:** main = origin/main, CI green five deep, production =
+`dba3e1b` verified + one real reading, working tree clean, no dev servers.
+Operator holds one action: dismiss CodeQL 19/5/4. The soundtrack has an
+engine; it is waiting for hands.
+
+---
+
 ## Session 35 · 2026-08-25 — the fix that existed and the deck that didn't
 
 The red tick had a fix already written for it. It had been sitting in the
