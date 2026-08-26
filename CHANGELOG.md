@@ -3,6 +3,29 @@
 Per-phase log for the Production Hardening & Symbolic Intelligence Expansion pass.
 Baseline: `d9afc4b` (36 backend tests, clean frontend build).
 
+## Fix — the Studio picker offered one card twice (2026-08-26, studio-picker-duplicate-card)
+
+`e2e/studio-deck.spec.ts` failed with `Expected: 78, Received: 79`: 79 options,
+78 unique ids. The "Your signature" optgroup rendered one `<option>` per
+**body**, valued by card id — but two bodies can carry the same trump.
+`cardForBody` resolves a planet via `PLANET_MAJOR` and anything else via
+`SIGN_MAJOR[sign]`, and only the **Ascendant** and **Midheaven** take the second
+route. Three trumps are reachable both ways (`hermit`, `moon`, `star`); Chiron
+and the South Node aren't in `SIGNATURE_ORDER`, so the live collision is
+**`star` — the North Node's card and Aquarius's**, with the North Node always
+present. The Ascendant and Midheaven sharing a sign collides them too.
+
+Sky-dependent, hence weeks unnoticed: the e2e loads `/` with no birth data, so
+it reads the **live sky**, and the Ascendant walks all twelve signs daily —
+Aquarius for roughly two hours in twenty-four. Latent since `93c244e`.
+
+- **`lib/arcanaPicker.ts`** — `mergeSignatureByCard` collapses per-body links to
+  per-card options, keeping every carrier in the label ("The Star (Ascendant,
+  North Node)") and preserving signature order via `Map` insertion order.
+- **6 deterministic tests** covering both collisions, order preservation, the
+  ordinary chart, and malformed input — the guard the sky-dependent e2e could
+  never be. **85 frontend green.**
+
 ## The Torus, heard — the aspect table is the whole-tone scale (2026-08-26, torus-resonarium-audio)
 
 The Torus tab gains audio, and the pairing is arithmetic rather than taste.
