@@ -3316,3 +3316,19 @@ button.is-live { color: var(--ion); background: rgba(127, 231, 220, 0.08); }
 .tz-warning--invalid { color: var(--danger); }
 .tz-warning--suspect { color: var(--gold-soft); }
 input.tz-suspect { border-color: var(--gold); }
+
+/* Session 37 — the Torus tab's sound indicator. A slow breath while the pair
+   is sounding, so the reader can see at a glance that audio is live. The
+   component omits this class entirely under prefers-reduced-motion (the mark
+   stays, still); the media query below is the belt to that pair of braces. */
+.torus-sound-pulse {
+  animation: torus-breath 2.4s ease-in-out infinite;
+  color: var(--gold-soft, #e0c578);
+}
+@keyframes torus-breath {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .torus-sound-pulse { animation: none; opacity: 1; }
+}

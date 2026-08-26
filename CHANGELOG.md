@@ -3,6 +3,49 @@
 Per-phase log for the Production Hardening & Symbolic Intelligence Expansion pass.
 Baseline: `d9afc4b` (36 backend tests, clean frontend build).
 
+## The Torus, heard — the aspect table is the whole-tone scale (2026-08-26, torus-resonarium-audio)
+
+The Torus tab gains audio, and the pairing is arithmetic rather than taste.
+The resonarium's bedrock map (shipped in 78dfde4) is `110·2^(λ/180)` — one
+octave per 180°, i.e. exactly **20/3 cents per degree** — so the interval
+between two bodies' drones is `2^(Δ/180)` and **every classical aspect lands
+on an exact multiple of 200 cents**. Conjunction unison, semisextile whole
+tone, sextile major third, square tritone, trine minor sixth, quincunx minor
+seventh, opposition octave: the major-aspect family *is* the whole-tone scale,
+under a map that was already in the repo. The torus shows relative phase as
+geometry; the engine sounds it as interval. Same object.
+
+- **`lib/resonance.ts`** — the bridge, pure: `droneHz` (the engine's
+  per-element map, freed from its natal-chart argument so it applies to a
+  transiting longitude), cents, the aspect→harmonic collapse, and
+  `natalDroneIndex`, which replays `bedrock_hz`'s presence filter instead of
+  hardcoding — because that array is **compacted, not padded**: `asc`/`mc`
+  hold indices 10 and 11, so the node and Chiron are at 12 and 13, and every
+  index shifts if an earlier body is absent (Chiron under Moshier).
+- **`lib/torusAudio.ts`** — Web Audio, no new dependency: two drones whose
+  interval *is* the separation (the scrub sweeps it), the binaural bed
+  straight from `spec.binaural`, natal reference tones from `spec.bedrock_hz`,
+  and a bell at each crossing pitched at the aspect angle through the same map
+  two octaves up, detuned from `mulberry32(spec.seed32)` — derived, never a
+  sample. Drones are sawtooth-under-lowpass so the opposition's exact 2:1
+  still locks audibly; only 1:1 and 2:1 are rational here, which is why the
+  other aspects need the bell rather than beating. Gesture-gated, visible
+  stop, suspends when hidden (background audio deliberately **no**), no wake
+  lock, reduced-motion respected on the visual pulse.
+- **`lib/soundtrackStore.ts`** — `aae.soundtrack`: the whole `SoundtrackSpec`
+  persisted per profile, plus the seed-chart key list so a later chart cannot
+  re-pair a stored `bedrock_hz` with a different presence set. **The seed is
+  identity, not a cache key** — the tab consumes a spec and never mints one.
+- **`browser.ts` re-exports the resonarium.** The engine was not
+  "tree-shaken out for want of an importer" — the frontend aliases
+  `@astra/core` to `browser.ts`, which exported nothing from it, so it was
+  **never importable**. Engine untouched; parity vectors unmoved.
+- 15 new tests (**79 frontend green**, astra-core still 86), including the
+  anti-drift lock — a real chart driven through both `droneHz` and the
+  engine's `bedrockFrequencies` demanding *exact* equality — and 100k
+  randomized exact-aspect pairs staying on the 200¢ grid to < 1e-9. Bundle
+  +10.4 KiB raw / +3.9 KiB gzip; `docs/design/TORUS_GEOMETRY.md` §5.
+
 ## The Torus — aspects as intersections (2026-08-25, 3d-torus-chart-viz)
 
 The chart in polar form: a longitude is a phase `z = e^{iλ}`, a planet pair
