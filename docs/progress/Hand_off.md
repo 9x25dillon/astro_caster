@@ -1,13 +1,163 @@
 # Hand_off.md
 
-_Last updated: 2026-08-25 (session 36, second entry of the day — **THE THREE
-TRUTHS AGREE**: `main` = `origin/main`, CI green five runs deep, and production
-runs `dba3e1b` — deployed, probed from outside, and proven with a real generated
-reading. The personal-soundtrack engine exists in @astra/core behind a
-three-implementation parity lock; the two security fixes are LIVE. Operator
-action item: dismiss CodeQL alerts 19/5/4 (deliberate masks). Open design work
-unchanged: eval findings 3 & 4, stale cassettes, soundtrack player UI.)
+_Last updated: 2026-08-26 (session 37 — the torus gained sound, and the
+soundtrack engine turned out never to have been **importable**. `main` is at
+`8e9e808`; production is still `dba3e1b`, now **two feature commits behind**
+and unverified from this seat. Operator action items unchanged: dismiss CodeQL
+alerts 19/5/4 (deliberate masks), and deploy. Session 36's entry below is
+still accurate about everything it claims.)
 Re-derive before trusting any of this: `git fetch && git status -sb`._
+
+---
+
+# SESSION 37 — 2026-08-26 (the torus is heard; and a two-session backfill)
+
+## Start here
+
+Two commits' worth of work is documented in this one section, because
+**8e9e808 (the Torus tab) shipped with no Hand_off entry and no journal
+entry** — session 36's ritual ran before it landed, and the browser session
+that built it could not close properly. That gap is filled below.
+
+```
+8e9e808  The aspect table becomes one formula...       ON MAIN, CI GREEN, NOT DEPLOYED
+<this>   The torus is heard...                          BRANCH → PR
+dba3e1b  Security pass                                  DEPLOYED (last verified session 36)
+```
+
+## The finding that matters most
+
+**The personal-soundtrack engine was never reachable from the app.** Session
+36 recorded it as "dormant — Vite tree-shakes it out because nothing imports
+it." That diagnosis was wrong, and the correct one is worse:
+
+`frontend/vite.config.ts` and `frontend/tsconfig.json` both alias
+`@astra/core` to **`packages/astra-core/src/browser.ts`**, not to `index.ts`.
+The resonarium was exported from `index.ts` only. So `personalSoundtrack` was
+not tree-shaken out of the bundle — **it could not be imported at all**, and
+any frontend file that tried would have failed to resolve. "Nothing imports
+it" was a symptom, not the cause.
+
+The fix is three lines of re-export appended to `browser.ts`. The engine file
+itself is untouched and its parity vectors did not move.
+
+**Generalize this before it bites again:** `browser.ts` is a hand-maintained
+allowlist, and a symbol exported from `index.ts` is invisible to the frontend
+until someone adds it there too. When a module "exists but nothing uses it",
+check reachability before concluding disuse:
+
+```
+grep -c "<symbol>" packages/astra-core/src/browser.ts    # 0 = unreachable, not unused
+```
+
+## The other trap: a stale clone reads as deleted work
+
+This session opened by finding `docs/design/TORUS_GEOMETRY.md`,
+`frontend/src/lib/torus.ts` and `TorusPanel.tsx` all **MISSING**, with local
+`main` and `origin/main` both at `a668b8d`. Nothing was lost — the clone had
+simply never fetched `8e9e808`. `origin/main` is a cached ref, and it is a
+*claim about the past*, not a measurement.
+
+Also worth recording: **`git` egress is blocked by the agent tool sandbox on
+this machine** (`Recv failure: Connection reset by peer`). Fetch and pull need
+the sandbox disabled. That is not a network fault and no amount of retrying
+the same call fixes it.
+
+## What the sound is, and what it is forbidden from doing
+
+The full write-up is `docs/design/TORUS_GEOMETRY.md` §5. The one-paragraph
+version: the resonarium's bedrock map is `110·2^(λ/180)`, one octave per 180°,
+i.e. exactly **20/3 cents per degree** — so the interval between two bodies'
+drones is `2^(Δ/180)` and every classical aspect is an exact multiple of **200
+cents**. The major-aspect family is the whole-tone scale. That was true the
+day 78dfde4 landed; nobody designed it.
+
+Verified before building on it, and pinned in `test/resonance.test.ts`:
+100,000 randomized exact-aspect longitude pairs driven through the shipped
+formula, worst deviation from the 200¢ grid **< 1e-9**.
+
+The constraints the audio observes, all of which were binding:
+
+- **The seed is identity.** The tab consumes a persisted `SoundtrackSpec` and
+  never mints one. `canonicalizeChart` and everything feeding it is untouched.
+- **`bedrock_hz` is natal-only**, so it cannot supply a drone for a body at
+  time *t* — which is what the time scrub needs. `lib/resonance.droneHz`
+  mirrors the engine's per-element map rather than editing a parity-locked
+  engine to expose it, and the first test in `resonance.test.ts` drives a real
+  chart through both paths demanding **exact** equality. That test is the
+  anti-drift lock; if it ever fails, the mirror moved.
+- **`bedrock_hz` is COMPACTED, not padded.** Only keys present on the chart
+  are emitted. `asc` and `mc` hold indices 10 and 11 despite not being
+  selectable bodies, so North Node and Chiron are at **12 and 13** — and every
+  index shifts down if an earlier body is absent (Chiron under Moshier). A
+  hardcoded index would silently sound the wrong planet. `natalDroneIndex`
+  replays the presence filter, and `lib/soundtrackStore.ts` persists the
+  seed-chart **key list** next to the spec so a later chart cannot re-pair a
+  stored `bedrock_hz` with a different presence set.
+- **Lilith sounds, but carries no natal tone.** It has no canonical seed key
+  and was not given one. Its transiting drone is as legitimate as any other
+  (the map is a property of angles), but there is no natal note to reference,
+  and the readout says so in the reader's own words.
+
+## One correction to the brief, recorded because it changed the build
+
+`|f_A − f_B|` collapsing to zero at conjunction is right, but it is **not a
+beat at the other aspects** — at opposition it is literally `f_B`, a wide
+interval. And only conjunction (1:1) and opposition (2:1) are rational under
+this map; the rest are `2^(k/6)`, irrational, with no low-order harmonic
+coincidence and therefore no beating signature at all. Hence: bell at every
+crossing (pitched at the aspect angle through the same map, two octaves up,
+detuned from `mulberry32(seed32)`), and sawtooth-through-a-lowpass drones so
+the opposition's 2:1 still locks audibly. Sine drones would have made the
+opposition silent-of-signature.
+
+## Persistence, and the intention that is wired to nothing
+
+`lib/soundtrackStore.ts` is new and holds `aae.soundtrack`: the whole spec plus
+the seed-chart key list, keyed by the same birth identity fields the store's
+`BIRTH_FIELDS` uses (label excluded — renaming a chart must not re-deal it).
+Hand_off has said "persist the whole spec" since 78dfde4; nothing did until now.
+
+**`intention` is still not wired.** `SoulProfileModal.tsx` holds one in local
+component state and passes it nowhere, so the spec is derived with `""` and the
+field is the chart's alone. When it is eventually wired, note that changing an
+intention is *meant* to re-deal the field — it is part of the identity, not a
+modifier of it — so it needs a deliberate UX, not a text box that silently
+re-seeds someone's soundtrack.
+
+## Verification
+
+| gate | before | after |
+|---|---|---|
+| `frontend` tests | 64 | **79** (+15) |
+| `packages/astra-core` tests | 86 | **86** (parity vectors unmoved) |
+| `npm run build` (tsc -b && vite) | clean | clean |
+
+Bundle proof — the whole point being that the engine used to be absent. Three
+resonarium-only string literals (`outside the cross-substrate domain`, `chart
+needs at least`, `must be a finite number or string`) and the bedrock map
+itself are **present** in `dist/assets/index-*.js` after, and **absent** from a
+clean build of `8e9e808` (built in a throwaway worktree to measure it):
+
+```
+main chunk raw : 441,560 -> 452,222   +10,662 B  (+2.42%)
+main chunk gzip: 143,013 -> 146,998   + 3,985 B  (+2.79%)
+precache total : 6600.96 -> 6611.60 KiB
+```
+
+No new dependency; `package.json` is untouched.
+
+## Still open (unchanged by this session)
+
+1. **Production is behind and unverified.** `dba3e1b` live vs `8e9e808` on
+   main, plus this PR. The pre-flight over env/compose/docker/nginx was clean
+   across the whole delta — no new variable is required. Deploy needs the SSH
+   key and `ops/origin.env`, which live only on the operator's machine.
+2. **CodeQL alerts 19 / 5 / 4** — deliberate masks, still awaiting the
+   operator's dismissal. Permission-blocked from every agent seat so far.
+3. **The soundtrack has no player of its own.** The Torus tab sounds a *pair*.
+   Nothing yet sounds the full 14-drone natal field, which is what the
+   resonarium was actually built for.
 
 ---
 

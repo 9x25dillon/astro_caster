@@ -5,6 +5,134 @@ PR bodies; this is the story. Started session 15 at the operator's request._
 
 ---
 
+## Session 37 · 2026-08-26 — the aspect table was a scale all along
+
+The brief arrived with its own proof attached, which is unusual and turned out
+to matter. Wire the dormant soundtrack engine to the new Torus tab, the
+operator said, and here is why that is not an arbitrary pairing: the bedrock
+map is one octave per 180 degrees, so every classical aspect is an exact
+multiple of two hundred cents, so the major aspects *are* the whole-tone
+scale. Confirm the arithmetic yourself first; if it does not hold, stop and
+tell me rather than building on a claim I got wrong.
+
+It holds. It holds algebraically in one line — twelve hundred over one hundred
+eighty is twenty thirds, and every aspect angle is a multiple of thirty — and
+it holds empirically over a hundred thousand randomized longitude pairs driven
+through the shipped formula, worst deviation under a nanocent. Nobody designed
+this. The map was written in 78dfde4 to turn a chart into drones, and the
+aspect table was written centuries before that, and they agree because both are
+statements about dividing a circle. The torus shows relative phase as a place
+on a surface; the engine sounds it as an interval. They are the same object.
+
+The session's real discovery, though, was an act of misdiagnosis I inherited
+and then repeated for about ten minutes. The handoff said the engine was
+dormant because Vite tree-shook it out — nothing imports it, so nothing
+survives the bundler. Plausible, tidy, and wrong. The frontend aliases
+`@astra/core` to `browser.ts`, a hand-maintained allowlist, and the resonarium
+was exported only from `index.ts`. It was not shaken out of the bundle. It was
+never *importable*. Nothing imported it because nothing could. The symptom had
+been mistaken for the cause, and the cause was three lines of re-export that
+nobody had written because nobody had tried to write the import that would
+have failed.
+
+That is the second time this session that a cached claim outranked a
+measurement. The first was at the very top: the torus files were simply gone
+from the working tree, and local main and origin/main agreed with each other
+that they had never existed. Both were stale. `origin/main` is not a
+measurement of the remote, it is a memory of the last time anyone looked, and a
+clone that has not fetched will tell you with complete confidence that work you
+watched land yesterday was never done. Two probes, two ghosts, both dispelled
+by measuring instead of reading.
+
+Building the sound itself was mostly a matter of refusing convenient
+shortcuts. `bedrock_hz` is natal-only, a fixed chord — but the tab has a time
+scrubber, and the whole promise is that dragging it sweeps the interval, which
+requires a drone for a body at a moment rather than at birth. The convenient
+move was to open the engine and export the inner map. The engine is
+parity-locked against a Python reference by committed vectors, and the standing
+instruction is to prefer a new consumer over an edit, so instead the map is
+mirrored in the frontend and a test drives a real chart through both paths
+demanding exact equality. A mirror can drift; a mirror with a test pinned to
+its original cannot drift quietly.
+
+And `bedrock_hz` hides a genuine trap that the naive reading walks straight
+into. It is compacted, not padded — only the bodies the chart actually had get
+a slot — and the ascendant and midheaven occupy two indices despite not being
+selectable on the torus at all. So the North Node is at twelve, not ten, and
+Chiron is at thirteen, and a chart computed under Moshier without Chiron
+renumbers the tail. Hardcode an index and you sound the wrong planet forever,
+silently, in a feature whose entire claim is that the sound and the geometry
+are the same fact.
+
+Lilith was the one honest judgment call. It is selectable on the torus and has
+no canonical seed key, and adding one would re-deal every field ever derived
+from every chart. So it sounds — the map is a property of angles, and its
+transiting drone is exactly as legitimate as the Sun's — but it carries no
+natal reference tone, because it genuinely has none, and the readout says so
+rather than papering over it. The alternative was silence with no explanation,
+which is a worse kind of honesty.
+
+One correction to the brief, made in the open because it changed what got
+built: the beat between two drones collapses to zero at conjunction, which is
+true and lovely, but it is not a beat anywhere else. At opposition the
+difference is two hundred twenty hertz, which is not a pulse, it is a
+different note. Only unison and the octave are rational under this map;
+everything between is an irrational power of two with no low-order harmonic to
+lock onto. So crossings ring a bell — pitched at the aspect angle run through
+the same map, two octaves up, detuned from the profile's own seed — and the
+drones are sawtooth under a lowpass rather than sine, so the octave still has
+something to lock. A sine-wave opposition would have been perfectly in tune
+and completely inaudible as an event.
+
+Fifteen new tests, sixty-four to seventy-nine, parity vectors unmoved,
+ten kilobytes on the wire — four gzipped — for an engine that had been sitting
+in the repo fully built and entirely unreachable.
+
+## Session 36b · 2026-08-25 — the chart in polar form (backfilled session 37)
+
+_Written a day late. The session that built this shipped it to main with CI
+green and then could not close its own ritual: it ran in an ephemeral cloud
+container with no SSH key, no server address, and a network policy that
+refused even to let it probe production. The work existed; the record of it
+did not. This is that record._
+
+The idea is a change of coordinates and nothing more, which is what makes it
+worth having. A zodiacal longitude is an angle, and an angle's natural home is
+the unit circle in the complex plane. Write a planet as a phase and the whole
+vocabulary rewrites itself: two planets are a point on a torus, their
+separation is a relative phase, an aspect is the condition that some power of
+that phase equals one. Conjunction, opposition, trine, square, sextile, the
+quintiles — not ten rules but one rule at seven values of *n*.
+
+What that buys is not elegance for its own sake. It buys the disappearance of
+an entire bug class. The residue that measures how far a pair is from an exact
+aspect is computed by taking the argument *after* the power, and an argument is
+already wrapped, so the zero-degree seam that every naive angular-difference
+routine trips over has nothing left to trip on. The float trap recorded in
+session 36's own gotchas lives precisely where this formulation is empty.
+
+And it turns a table row into a place. "Mars squares Venus on March fourth" is,
+on the torus, the sentence: the pair's trajectory crosses the square circle
+there. An aspect stops being a moment and becomes a fixed diagonal circle on a
+surface, permanently there, waiting. The natal chart is one motionless point,
+and its orbs are literally its distances to those circles — not a number
+computed beside the picture but the picture itself. A retrograde triple pass,
+which the transit tables report as three separate rows on three separate dates,
+is one weave crossing one circle three times. You can see that it is one thing.
+
+The prettiest part is the part that had to be unit-tested to be believed. Lay
+the torus flat inside the three-sphere in four dimensions and project it back
+down, and every aspect circle arrives as a *true round circle* in space — a
+Villarceau circle, a Hopf fiber — and any two of them are linked, exactly once.
+The square and the trine cannot be pulled apart. Sixty projected points,
+equidistant from one center and coplanar to a part in a billion, which is the
+test that turns a nice sentence into a claim the repo can keep.
+
+No new dependency, no second ephemeris, no backend. Hand-rolled canvas, the
+same parity-locked longitude primitive the forecast scanner already uses, and
+the detector checked against a real sky: it recovers September's New Moon and
+Full Moon to the minute.
+
 ## Session 36 · 2026-08-25 — the sky learns to hum, and the three truths finally rhyme
 
 The seed already had two bodies — a Python reference and a browser twin that

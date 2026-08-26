@@ -30,6 +30,15 @@ import {
   type Camera,
   type Embedding,
 } from "../lib/torus";
+import {
+  beatHz,
+  centsBetween,
+  droneHz,
+  natalDroneHz,
+  participatesInSeed,
+} from "../lib/resonance";
+import { audioSupported, TorusVoice } from "../lib/torusAudio";
+import { getSoundtrack } from "../lib/soundtrackStore";
 
 // Same glyphs the engine's PLANET_TABLE carries — UI copy, not a second list.
 const BODY_GLYPHS: Record<string, string> = {
@@ -70,8 +79,23 @@ function isoDay(jd: number): string {
   return jdToDate(jd).toISOString().slice(0, 10);
 }
 
+const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
+
+const prefersReducedMotion = (): boolean => {
+  try {
+    return window.matchMedia?.(REDUCED_MOTION_QUERY).matches ?? false;
+  } catch {
+    return false;
+  }
+};
+
+/** How many crossings a single scrub jump may ring. A fast drag over a twelve-
+ *  year window can span dozens; ringing them all is noise, not information. */
+const MAX_RINGS_PER_STEP = 3;
+
 export const TorusPanel: React.FC = () => {
   const birth = useStore((s) => s.birth);
+  const chart = useStore((s) => s.chart);
   const setMargin = useStore((s) => s.setMargin);
 
   const [bodyA, setBodyA] = useState("Sun");
@@ -86,6 +110,10 @@ export const TorusPanel: React.FC = () => {
   const [defs, setDefs] = useState<AspectAngleDef[]>([]);
   const [tIdx, setTIdx] = useState(0);
   const [selJd, setSelJd] = useState<number | null>(null);
+  const [sounding, setSounding] = useState(false);
+  const [audioErr, setAudioErr] = useState<string | null>(null);
+  const voiceRef = useRef<TorusVoice | null>(null);
+  const lastJdRef = useRef<number | null>(null);
 
   // ── Cast: sample the pair through time, centred on today ──────────────────
   useEffect(() => {
@@ -370,6 +398,80 @@ export const TorusPanel: React.FC = () => {
     ? nearestAspect(traj.natal.lonA - traj.natal.lonB, activeDefs)
     : null;
 
+  // ── Sound: the same geometry, heard ───────────────────────────────────────
+  // The interval between the two drones IS the separation, because the
+  // resonarium's bedrock map is one octave per 180° — so every exact aspect is
+  // an exact multiple of 200 cents, and the aspect table is the whole-tone
+  // scale. Scrubbing sweeps it; a crossing rings.
+
+  // The persisted field. Derived once per profile and kept — re-deriving it
+  // after an ephemeris change re-deals it, which is why this goes through
+  // soundtrackStore rather than calling personalSoundtrack here.
+  const soundtrack = useMemo(
+    () => (chart ? getSoundtrack(birth, chart) : null),
+    [birth, chart]
+  );
+  const seedKeys = useMemo(
+    () => new Set(soundtrack?.seed_keys ?? []),
+    [soundtrack]
+  );
+
+  // Lilith is selectable on the torus but has NO canonical seed key: it is
+  // outside the chart contract the whole field is hashed from, and adding it
+  // would re-deal every existing seed. So it sounds its transiting drone like
+  // any other body — that map is a property of angles, not of the seed — but
+  // it gets no natal reference tone, because it genuinely has none.
+  const natalHzA = soundtrack && traj?.natal
+    ? natalDroneHz(bodyA, soundtrack.spec.bedrock_hz, seedKeys) : null;
+  const natalHzB = soundtrack && traj?.natal
+    ? natalDroneHz(bodyB, soundtrack.spec.bedrock_hz, seedKeys) : null;
+  const offSeed = [bodyA, bodyB].filter((b) => !participatesInSeed(b));
+
+  const curCents = cur ? centsBetween(cur.lonA, cur.lonB) : null;
+  const curBeat = cur ? beatHz(droneHz(cur.lonA), droneHz(cur.lonB)) : null;
+
+  const stopSound = useCallback(() => {
+    setSounding(false);
+    lastJdRef.current = null;
+    const v = voiceRef.current;
+    voiceRef.current = null;
+    void v?.stop();
+  }, []);
+
+  // Autoplay policy: the context is constructed inside this handler and never
+  // anywhere else. There is no path to sound that is not a button press.
+  const startSound = useCallback(async () => {
+    if (!soundtrack) return;
+    setAudioErr(null);
+    try {
+      const v = await TorusVoice.start(soundtrack.spec);
+      if (!v) { setAudioErr("This device has no Web Audio."); return; }
+      voiceRef.current = v;
+      lastJdRef.current = cur?.jd ?? null;
+      setSounding(true);
+    } catch (e) {
+      setAudioErr(String(e));
+    }
+  }, [soundtrack, cur?.jd]);
+
+  // Follow the trajectory: drones track the scrub, crossings ring as they pass.
+  useEffect(() => {
+    const v = voiceRef.current;
+    if (!v || !sounding || !cur) return;
+    v.setPair(droneHz(cur.lonA), droneHz(cur.lonB));
+    v.setNatal(natalHzA, natalHzB);
+    const prev = lastJdRef.current;
+    lastJdRef.current = cur.jd;
+    if (prev === null || prev === cur.jd) return;
+    const lo = Math.min(prev, cur.jd);
+    const hi = Math.max(prev, cur.jd);
+    const crossed = events.filter((e) => e.jd > lo && e.jd <= hi);
+    for (const e of crossed.slice(-MAX_RINGS_PER_STEP)) v.ring(e.angle);
+  }, [sounding, cur, events, natalHzA, natalHzB]);
+
+  // Never outlive the tab. Leaving chapter V releases the audio session.
+  useEffect(() => () => { void voiceRef.current?.stop(); voiceRef.current = null; }, []);
+
   const selectEvent = (e: AspectEvent) => {
     setSelJd(e.jd);
     if (traj) {
@@ -378,6 +480,12 @@ export const TorusPanel: React.FC = () => {
         if (Math.abs(s.jd - e.jd) < Math.abs(traj.samples[best].jd - e.jd)) best = i;
       });
       setTIdx(best);
+    }
+    // Land on the crossing and sound it — the jump itself may not span the
+    // instant, so the bell is struck here rather than left to the scrub watcher.
+    if (sounding) {
+      lastJdRef.current = e.jd;
+      voiceRef.current?.ring(e.angle);
     }
     const sign = e.target >= 0 ? "+" : "−";
     setMargin({
@@ -435,6 +543,15 @@ export const TorusPanel: React.FC = () => {
             {hopfOn ? "◼ Hopf flow" : "▶ Hopf flow"}
           </button>
         )}
+        {audioSupported() && soundtrack && (
+          <button
+            className="arc-draw-btn"
+            onClick={() => (sounding ? stopSound() : void startSound())}
+            aria-pressed={sounding}
+          >
+            {sounding ? "◼ Stop sound" : "♪ Sound the pair"}
+          </button>
+        )}
       </div>
 
       {err && <p className="arc-error">{err}</p>}
@@ -472,6 +589,26 @@ export const TorusPanel: React.FC = () => {
               <> · the curve winds {gA} {Math.abs(wind.turnsA).toFixed(1)} × {gB} {Math.abs(wind.turnsB).toFixed(1)} turns</>
             )}
           </p>
+
+          {curCents !== null && (
+            <p className="arc-themes">
+              {sounding && (
+                <span
+                  className={prefersReducedMotion() ? undefined : "torus-sound-pulse"}
+                  aria-hidden="true"
+                >◉{" "}</span>
+              )}
+              interval {curCents >= 0 ? "+" : "−"}{Math.abs(curCents).toFixed(0)}¢
+              {curBeat !== null && <> · beat {curBeat.toFixed(1)} Hz</>}
+              {" — "}the bedrock map is one octave per 180°, so an exact aspect is
+              an exact multiple of 200¢: the major aspects are the whole-tone scale.
+              {offSeed.length > 0 && (
+                <> {offSeed.join(" and ")} sounds, but carries no natal tone — it is
+                outside the canonical chart the field is sealed from.</>
+              )}
+            </p>
+          )}
+          {audioErr && <p className="arc-error">{audioErr}</p>}
           {traj.natal && natalNear && (
             <p className="arc-themes">
               ✦ natal point: {gA} {traj.natal.lonA.toFixed(1)}° · {gB} {traj.natal.lonB.toFixed(1)}°

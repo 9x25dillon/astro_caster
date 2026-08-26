@@ -8,6 +8,11 @@ on-device; there is no backend endpoint and no parity vector — the torus
 CONSUMES `eclipticLonSpeed`, the already-parity-locked primitive, and adds no
 second implementation of anything astronomical._
 
+_Session 37 gave it sound (§5): `lib/resonance.ts` and `lib/torusAudio.ts`,
+consuming the resonarium's persisted `SoundtrackSpec`. Same rule — the audio
+CONSUMES the seed and never mints one, and the engine's parity vectors did not
+move._
+
 This file is the reformulation the feature is built on: every astrological
 formula the app already computes, restated in complex numbers — and what the
 restatement buys.
@@ -153,7 +158,85 @@ picture is a choice of distortion:
   is a fact about angles, and the copy in the margin glass keeps to the
   reflective register.
 
-## 5 · Where this could go next (not built, deliberately)
+## 5 · Sound — the same object, heard
+
+_Built session 37. `frontend/src/lib/resonance.ts` is the bridge,
+`lib/torusAudio.ts` the instrument, `test/resonance.test.ts` the lock._
+
+The resonarium's bedrock map, which shipped in 78dfde4 long before this tab
+existed, sends a longitude to a drone:
+
+```
+f(λ) = 110 · 2^(λ/180)  Hz        λ ∈ [0, 360) ⇒ f ∈ [110, 440)
+```
+
+One octave per **180°** — which is to say exactly `1200/180 = 20/3` cents per
+degree. The interval between two bodies' drones is therefore `2^(Δ/180)`, and
+every classical aspect lands on an exact multiple of **200 cents**:
+
+| aspect | Δ | ratio | cents | interval |
+|---|---|---|---|---|
+| conjunction | 0° | 1.000000000 | 0 | unison |
+| semisextile | 30° | 1.122462048 | 200 | whole tone |
+| sextile | 60° | 1.259921050 | 400 | major third |
+| square | 90° | 1.414213562 | 600 | tritone |
+| trine | 120° | 1.587401052 | 800 | minor sixth |
+| quincunx | 150° | 1.781797436 | 1000 | minor seventh |
+| opposition | 180° | 2.000000000 | 1200 | octave |
+
+**The major-aspect family IS the whole-tone scale** under a map that was
+already in the repo. Nobody designed that; it fell out. So the torus and the
+soundtrack are not analogous, they are the same object: §1's relative phase
+`w = z_A·z̄_B` shown as geometry, and sounded as interval. An aspect circle is
+a place on the surface and a pitch relationship at once, and the trajectory
+crossing one is both a visible intersection and an audible arrival.
+
+Three consequences worth stating, because two of them correct the obvious
+first guess:
+
+- **The wrap is a bonus, not a hazard.** 360° is 2400¢, so the map is periodic
+  over *two* octaves. Measuring a trine the long way (240°) gives 1600¢ — the
+  same interval class inverted (minor sixth ↔ major third). Either measurement
+  names the same relationship, which is exactly what §1 says about `arg` after
+  the power.
+- **`|f_A − f_B|` is a real beat only near conjunction.** It does collapse to
+  zero there — that is the audible signature of the conjunction circle being
+  crossed. But it is not a beat at the other aspects: at opposition it is
+  literally `f_B` (220 Hz for a Sun at 180°), a wide interval rather than a
+  pulse. And because the map is exponential, the window in which beating is
+  perceptible varies fourfold across the zodiac: an 8 Hz beat is 18.2° from
+  exact at λ = 0°, but 4.7° at λ = 359°.
+- **Only conjunction and opposition are rational.** 1:1 and 2:1 exactly;
+  every other aspect is `2^(k/6)` for k ∉ {0, 6} — irrational, with no
+  low-order harmonic coincidence. So trine, square and sextile have no
+  beating signature of their own, and crossings are marked with a bell
+  (pitched at the aspect angle run through the same map, two octaves up)
+  rather than left to beating alone. The drones are sawtooth-through-a-lowpass
+  specifically so the opposition's exact 2:1 still locks audibly.
+
+**What the sound is contractually forbidden from doing.** The seed is
+identity: the tab CONSUMES a persisted `SoundtrackSpec` and never mints one.
+`bedrock_hz` is natal-only and cannot supply a transiting drone, so
+`resonance.droneHz` mirrors the engine's per-element map rather than editing a
+parity-locked engine to expose it — and `test/resonance.test.ts` drives a real
+chart through both paths and demands they agree **exactly**, so the mirror
+cannot drift. The engine's vectors are unmoved.
+
+One gotcha the mapping hides: `bedrock_hz` is **compacted, not padded**. It
+carries only the keys the chart actually had, `asc` and `mc` occupy indices 10
+and 11 though neither is a selectable body, and so North Node and Chiron sit
+at **12 and 13** — and shift down if any earlier body is absent (Chiron under
+Moshier, per `localPairTrajectory`'s own warning). `natalDroneIndex` replays
+the presence filter instead of hardcoding, which is why the persisted record
+stores the seed-chart key list alongside the spec.
+
+Lilith is the one body on the torus with no canonical seed key at all. It
+sounds its transiting drone — that map is a property of angles, not of the
+seed — but carries **no natal reference tone**, and the readout says so. It is
+not added to the seed to fix this: doing so would re-deal every field ever
+derived.
+
+## 6 · Where this could go next (not built, deliberately)
 
 - **The full chart as a point on T¹³** with the pairwise tori as its 2D
   shadows — a grand tour of projections.
@@ -161,6 +244,7 @@ picture is a choice of distortion:
   torus; declination contacts (parallels) become crossings there.
 - **A time–longitude torus** (λ vs. year-phase) turns solar returns and
   birthdays into vertical circles — returns as intersections, again.
-- **Sound**: the resonarium already maps longitudes to drones; a pair's
-  winding numbers are a just-intonation interval (13:8 is a neutral sixth).
-  The torus and the soundtrack are the same object heard and seen.
+- **Winding numbers as intervals.** A pair's near-resonance is a rational
+  ratio (Venus–Earth 13:8), and 13:8 is a just neutral sixth. The drones
+  above sound the pair's *current* separation; nothing yet sounds the shape of
+  the whole curve.

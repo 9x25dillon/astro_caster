@@ -108,3 +108,35 @@ export {
   type Ambiguity,
   type OffsetResolution,
 } from "./timezone.js";
+
+// The resonarium — the personal tonal field. Browser-safe by construction: it
+// imports only sha256.js (pure TS, exported above) and types.js, touches no
+// Node API, and does no I/O.
+//
+// It was absent from this entry point until session 37, which is the real
+// reason nothing in the app called it: the frontend's `@astra/core` alias
+// resolves HERE, not to index.ts, so `personalSoundtrack` was not merely
+// tree-shaken out of the bundle — it was never importable in the first place.
+//
+// The engine itself is untouched and stays parity-locked against
+// resonarium/natal_seed.py by parity/resonarium-seed.json; re-exporting it
+// moves no vector.
+export {
+  personalSoundtrack,
+  seedChartFromResponse,
+  deriveNatalSeed,
+  canonicalizeChart,
+  sanitizeIntention,
+  seedToHex,
+  seedLower32,
+  mulberry32,
+  bedrockFrequencies,
+  binauralConfig,
+  clampFrequency,
+  ChartValidationError,
+  RESONARIUM_SCHEMA_VERSION,
+  type SoundtrackSpec,
+  type SoundtrackSource,
+  type SeedChart,
+  type BinauralConfig,
+} from "./resonarium.js";
