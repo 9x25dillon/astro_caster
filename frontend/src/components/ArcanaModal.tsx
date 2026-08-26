@@ -51,6 +51,7 @@ import { DailyCardPanel } from "./DailyCardPanel";
 import { ConstellationPath } from "./ConstellationPath";
 import { chaosLetters, wordValue, reduceDigit, planetToKamea } from "../lib/sigil";
 import { layoutFor, gridStyle } from "../lib/spreadLayout";
+import { mergeSignatureByCard, signatureOptionLabel } from "../lib/arcanaPicker";
 import { deriveSoulProfile } from "../lib/archetypes";
 import { computeLifePath, LIFE_PATH_DATA, getResonance } from "../lib/numerology";
 import { loadReportToken, saveReportToken, stashPendingReportSeed } from "../lib/reportTokens";
@@ -230,9 +231,16 @@ export const ArcanaModal: React.FC<{
     return () => { alive = false; };
   }, [tab, deck.length]);
 
+  // The signature group, merged by CARD rather than listed per BODY. Two bodies
+  // can carry the same trump — the Ascendant and Midheaven fall through to their
+  // SIGN's card, and Aquarius's card is `star`, which is also the North Node's
+  // (always present) — so a per-body listing offers that id twice and breaks the
+  // picker's "each of the 78, exactly once" contract. See lib/arcanaPicker.ts.
+  const signatureOptions = useMemo(() => mergeSignatureByCard(sig?.links), [sig]);
+
   // The rest of the deck, grouped for that picker: the trumps this chart does
   // NOT carry (the ones it does sit in their own group above, labelled by the
-  // body carrying them, so no id appears twice), then the four suits.
+  // bodies carrying them, so no id appears twice), then the four suits.
   const deckGroups = useMemo(() => {
     if (!deck.length) return [];
     const inSignature = new Set(sig?.links.map((l) => l.card.id) ?? []);
@@ -1257,8 +1265,8 @@ export const ArcanaModal: React.FC<{
                   <select value={deckCard} onChange={(e) => setDeckCard(e.target.value)}>
                     <option value="">Whole soul deck</option>
                     <optgroup label="Your signature">
-                      {sig.links.map((l) => (
-                        <option key={l.body} value={l.card.id}>{l.card.name} ({l.body})</option>
+                      {signatureOptions.map((o) => (
+                        <option key={o.id} value={o.id}>{signatureOptionLabel(o)}</option>
                       ))}
                     </optgroup>
                     {deckGroups.map((g) => (
