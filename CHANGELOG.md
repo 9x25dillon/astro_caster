@@ -3,6 +3,39 @@
 Per-phase log for the Production Hardening & Symbolic Intelligence Expansion pass.
 Baseline: `d9afc4b` (36 backend tests, clean frontend build).
 
+## The natal field — the whole chart sounding, and a bridge to SPINE (2026-08-26, natal-field-player)
+
+The Torus sounds a **pair**; this sounds all **fourteen** canonical bodies at
+once — what the resonarium engine was built to produce and what nothing had
+played. New **Field** tab in chapter V · Depths.
+
+- **`lib/natalField.ts`** — the voicing, and the reason "play all fourteen at
+  equal gain" is wrong. The bedrock map is exponential, so equal steps in
+  longitude are equal steps in *cents*, not Hz, and the low register is always
+  the crowded end (six of fourteen drones inside 111–136 Hz on the golden
+  fixture). Gain is therefore **crowd-aware** — `1/√(1+n)` over neighbours
+  within a semitone — so a cluster carries a lone tone's total energy. Nothing
+  is silenced, and the beating survives: Mercury and Saturn seven cents apart
+  still pulse at 0.4 Hz, a two-and-a-half-second breath. **The low register is
+  where conjunctions are heard as beating; the high register is where they are
+  heard as pitch.**
+- **`lib/fieldAudio.ts`** — pure sines (fourteen sawtooths would stack ~42
+  partials into two octaves and smear; the thing worth hearing is the beating
+  between fundamentals), staggered entry one voice every 0.28 s, and per-body
+  solo. Gesture-gated, visible stop, suspends when hidden, no wake lock.
+- **`Export for SPINE`** — writes the `resonarium.state.v2` shape
+  [beatmI](https://github.com/9x25dillon/beatmI)'s `twin/analyze.py` already
+  reads: drones → `singles`, the binaural bed → `bins`, `seed32` → `natalSeed`.
+  **A binaural beat rate is a tempo**: `beat_hz` ∈ [4,12) folds to [70,190] BPM.
+  Verified against the real analyzer — 137.25 BPM from the app, 137.2 back.
+- **Settles the `intention` question.** The intention reaches `deriveNatalSeed`
+  and nothing else, so across three different intentions the tempo and every
+  carrier are byte-identical and only `seed32` moves. **Your chart fixes the
+  tones and the tempo; your intention fixes which take you get.**
+- No new seed (consumes the persisted spec), no engine edit, no backend, no new
+  dependency. 11 new tests, **96 frontend green**;
+  design in `docs/design/NATAL_FIELD.md`.
+
 ## Fix — the Studio picker offered one card twice (2026-08-26, studio-picker-duplicate-card)
 
 `e2e/studio-deck.spec.ts` failed with `Expected: 78, Received: 79`: 79 options,
