@@ -11,8 +11,9 @@ import {
 import { shelveReading } from "../lib/shelveDoc";
 import type { DocChapter } from "../lib/bookshelf";
 import { TorusPanel } from "./TorusPanel";
+import { FieldPanel } from "./FieldPanel";
 
-type Tab = "harmonics" | "midpoints" | "stars" | "torus";
+type Tab = "harmonics" | "midpoints" | "stars" | "torus" | "field";
 
 export const AdvancedModal: React.FC = () => {
   const birth = useStore((s) => s.birth);
@@ -54,12 +55,12 @@ export const AdvancedModal: React.FC = () => {
         <div className="arcana-header">
           <div>
             <h2 className="arcana-title">✴ Advanced Techniques</h2>
-            <p className="arcana-sub">Harmonics, midpoint trees, fixed-star contacts, and the torus of pairs — symbolic lenses.</p>
+            <p className="arcana-sub">Harmonics, midpoint trees, fixed-star contacts, the torus of pairs, and the chart sounding whole — symbolic lenses.</p>
           </div>
         </div>
 
         <div className="arcana-tabs">
-          {([["harmonics", "Harmonics"], ["midpoints", "Midpoint Tree"], ["stars", "Fixed Stars"], ["torus", "Torus"]] as [Tab, string][])
+          {([["harmonics", "Harmonics"], ["midpoints", "Midpoint Tree"], ["stars", "Fixed Stars"], ["torus", "Torus"], ["field", "Field"]] as [Tab, string][])
             .map(([id, label]) => (
               <button key={id} className={`arcana-tab ${tab === id ? "is-active" : ""}`}
                       onClick={() => setTab(id)}>{label}</button>
@@ -152,6 +153,7 @@ export const AdvancedModal: React.FC = () => {
           )}
 
           {tab === "torus" && <TorusPanel />}
+          {tab === "field" && <FieldPanel />}
         </div>
     </div>
   );
