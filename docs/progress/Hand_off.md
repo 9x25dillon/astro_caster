@@ -1,12 +1,190 @@
 # Hand_off.md
 
-_Last updated: 2026-08-26 (session 37 — the torus gained sound, and the
-soundtrack engine turned out never to have been **importable**. `main` is at
-`8e9e808`; production is still `dba3e1b`, now **two feature commits behind**
-and unverified from this seat. Operator action items unchanged: dismiss CodeQL
-alerts 19/5/4 (deliberate masks), and deploy. Session 36's entry below is
-still accurate about everything it claims.)
+_Last updated: 2026-08-27 (session 37 close — thirteen commits landed, the
+chart learned to sound, APK v1.0.6 shipped, and TWO production timeouts were
+found. `main` is at `f734254`; **production is at `d693f98`, five commits
+behind**, and the Course 524 fix is among what has not shipped. One PR open
+(#215). CodeQL: 0 open alerts — 19/5/4 were dismissed by xar on 08-25 and the
+old "awaiting dismissal" note was stale.)
 Re-derive before trusting any of this: `git fetch && git status -sb`._
+
+---
+
+# SESSION 37 CLOSE — 2026-08-27
+
+## Start here — the three truths
+
+```
+local       f734254   backend 669 · frontend 96 · astra-core 86   all green
+CI          f734254   green (CI + CodeQL)
+production  d693f98   FIVE commits behind — see the deploy schedule below
+APK         v1.0.6    published 2026-08-26, signed with the v1.0.5 key
+```
+
+**The most important open fact:** the Cloudflare 524 fix for the Course is on
+`main` and **not deployed**. Until it is, "Compose my course" still fails in the
+reader's browser after ~125 seconds of successful, billed generation.
+
+---
+
+## THE DEPLOY SCHEDULE
+
+Ordered, with a gate before each step. Do not skip the gates; every one of them
+caught something real today.
+
+### Step 0 — decide on the open PR first (2 min)
+
+**#215 "A card painted once is shown everywhere"** is open and green. Either
+merge it and deploy once, or leave it and deploy the five commits now. Deploying
+twice is fine; deploying a half-reviewed PR to avoid a second deploy is not.
+
+### Step 1 — pre-flight (1 min, local)
+
+```bash
+git fetch && git log --oneline d693f98..origin/main
+git diff d693f98..origin/main -- .env.example docker-compose.yml     docker-compose.prod.yml frontend/nginx.conf frontend/Dockerfile backend/Dockerfile
+```
+
+Empty diff ⇒ no new variable, plain pull. Non-empty ⇒ read
+[[compose-env-passthrough-trap]] before touching the box: a var absent from
+`environment:` never reaches the container, and adding it as `${VAR:-}` sets it
+EMPTY, which crash-loops on `int("")`.
+
+### Step 2 — local gates (3 min)
+
+```bash
+cd backend  && .venv/bin/python -m pytest -q          # expect 669 passed
+cd frontend && npm test && npm run build              # expect 96 (106 with #215)
+cd packages/astra-core && npm test                    # expect 86
+```
+
+**If `anthropic` shows 0.122.0, the venv is stale** — `uv pip install -r
+requirements.txt --python .venv/bin/python` (there is no `pip` binary in that
+venv; it was made by uv). `requirements.txt` pins **anthropic 1.0.0**, a major
+bump that CI cannot validate because the suite fakes the SDK module wholesale.
+
+### Step 3 — the live AI gate (1 min, ~1 cent)
+
+```bash
+cd backend && .venv/bin/python tools/dev.py ai check
+```
+
+Expect `✓ Premium path live. Served by: claude-fable-5`. This is the ONLY check
+that exercises the real Anthropic SDK; CI never does. It passed on 1.0.0 at the
+end of this session.
+
+### Step 4 — deploy
+
+```bash
+. ops/origin.env && ssh -i ~/.ssh/astra_hetzner astra@$ORIGIN_IP \
+  'set -e; cd /home/astra/astro-aae; git pull --ff-only origin main;
+   docker compose up -d --build; docker compose ps'
+```
+
+`set -e` is load-bearing: a failed fast-forward must abort BEFORE the rebuild.
+
+### Step 5 — verify from OUTSIDE, by content (3 min)
+
+`production_report.sh` alone is **not sufficient** — see the trap below. Run it
+WITH `--ssh`, then confirm by content:
+
+```bash
+. ops/origin.env && bash ops/production_report.sh --ssh    # §5 must read production == main
+curl -sI https://app.astra-arcana.com/ | grep -iE 'last-modified|cf-cache-status'
+JS=$(curl -s https://app.astra-arcana.com/ | grep -oE '/assets/index-[A-Za-z0-9_-]+\.js' | head -1)
+curl -s "https://app.astra-arcana.com$JS" -o /tmp/live.js
+grep -c "course-stream" /tmp/live.js       # the fix that matters this deploy
+cmp /tmp/live.js frontend/dist/assets/$(basename $JS) && echo BYTE-IDENTICAL
+```
+
+`cf-cache-status: DYNAMIC` confirms you are seeing the origin, not cache.
+
+### Step 6 — prove the 524 is actually fixed (2 min, real money)
+
+The whole point of this deploy. Open chapter VI, **Compose my course**, and
+watch the curriculum stream in. Then confirm the origin agrees:
+
+```bash
+. ops/origin.env && ssh -i ~/.ssh/astra_hetzner astra@$ORIGIN_IP \
+  'cd /home/astra/astro-aae && docker compose logs --since 20m backend | grep course-stream'
+```
+
+A deployed commit is not a working product. Spend the generation.
+
+### Step 7 — the second timeout, still unfixed
+
+`/api/v1/tts` takes **113s** and 524s the same way. It is a DIFFERENT bug:
+`tts.py` uses `httpx.AsyncClient(timeout=90.0)` with one retry, so a slow
+ElevenLabs call costs 90s + the retry. Streaming its MP3 or raising that
+timeout is its own change and was deliberately not made today.
+
+---
+
+## What landed today (13 commits, `f4f5c93..f734254`)
+
+| commit | what |
+|---|---|
+| `bd39320` | **The Torus, heard** — every classical aspect is an exact multiple of 200¢ |
+| `98dd9cd` | Studio picker offered one card twice when two bodies carried the same trump |
+| `d693f98` | **The Field** — the whole chart sounding, plus the SPINE export |
+| `eaa727d` | APK **v1.0.6** — versionCode 6 |
+| `6800d97` | landing page → v1.0.6, digest taken from the uploaded file |
+| `4d7da1d` | constellation e2e read the live sky and failed 15% of every day |
+| `b855b37` | README re-measured; four claims were wrong |
+| `f734254` | **the Course 524** — streamed so Cloudflare cannot cut it |
+| 5 × dependabot | incl. **anthropic 0.122.0 → 1.0.0**, a major bump |
+
+Design write-ups: `docs/design/TORUS_GEOMETRY.md` §5 and `docs/design/NATAL_FIELD.md`.
+
+---
+
+## Traps learned today — each cost real time
+
+1. **`production_report.sh` is BLIND to a frontend-only deploy.** xar said
+   "deployed it", the report printed *all attempted gates passed*, and the box
+   had **never fetched**. Every §4 probe hits the backend or an era-marker an
+   older commit already satisfies. §5 is the honest line. Use `--ssh`.
+   See [[deployment-drift-probes]].
+2. **A red Gitleaks check usually means nothing.** Twice today it failed with
+   `scanned ~0 bytes (0)` after `unknown revision` — a fast merge rebases the
+   branch tip and deletes the branch, so a job still starting checks out a SHA
+   that no longer exists. **The tell is `~0 bytes` plus a sub-10-second run.**
+   A real scan takes longer because it reads history.
+3. **`@astra/core` resolves to `browser.ts`, not `index.ts`.** A symbol exported
+   only from `index.ts` is *unreachable* from the frontend — which reads exactly
+   like "nothing imports it, so it was tree-shaken out". It was never
+   importable. `grep -c "<symbol>" packages/astra-core/src/browser.ts`; 0 means
+   unreachable, not unused.
+4. **An e2e that loads `/` with no birth data is testing TODAY'S SKY.** Two
+   separate flakes today, both this shape (studio-deck, constellation). Use the
+   `pastThreshold()` helper.
+5. **`npm ci` before `cap sync`** or the APK ships plugin versions the repo does
+   not claim. **`./gradlew assembleRelease --max-workers=1`** — parallel
+   resolution loses the TLS handshake to Maven on a different artifact each run.
+6. **Squash merges are disabled on this repo** (`squash=false rebase=true
+   merge=false`). Every branch's SHA changes on landing; verify merges by
+   CONTENT, never by hash.
+
+---
+
+## Open threads
+
+1. **PR #215** — plates on every surface. Open, green, not merged.
+2. **`/api/v1/tts` 524** — diagnosed, not fixed (step 7 above).
+3. **Auto-painting the daily card** — deliberately NOT enabled. A plate is
+   ~$0.03–0.25 and the card changes daily; the cost is currently paid once per
+   card and kept forever. One flag away, but it is a spending decision.
+4. **`intention` is still wired to nothing.** `SoulProfileModal` holds one in
+   local state and passes it nowhere. **Corrected today:** an intention moves
+   ONLY `seed32`, never a drone or the tempo — earlier Hand_off wording that it
+   would "re-deal the field" overstated it. `NATAL_FIELD.md` §5 has the proof.
+   What remains is a product call: per-session, or persisted with the profile?
+5. **A two-step learning path** — `build_learning_path` returns 2 steps when the
+   anchor and growth edge are adjacent trump numbers (15.3% of the day at
+   Greenwich). The e2e no longer depends on it; whether a two-endpoint
+   "constellation" is acceptable OUTPUT is still undecided.
+6. **CodeQL: 0 open alerts.** 19/5/4 were dismissed 2026-08-25T10:45Z. Nothing
+   is owed here — earlier notes saying otherwise were stale.
 
 ---
 
