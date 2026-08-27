@@ -18,7 +18,7 @@ import {
   renderPlate,
   type PlateResponse,
   fetchOracleReport,
-  fetchCourse,
+  fetchCourseStream,
   fetchPersonalReport,
   purchasePersonalReport,
   reportCheckout,
@@ -130,6 +130,8 @@ export const ArcanaModal: React.FC<{
   // The Course — premium curriculum over the learning path (Classroom tab).
   const [course, setCourse] = useState<CourseResponse | null>(null);
   const [courseLoading, setCourseLoading] = useState(false);
+  // The curriculum as it streams in, shown until the done frame replaces it.
+  const [coursePartial, setCoursePartial] = useState("");
   const [courseFocus, setCourseFocus] = useState("a foundation in reading my own chart");
   // Deck-art plates (P3) — rendered images keyed by card id.
   const [plates, setPlates] = useState<Record<string, PlateResponse>>({});
@@ -411,7 +413,32 @@ export const ArcanaModal: React.FC<{
     try {
       // Fable writes the curriculum over the deterministic learning path;
       // the backend degrades to the offline compiler with honest provenance.
-      const r = await fetchCourse(chart, { source, focus: courseFocus, entitlement });
+      //
+      // STREAMED, because a course takes ~125s to compose and Cloudflare hands
+      // the browser a 524 if an origin has not answered in 100 — production
+      // logged `POST /api/v1/course 200 125534ms`, i.e. composed, billed, and
+      // then thrown away. Bytes in flight reset that timer. The partial text
+      // is shown as it arrives and is REPLACED by the authoritative course in
+      // the done frame, which is what carries the offline edition when the AI
+      // layer declines part-way.
+      setCoursePartial("");
+      // A box, not a bare `let`: TypeScript cannot see that onDone runs, so a
+      // local would narrow to `never` after the await and every field access
+      // below would fail to compile.
+      const box: { value: CourseResponse | null } = { value: null };
+      await fetchCourseStream(
+        chart, { source, focus: courseFocus, entitlement },
+        {
+          onChunk: (t) => setCoursePartial((prev) => prev + t),
+          onDone: (c) => { box.value = c; },
+          onError: (m) => setErr(m),
+        },
+      );
+      setCoursePartial("");
+      const r = box.value;
+      // No done frame means no course, however much text arrived — the stream
+      // already reported why, so leave the error standing and add nothing.
+      if (!r) return;
       setCourse(r);
       // Bookshelf: a generated course is a paid artifact — shelve it like an
       // Oracle session, keyed by its deterministic course identity.
@@ -1197,8 +1224,20 @@ export const ArcanaModal: React.FC<{
                     </div>
                     {courseLoading && (
                       <p className="arc-empty">
-                        Composing your curriculum — a full course takes a few minutes…
+                        {coursePartial
+                          ? "Composing your curriculum — it is being written below…"
+                          : "Composing your curriculum — a full course takes a few minutes…"}
                       </p>
+                    )}
+                    {courseLoading && coursePartial && (
+                      // The curriculum as it arrives. Deliberately plain text
+                      // rather than the rendered Interpretation: half a document
+                      // formats badly, and a heading that reformats itself as the
+                      // next line lands reads as a glitch. The done frame swaps
+                      // this for the finished, rendered course.
+                      <div className="arc-oracle-report" style={{ marginTop: 10, opacity: 0.75 }}>
+                        <p style={{ whiteSpace: "pre-wrap", margin: 0 }}>{coursePartial}</p>
+                      </div>
                     )}
                     {course && (
                       <div className="arc-oracle-report" style={{ marginTop: 10 }}>

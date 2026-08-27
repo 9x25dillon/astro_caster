@@ -34,7 +34,7 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Dict, List, Optional
+from typing import AsyncIterator, Dict, List, Optional, Tuple
 
 import tarot as TAROT
 from tarot_models import (
@@ -170,6 +170,87 @@ def _offline_report(sub: Dict, question: str) -> str:
 # --------------------------------------------------------------------------- #
 # Fable 5 synthesis layer (removable; official Anthropic SDK)
 # --------------------------------------------------------------------------- #
+
+
+async def _call_fable_stream(
+    system: str,
+    user: str,
+    *,
+    model: Optional[str] = None,
+    max_tokens: Optional[int] = None,
+    effort: Optional[str] = None,
+) -> AsyncIterator[Tuple[str, object]]:
+    """`_call_fable`, but yielding the text as it is written.
+
+    Yields ("chunk", str) per text delta, then exactly one terminal
+    ("done", {"text", "model"}) — or ("done", None) when the caller should fall
+    back to its deterministic edition, which is the same contract `_call_fable`
+    expresses by returning None.
+
+    WHY THIS EXISTS. `_call_fable` already streams FROM Fable; it just buffers
+    the whole thing before returning, so the HTTP response is a single silent
+    wait. Measured in production: /api/v1/course took 125.5s and /api/v1/tts
+    113s, and Cloudflare's proxy gives an origin 100 SECONDS to produce a
+    complete response before it returns a 524 to the reader. The origin logged
+    `200 125534ms` — the course was generated and billed, and the reader got an
+    error page. Cloudflare's timer is reset by bytes in flight, so a response
+    that starts within seconds and keeps moving never trips it, however long the
+    whole generation runs.
+
+    The continuation loop, the refusal check and the server-side fallback are
+    reproduced here verbatim rather than shared, because factoring them out
+    would mean restructuring the non-streaming path that every other caller
+    (the Personal Report especially) depends on. Any change to one MUST be made
+    to the other; `tests/test_course_stream.py` pins that they agree.
+    """
+    if not _ANTHROPIC_KEY:
+        yield ("done", None)
+        return
+    try:
+        from anthropic import AsyncAnthropic
+
+        client = AsyncAnthropic(api_key=_ANTHROPIC_KEY, timeout=_TIMEOUT_S)
+        messages = [{"role": "user", "content": user}]
+        parts: List[str] = []
+        served_by = model or _REPORT_MODEL
+
+        for _ in range(_MAX_CONTINUATIONS + 1):
+            async with client.beta.messages.stream(
+                model=model or _REPORT_MODEL,
+                max_tokens=max_tokens or _MAX_TOKENS,
+                system=system,
+                output_config={"effort": effort or _EFFORT},
+                betas=["server-side-fallback-2026-06-01"],
+                fallbacks=[{"model": _FALLBACK_MODEL}],
+                messages=messages,
+            ) as stream:
+                # The deltas ARE the keepalive. A refusal carries no text, so
+                # nothing is emitted before the stop_reason check below.
+                async for delta in stream.text_stream:
+                    if delta:
+                        parts.append(delta)
+                        yield ("chunk", delta)
+                msg = await stream.get_final_message()
+            if msg.stop_reason == "refusal":
+                _log.warning("streamed report refused by the full model chain")
+                yield ("done", None)
+                return
+            served_by = msg.model
+            if msg.stop_reason != "max_tokens":
+                break
+            if not "".join(parts).strip():
+                break
+            # Ordinary history, never a prefill — see _call_fable.
+            messages = messages[:1] + [
+                {"role": "assistant", "content": msg.content},
+                {"role": "user", "content": _CONTINUE_INSTRUCTION},
+            ]
+
+        text = "".join(parts).strip()
+        yield ("done", {"text": text, "model": served_by} if text else None)
+    except Exception as exc:
+        _log.warning("streamed report AI layer failed: %r", exc)
+        yield ("done", None)
 
 
 async def _call_fable(
