@@ -22,6 +22,10 @@ import {
   type DailyNotificationPrefs,
 } from "../lib/dailyNotifications";
 import { canPinWidget, requestPinWidget } from "../lib/widgetBridge";
+import { ApiError, renderPlate, trackEvent } from "../api/client";
+import { gallerySave } from "../lib/bookshelf";
+import { rememberPlate } from "../lib/plateCache";
+import { CardPlate } from "./CardPlate";
 
 /** "Tuesday, 12 August" — the day named, so the card is anchored to it. */
 function longDate(key: string): string {
@@ -36,12 +40,54 @@ function longDate(key: string): string {
 export const DailyCardPanel: React.FC = () => {
   const chart = useStore((s) => s.chart);
   const setMargin = useStore((s) => s.setMargin);
+  const entitlement = useStore((s) => s.entitlement);
+  const openSupport = useStore((s) => s.openSupport);
+  const [painting, setPainting] = useState(false);
 
   const [prefs, setPrefs] = useState<DailyNotificationPrefs>(DEFAULT_PREFS);
   const [canNotify, setCanNotify] = useState(false);
   const [canPin, setCanPin] = useState(false);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
+
+  /** Paint today's card. Once painted it is kept forever and shown on every
+   *  surface that card appears on — this panel, the draw, chapter II's reading
+   *  — so the cost is paid once per card, not once per day. There are 78
+   *  cards, so a reader's deck fills in and the daily card is increasingly
+   *  already illustrated. */
+  async function paintToday() {
+    if (!chart || !draw || painting) return;
+    setPainting(true); setNote("");
+    try {
+      const source = "golden_dawn";
+      const pl = await renderPlate(chart, draw.cardId, { source, entitlement });
+      const artifact = {
+        id: `plate:${source}:${draw.cardId}`,
+        kind: "plate" as const,
+        cardId: draw.cardId,
+        title: pl.title || draw.cardName,
+        mime: "image/png",
+        data: `data:image/png;base64,${pl.image_b64}`,
+        source,
+        seed: null,
+        meta: { quality: pl.quality, model: pl.model, size: pl.size },
+      };
+      void gallerySave(artifact).catch(() => undefined);
+      rememberPlate(artifact);
+      trackEvent("plate_rendered", { card: draw.cardId, source, surface: "daily" });
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 402) {
+        setNote("Oracle tier required — painting a card is a paid image generation.");
+        openSupport(true);
+      } else if (e instanceof ApiError && e.status === 503) {
+        setNote("The image layer isn't configured on this observatory.");
+      } else {
+        setNote(String(e));
+      }
+    } finally {
+      setPainting(false);
+    }
+  }
 
   useEffect(() => {
     setPrefs(readPrefs());
@@ -114,6 +160,17 @@ export const DailyCardPanel: React.FC = () => {
         <span className={`arc-chip ${draw.reversed ? "arc-chip--rev" : ""}`}>
           ✦ {draw.cardName}{draw.reversed ? " ⤓" : ""}
         </span>
+        {/* Today's card, illustrated. Free and offline once the card has been
+            painted anywhere; offers to paint it when it hasn't. */}
+        <CardPlate
+          cardId={draw.cardId}
+          cardName={draw.cardName}
+          source="golden_dawn"
+          reversed={draw.reversed}
+          onRender={() => void paintToday()}
+          rendering={painting}
+          size={200}
+        />
         <p className="arc-drawn-meaning">{draw.line}</p>
         {draw.natalLink && (
           <p className="arc-drawn-act">✦ Drawn toward your {draw.natalLink}</p>
