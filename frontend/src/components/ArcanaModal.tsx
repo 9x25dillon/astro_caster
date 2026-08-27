@@ -47,9 +47,11 @@ import { printSessionTome } from "../lib/tomePrint";
 import { galleryByKind, gallerySave, journalForSeed, shelfAttachPersonal, shelfSaveOracle } from "../lib/bookshelf";
 import { JournalPad } from "./JournalPad";
 import { TarotCard } from "./TarotCard";
+import { CardPlate } from "./CardPlate";
 import { DailyCardPanel } from "./DailyCardPanel";
 import { ConstellationPath } from "./ConstellationPath";
 import { chaosLetters, wordValue, reduceDigit, planetToKamea } from "../lib/sigil";
+import { rememberPlate } from "../lib/plateCache";
 import { layoutFor, gridStyle } from "../lib/spreadLayout";
 import { mergeSignatureByCard, signatureOptionLabel } from "../lib/arcanaPicker";
 import { deriveSoulProfile } from "../lib/archetypes";
@@ -370,9 +372,9 @@ export const ArcanaModal: React.FC<{
       // Persist to the Gallery so the plate is a permanent, collectible
       // artifact (chapter VII / the physical deck) — not lost when the modal
       // closes. One image per card per deck source: re-rendering replaces it.
-      void gallerySave({
+      const artifact = {
         id: `plate:${source}:${cardId}`,
-        kind: "plate",
+        kind: "plate" as const,
         cardId,
         title: p.title || cardId,
         mime: "image/png",
@@ -380,7 +382,12 @@ export const ArcanaModal: React.FC<{
         source,
         seed: null,
         meta: { quality: p.quality, model: p.model, size: p.size },
-      }).catch(() => undefined);
+      };
+      void gallerySave(artifact).catch(() => undefined);
+      // ...and tell every other surface at once. A plate is paid for once and
+      // belongs everywhere the card appears: this draw, chapter II's reading,
+      // and the card of the day — without a reload, and free from then on.
+      rememberPlate(artifact);
     } catch (e) {
       if (e instanceof ApiError && e.status === 402) {
         setErr("Oracle tier required — rendering a plate is a paid image " +
@@ -877,6 +884,17 @@ export const ArcanaModal: React.FC<{
                            })}>
                         <div className="arc-drawn-pos">{c.position}</div>
                         <CardChip name={c.card.name} reversed={c.reversed} />
+                        {/* The plate, if this card has ever been rendered —
+                            free, offline, and the same image the Studio made.
+                            Offers to paint one when it hasn't. */}
+                        <CardPlate
+                          cardId={c.card.id}
+                          cardName={c.card.name}
+                          source={source}
+                          reversed={c.reversed}
+                          onRender={() => void paintPlate(c.card.id)}
+                          rendering={plateLoading === c.card.id}
+                        />
                         <p className="arc-drawn-meaning">{c.meaning}</p>
                         {c.weight_sources.length > 0 && (
                           <div className="arc-why" style={{ marginTop: 6, fontSize: "0.72rem", opacity: 0.78 }}
