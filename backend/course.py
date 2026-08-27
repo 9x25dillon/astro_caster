@@ -34,7 +34,7 @@ import os
 from typing import Dict
 
 import tarot as TAROT
-from oracle_report import _call_fable
+from oracle_report import _call_fable, _call_fable_stream
 from tarot_models import CourseRequest, CourseResponse, LearningPathRequest
 from tarot_prompts import ARCANA_SYSTEM
 
@@ -175,6 +175,56 @@ def course_id(sub: Dict, req: CourseRequest) -> str:
 # --------------------------------------------------------------------------- #
 # Generation — Fable synthesis with an honest offline fallback
 # --------------------------------------------------------------------------- #
+
+
+async def generate_course_stream(req: CourseRequest, allow_ai: bool = True):
+    """`generate_course`, streamed: yields ("chunk", str) as the curriculum is
+    written, then one ("done", CourseResponse).
+
+    The deterministic substrate is built first and identically, so an offline
+    course is emitted as a single chunk plus its done frame — the client needs
+    no second code path for the fallback.
+
+    See `_call_fable_stream` for why this exists: a 125-second course is a
+    Cloudflare 524 in the reader's browser even though the origin returns 200.
+    """
+    sub = build_course_substrate(req)
+    path = sub["path"]
+
+    def _response(course_text: str, ai_source: str, model) -> CourseResponse:
+        return CourseResponse(
+            course_id=course_id(sub, req),
+            source=req.source, lineage=sub["meta"]["name"],
+            anchor=path.anchor, growth_edge=path.growth_edge,
+            focus=req.focus, lessons=len(path.steps),
+            course=course_text, ai_source=ai_source, model=model,
+        )
+
+    if not allow_ai:
+        text = _offline_course(sub, req.focus)
+        yield ("chunk", text)
+        yield ("done", _response(text, "offline", None))
+        return
+
+    final = None
+    async for event, payload in _call_fable_stream(
+        COURSE_SYSTEM, _substrate_prompt(sub, req.focus),
+        model=_COURSE_MODEL, max_tokens=_MAX_TOKENS, effort=_EFFORT,
+    ):
+        if event == "chunk":
+            yield ("chunk", payload)
+        else:
+            final = payload
+
+    if final:
+        yield ("done", _response(final["text"], "llm", final["model"]))
+    else:
+        # The AI layer declined or failed. The reader may already have seen
+        # partial text, so the offline course is sent as a REPLACEMENT frame
+        # rather than appended — `done` carries the authoritative course, and
+        # the client renders that over anything it accumulated.
+        text = _offline_course(sub, req.focus)
+        yield ("done", _response(text, "offline", None))
 
 
 async def generate_course(req: CourseRequest, allow_ai: bool = True) -> CourseResponse:

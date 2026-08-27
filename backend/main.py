@@ -18,6 +18,7 @@ Endpoints:
   POST /api/arcana-calendar     – export forecast as an .ics calendar (ritual/journal)
   POST /api/oracle-report       – Fable 5 long-form report (oracle tier; offline fallback)
   POST /api/course              – Fable-designed personal curriculum (oracle tier)
+  POST /api/course-stream       – the same curriculum as SSE (beats CF's 100s cap)
   POST /api/personal-report     – deluxe compiled edition (optional post-Oracle product)
   POST /api/personal-report/purchase – separate purchase rail: mint a report claim (PDF-2)
   POST /api/deck-art            – deterministic deck-art prompts (Studio)
@@ -1313,6 +1314,75 @@ async def course(req: CourseRequest, request: Request):
         MET.observe_ai_fallback(
             "course", "degraded" if ORACLE.ai_configured() else "unconfigured")
     return result
+
+
+@app.post("/api/course-stream")
+async def course_stream(req: CourseRequest, request: Request):
+    """The Course, streamed as Server-Sent Events.
+
+    Same gating and accounting as /api/course; the only difference is that the
+    curriculum reaches the reader as it is written. That is not a nicety: a
+    course takes ~125s to compose and Cloudflare returns 524 to the browser if
+    an origin has not produced a complete response in 100. The non-streamed
+    route stays for API clients and as the frontend's fallback.
+    """
+    RL.check(request, "oracle", req.entitlement)   # cost cap before any work
+    tier = ENT.entitlement_status(req.entitlement).get("tier", "free")
+    if tier != "oracle":
+        raise HTTPException(
+            status_code=402,
+            detail="oracle entitlement required — the Course is a premium "
+                   "curriculum composed for your chart",
+        )
+    # Resolved out here: the Request must not be touched from inside the
+    # generator, which runs after the handler has returned (see ai_ask_stream).
+    ip = CLIENTIP.client_ip(request)
+    allow_ai, _cap = BUDGET.allow_call(req.entitlement, "course", ip)
+
+    async def gen():
+        result = None
+        try:
+            async for event, payload in COURSE.generate_course_stream(
+                req, allow_ai=allow_ai
+            ):
+                if event == "done":
+                    result = payload
+                    yield (f"event: done\ndata: "
+                           f"{_json.dumps(payload.model_dump())}\n\n")
+                else:
+                    yield f"event: chunk\ndata: {_json.dumps(payload)}\n\n"
+        except Exception:
+            _log.exception("course-stream failed mid-stream")
+            yield ("event: error\ndata: "
+                   f"{_json.dumps('the course faltered — try again')}\n\n")
+            return
+        # Accounting mirrors /api/course exactly; it runs only on a clean finish
+        # so a severed stream is not billed as a delivered course.
+        if result is None:
+            return
+        _spawn(TEL.log_ai(
+            tier=tier, lens="course", depth="report", query=req.focus,
+            provider="anthropic" if result.ai_source == "llm" else "offline",
+            model=str(result.model or ""), response_len=len(result.course),
+            source=result.ai_source, sel_type="path", sel_id=result.anchor,
+        ))
+        if result.ai_source == "llm":
+            MET.observe_ai_call("course", len(result.course))
+            BUDGET.record(req.entitlement, "course", len(result.course), ip)
+        elif not allow_ai:
+            MET.observe_ai_fallback("course", "capped")
+        else:
+            MET.observe_ai_fallback(
+                "course", "degraded" if ORACLE.ai_configured() else "unconfigured")
+
+    return StreamingResponse(
+        gen(),
+        media_type="text/event-stream",
+        # X-Accel-Buffering: no keeps nginx from holding the chunks back — with
+        # buffering on, the proxy would reintroduce exactly the silence this
+        # endpoint exists to remove.
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @app.post("/api/personal-report", response_model=PersonalReportResponse)

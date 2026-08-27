@@ -287,7 +287,7 @@ Full interactive docs at `/docs`. Routes are served under both `/api/v1/*` and b
 | POST | `/api/generate-chart` · `/api/forecast` | — | chart · transit events |
 | POST | `/api/ai-ask` · `/api/ai-ask-stream` | optional entitlement | reflective interpretation (JSON / SSE) |
 | POST | `/api/natal-arcana` · `/api/tarot-reading` | optional | natal signature (AI-free) · chart-weighted spread |
-| POST | `/api/oracle-report` · `/api/course` · `/api/personal-report` | **oracle** | Fable 5 syntheses over the deterministic substrate |
+| POST | `/api/oracle-report` · `/api/course` · `/api/course-stream` · `/api/personal-report` | **oracle** | Fable 5 syntheses over the deterministic substrate (`-stream` is SSE: a 125s course would otherwise be a Cloudflare 524) |
 | POST | `/api/synastry` · `/api/composite` · `/api/davison` · `/api/progressed-chart` · `/api/solar-return` · `/api/eclipse-timeline` · `/api/harmonic-chart` · `/api/midpoint-tree` · `/api/fixed-stars` | — | relationship · predictive · advanced |
 | POST | `/api/checkout` · `/api/stripe/webhook` · `/api/personal-report/checkout` · `/api/billing/portal` | — | Stripe checkout · webhook · deluxe purchase · self-service cancel |
 | GET | `/api/health` · `/metrics` · `/api/admin/*` | — / — / dev token | status · Prometheus · admin |

@@ -735,6 +735,101 @@ export interface CourseResponse {
   disclaimer: string;
 }
 
+/**
+ * The Course, streamed.
+ *
+ * A course takes ~125 seconds to compose, and Cloudflare answers the browser
+ * with a **524** if an origin has not produced a complete response within 100.
+ * Production logged `POST /api/v1/course 200 125534ms` — composed, billed, and
+ * then discarded, with an error page for the reader. Bytes in flight reset that
+ * timer, so streaming is the fix; watching it write is the bonus.
+ *
+ * `onChunk` receives the curriculum as it is written. `onDone` carries the
+ * AUTHORITATIVE CourseResponse and its `course` field must be rendered over
+ * anything accumulated from chunks — when the AI layer declines mid-way the
+ * server sends the deterministic edition in `done`, replacing the partial text
+ * rather than appending to it.
+ *
+ * Falls back to the non-streamed POST /course when the stream cannot be opened
+ * at all (an old cached service worker, a proxy that strips text/event-stream),
+ * so a reader is never worse off than before this existed.
+ */
+export async function fetchCourseStream(
+  chart: ChartResponse,
+  opts: {
+    source?: SourceSystem;
+    lessons?: number;
+    focus?: string;
+    entitlement?: string | null;
+    signal?: AbortSignal;
+  } = {},
+  handlers: {
+    onChunk?: (text: string) => void;
+    onDone?: (course: CourseResponse) => void;
+    onError?: (message: string) => void;
+  } = {},
+): Promise<void> {
+  const body = JSON.stringify({
+    chart,
+    source: opts.source ?? "golden_dawn",
+    lessons: opts.lessons ?? 7,
+    focus: opts.focus ?? "a foundation in reading my own chart",
+    entitlement: opts.entitlement ?? null,
+  });
+
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}/course-stream`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body,
+      signal: opts.signal,
+    });
+  } catch (e) {
+    if (opts.signal?.aborted) throw e;
+    handlers.onDone?.(await fetchCourse(chart, opts));
+    return;
+  }
+
+  // A 402 (or any deliberate refusal) must surface as itself, not be retried
+  // against the buffered route where it would simply fail again more slowly.
+  if (res.status === 402 || res.status === 429) {
+    throw new ApiError(res.status, await res.text().catch(() => res.statusText));
+  }
+  if (!res.ok || !res.body) {
+    handlers.onDone?.(await fetchCourse(chart, opts));
+    return;
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = "";
+  let finished = false;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    let idx: number;
+    while ((idx = buf.indexOf("\n\n")) !== -1) {
+      const block = buf.slice(0, idx);
+      buf = buf.slice(idx + 2);
+      const ev = parseSSE(block);
+      if (!ev) continue;
+      if (ev.event === "chunk") handlers.onChunk?.(ev.data as string);
+      else if (ev.event === "done") {
+        finished = true;
+        handlers.onDone?.(ev.data as CourseResponse);
+      } else if (ev.event === "error") handlers.onError?.(String(ev.data));
+    }
+  }
+  // A stream that ends without its `done` frame delivered no course, however
+  // much text arrived — say so rather than leaving a half-written page looking
+  // finished.
+  if (!finished) {
+    handlers.onError?.("the course was cut off before it finished — try again");
+  }
+}
+
 /** The premium curriculum, written by Fable 5 over the deterministic learning
  *  path. 402 below oracle tier — catch it and route to the support flow. */
 export function fetchCourse(
