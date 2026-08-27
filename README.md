@@ -39,6 +39,8 @@
 
 <p align="center"><i>Installable as a PWA, and the deterministic half keeps working in airplane mode.</i></p>
 
+<p align="center">There is also a signed <b>Android APK</b> — a <a href="https://github.com/9x25dillon/astro_caster/releases/latest">reader build</a> that ships the web assets <i>inside</i> the package and never loads remote code, with no billing SDK and no purchase UI: a paid tier is <i>imported</i> as an entitlement token rather than sold in-app. One artifact satisfies direct download, Play's billing policy and F-Droid's FOSS requirements at once. Verify the checksum and signing certificate before installing — both are published on <a href="https://astra-arcana.com">astra-arcana.com</a>.</p>
+
 <sub>Screenshots are captured by driving the real app — <code>CAPTURE_SCREENSHOTS=1 npx playwright test e2e/capture-screenshots.spec.ts --project=desktop-chromium</code> — so they cannot drift from the product without someone noticing.</sub>
 
 ---
@@ -53,6 +55,7 @@ Astra is a divination workbench built on real ephemeris math — the same celest
 - **🌑 Time the eclipses** — upcoming solar & lunar eclipses and exactly which of *your* natal points they light up.
 - **⚭ Read relationships** — synastry, composite, and Davison charts for two people, plus a relationship-bond tarot spread.
 - **◷ Look ahead** — secondary progressions, solar returns, harmonic charts, midpoint trees, and fixed-star contacts.
+- **🜛 See an aspect as a place — and hear it** — chapter V's **Torus** draws a planet pair as a curve winding around a torus, where each aspect is a *fixed circle* on the surface: "Mars squares Venus on the 4th" becomes a visible crossing, and your natal orbs become literal distances. Its **Field** tab sounds the whole chart — all fourteen bodies at once. Both are on-device, and neither is decoration: see below.
 - **✦ Ask the Oracle** — an optional AI guide (Claude) that weaves your chart and cards into a long-form reading — always grounded in the deterministic math beneath it.
 - **📓 Keep the work** — a private, on-device **library**: every reading, course, and journal reflection is saved (IndexedDB), exportable as an encrypted **Vault**, and bindable into a printable **tome**.
 - **🎓 Compose a course & render plates** — a Fable-designed learning curriculum from your chart (Classroom) and AI-rendered deck-art plates (Studio).
@@ -68,6 +71,7 @@ Most horoscope apps fake it — canned text keyed off your sun sign. Astra compu
 - **🔒 Private by construction.** Your birth data — the most personal number you have — is never *retained*. By default the chart is computed **on the server**, so your details do travel there over an encrypted connection; they are held in memory for that computation and discarded. The promise is not that they never move — it is that **nothing is kept**: no database row, no log line, and a test (`test_no_birth_data_reaches_the_log_stream`) fails the build if that stops being true. Question text is not retained either, and telemetry stores only anonymous counters.
 - **📴 Works fully offline.** No signal, no backend, no problem: charts, tarot, forecasts, relationship math, predictive timing, and eclipses all compute locally. Astra is an installable PWA.
 - **🎯 Provably correct.** The on-device TypeScript engine (`@astra/core`) is **drift-locked to the Python/Swiss-Ephemeris backend** by golden-vector parity tests that run on every commit — so the fast local math and the reference math can never silently disagree.
+- **🎼 The sound is derived, not decorated.** The resonarium maps a longitude to a drone at `110 · 2^(λ/180)` Hz — one octave per 180°. That makes **15° of zodiac exactly one semitone**, one sign a whole tone, and **every classical aspect an exact multiple of 200 cents**: conjunction unison, sextile a major third, square a tritone, trine a minor sixth, opposition an octave. The major-aspect family *is* the whole-tone scale. Nobody designed that; it fell out of two independent ways of dividing a circle agreeing. Verified to <1e-9 over 100k randomised pairs (`frontend/test/resonance.test.ts`).
 
 Zero API keys required. The AI Oracle and card payments are the only parts that ever touch the network, and both are optional.
 
@@ -84,7 +88,10 @@ Zero API keys required. The AI Oracle and card payments are the only parts that 
         │    ON-DEVICE: chart · tarot · forecast ·      │
         │    synastry/composite/davison · progressions ·│
         │    returns · eclipses · harmonics · midpoints ·│
-        │    fixed stars   (pure TS, astronomy-engine)  │
+        │    fixed stars · resonarium (the tonal seed)  │
+        │    (pure TS, astronomy-engine)                │
+        │  torus.ts / natalField.ts — geometry & sound, │
+        │    Web Audio, consuming the parity-locked seed│
         └───────────────┬──────────────────────────────┘
                         │  /api/v1/*  — AI Oracle, payments,
                         │              first-load reference
@@ -101,7 +108,7 @@ Zero API keys required. The AI Oracle and card payments are the only parts that 
         ┌───────────────▼──────────────────────────────┐
         │  parity/*.json  — the drift lock: the backend │
         │  generates them, @astra/core must reproduce   │
-        │  them in CI, forever. 9 vectors, every commit.│
+        │  them in CI, forever. 10 vectors, per commit. │
         └───────────────────────────────────────────────┘
 ```
 
@@ -125,7 +132,8 @@ backend/          FastAPI app (main.py), the deterministic engines, AI,
 frontend/         React 19 / Vite 8 PWA — components, store, api/client.ts, e2e/
 packages/         astra-core/ — the on-device TypeScript engine (+ its parity tests)
 parity/           the golden vectors: the contract between the two engines
-resonarium/       a standalone Py/JS instrument (bit-exact natal-seed parity + safety)
+resonarium/       the standalone Py/JS instrument; its seed engine now has a THIRD
+                  implementation in @astra/core, all three parity-locked
 docs/             progress · design · audits · prompts · archive · screenshots
 run.sh            one command to launch backend + frontend for local dev
 docker-compose*   dev (Vite HMR) and prod (nginx) stacks · DEPLOY.md is the runbook
@@ -140,7 +148,7 @@ The same code serves two builds, kept apart by a **fail-closed interlock**:
 
 ### The parity discipline (the load-bearing idea)
 
-Every deterministic technique exists **twice** — once in Python (the reference), once in `@astra/core` (on-device TypeScript) — and the two are held identical by **golden vectors**. `backend/tools/gen_parity_vectors.py` writes the backend's own output to `parity/*.json`; `@astra/core` must reproduce those nine vectors within a versioned tolerance contract on **every commit**. Divergence is a red build, not a bug report. Bit-exact where the math is arithmetic (the tarot RNG reproduces CPython's Mersenne Twister); tolerance-bounded where it's astronomical (`astronomy-engine` vs Swiss). This is what lets the app keep its privacy and offline promises without shipping a Python runtime to your phone.
+Every deterministic technique exists **twice** — once in Python (the reference), once in `@astra/core` (on-device TypeScript) — and the two are held identical by **golden vectors**. `backend/tools/gen_parity_vectors.py` writes the backend's own output to `parity/*.json`; `@astra/core` must reproduce those **ten** vectors within a versioned tolerance contract on **every commit**. Divergence is a red build, not a bug report. Bit-exact where the math is arithmetic (the tarot RNG reproduces CPython's Mersenne Twister); tolerance-bounded where it's astronomical (`astronomy-engine` vs Swiss). The resonarium's tonal seed goes further still — **three** implementations (`resonarium/natal_seed.py` is the reference, `natal_seed.js` the instrument, `@astra/core/resonarium.ts` the app) held together per layer: seed, PRNG and binaural bit-exact, drone frequencies within 1e-9 because `2**x` goes through libm `pow` and transcendentals are not bit-identical across substrates. This is what lets the app keep its privacy and offline promises without shipping a Python runtime to your phone.
 
 ### The plan, and where it lives
 
@@ -162,11 +170,11 @@ The authoritative documents:
 - **`docs/progress/WORK_JOURNAL.md`** — a **narrative log**, newest-first: the story behind each session (the mechanics live in the PRs; this is the why).
 - **`docs/progress/PUBLIC_LAUNCH_SCHEDULE.md`** — the ratified phase plan + the load-bearing decisions (payment rail, license, hosting).
 - **`docs/progress/MOBILE_ROADMAP.md`** — the offline-first / on-device engine roadmap.
-- **`docs/design/`** — design contracts: the physical-tome product, the report design, `RESONARIUM_PARITY.md`.
+- **`docs/design/`** — design contracts: the physical-tome product, the report design, `RESONARIUM_PARITY.md`, and the two geometry/sound write-ups — `TORUS_GEOMETRY.md` (the chart restated in complex numbers) and `NATAL_FIELD.md` (voicing the whole chart, and the bridge to an outside beat instrument).
 
 ### How a change lands
 
-Work proceeds in **sessions**, each a coherent chunk. Each feature is its own branch → PR → merge (squash), with the invariant *"done = tests green, committed, PR open."* Sessions close with a `Hand_off.md` update and a `WORK_JOURNAL.md` entry, both to `main`. CI (backend pytest + boot smoke · `@astra/core` parity · frontend tsc/build · Playwright e2e · Gitleaks · CodeQL) gates every PR.
+Work proceeds in **sessions**, each a coherent chunk. Each feature is its own branch → PR → merge (**rebase** — squash and merge-commits are both disabled on the repo), with the invariant *"done = tests green, committed, PR open."* Sessions close with a `Hand_off.md` update and a `WORK_JOURNAL.md` entry, both to `main`. CI (backend pytest + boot smoke · `@astra/core` parity · frontend tsc/build · Playwright e2e · Gitleaks · CodeQL) gates every PR.
 
 ---
 
@@ -291,8 +299,9 @@ Every deterministic endpoint has an on-device `@astra/core` equivalent the front
 ## Tests
 
 ```bash
-cd backend && .venv/bin/python -m pytest tests/ -q     # backend suite (330+ tests)
-cd packages/astra-core && npm test                     # parity vs the 9 golden vectors
+cd backend && .venv/bin/python -m pytest tests/ -q     # backend suite (660 tests)
+cd packages/astra-core && npm test                     # parity vs the 10 golden vectors (86 tests)
+cd frontend && npm test                                # frontend unit suite (96 tests)
 cd frontend && npm run build && npx playwright test    # tsc + build + e2e (desktop + mobile)
 ```
 
@@ -316,7 +325,9 @@ CI runs all of it on every push, plus a full-history Gitleaks secret scan and a 
 - [x] **Track R** — the chapter-dial UI (holographic observatory: margin glass, constellation path, material system)
 - [x] **Monetization** — entitlement lifecycle · Stripe rail · deluxe purchase · AI cost controls · subscription self-service
 - [ ] **Track E** — the public engagement/pricing redesign → Phase 5 (policy/copy) → Phase 6 (launch)
-- [ ] Physical **tome** — press-ready book compiler (Phase 0 dogfood done) · mobile counterpart (Capacitor)
+- [x] **Android** — a signed Capacitor reader build, shipped as a GitHub release (no billing SDK, no remote code, installs over its predecessor)
+- [x] **Geometry & sound** — chapter V's Torus (aspects as fixed circles on T², Villarceau circles under the Clifford embedding) and Field (the whole chart sounding, crowd-aware voicing, `resonarium.state.v2` export)
+- [ ] Physical **tome** — press-ready book compiler (Phase 0 dogfood done)
 
 See [`docs/progress/`](docs/progress/) for the living plan.
 

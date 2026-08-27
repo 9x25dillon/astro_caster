@@ -23,7 +23,7 @@ export const CHAPTERS: ChapterDef[] = [
   { ch: "II",   name: "Reading",   hint: "Signature, draw, oracle report" },
   { ch: "III",  name: "Timing",    hint: "Forecast, returns, eclipses" },
   { ch: "IV",   name: "Relations", hint: "Synastry, composite, Davison" },
-  { ch: "V",    name: "Depths",    hint: "Harmonics, midpoints, fixed stars" },
+  { ch: "V",    name: "Depths",    hint: "Harmonics, midpoints, stars, torus, field" },
   { ch: "VI",   name: "Study",     hint: "Learning path, the Course, glossary", myst: true },
   { ch: "VII",  name: "Studio",    hint: "Expressions, deck art, plates", myst: true },
   { ch: "VIII", name: "Library",   hint: "Shelf, journal, vault" },
