@@ -5,6 +5,70 @@ PR bodies; this is the story. Started session 15 at the operator's request._
 
 ---
 
+## Session 37 close · 2026-08-27 — the day the chart learned to sound, and two clocks were found running out
+
+Thirteen commits, and the through-line of almost all of them was the same
+lesson learned in six different costumes: **a claim is not a measurement.**
+
+It started with three files that were not there. The torus had shipped to main
+the day before, and the working tree said otherwise — `MISSING`, three times,
+with local and origin agreeing perfectly with each other and wrongly with
+reality. `origin/main` is not a measurement of the remote. It is a memory of
+the last time somebody looked.
+
+Then the thing the whole day turned on. The handoff said the soundtrack engine
+was dormant because the bundler shook it out for want of an importer. Plausible,
+tidy, and wrong. The frontend resolves `@astra/core` to a hand-maintained
+allowlist, and the engine was exported from the other file. It had never been
+*importable*. Nothing imported it because nothing could — the symptom had been
+recorded as the cause, and it sat there for a session because the explanation
+was good enough to stop the questioning.
+
+What was underneath was worth the wait. The bedrock map turns a longitude into
+a pitch at one octave per hundred and eighty degrees, which makes fifteen
+degrees of zodiac exactly one semitone, and every classical aspect an exact
+multiple of two hundred cents. Conjunction unison, square a tritone, trine a
+minor sixth, opposition an octave. The major aspects are a whole-tone scale.
+Nobody designed that. It fell out of two unrelated ways of dividing a circle
+turning out to be the same way, and the operator had worked it out before
+asking and told me to verify it before building on it — which is the right
+order, and it held to under a nanocent over a hundred thousand pairs.
+
+So the torus got a voice, and then the whole chart did. Fourteen bodies at once
+is not a chord, it turns out; the map is exponential, so the bottom of the range
+is always crowded and equal gain there is mud. Voicing it by crowding rather
+than by taste kept the thing worth hearing: two bodies seven cents apart beat
+once every two and a half seconds, which is what a conjunction sounds like in
+the low register. Higher up the same conjunction is heard as pitch instead. One
+map, two perceptual regimes, split by where in the zodiac a body happens to sit.
+
+The operator's own beat instrument turned out to already read Resonarium states,
+so the export invented nothing — and folding a chart through it answered a
+question that had been open all day. An intention moves the seed and nothing
+else: same tones, same tempo, different take. The earlier warning that changing
+one would re-deal somebody's field was an overstatement, and disproving my own
+caution was more useful than defending it.
+
+Twice today a red check meant nothing and a green one meant less. Gitleaks
+failed on two merged PRs having scanned zero bytes, because a fast merge deletes
+the branch out from under a job that is still starting. And the production
+report printed *all attempted gates passed* over a box that had never fetched —
+every probe it runs either hits the backend or tests an era-marker an older
+commit already satisfies, so a frontend-only deploy is invisible to it. The
+honest line was the one that admitted it had not looked.
+
+The deploy that followed was real, and byte-identical to what the tests ran
+against. The Android app stopped being eleven days behind. And then, chasing a
+524 the operator hit composing a course, the logs gave up the best find of the
+day: `200 125534ms`. The origin had succeeded. Cloudflare gives it a hundred
+seconds and had already hung up — the course was written, billed, and thrown
+away, and the reader got an error page for work they had paid for. Auditing
+every slow request found a second one nobody had reported, doing the same thing
+at a hundred and thirteen seconds, silently, for who knows how long.
+
+The fix needed nothing to get faster. The call already streamed; it just held
+its breath until the end.
+
 ## Session 37 · 2026-08-26 — the aspect table was a scale all along
 
 The brief arrived with its own proof attached, which is unusual and turned out
