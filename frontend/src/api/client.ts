@@ -893,6 +893,21 @@ export function purchasePersonalReport(
   });
 }
 
+/** Recover a deluxe claim that was already PAID FOR but whose browser copy is
+ *  gone — cleared site data, a new browser, a different device. The claim
+ *  token is stateless and lives in localStorage; the purchase lives on the
+ *  server's receipt ledger, so this asks the ledger to re-issue the proof.
+ *  404 means no verified purchase is on record for this exact session. */
+export function restoreReportClaim(
+  seed: string,
+  opts: { entitlement?: string | null } = {},
+): Promise<ReportPurchaseResponse & { purchased_at?: number }> {
+  return post<ReportPurchaseResponse & { purchased_at?: number }>(
+    "/personal-report/claim/restore",
+    { seed, entitlement: opts.entitlement ?? null },
+  );
+}
+
 export interface Pricing {
   card_available: boolean;
   crypto_available: boolean;

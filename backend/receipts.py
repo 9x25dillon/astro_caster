@@ -133,6 +133,42 @@ def claim_tx(tx_hash: str, seed: str, *, verified: bool, wei: int = 0) -> tuple[
 # --------------------------------------------------------------------------- #
 
 
+def receipt_for_seed(seed: str) -> dict | None:
+    """The redeemed receipt for one Oracle session, or None.
+
+    This is how a paid claim is recovered when the BROWSER's copy is gone —
+    cleared site data, a new machine, a different browser. The ledger is the
+    only place a purchase durably exists: the report token is stateless and
+    lives in localStorage, so `report_tokens` cleared is a paid product
+    stranded with nothing to prove it. Measured 2026-08-28: a $5.50 edition
+    whose receipt sat here, verified, while the customer had no way back to it.
+
+    Returns the row rather than a bool so the caller can re-mint against the
+    SAME payment reference the original claim used — a re-mint must be
+    traceable to the payment, not to the act of recovering it.
+
+    Reads only VERIFIED receipts. An unverified row is not proof of payment.
+    """
+    try:
+        conn = _connect()
+    except (sqlite3.Error, OSError):
+        return None          # fail closed: no ledger, no proof, no mint
+    try:
+        row = conn.execute(
+            "SELECT tx_hash, seed, ref, verified, wei, created "
+            "FROM report_receipts WHERE seed = ? AND verified = 1",
+            (seed,),
+        ).fetchone()
+        if row is None:
+            return None
+        return {"tx_hash": row[0], "seed": row[1], "ref": row[2],
+                "verified": bool(row[3]), "wei": row[4], "created": row[5]}
+    except sqlite3.Error:
+        return None
+    finally:
+        conn.close()
+
+
 def ent_record(payload: dict, status: str = "active", note: str = "") -> bool:
     """Record a minted/renewed entitlement. Best-effort (see posture above)."""
     jti = payload.get("jti")

@@ -39,6 +39,7 @@ import {
   type SourceSystem,
   SOURCE_LABELS,
   ApiError,
+  restoreReportClaim,
 } from "../api/client";
 import { CLASSROOM, EXPRESSION_KINDS, generateArtifact, type Artifact } from "../lib/tarotCopy";
 import { Interpretation } from "./DetailPanel";
@@ -682,6 +683,38 @@ export const ArcanaModal: React.FC<{
     }
   }
 
+  /** Recover a deluxe claim that was PAID FOR on another browser or before
+   *  site data was cleared.
+   *
+   *  The claim token is stateless and lives in localStorage; the purchase
+   *  lives on the server's receipt ledger. Clearing site data therefore
+   *  strands a paid product with nothing on the device to prove it — measured
+   *  on 2026-08-28, when a $5.50 edition's verified receipt sat on the ledger
+   *  and the only route the app offered was the ON-CHAIN field, which answers
+   *  a Stripe payment reference with "on-chain verification unavailable". */
+  async function restoreClaim() {
+    if (!oracle || purchasing) return;
+    setPurchasing(true); setErr(null);
+    try {
+      const r = await restoreReportClaim(oracle.seed, { entitlement });
+      saveReportToken(oracle.seed, r.report_token.token);
+      setReportToken(r.report_token.token);
+      trackEvent("personal_report_claim_restored", {});
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 404) {
+        setErr("No purchase on record for this Oracle session. A deluxe " +
+               "edition is bought per session — check that the spread, " +
+               "lineage and question match the sitting you paid for.");
+      } else if (e instanceof ApiError && e.status === 402) {
+        setErr("Oracle tier is required to restore a deluxe claim.");
+      } else {
+        setErr(String(e));
+      }
+    } finally {
+      setPurchasing(false);
+    }
+  }
+
   // Phase 4.3 — the same deluxe purchase on the card rail. Stripe is a redirect
   // flow, so we stash which Oracle session this buys BEFORE leaving: the raw
   // seed ends with the question and never travels to Stripe (only its hash
@@ -1101,12 +1134,24 @@ export const ArcanaModal: React.FC<{
                                 <input
                                   value={purchaseTx}
                                   onChange={(e) => setPurchaseTx(e.target.value)}
-                                  placeholder="contribution tx hash (0x…)"
+                                  /* Named for the rail it actually is. Left
+                                     vague ("contribution tx hash"), it invites
+                                     a Stripe payment reference — which comes
+                                     back as "on-chain verification
+                                     unavailable" and reads like the purchase
+                                     failed rather than like the wrong door. */
+                                  placeholder="on-chain contribution hash (0x…)"
+                                  title="Ethereum transaction hash. If you paid by CARD, use “restore my purchase” instead."
                                   style={{ flex: "1 1 220px", minWidth: 180 }}
                                 />
                                 <button className="arc-draw-btn" onClick={purchaseDeluxe}
                                         disabled={purchasing || !purchaseTx.trim()}>
-                                  {purchasing ? "Verifying…" : "✧ Verify deluxe purchase"}
+                                  {purchasing ? "Verifying…" : "✧ Verify on-chain purchase"}
+                                </button>
+                                <button className="ghost" onClick={() => void restoreClaim()}
+                                        disabled={purchasing}
+                                        title="Already bought this session's deluxe edition — on another browser, another device, or before clearing site data? Recover it from your purchase on record.">
+                                  {purchasing ? "Checking…" : "↺ restore my purchase"}
                                 </button>
                                 <button className="ghost" onClick={loadPersonalReport} disabled={personalLoading}
                                         title="If your entitlement already carries deluxe access, compile directly.">

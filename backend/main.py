@@ -21,6 +21,7 @@ Endpoints:
   POST /api/course-stream       – the same curriculum as SSE (beats CF's 100s cap)
   POST /api/personal-report     – deluxe compiled edition (optional post-Oracle product)
   POST /api/personal-report/purchase – separate purchase rail: mint a report claim (PDF-2)
+  POST /api/personal-report/claim/restore – re-mint a PAID claim whose browser copy is gone
   POST /api/deck-art            – deterministic deck-art prompts (Studio)
   POST /api/deck-art-image      – render one plate via OpenAI images (oracle tier)
   POST /api/synastry            – two-chart inter-aspects + house grid
@@ -868,6 +869,66 @@ async def personal_report_checkout_claim(req: ReportClaimRequest, request: Reque
                         verified=True, ref=ref[:18]))
     return {"granted": True, "product": "personal_report", "note": note,
             "report_token": tok}
+
+
+class ReportRestoreRequest(BaseModel):
+    seed: str                            # the Oracle session whose claim to restore
+    entitlement: Optional[str] = None
+
+
+@app.post("/api/personal-report/claim/restore")
+async def personal_report_claim_restore(req: ReportRestoreRequest, request: Request):
+    """Re-mint a deluxe claim that was already PAID FOR, from the receipt ledger.
+
+    Why this exists. A report token is stateless and lives in the browser's
+    localStorage; the purchase itself lives in the ledger. Clear site data, use
+    another browser, or buy on a phone and read on a laptop, and the payment is
+    intact while every trace the app can see is gone. That is not hypothetical:
+    a $5.50 edition was bought on 2026-08-28, its verified receipt sat on the
+    ledger, and the customer had no route back to the product they owned.
+
+    This mints NO new entitlement and creates NO payment. It re-issues proof of
+    a payment the ledger already records against this exact seed — the case
+    `claim_tx` has always documented as legitimate ("idempotent recompile /
+    re-mint after a lost claim"); until now nothing could reach it.
+
+    Gated the same way the original claim was, and no more weakly:
+      · oracle tier (the deluxe edition is an oracle-tier product);
+      · a receipt for THIS seed, marked verified — an unverified row is not
+        proof of payment;
+      · the re-mint carries the original payment's `ref`, so a restored token
+        is traceable to the payment and not to the act of restoring it.
+
+    The seed is the authorisation. It is not a secret the server hands out: it
+    is derived from the caller's own chart to 0.01° plus their exact question
+    text, it is never sent to Stripe (only its hash is), and a caller who can
+    produce it has reproduced the Oracle session it names.
+    """
+    RL.check(request, "oracle", req.entitlement)
+    seed = req.seed.strip()
+    if not seed:
+        raise HTTPException(status_code=400, detail="missing oracle session seed")
+    tier = ENT.entitlement_status(req.entitlement).get("tier", "free")
+    if tier != "oracle":
+        raise HTTPException(
+            status_code=402,
+            detail="oracle entitlement required — the deluxe edition is an "
+                   "oracle-tier product",
+        )
+    rcpt = RCPT.receipt_for_seed(seed)
+    if rcpt is None:
+        raise HTTPException(
+            status_code=404,
+            detail="no verified purchase on record for this Oracle session — "
+                   "a deluxe edition is bought per session, and this one has "
+                   "not been paid for on this observatory",
+        )
+    tok = ENT.mint_report_token(seed=seed, ref=str(rcpt["ref"])[:18], verified=True)
+    _spawn(TEL.log_tier(action="report_claim_restored", tier="oracle",
+                        verified=True, ref=str(rcpt["ref"])[:18]))
+    return {"granted": True, "product": "personal_report",
+            "note": "claim restored from your purchase on record",
+            "purchased_at": rcpt["created"], "report_token": tok}
 
 
 @app.get("/api/entitlement")
