@@ -3,7 +3,7 @@
 // Deterministic core works offline; AI enrichment is opt-in for supporters.
 // Track R (R-2): a chapter surface (II · Reading / VI · Study / VII · Studio),
 // not a modal — no overlay, no ✕; Esc and the dial navigate home via the App shell.
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "../store/useStore";
 import {
   fetchNatalArcana,
@@ -43,6 +43,7 @@ import {
 import { CLASSROOM, EXPRESSION_KINDS, generateArtifact, type Artifact } from "../lib/tarotCopy";
 import { Interpretation } from "./DetailPanel";
 import { useSpeech, speakableText } from "../lib/speech";
+import { scopeArcanaSession, useSessionState } from "../lib/arcanaSession";
 import { printSessionTome } from "../lib/tomePrint";
 import { galleryByKind, gallerySave, journalForSeed, shelfAttachPersonal, shelfSaveOracle } from "../lib/bookshelf";
 import { JournalPad } from "./JournalPad";
@@ -117,31 +118,42 @@ export const ArcanaModal: React.FC<{
   const setMargin = useStore((s) => s.setMargin);   // R-2: publish selections to the margin glass
   const speech = useSpeech();   // Speak buttons on the Oracle Report sections
 
-  const [tab, setTab] = useState<Tab>(initialTab ?? "natal");
+  // The readings must survive the chapter dial (see lib/arcanaSession.ts):
+  // this modal remounts on every chapter switch, and a paid Oracle Report
+  // vanishing because someone glanced at the Library is a bug a customer
+  // reported in exactly those words. Scope first — a different birth clears
+  // the keep, so one chart's reading can never resurface under another.
+  const scopeKey = JSON.stringify(birth ?? null);
+  scopeArcanaSession(scopeKey);
+
+  const [tab, setTab] = useSessionState<Tab>(
+    // Chapters VI/VII open straight to their own tab; chapter II remembers
+    // where the reader was.
+    `tab:${initialTab ?? "ii"}`, initialTab ?? "natal");
 
   const [sig, setSig] = useState<NatalArcanaSignature | null>(null);
-  const [reading, setReading] = useState<TarotReadingResponse | null>(null);
-  const [forecast, setForecast] = useState<ArcanaForecastResponse | null>(null);
+  const [reading, setReading] = useSessionState<TarotReadingResponse | null>("reading", null);
+  const [forecast, setForecast] = useSessionState<ArcanaForecastResponse | null>("forecast", null);
   const [path, setPath] = useState<LearningPathResponse | null>(null);
   const [artifact, setArtifact] = useState<Artifact | null>(null);
   const [deckArt, setDeckArt] = useState<DeckArtResponse | null>(null);
   const [deckCard, setDeckCard] = useState<string>("");   // "" = whole soul deck
   const [deck, setDeck] = useState<DeckEntry[]>([]);       // all 78, for the picker
-  const [oracle, setOracle] = useState<OracleReportResponse | null>(null);
+  const [oracle, setOracle] = useSessionState<OracleReportResponse | null>("oracle", null);
   const [oracleLoading, setOracleLoading] = useState(false);
   // The Course — premium curriculum over the learning path (Classroom tab).
-  const [course, setCourse] = useState<CourseResponse | null>(null);
+  const [course, setCourse] = useSessionState<CourseResponse | null>("course", null);
   const [courseLoading, setCourseLoading] = useState(false);
   // The curriculum as it streams in, shown until the done frame replaces it.
   const [coursePartial, setCoursePartial] = useState("");
-  const [courseFocus, setCourseFocus] = useState("a foundation in reading my own chart");
+  const [courseFocus, setCourseFocus] = useSessionState("courseFocus", "a foundation in reading my own chart");
   // Deck-art plates (P3) — rendered images keyed by card id.
   const [plates, setPlates] = useState<Record<string, PlateResponse>>({});
   const [plateLoading, setPlateLoading] = useState<string | null>(null);
   // The exact (date, generated-at) context of the Oracle session — the Personal
   // Report must echo the same local date or the server's seed check rejects it.
-  const [oracleCtx, setOracleCtx] = useState<{ date: string | null; generatedAt: string } | null>(null);
-  const [personal, setPersonal] = useState<PersonalReportResponse | null>(null);
+  const [oracleCtx, setOracleCtx] = useSessionState<{ date: string | null; generatedAt: string } | null>("oracleCtx", null);
+  const [personal, setPersonal] = useSessionState<PersonalReportResponse | null>("personal", null);
   const [personalLoading, setPersonalLoading] = useState(false);
   // PDF-2 — the deluxe edition's separate purchase rail (per-session claim).
   const [reportToken, setReportToken] = useState<string | null>(null);
@@ -156,29 +168,42 @@ export const ArcanaModal: React.FC<{
   // the margin lights it on the next visit).
   const [walked, setWalked] = useState<Set<number>>(new Set());
 
-  const [spread, setSpread] = useState<SpreadType>("three_card");
+  const [spread, setSpread] = useSessionState<SpreadType>("spread", "three_card");
   // Session 25 — the interactive draw: which positions have been turned over.
   // Reset on every fresh deal so each spread starts face-down.
-  const [revealed, setRevealed] = useState<Record<string, boolean>>({});
-  const [source, setSource] = useState<SourceSystem>("golden_dawn");
-  const [question, setQuestion] = useState("What do I need to understand right now?");
+  const [revealed, setRevealed] = useSessionState<Record<string, boolean>>("revealed", {});
+  const [source, setSource] = useSessionState<SourceSystem>("source", "golden_dawn");
+  const [question, setQuestion] = useSessionState("question", "What do I need to understand right now?");
   const [useAi, setUseAi] = useState(false);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  // Reset cached arcana state whenever the underlying chart changes
-  // (e.g. the user casts a new chart with the modal open).
+  // Reset cached arcana state whenever the underlying chart CHANGES — a
+  // report belongs to one chart and must never be shown against another.
+  //
+  // The guard is load-bearing, not an optimisation. This modal remounts on
+  // every chapter switch, so an unguarded `[chart]` effect also fires on
+  // arrival, which would wipe the very state `useSessionState` just restored
+  // and put the disappearing-reading bug back. Compare the birth IDENTITY
+  // rather than the chart object: a remount produces an equal chart that is
+  // not the same reference.
+  const lastScope = useRef<string | null>(null);
   useEffect(() => {
+    if (lastScope.current === scopeKey) return;
+    const first = lastScope.current === null;
+    lastScope.current = scopeKey;
+    if (first) return;   // arriving, not switching charts
     setSig(null);
     setReading(null);
     setForecast(null);
     setPath(null);
     setDeckArt(null);
-    setOracle(null);   // a report belongs to one chart — never show it against another
+    setOracle(null);
     setOracleCtx(null);
     setPersonal(null);
     setReportToken(null);   // claims bind to a session seed, not the chart
-  }, [chart]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scopeKey]);
 
   // The deluxe price + whether cards are accepted here. Fetched once; a failure
   // is silent — the crypto rail and the free tier stand on their own.
