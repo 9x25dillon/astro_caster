@@ -3,8 +3,8 @@
 _Last updated: 2026-08-28 (session 39 — **a paid TIER can now be recovered from
 its Stripe reference**, the wheel's glyphs stop fleeing the pointer, and the
 Depths chapter can sound its pair and its whole field together over one audio
-session. `main` is at `cc73086`; **production has none of today's work** —
-verified by content, see the three truths. No open PRs. THE ONE THING
+session. `main` is at `95e42c2` and **production is IN SYNC at the same
+commit — deployed and verified by content**. No open PRs. THE ONE THING
 STILL OWED: the same real purchase, still unspent; see §THE $5.50 below.)
 Re-derive before trusting any of this: `git fetch && git status -sb`._
 
@@ -15,32 +15,41 @@ Re-derive before trusting any of this: `git fetch && git status -sb`._
 ## Start here — the three truths
 
 ```
-local / main   cc73086   backend 713 · frontend 159 · astra-core 86 · e2e 235   all green
-CI             cc73086   12/12 green on #226
-production     BEHIND — has none of today's frontend work
+local / main   95e42c2   backend 734 · frontend 165 · astra-core 86 · e2e 235   all green
+CI             95e42c2   green
+production     95e42c2   IN SYNC — deployed and verified by content
 APK            v1.0.6    unchanged
 ```
 
-**Nothing this session has been seen by a customer.** Three PRs merged (#224,
-#225, #226), all verified by content on `main`, none deployed.
+**Deployed at the end of session 39**, carrying SIX commits — production had
+been at `71c3279`, so session 38's late work (`36c4ead`, the delivery audit)
+had never shipped either. `production_report.sh --ssh`: all attempted gates
+passed, §5 reads `production == main @ 95e42c2`.
 
-How production was dated, from outside and without SSH — the served CSS carries
-class names, which survive minification when a TypeScript symbol would not:
+How it was verified, by CONTENT rather than by a matching SHA:
 
 ```bash
+# 1. the frontend, from outside — served CSS byte-identical to the local build
 CSS=$(curl -s https://app.astra-arcana.com/ | grep -oE '/assets/index-[A-Za-z0-9_-]+\.css' | head -1)
-curl -s "https://app.astra-arcana.com$CSS" | grep -c 'torus-layers\|planet-mark'   # 0 = today is not deployed
+curl -s "https://app.astra-arcana.com$CSS" -o live.css
+grep -c 'torus-layers\|planet-mark' live.css        # markers from #226 / #225
+cmp live.css frontend/dist/assets/$(basename $CSS)   # BYTE-IDENTICAL
+curl -sI https://app.astra-arcana.com/ | grep cf-cache-status   # DYNAMIC = origin, not cache
+
+# 2. the backend — the NEW endpoint, and it round-trips to REAL Stripe
+curl -s -X POST https://app.astra-arcana.com/api/entitlement/restore \
+  -H 'content-type: application/json' -d '{"reference":"sub_1FAKEnotarealsubscription"}'
 ```
 
-Both markers came back **0**. This probe cannot distinguish `71c3279` from
-`36c4ead` — the delivery-audit commit is backend-only and changes no CSS — so
-production is at one of those two, three or four commits back. Run
-`bash ops/production_report.sh --ssh` to pin it exactly.
-`[[deployment-drift-probes]]`
+That last one is the strongest single probe: it returns **404 with `"this
+observatory has no record of that reference"`** — which is the `is_not_found`
+branch, reachable only by actually asking Stripe and being told no. A router
+404 is `{"detail":"Not Found"}`; the bodies differ, so the two cannot be
+confused. `[[deployment-drift-probes]]`
 
-The deploy schedule in §SESSION 37 below still applies unchanged. Note that
-#224 adds NO new environment variable, so step 1's pre-flight diff should come
-back empty and the pull is plain. `[[compose-env-passthrough-trap]]`
+**A number correction:** an earlier draft of this file said backend 713 /
+frontend 159. Those were the pre-merge branch counts — #224 adds 21 backend and
+6 frontend tests. The true counts on `main` are **734 / 165**.
 
 ## What shipped
 
