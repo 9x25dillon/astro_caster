@@ -1,11 +1,144 @@
 # Hand_off.md
 
-_Last updated: 2026-08-28 (session 38 — both production 524s are dead, paid
-readings cannot end mid-word, readings survive the chapter dial and a reload,
-and **a paid deluxe claim can be recovered from the ledger**. `main` and
-**production are both at `71c3279`** — nothing is behind. No open PRs. THE ONE
-THING OWED: a real purchase is still unspent; see §THE $5.50 below.)
+_Last updated: 2026-08-28 (session 39 — **a paid TIER can now be recovered from
+its Stripe reference**, the wheel's glyphs stop fleeing the pointer, and the
+Depths chapter can sound its pair and its whole field together over one audio
+session. `main` is at `cc73086`; **production has none of today's work** —
+verified by content, see the three truths. No open PRs. THE ONE THING
+STILL OWED: the same real purchase, still unspent; see §THE $5.50 below.)
 Re-derive before trusting any of this: `git fetch && git status -sb`._
+
+---
+
+# SESSION 39 — 2026-08-28
+
+## Start here — the three truths
+
+```
+local / main   cc73086   backend 713 · frontend 159 · astra-core 86 · e2e 235   all green
+CI             cc73086   12/12 green on #226
+production     BEHIND — has none of today's frontend work
+APK            v1.0.6    unchanged
+```
+
+**Nothing this session has been seen by a customer.** Three PRs merged (#224,
+#225, #226), all verified by content on `main`, none deployed.
+
+How production was dated, from outside and without SSH — the served CSS carries
+class names, which survive minification when a TypeScript symbol would not:
+
+```bash
+CSS=$(curl -s https://app.astra-arcana.com/ | grep -oE '/assets/index-[A-Za-z0-9_-]+\.css' | head -1)
+curl -s "https://app.astra-arcana.com$CSS" | grep -c 'torus-layers\|planet-mark'   # 0 = today is not deployed
+```
+
+Both markers came back **0**. This probe cannot distinguish `71c3279` from
+`36c4ead` — the delivery-audit commit is backend-only and changes no CSS — so
+production is at one of those two, three or four commits back. Run
+`bash ops/production_report.sh --ssh` to pin it exactly.
+`[[deployment-drift-probes]]`
+
+The deploy schedule in §SESSION 37 below still applies unchanged. Note that
+#224 adds NO new environment variable, so step 1's pre-flight diff should come
+back empty and the pull is plain. `[[compose-env-passthrough-trap]]`
+
+## What shipped
+
+| PR | what |
+|---|---|
+| `#224` | **a paid tier survives a cleared browser** — `POST /api/entitlement/restore` |
+| `#225` | **a hovered planet grows instead of fleeing** — the wheel's rubber-banding |
+| `#226` | **one audio session + the torus's teaching layers** |
+
+### #224 closes open thread 0b, which is the last hole of its shape
+
+An entitlement token is stateless and lives in localStorage; the subscription
+lives at Stripe and on the ledger. Clearing site data stranded an active paid
+subscription exactly as it stranded the deluxe claim. `cs_…` / `pi_…` / `sub_…`
+now restore it. Three things about it are load-bearing:
+
+1. **The proof is Stripe, not the ledger.** `relink_ref` has said since Phase
+   4.1 that "the ledger lookup alone is not proof"; written about public tx
+   hashes, and the caution survives the change of rail.
+2. **The ledger answers a different question — "was it taken back".** Stripe
+   describes a refunded charge as a succeeded payment intent forever, so only
+   the ledger knows. `ent_find_active_ref` returns `None` for both "refunded"
+   and "never recorded"; new `ent_ref_state` separates them. Without that,
+   restore is a button that undoes every refund ever issued.
+3. **It fails CLOSED on an unreadable ledger**, deliberately breaking
+   `receipts.py`'s fail-open posture. That posture is about the per-request
+   revocation check; a restore runs once, in recovery, and a retry costs
+   seconds while a wrong grant cannot be taken back.
+
+The **wrong door is closed at both crypto fields** — a Stripe reference pasted
+into either is recognised and pointed at the right rail instead of being
+answered "on-chain verification unavailable", which is what a real customer was
+told on 2026-08-28.
+
+### #226 — the number that unifies the torus and its sound
+
+`lib/audioSession.ts` owns one context, one limiter, one bed, one clock. Two of
+each was not untidy, it was **wrong in a way that destroys the measurement**: a
+compressor's gain envelope moving at a few Hz is indistinguishable from a beat
+at a few Hz, and two beds from the same spec on two contexts drift into a beat
+nobody chose.
+
+The teaching layers rest on one rule — **the torus is a product of two circles,
+so an idea's ARITY decides its shape**: a single longitude is a circle on each
+axis, an arc partition is a grid, a per-body property is a stripe field along
+one axis, a pair relation is a diagonal.
+
+The best thing in it: **a natal line lights when its beat is slow enough to
+hear as a beat.** A time horizon failed (fifteen days of Moon is 195° of sky,
+so nearly every line qualified); time does not scale across a body moving
+1°/day and one moving 13°. Orb does — and under the bedrock map orb IS the beat
+rate. The same number now governs what you see and what you hear.
+
+---
+
+## ⚠️ THE DUAL SWEEP HAS NEVER BEEN HEARD
+
+The exact shape of session 38's TTS mistake, one floor up. One AudioContext is
+verified in a **fake graph** and in a **headless browser**; equal-power staging
+is verified by arithmetic. Nobody has heard a natal line light and a beat fall
+to zero.
+
+**The close is three actions:** chapter V → Torus → *Sound the pair* → switch
+to Field → *Sound the natal field* → scrub. If the blend holds and a lock is
+audible, the 8 Hz threshold is a measurement rather than a defensible guess.
+If the pair goes silent on the tab switch, the bus never opened.
+
+---
+
+## Traps learned today
+
+1. **A personal-mode server poisons the whole e2e suite, silently.** Fourteen
+   tier/entitlement tests failed and the app showed "✦ Supporter" to a fresh
+   visitor. Cause: stray servers survived a `pkill`, and Playwright's
+   `reuseExistingServer` adopted a backend running Edition P — which grants
+   oracle tier to every request. The config warns about it in a comment;
+   `env: { AAE_PERSONAL_MODE: "" }` **only applies when Playwright boots the
+   server itself.** Probe it directly rather than inferring:
+   ```bash
+   curl -s http://127.0.0.1:8787/api/entitlement    # tier:"oracle" with NO token = personal mode
+   ```
+   `pkill` is not enough — kill by PID and verify both ports are dead.
+2. **I nearly reported a green suite that wasn't.** `npx playwright test | tail
+   -8` truncated the summary, and the "exit code 0" belonged to the wrapper,
+   not to Playwright. Re-run with the full output captured to a file and echo
+   the real exit code; `EXIT=1` and `14 failed` were both invisible otherwise.
+3. **An SVG element's `transform-box` is `view-box`, so `transform-origin:
+   center` means the centre of the VIEWBOX, not the element.** Measured on the
+   wheel: a hovered glyph grew 3.6px and travelled 30px, left the pointer, and
+   rubber-banded. Set the origin in user units per element.
+4. **`((x % 360) + 360) % 360` loses a ulp** and it bit again — three tests at
+   once, `228.94` returning `228.94000000000005`. Use the `x % 360` form fixed
+   up only when negative, as `torus.ts` and `resonance.ts` do. It matters
+   because a longitude folds into the seed rounded to 0.01°.
+   `[[float-parity-traps]]`
+5. **A marker that means "something could happen here" means nothing.** The
+   natal lattice's 4n² intersections were 784 dots of gold static. What earns
+   a mark is where the trajectory ACTUALLY arrives.
 
 ---
 

@@ -5,6 +5,118 @@ PR bodies; this is the story. Started session 15 at the operator's request._
 
 ---
 
+## Session 39 · 2026-08-28 — the door for the next person, and a number that
+means two things
+
+Session 38 ended holding a question it could not answer: a customer's $5.50 had
+been taken and never delivered, and the hole that swallowed it was that a
+stateless token lives in a browser while the purchase lives on a ledger. Clear
+your site data and the money is intact while everything the app can see is
+gone. That session built the door for the deluxe claim. It also wrote down,
+plainly, that the same hole existed one floor up for the subscription tier and
+that nothing in the app could reach it. Today was mostly about closing that.
+
+The endpoint itself is small. What took the thinking was working out which
+question the ledger is for. My first instinct was to look up the payment and
+mint if it was there, and that is wrong in a way that is easy to miss:
+`ent_find_active_ref` returns nothing both for a purchase that was refunded and
+for one that was simply never recorded, and Stripe will go on cheerfully
+describing a refunded charge as a succeeded payment intent forever. Treat those
+two silences alike and "restore my purchase" becomes a button that quietly
+undoes every refund the business has ever issued. So the ledger is asked "was
+this taken back", not "does this exist", and it is asked in a way that can tell
+a revoked row from a missing one.
+
+The other decision I want on the record is that this one path fails CLOSED. The
+receipts module has a deliberate fail-OPEN posture, written down at length, and
+it is correct for what it covers: locking every paying user out because a local
+SQLite file hiccuped inverts the harm. But that argument is about a check that
+runs on every request. A restore runs once, in recovery, and the trade inverts
+with it — waiting costs a customer a retry, and guessing wrong cannot be taken
+back. Breaking with a stated posture is worth doing when the reason it was
+stated no longer applies, and worth saying out loud when you do.
+
+Then two visual things, and both taught me something about measuring instead of
+guessing.
+
+The operator said the wheel's glyphs rubber-banded on hover. I could have
+adjusted a transition and hoped. Instead I measured, and the number was flatly
+diagnostic: hovering one planet grew it 3.6 pixels and MOVED it thirty. An SVG
+element's `transform-box` is `view-box`, so `transform-origin: center` had been
+naming the centre of the wheel rather than the centre of the glyph, and every
+hover was flinging the thing radially out from under the cursor, which dropped
+the hover, which snapped it back. The fix is two lines. Finding it took one
+measurement, and writing the regression test took the same measurement pointed
+the other way — I reverted the CSS to confirm the test actually caught it, and
+it did, at 11.66 pixels of drift and a `:hover` that read false with the mouse
+sitting perfectly still.
+
+The torus was the good part of the day. The operator wanted its astrology made
+visible and its sound paired between tabs, and the thing that made it tractable
+was noticing that the surface is a PRODUCT of two circles, which means an
+idea's arity tells you its shape without any further invention. One longitude
+is a circle. An arc partition is a grid. A per-body property is a stripe field
+along one axis. A pair relation is a diagonal, and those were already drawn.
+The sign grid turned out to have been on screen since the beginning, sitting
+exactly on the cusps in anonymous blue, saying nothing.
+
+I got the natal layer wrong twice before I got it right, and the corrections
+are more interesting than the result. First I marked every intersection of the
+natal lines — all 784 of them — and it read as gold static, because each dot
+meant "a crossing could happen here", which is true of every point of every
+line and therefore says nothing. So I computed where the pair actually arrives.
+Still 390 marks, because the Moon meets all fourteen natal degrees and their
+oppositions every month. Then I tried a time horizon and the data rejected that
+too: fifteen days of Moon is 195 degrees of sky.
+
+The answer was that time is the wrong measure entirely. It does not scale
+across a body moving one degree a day and one moving thirteen. Orb does — and
+under this project's bedrock map, orb IS the beat rate between two drones. So a
+natal line now lights when the drone that will meet it is within audible
+beating distance, and the same number governs what you see and what you hear.
+That is not a flourish I arranged; it is what the map was already saying, and I
+only stopped proposing thresholds long enough to notice.
+
+Underneath all of it the two instruments had to stop owning separate audio
+contexts, which sounds like tidiness and is not. Two limiters cannot see each
+other, and a compressor's gain envelope moving at a few hertz is
+indistinguishable from a beat at a few hertz — so the thing that was meant to
+reveal a null would have been manufacturing one. Two beds from the same spec on
+two clocks drift into a third beat nobody chose. And the gain staging needed
+rescaling, because both players ran a master of 0.5 into their own limiter and
+summed that is unity, which puts a shared limiter into continuous action with a
+release right inside the band the beats live in.
+
+Two mistakes of my own worth keeping. I introduced a silent bug — buses are
+created closed so an instrument can build unheard, and I then had both
+instruments ramp up into a closed gate, which is every oscillator running and
+nothing audible and no error anywhere. And I wrote an end-to-end test that
+passed for the wrong reason: it asserted one audio context after a tab switch
+and went green only because the teardown is asynchronous and the click landed
+inside the fade. Adding a two-and-a-half second wait turned it into a real
+test, and the truth it exposed was that the panels were unmounting and closing
+the session outright, so there had been nothing to crossfade at all.
+
+Near the end I nearly handed over a false all-clear. The full suite printed
+"exit code 0" and 221 passed, and I had truncated the summary with my own
+`tail -8`. Re-run with the whole output captured, it was `EXIT=1` and fourteen
+failures — every one a tier test, with the app calling a fresh visitor a
+supporter. Three stray servers had survived a `pkill` and Playwright had
+adopted a backend running in personal mode, which grants oracle tier to
+everything. Killed by PID, verified the ports were dead, re-ran clean: 235
+passed. The lesson is not about that flag. It is that "exit code 0" belonged to
+the wrapper and not to the tool, and I would have reported it.
+
+Three PRs merged, verified on main by content rather than by label. What is
+still owed is exactly what was owed this morning: the $5.50 is unspent, and the
+dual sweep — the whole point of the audio work — has never been heard by
+anybody. I have proven it in a fake graph and in a headless browser, which is
+the same shape of proof that session 38 warned about for the TTS fix. It is
+three clicks and a scrub away, and until someone does it the number I am
+proudest of today is still only a defensible guess.
+
+---
+
 ## Session 38, late · 2026-08-28 — "so what happened to my $5.50"
 
 The session had already closed. Hand_off written, journal written, servers
