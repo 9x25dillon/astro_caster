@@ -779,9 +779,28 @@ button.ghost:hover {
   user-select: none;
   transition: fill 0.2s var(--ease-out);
 }
-/* The glyph group lifts subtly toward the viewer on hover (calm, no overshoot). */
-.planet-node { transition: transform 0.16s var(--ease-out); transform-origin: center; }
-.planet-node:hover { transform: scale(1.12); }
+/* The glyph lifts subtly toward the viewer on hover (calm, no overshoot).
+ *
+ * The scale lives on `.planet-mark`, not on `.planet-node`, and its origin is
+ * written per node in user units by ChartWheel — both halves are load-bearing,
+ * and getting either wrong brings back a glyph that flees the cursor.
+ *
+ *   1. An SVG element's `transform-box` is `view-box`, so `transform-origin:
+ *      center` means the centre of the WHEEL, not of the glyph. Scaling a node
+ *      about the wheel's centre moves it radially outward by 12% of its radius.
+ *      Measured on the node this rule used to carry: the glyph GREW 3.6px and
+ *      TRAVELLED 30px. It left the pointer, the hover dropped, it snapped back
+ *      under the pointer, and hovered again — a rubber-band oscillation for as
+ *      long as the cursor rested on a planet. `transform-origin` is therefore
+ *      set inline to the glyph's own (gx, gy), which `view-box` resolves in
+ *      user units — exactly what is wanted, so the box is left alone.
+ *   2. `.planet-mark` holds only the glyph-centred children. The leader line
+ *      stays outside it because its far end is pinned to the tick marking the
+ *      planet's TRUE longitude, while the glyph may be nudged off it to avoid a
+ *      collision. Scaling the line would drag that marker off the truth it
+ *      exists to record. */
+.planet-mark { transition: transform 0.16s var(--ease-out); }
+.planet-node:hover .planet-mark { transform: scale(1.12); }
 .planet-node:hover .planet-glyph { fill: var(--gold-soft); }
 .house-label { fill: var(--ink); font-size: 11px; font-family: var(--serif); transition: fill 0.2s ease; }
 .sign-glyph { fill: var(--gold); font-size: 18px; transition: fill 0.25s ease; }
