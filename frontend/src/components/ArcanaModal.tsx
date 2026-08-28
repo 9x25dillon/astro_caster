@@ -46,6 +46,7 @@ import { Interpretation } from "./DetailPanel";
 import { useSpeech, speakableText } from "../lib/speech";
 import { readKeep, scopeArcanaSession, useSessionState } from "../lib/arcanaSession";
 import { latestSessionForBirth } from "../lib/oracleSession";
+import { looksLikeStripeReference } from "../lib/paymentRef";
 import { printSessionTome } from "../lib/tomePrint";
 import { galleryByKind, gallerySave, journalForSeed, shelfAttachPersonal, shelfSaveOracle } from "../lib/bookshelf";
 import { JournalPad } from "./JournalPad";
@@ -665,6 +666,21 @@ export const ArcanaModal: React.FC<{
   // price, a report claim bound to THIS Oracle session's seed comes back.
   async function purchaseDeluxe() {
     if (!oracle || purchasing || !purchaseTx.trim()) return;
+    // THE WRONG DOOR, closed at the spot where it was walked through. Session
+    // 38 renamed this field for the rail it actually is, which stops the
+    // invitation; it does not stop the paste. A Stripe reference sent down
+    // here still reaches the on-chain verifier and still comes back "on-chain
+    // verification unavailable and trust mode is disabled" — a real, verified
+    // $5.50 payment answered as a failure. The restore button is eight
+    // characters to the right; say so instead of denying the payment.
+    if (looksLikeStripeReference(purchaseTx)) {
+      setErr(
+        "That's a card payment reference, not an on-chain transaction — this " +
+        "field only verifies crypto. Use \u21ba restore my purchase, just here, " +
+        "and this session's deluxe edition comes back with nothing charged again.",
+      );
+      return;
+    }
     setPurchasing(true); setErr(null);
     try {
       const r = await purchasePersonalReport(purchaseTx.trim(), oracle.seed, { entitlement });
@@ -674,7 +690,7 @@ export const ArcanaModal: React.FC<{
       trackEvent("personal_report_purchase", { verified: r.report_token.verified });
     } catch (e) {
       if (e instanceof ApiError && e.status === 402) {
-        setErr("Purchase not verified — " + e.message.replace(/^402:\s*/, ""));
+        setErr("Purchase not verified — " + e.detail);
       } else {
         setErr(String(e));
       }

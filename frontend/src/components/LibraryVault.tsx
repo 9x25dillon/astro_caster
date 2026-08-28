@@ -185,16 +185,28 @@ export const LibraryVault: React.FC = () => {
 
       <div className="lib-keyimport">
         <h3 className="lib-subtitle">⚿ Bring your key</h3>
+        {/* One field, three kinds of paste. Someone who cleared their site data
+            has no key to bring — the key WAS what they lost — and what they
+            still have is a receipt. A second field would have been a second
+            door, and three doors with the wrong one visible is precisely how a
+            paid $5.50 edition went undelivered on 2026-08-28. */}
         <p className="shelf-sub">
           Subscribed on the web? Paste your unlock key — or the whole unlock
           link — here. It is verified first and then lives only in this
           {" "}browser.{isSupporter ? " A key is already active on this device; importing another replaces it." : ""}
         </p>
+        <p className="shelf-sub">
+          <b>Lost your key?</b> If you cleared your browser or you are on a new
+          device, paste the payment reference from your receipt instead — the
+          <code> cs_…</code> in the link Stripe returned you to, or the
+          {" "}<code>pi_…</code> / <code>sub_…</code> on the receipt itself.
+          Your access comes back; you are not charged again.
+        </p>
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
           <input
             className="key-import-field"
             aria-label="Entitlement key"
-            placeholder="paste key or unlock link"
+            placeholder="paste key, unlock link, or payment reference"
             value={keyDraft}
             onChange={(e) => setKeyDraft(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") void importKey(); }}
@@ -206,7 +218,7 @@ export const LibraryVault: React.FC = () => {
             disabled={keyBusy || !keyDraft.trim()}
             onClick={() => void importKey()}
           >
-            {keyBusy ? "Verifying…" : "⚿ Import key"}
+            {keyBusy ? "Verifying…" : "⚿ Unlock this device"}
           </button>
         </div>
         {keyNote && (

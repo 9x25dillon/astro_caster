@@ -10,11 +10,14 @@ import {
   generateChart,
   localChart,
   getTreasury,
+  restoreEntitlement,
   retrieveCheckout,
   verifyDonation,
+  ApiError,
   type AIResult,
   type Treasury,
 } from "../api/client";
+import { looksLikeStripeReference } from "../lib/paymentRef";
 import { replayLookup, replayStore } from "../lib/replay";
 import { replaySyncForget } from "../api/client";
 import {
@@ -210,6 +213,9 @@ interface AstroState {
   loadTreasury: () => Promise<void>;
   redeemDonation: (txHash: string, chain?: string) => Promise<boolean>;
   importEntitlement: (raw: string) => Promise<{ ok: boolean; note: string }>;
+  /** Recover a paid tier from a Stripe purchase reference (cs_/pi_/sub_).
+   *  Resolves with a showable sentence; never rejects. */
+  restorePurchase: (reference: string) => Promise<{ ok: boolean; note: string }>;
   clearEntitlement: () => void;
   validateEntitlement: () => Promise<void>;
   completeCheckoutReturn: () => Promise<void>;
@@ -643,6 +649,11 @@ export const useStore = create<AstroState>((set, get) => ({
       return { ok: false, note: BAD_KEY_NOTE };
     }
     if (!token || token === "clear") return { ok: false, note: "Paste a key first." };
+    // A customer who cleared their site data has no key to bring — the key WAS
+    // the thing they lost. What they still have is a receipt. One field takes
+    // both, because the $5.50 failure of 2026-08-28 was not a missing
+    // capability, it was three doors and the wrong one being the visible one.
+    if (looksLikeStripeReference(token)) return get().restorePurchase(token);
     try {
       const status = await checkEntitlement(token);
       if (!status.supporter) {
@@ -657,6 +668,47 @@ export const useStore = create<AstroState>((set, get) => ({
         ok: false,
         note: "Couldn't reach the observatory to verify the key. Check the connection and try again — nothing was stored.",
       };
+    }
+  },
+
+  /** Re-issue a paid tier from its Stripe reference — the recovery path for a
+   *  browser that no longer holds the key.
+   *
+   *  Shaped like `importEntitlement`: it RESOLVES with a sentence rather than
+   *  rejecting, because the only caller is a text field whose spinner has to
+   *  come down either way. Every refusal the server can give is translated
+   *  here, because "402" is not something to show a person who has paid. */
+  restorePurchase: async (reference) => {
+    try {
+      const { tier, entitlement } = await restoreEntitlement(reference.trim());
+      localStorage.setItem(ENT_KEY, entitlement.token);
+      set({ entitlement: entitlement.token, isSupporter: true });
+      trackEvent("entitlement_restored", { tier });
+      return { ok: true, note: `Restored — ${tier} tier is active on this device again.` };
+    } catch (e) {
+      if (!(e instanceof ApiError)) {
+        return {
+          ok: false,
+          note: "Couldn't reach the observatory. Check the connection and try again — nothing changed.",
+        };
+      }
+      const detail = e.detail;
+      switch (e.status) {
+        case 402:
+          return { ok: false, note: `That purchase isn't live: ${detail}` };
+        case 404:
+          return {
+            ok: false,
+            note: `${detail}. If you have the link Stripe returned you to, the ` +
+                  `cs_… reference in it is the surest one.`,
+          };
+        case 409:
+          return { ok: false, note: detail };
+        case 503:
+          return { ok: false, note: detail };
+        default:
+          return { ok: false, note: `Couldn't restore that purchase: ${detail}` };
+      }
     }
   },
 

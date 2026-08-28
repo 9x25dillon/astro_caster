@@ -258,6 +258,89 @@ def ent_find_active_ref(ref: str) -> dict | None:
         return None
 
 
+def ent_ref_state(ref: str) -> str:
+    """What the ledger says about a payment reference, as one word.
+
+    The re-link lookup (`ent_find_active_ref`) answers "is there something to
+    move to this device"; this answers the different question a RESTORE has to
+    ask first: "was this purchase taken back?" The two are not complements —
+    a ref with no active row can be revoked (refunded, subscription cancelled)
+    or merely unrecorded (webhook lag, a ledger loss), and those must not be
+    treated alike. A restore that cannot tell them apart re-issues access to a
+    refunded payment.
+
+      active   – a live, unexpired entitlement exists for this ref
+      revoked  – nothing live, and a row for this ref was revoked
+      none     – the ledger has never recorded this ref (or it simply expired)
+      unknown  – the ledger could not be read
+
+    `renewed` rows are deliberately invisible here: superseding is what a
+    re-link does on every device move, and it says nothing about the payment.
+
+    ⚠️ `unknown` is a FOURTH answer on purpose, and it breaks with the
+    fail-open posture above. That posture is about the per-request revocation
+    check, where locking out every paying user over a SQLite hiccup inverts the
+    harm. A restore is the opposite trade: it runs once, in recovery, and
+    refusing it for the duration of an outage costs a customer a retry — while
+    re-issuing access against a payment that was refunded cannot be taken back.
+    So the caller must treat `unknown` as "ask again later", never as "none".
+    """
+    try:
+        conn = _connect()
+    except (sqlite3.Error, OSError):
+        return "unknown"
+    try:
+        r = ref.strip()
+        live = conn.execute(
+            "SELECT 1 FROM entitlement_ledger "
+            "WHERE ref = ? AND status = 'active' AND exp > ? LIMIT 1",
+            (r, int(time.time())),
+        ).fetchone()
+        if live:
+            return "active"
+        killed = conn.execute(
+            "SELECT 1 FROM entitlement_ledger "
+            "WHERE ref = ? AND status = 'revoked' LIMIT 1",
+            (r,),
+        ).fetchone()
+        return "revoked" if killed else "none"
+    except sqlite3.Error:
+        return "unknown"
+    finally:
+        conn.close()
+
+
+def receipt_for_ref(ref: str) -> dict | None:
+    """The deluxe-report receipt bought under a payment reference, or None.
+
+    Exists so a tier restore can recognise a DELUXE payment reference and say
+    so. On 2026-08-28 a customer was told to paste `pi_3u9g90…` — the payment
+    intent behind a $5.50 deluxe edition — into the crypto field, and was
+    answered "on-chain verification unavailable", which reads like a failed
+    purchase and is actually the wrong door. The reference was always real;
+    nothing on the tier rail could recognise it. Now it can, and can name the
+    right door instead of denying the payment.
+    """
+    try:
+        conn = _connect()
+    except (sqlite3.Error, OSError):
+        return None
+    try:
+        row = conn.execute(
+            "SELECT tx_hash, seed, ref, verified, wei, created "
+            "FROM report_receipts WHERE ref = ? ORDER BY created DESC LIMIT 1",
+            (ref.strip(),),
+        ).fetchone()
+        if row is None:
+            return None
+        return {"tx_hash": row[0], "seed": row[1], "ref": row[2],
+                "verified": bool(row[3]), "wei": row[4], "created": row[5]}
+    except sqlite3.Error:
+        return None
+    finally:
+        conn.close()
+
+
 def ent_revoke_ref(ref: str, note: str = "") -> tuple[bool, str]:
     """Revoke the active token for a payment reference — the Stripe refund /
     subscription-cancel path. Returns (ok, note); (False, ...) when there is

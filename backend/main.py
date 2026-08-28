@@ -44,6 +44,7 @@ Endpoints:
   POST /api/billing/portal      – Stripe Customer Portal (cancel / update card)
   POST /api/donate/verify       – verify a tx hash and mint an entitlement token
   GET  /api/entitlement         – validate an entitlement token (?token=...)
+  POST /api/entitlement/restore – re-issue a paid tier from its Stripe reference
   POST /api/telemetry/event     – ingest a UI feature event (fire-and-forget)
   GET  /api/admin/stats         – admin summary (dev token required)
 
@@ -583,6 +584,194 @@ async def entitlement_relink(req: DonateVerifyRequest):
     _spawn(TEL.log_tier(action="relink", tier=tier, verified=verified,
                         ref=req.tx_hash[:18]))
     return {"granted": True, "tier": tier, "note": note, "entitlement": ent}
+
+
+class EntitlementRestoreRequest(BaseModel):
+    reference: str                       # cs_… | pi_… | sub_… from the purchase
+
+
+# Which Stripe reference a customer can plausibly still hold after their
+# browser forgot everything, and where each one is found:
+#
+#   cs_…   the checkout session — the URL Stripe returned them to, so it is in
+#          browser history even when site data is gone. Carries its own tier.
+#   pi_…   the payment intent — printed on the Stripe receipt for a one-time
+#          unlock, and readable in the dashboard.
+#   sub_…  the subscription — on the invoice, and what the ledger stores as the
+#          `ref` for a recurring plan.
+#
+# These are exactly the ids `ref_for_session` produces, which is why they are
+# the ones the ledger indexes and the ones a restore can resolve.
+_RESTORABLE_PREFIXES = ("cs_", "pi_", "sub_")
+
+
+@app.post("/api/entitlement/restore")
+async def entitlement_restore(req: EntitlementRestoreRequest, request: Request):
+    """Re-issue a card entitlement that was already PAID FOR, from its Stripe
+    reference. The tier equivalent of /api/personal-report/claim/restore.
+
+    Why this exists. An entitlement token is stateless and lives in the
+    browser's localStorage; the subscription lives at Stripe and on our
+    entitlement ledger. Clear site data, switch browsers, or buy on a phone and
+    read on a laptop, and the money is intact while every trace the app can see
+    is gone. There was no door back — the only field that took a payment
+    reference was the CRYPTO one, which answers a Stripe id with "on-chain
+    verification unavailable and trust mode is disabled". That reads like a
+    failed purchase and is the wrong door; a customer met it on 2026-08-28.
+
+    This is not a purchase and mints no new access. It re-proves a payment we
+    already took and hands back proof of what it already bought.
+
+    The proof is Stripe, not the ledger. `relink_ref` has said since Phase 4.1
+    that "the ledger lookup alone is not proof" — written about public tx
+    hashes, and the caution survives the change of rail: this endpoint retrieves
+    the object from Stripe and requires it to be genuinely paid and live before
+    anything is minted. The ledger is consulted for a different question.
+
+    What the ledger is asked. Not "does this exist" but "was it taken back".
+    A ref with no live entitlement is ambiguous — refunded, cancelled, or
+    simply never recorded — and restoring both alike would re-issue access to a
+    refunded payment. `ent_ref_state` separates them, and a revoked ref is
+    refused (409) even though Stripe would still describe the charge.
+
+    Failure modes, each answered in words a customer can act on:
+      400  not a Stripe reference at all (a crypto hash lands here)
+      402  the payment exists but never completed / no longer live
+      404  no entitlement on record for a real payment — nothing to restore
+      409  refunded or cancelled; or a DELUXE report payment, which is not a
+           tier and is restored from its Oracle session instead
+      503  this observatory has no card rail, or the ledger is unreadable
+
+    One property worth stating because it is a trade and not an oversight: a
+    restore MOVES the entitlement, superseding the token on whatever device
+    held it. A leaked reference is therefore a takeover rather than a silent
+    copy — which is the louder of the two failures, and the one the rightful
+    holder notices.
+    """
+    RL.check(request, "free", None)
+    ref_in = req.reference.strip()
+    if not STRIPE.stripe_available():
+        raise HTTPException(
+            status_code=503,
+            detail="card payments are not configured on this observatory — a "
+                   "crypto purchase is restored with its transaction hash",
+        )
+    if not ref_in.startswith(_RESTORABLE_PREFIXES):
+        raise HTTPException(
+            status_code=400,
+            detail="that is not a Stripe purchase reference — paste the "
+                   "cs_…, pi_… or sub_… id from your receipt or from the "
+                   "address bar you were returned to after paying",
+        )
+    try:
+        STRIPE.safe_object_id(ref_in)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="malformed Stripe reference")
+
+    # ---- 1. re-prove the payment at Stripe -------------------------------- #
+    tier: Optional[str] = None
+    customer = ""
+    try:
+        if ref_in.startswith("cs_"):
+            session = await STRIPE.retrieve_session(ref_in)
+            if session.get("payment_status") not in ("paid", "no_payment_required"):
+                raise HTTPException(
+                    status_code=402,
+                    detail="that checkout was never completed — no payment was taken",
+                )
+            if STRIPE.is_report_session(session):
+                raise HTTPException(
+                    status_code=409,
+                    detail="that is a deluxe Personal Report purchase, not a "
+                           "tier — restore it from the Oracle session it was "
+                           "bought for, in the deluxe section of a reading",
+                )
+            ref = STRIPE.ref_for_session(session)
+            meta_tier = (session.get("metadata") or {}).get("tier")
+            if meta_tier in ("supporter", "oracle"):
+                tier = meta_tier          # a session carries its own tier
+            customer = STRIPE.customer_of(session)
+        elif ref_in.startswith("pi_"):
+            intent = await STRIPE.retrieve_payment_intent(ref_in)
+            if not STRIPE.intent_is_paid(intent):
+                raise HTTPException(
+                    status_code=402,
+                    detail="that payment did not complete — nothing was charged",
+                )
+            ref = ref_in
+            customer = STRIPE.customer_of(intent)
+        else:                              # sub_…
+            sub = await STRIPE.retrieve_subscription(ref_in)
+            if not STRIPE.subscription_is_live(sub):
+                raise HTTPException(
+                    status_code=402,
+                    detail="that subscription is no longer active — start a "
+                           "new one and your access returns immediately",
+                )
+            ref = ref_in
+            customer = STRIPE.customer_of(sub)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        if STRIPE.is_not_found(exc):
+            raise HTTPException(
+                status_code=404,
+                detail="this observatory has no record of that reference — "
+                       "check it against the receipt, and note that a purchase "
+                       "made elsewhere cannot be restored here",
+            )
+        raise _client_error("could not look up that purchase", exc, status=502)
+
+    # ---- 2. ask the ledger whether it was taken back ---------------------- #
+    state = RCPT.ent_ref_state(ref)
+    if state == "unknown":
+        # The ledger is the only thing that knows about a refund — Stripe goes
+        # on describing a refunded charge as a succeeded payment. Unlike the
+        # per-request revocation check (which fails OPEN by design), a restore
+        # that cannot read the ledger must fail CLOSED: it runs once, and the
+        # cost of waiting is a retry, while the cost of guessing is access
+        # re-issued against money that was given back.
+        raise HTTPException(
+            status_code=503,
+            detail="the purchase ledger is unreachable right now — nothing "
+                   "was changed, and this will work when it returns",
+        )
+    if state == "revoked":
+        raise HTTPException(
+            status_code=409,
+            detail="that purchase was refunded or cancelled, so there is no "
+                   "access to restore",
+        )
+    if tier is None:
+        active = RCPT.ent_find_active_ref(ref)
+        if active is None:
+            # A real payment with nothing on the ledger. The deluxe rail is the
+            # likeliest reason — that is the exact reference a customer was
+            # once told to paste into the crypto field.
+            if RCPT.receipt_for_ref(ref) is not None:
+                raise HTTPException(
+                    status_code=409,
+                    detail="that is a deluxe Personal Report payment, not a "
+                           "tier — restore it from the Oracle session it was "
+                           "bought for, in the deluxe section of a reading",
+                )
+            raise HTTPException(
+                status_code=404,
+                detail="that payment is real, but no tier is on record for "
+                       "it — try the cs_… checkout reference from the address "
+                       "bar you were returned to, which carries its own tier",
+            )
+        tier = str(active["tier"])
+
+    # ---- 3. move the entitlement to this device --------------------------- #
+    ent = ENT.relink_ref(ref, tier, verified=True)
+    if customer:        # so the holder can still reach the billing portal
+        RCPT.stripe_customer_set(ref, customer)
+    _spawn(TEL.log_tier(action="entitlement_restored", tier=tier,
+                        verified=True, ref=ref[:18]))
+    return {"granted": True, "tier": tier,
+            "note": "access restored from your purchase on record",
+            "entitlement": ent}
 
 
 # --------------------------------------------------------------------------- #

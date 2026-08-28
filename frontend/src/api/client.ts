@@ -69,10 +69,27 @@ export function trackEvent(name: string, props?: Record<string, unknown>): void 
  *  support flow) without string-parsing. Message format is unchanged from the
  *  previous plain Error, so existing `String(e)` displays are unaffected. */
 export class ApiError extends Error {
-  constructor(public status: number, detail: string) {
+  constructor(public status: number, public detail: string) {
     super(`${status}: ${detail}`);
     this.name = "ApiError";
   }
+}
+
+/** FastAPI refuses with `{"detail": "..."}`, and the body arrives as text. The
+ *  sentence inside it is written FOR THE READER — several of them name the
+ *  next thing to do — so a caller that shows the raw body shows a reader a
+ *  JSON envelope wrapped around their own instructions. Unwrap it once, here,
+ *  rather than at every call site that got it right. Anything that isn't that
+ *  shape (an nginx page, a proxy timeout) passes through untouched. */
+function unwrapDetail(body: string): string {
+  try {
+    const parsed = JSON.parse(body);
+    const d = parsed?.detail;
+    if (typeof d === "string" && d) return d;
+  } catch {
+    /* not JSON — an edge or proxy answered instead of the app */
+  }
+  return body;
 }
 
 async function post<T>(path: string, body: unknown): Promise<T> {
@@ -82,8 +99,8 @@ async function post<T>(path: string, body: unknown): Promise<T> {
     body: JSON.stringify(body),
   });
   if (!res.ok) {
-    const detail = await res.text().catch(() => res.statusText);
-    throw new ApiError(res.status, detail);
+    const raw = await res.text().catch(() => res.statusText);
+    throw new ApiError(res.status, unwrapDetail(raw));
   }
   return res.json() as Promise<T>;
 }
@@ -344,6 +361,26 @@ export async function verifyDonation(
     throw new Error(`${res.status}: ${detail}`);
   }
   return res.json();
+}
+
+// The card-vs-crypto classifier lives in lib/paymentRef.ts (it is routing
+// logic, not an API call) and is re-exported here so every caller reaches it
+// the same way.
+export { STRIPE_REF_RE, looksLikeStripeReference } from "../lib/paymentRef";
+
+/** Re-issue a paid TIER from its Stripe reference. Mints nothing new: the
+ *  server re-proves the payment at Stripe, checks the ledger has not revoked
+ *  it, and hands back proof of what was already bought. The tier sibling of
+ *  `restoreReportClaim`.
+ *
+ *  402 the payment never completed or is no longer live · 404 unknown here, or
+ *  real but with no tier on record · 409 refunded/cancelled, or a deluxe
+ *  report payment (restored from its Oracle session instead) · 503 no card
+ *  rail on this observatory. */
+export function restoreEntitlement(
+  reference: string,
+): Promise<{ granted: boolean; tier: string; note: string; entitlement: Entitlement }> {
+  return post("/entitlement/restore", { reference });
 }
 
 export function checkEntitlement(token: string): Promise<EntitlementStatus> {

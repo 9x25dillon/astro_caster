@@ -197,15 +197,70 @@ def safe_object_id(value: str) -> str:
     return v
 
 
-async def retrieve_session(session_id: str) -> dict:
+async def _retrieve(path: str, object_id: str) -> dict:
+    """GET one Stripe object by id. `object_id` is allowlisted before it can
+    reach the URL path (see `safe_object_id`)."""
     if not stripe_available():
         raise RuntimeError("Stripe not configured")
-    sid = safe_object_id(session_id)          # allowlist before it hits the URL
+    oid = safe_object_id(object_id)
     async with httpx.AsyncClient(timeout=_TIMEOUT) as c:
-        r = await c.get(f"{_API}/checkout/sessions/{sid}",
-                        auth=(_secret_key(), ""))
+        r = await c.get(f"{_API}/{path}/{oid}", auth=(_secret_key(), ""))
     r.raise_for_status()
     return r.json()
+
+
+async def retrieve_session(session_id: str) -> dict:
+    return await _retrieve("checkout/sessions", session_id)
+
+
+async def retrieve_payment_intent(pi_id: str) -> dict:
+    """A one-time payment, by its `pi_…` id — the reference a customer can read
+    off a Stripe receipt."""
+    return await _retrieve("payment_intents", pi_id)
+
+
+async def retrieve_subscription(sub_id: str) -> dict:
+    """A subscription, by its `sub_…` id."""
+    return await _retrieve("subscriptions", sub_id)
+
+
+# What "still paid for" means for each kind of object, spelled out rather than
+# inlined: these two tuples are the entire difference between restoring access
+# to a live purchase and restoring it to an abandoned one.
+_PAID_INTENT = ("succeeded",)
+_LIVE_SUBSCRIPTION = ("active", "trialing", "past_due")
+
+
+def intent_is_paid(intent: dict) -> bool:
+    """True when a PaymentIntent actually collected money. `requires_payment_
+    method`, `canceled` and the rest are attempts, not purchases."""
+    return str(intent.get("status", "")) in _PAID_INTENT
+
+
+def subscription_is_live(sub: dict) -> bool:
+    """True when a subscription still entitles its holder. `past_due` counts:
+    the period paid for has not ended, and Stripe's own dunning — not a lost
+    browser — decides when it does. `canceled` and `unpaid` do not."""
+    return str(sub.get("status", "")) in _LIVE_SUBSCRIPTION
+
+
+def is_not_found(exc: Exception) -> bool:
+    """True when a Stripe lookup failed because the object does not exist — a
+    mistyped reference, or one belonging to a different Stripe account. Duck-
+    typed on the response so callers need no httpx import, and so a "we have
+    never seen that" can be answered as 404 instead of a blanket upstream 502.
+    """
+    return getattr(getattr(exc, "response", None), "status_code", None) == 404
+
+
+def customer_of(obj: dict) -> str:
+    """The Stripe customer id on any retrieved object (session, intent,
+    subscription), or "" — so a restore can re-record the billing-portal link
+    that a lost ledger row would otherwise have taken with it."""
+    cust = obj.get("customer")
+    if isinstance(cust, dict):          # expanded object rather than an id
+        cust = cust.get("id")
+    return str(cust or "")
 
 
 def customer_id(session: dict) -> str:

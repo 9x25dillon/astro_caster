@@ -8,6 +8,7 @@ import React, { useEffect, useState } from "react";
 import { useStore } from "../store/useStore";
 import { ELEMENT_COLORS } from "../lib/astro";
 import { openBillingPortal, ApiError } from "../api/client";
+import { looksLikeStripeReference } from "../lib/paymentRef";
 
 // Minimal EIP-1193 shape so we don't need a wallet SDK.
 type Eth = {
@@ -127,6 +128,22 @@ export const SupportModal: React.FC = () => {
 
   const verifyManual = async () => {
     if (!txHash.trim()) return;
+    // THE WRONG DOOR, closed. This field is the ON-CHAIN rail, and a Stripe
+    // reference sent down it comes back "on-chain verification unavailable and
+    // trust mode is disabled" — which reads like a failed payment and is
+    // nothing of the kind. On 2026-08-28 a customer with a real, verified $5.50
+    // receipt was told exactly that, and stopped looking. A card reference must
+    // be recognised HERE, where they pasted it, and named as belonging
+    // somewhere else — not denied by a rail that was never asked about it.
+    if (looksLikeStripeReference(txHash)) {
+      setStatus(
+        "That's a card payment reference, not a crypto transaction — this " +
+        "field only verifies on-chain payments. Restore a card purchase in " +
+        "the Library, under ⚿ Bring your key: paste it there and your access " +
+        "comes back, with nothing charged again.",
+      );
+      return;
+    }
     setBusy(true);
     setStatus("Verifying…");
     const ok = await redeem(txHash.trim(), "evm");
@@ -241,10 +258,13 @@ export const SupportModal: React.FC = () => {
         <div className="row" style={{ marginTop: 6 }}>
           <input
             placeholder="…then paste your transaction hash to unlock"
+            aria-label="Transaction hash"
+            className="crypto-tx-field"
             value={txHash}
             onChange={(e) => setTxHash(e.target.value)}
           />
-          <button className="ghost" style={{ width: "auto" }} disabled={busy} onClick={verifyManual}>
+          <button className="ghost crypto-verify-btn" style={{ width: "auto" }}
+                  disabled={busy} onClick={verifyManual}>
             Verify
           </button>
         </div>

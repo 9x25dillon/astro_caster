@@ -254,6 +254,8 @@ margins behind these prices: [`docs/progress/PRICING_MODEL.md`](docs/progress/PR
 
 **Two payment rails, one lifecycle:** the crypto rail (`/api/donate/verify`) and the **Stripe rail** (`/api/checkout` → hosted checkout, one-time or subscription; `/api/stripe/webhook` mints on paid and revokes on refund/cancel). The deluxe Personal Report has its own one-time purchase on either rail (bound to a single Oracle session by the seed's *hash* — the raw seed, which ends with your question, never reaches Stripe).
 
+**A purchase outlives the browser that made it.** Both paid things can be recovered from their payment alone, because the token that proves them is stateless and lives in `localStorage` while the purchase lives on the ledger — so clearing site data used to strand a paid product with nothing on the device to show for it. `/api/entitlement/restore` re-issues a **tier** from its Stripe reference (`cs_…` / `pi_…` / `sub_…`), and `/api/personal-report/claim/restore` re-issues a **deluxe claim** from its Oracle session. Both re-prove the payment before minting, and both refuse a refunded one.
+
 **Customers stay in control.** `/api/billing/portal` opens Stripe's hosted Customer Portal — cancel, stop auto-renew, update the card, download invoices — no email required; a cancellation flows back through the webhook and revokes access at period end. **AI cost controls** cap per-user and global daily spend and degrade gracefully to the offline compilers rather than erroring when a cap is hit.
 
 **Using your own copy for free:** the simplest path is Edition P (`./run.sh --personal`). For a hosted non-personal instance, set an `AAE_DEV_TOKEN` and unlock via `https://your-astra/?entitlement=<token>` (it scrubs itself from the address bar). The dev token is separate from the HMAC path, so rotating `AAE_SECRET` never revokes your own access.
@@ -290,6 +292,7 @@ Full interactive docs at `/docs`. Routes are served under both `/api/v1/*` and b
 | POST | `/api/oracle-report` · `/api/course` · `/api/course-stream` · `/api/personal-report` | **oracle** | Fable 5 syntheses over the deterministic substrate (`-stream` is SSE: a 125s course would otherwise be a Cloudflare 524) |
 | POST | `/api/synastry` · `/api/composite` · `/api/davison` · `/api/progressed-chart` · `/api/solar-return` · `/api/eclipse-timeline` · `/api/harmonic-chart` · `/api/midpoint-tree` · `/api/fixed-stars` | — | relationship · predictive · advanced |
 | POST | `/api/checkout` · `/api/stripe/webhook` · `/api/personal-report/checkout` · `/api/billing/portal` | — | Stripe checkout · webhook · deluxe purchase · self-service cancel |
+| POST | `/api/entitlement/restore` · `/api/personal-report/claim/restore` | — / **oracle** | recover a paid tier from its Stripe reference · recover a deluxe claim from its Oracle session |
 | GET | `/api/health` · `/metrics` · `/api/admin/*` | — / — / dev token | status · Prometheus · admin |
 
 Every deterministic endpoint has an on-device `@astra/core` equivalent the frontend falls back to when the backend is unreachable.
