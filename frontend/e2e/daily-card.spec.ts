@@ -51,6 +51,23 @@ test("the day's card needs no network", async ({ page, context }) => {
 
 test("turning the card publishes it to the margin glass", async ({ page }) => {
   await openReading(page);
-  await page.locator(".daily-panel .daily-card").click();
+  // Click the card by its label, the way a reader reaching for the meaning
+  // does. NOT the bare container: Playwright aims at an element's geometric
+  // center, and since the card face gained its CardPlate the center is the
+  // "✶ Render this card" button — an explicit PAID affordance that
+  // deliberately stops propagation so a publish tap can never spend money.
+  await page.locator(".daily-panel .daily-card .arc-drawn-pos").click();
   await expect(page.locator(".margin-glass, .detail-panel").first()).toContainText(/Today/i);
+});
+
+test("the render affordance does not publish the card", async ({ page }) => {
+  // The other half of the same contract: the paid button inside the card face
+  // swallows its click (stopPropagation), so pressing it must NOT count as
+  // turning the card. Without entitlement the render attempt is refused
+  // upstream; what this asserts is only that the margin glass stays quiet.
+  await openReading(page);
+  const renderBtn = page.locator(".daily-panel .daily-card .arc-draw-btn");
+  await expect(renderBtn).toBeVisible(); // fresh browser: nothing painted yet
+  await renderBtn.click();
+  await expect(page.locator(".margin-glass, .detail-panel").first()).not.toContainText(/Today/i);
 });
