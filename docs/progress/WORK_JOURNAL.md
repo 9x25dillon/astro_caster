@@ -5,6 +5,78 @@ PR bodies; this is the story. Started session 15 at the operator's request._
 
 ---
 
+## Session 38, late · 2026-08-28 — "so what happened to my $5.50"
+
+The session had already closed. Hand_off written, journal written, servers
+down. Then the operator asked the question in the title, and it turned out to
+be the most productive four words of the night.
+
+I did not want to reassure them before looking, so I went to the box. The
+request logs were gone — a rebuild recreates containers and takes their logs
+with them, which is worth knowing before you go looking for evidence of
+something that happened before a deploy. But two SQLite files live on a
+persisted volume and they had everything. The receipt ledger held one row: five
+dollars fifty, verified, bound to a session seed, written at 03:07:59. The
+telemetry held the answer to the other half of the question, and it was starker
+than I expected. Personal report generations, ever, by anyone: zero.
+
+So the money was taken, the claim was minted and recorded, and the product had
+never once been compiled — not for this customer, not for anybody, because
+nobody had ever successfully reached the end of that flow.
+
+The mechanism was a fix I had shipped four hours earlier. I had stopped
+readings from vanishing when you switch chapters, and I had described that as
+fixing what the operator reported. It wasn't, quite. They reported two things —
+the text disappearing when you change tabs, and the text disappearing after the
+purchase — and I fixed the first and assumed the second was the same bug. It
+isn't: Stripe's return is a full page navigation, and the keep I built is
+module memory that dies with the page. The chapter fix could never have helped
+the purchase. I had reported a customer-facing bug as fixed while the money
+path was still broken, which is a worse error than the timeout one earlier in
+the day, because that one only cost time.
+
+Then it got worse before it got better, and again the cause was me. I told them
+to paste the Stripe payment reference into the manual purchase field to recover
+the claim. That field is the on-chain rail. It answered, entirely correctly,
+that on-chain verification was unavailable and trust mode disabled — which
+reads like a failed purchase and is actually the wrong door. I had sent a
+paying customer to a door marked with a hexadecimal placeholder and told them
+it was their receipt.
+
+And then they opened a clean browser and cleared site data, which removed the
+last thing that could have saved us: the claim token itself. Because the token
+is stateless and lives in localStorage while the purchase lives in the ledger,
+clearing cookies is enough to strand a paid product permanently. There was no
+route from a verified receipt back to a claim — none — even though the ledger's
+own docstring had been describing re-minting after a lost claim as legitimate
+since the day it was written. The capability had been documented for months and
+never given a door.
+
+Three things shipped out of it. A session now survives a reload, restored from
+the Library it has always been shelved in, scoped to the birth so it can never
+surface under somebody else's chart. The Library can compile a deluxe edition
+directly, verifying the seed on-device first so that a legitimate ephemeris
+drift produces a sentence naming the chart to load rather than a bewildering
+409. And a paid claim can be restored from the ledger, gated exactly as the
+original purchase was and no more weakly, with most of its tests being
+refusals — because every way that endpoint could mint without a payment is a
+way to give a paid product away.
+
+What I keep from tonight is smaller than any of those. When somebody reports
+two symptoms, the temptation is to find the one mechanism that explains both,
+and I did that, and I was wrong, and I said "fixed" about a path I had never
+traced end to end. The Course was proven with a real generation. TTS was proven
+by reading a file inside a container and calling it done. The deluxe flow I
+declared repaired without ever having watched a single one complete — and the
+telemetry, when I finally asked it, said no one ever had.
+
+A deployed commit is not a working product. This project already knew that.
+What it learned tonight is the sharper version: a fix you have not watched work
+is a hypothesis, and shipping it with the word "fixed" attached spends someone
+else's trust on your own optimism.
+
+---
+
 ## Session 38 · 2026-08-28 — the day I broke it worse before I fixed it, and learned what a timeout is for
 
 Yesterday's session found two production timeouts and fixed one. Today closed

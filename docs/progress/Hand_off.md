@@ -1,28 +1,101 @@
 # Hand_off.md
 
-_Last updated: 2026-08-28 (session 38 — **both production 524s are dead and
-deployed**, paid readings can no longer end mid-word, and readings survive the
-chapter dial. `main` is at `ce39ffd`; **production is at `4be9d25`, one
-DOCSTRING commit behind — that is not drift and needs no deploy.** No open PRs.
-The Master Audio-Visual Pipeline has a scaffold and five decisions waiting on
-xar.)
+_Last updated: 2026-08-28 (session 38 — both production 524s are dead, paid
+readings cannot end mid-word, readings survive the chapter dial and a reload,
+and **a paid deluxe claim can be recovered from the ledger**. `main` and
+**production are both at `71c3279`** — nothing is behind. No open PRs. THE ONE
+THING OWED: a real purchase is still unspent; see §THE $5.50 below.)
 Re-derive before trusting any of this: `git fetch && git status -sb`._
 
 ---
 
 # SESSION 38 — 2026-08-28
 
+## ⚠️ THE $5.50 — start here, this is owed to a real customer
+
+A deluxe Personal Report was **bought and never delivered**. Traced through the
+production ledgers (the request logs were gone — a rebuild recreates the
+containers and takes their logs with them):
+
+```
+report_receipts    $5.50, VERIFIED, bound to one seed, tx pi_3u9g90…, 03:07:59Z
+ai_events          personal_report generations EVER: 0
+```
+
+The session it paid for, recoverable because the seed's tail carries it:
+
+```
+spread    elemental_balance          (no date component — not a daily spread)
+lineage   rws  (Rider–Waite–Smith)
+question  what movement in the sky guides my destiny after tonight
+chart     xar's own (Sun 228.94)
+```
+
+**Why it was never delivered, in two layers.** Stripe's return is a FULL
+NAVIGATION, so the page reloaded with no Oracle session in memory and the
+button that spends the claim had nothing to attach to. Then, hunting for it,
+the only visible route was the manual purchase field — which is the ON-CHAIN
+rail, and answered a Stripe `pi_…` reference with *"on-chain verification
+unavailable and trust mode is disabled"*. That reads like a failed purchase and
+is actually the wrong door. **(That was my instruction and it was wrong.)**
+
+Then site data was cleared in a fresh browser, which destroyed the client-side
+half entirely — the claim token, the shelved session, the chart, and quite
+possibly the oracle entitlement token too, since all of them live in
+localStorage.
+
+**All three fixes are now shipped and live at `71c3279`.** What remains is for
+xar to spend the claim:
+
+1. Cast the chart (1987-11-11, 1:09 PM, UTC-8).
+2. Chapter II → **Draw** → spread **Elemental Balance**, lineage
+   **Rider–Waite–Smith**, question exactly
+   `what movement in the sky guides my destiny after tonight`.
+3. **Generate Oracle Report** — one Fable 5 generation of xar's own credit,
+   and it reproduces the identical seed (the seed is a pure function of chart,
+   spread, question, date, source).
+4. **↺ restore my purchase** in the deluxe section → the ledger re-issues the
+   claim → compile. **No second payment.**
+
+**If step 4 returns 402, the oracle entitlement token was cleared too.** The
+subscription is alive on the ledger (`sub_1U4lWeLyOHuDktpUiiUpM3Ri`, oracle,
+active, exp 2027) — recovery needs either the Stripe checkout session id
+(`cs_…`) through `/api/entitlement/relink`, or a one-off `ENT.relink_ref(ref,
+"oracle", verified=True)` run on the box against that ref. **There is no UI for
+tier recovery at all**, which is the same class of hole as the claim one and is
+the obvious next thing to close.
+
+**The measurement that closes this out** is `personal_report generations EVER`
+becoming 1:
+
+```bash
+ssh -i ~/.ssh/astra_hetzner astra@$ORIGIN_IP 'cd /home/astra/astro-aae && \
+  docker compose exec -T backend python -c "
+import sqlite3
+print(sqlite3.connect(\"data/telemetry.db\").execute(
+  \"select count(*) from ai_events where lens=%s\" % repr(\"personal_report\")).fetchone()[0])"'
+```
+
+---
+
 ## Start here — the three truths
 
 ```
-local       ce39ffd   backend 687 · frontend 111 · astra-core 86 · e2e 218   all green
-CI          ce39ffd   was RUNNING at close — check it first
-production  4be9d25   one commit behind, and that commit is a TEST DOCSTRING
+local       71c3279   backend 697 · frontend 124 · astra-core 86 · e2e 222   all green
+CI          71c3279   green on every check through #222
+production  71c3279   IN SYNC — verified by content, drift gate PASS
 APK         v1.0.6    unchanged
 ```
 
-**Do not deploy to "catch up".** The `4be9d25..ce39ffd` delta is one docstring
-in `backend/tests/test_tts.py`. Every line of product code on `main` is live.
+Deployed four times tonight, each verified from outside by content (the served
+bundle byte-identical to the local build, not just a matching SHA).
+
+**What is proven vs merely deployed.** The Course was proven by a real paid
+generation (`200` in 117.8s, complete text). **TTS has never been HEARD** —
+verified inside the running container only; one Speak on a long reading closes
+it. **The claim-restore endpoint has never granted anything** — its refusal
+path is confirmed live (402 without oracle tier), the grant path awaits §THE
+$5.50.
 
 **What is proven, and what is only deployed.** The Course was proven with a
 real paid generation — `POST /api/v1/course 200 117843ms`, complete output,
@@ -63,6 +136,28 @@ number bounds *under that endpoint's semantics*. And I should have spent one
 cent measuring that before the first PR, not after the deploy. `[[timeout-bounds-what-the-endpoint-says]]`
 
 ---
+
+## What shipped late (3 more commits, `90241ce..71c3279`)
+
+| commit | what |
+|---|---|
+| `a05d973` | **an Oracle session survives a RELOAD** — restored from the Library, scoped to the birth, 24h window |
+| `8695568` | **the Library compiles a deluxe edition** — an unspent claim is spendable where sessions live |
+| `71c3279` | **restore a paid claim from the receipt ledger** — the fix for §THE $5.50 |
+
+Three rules in `lib/oracleSession.ts` are load-bearing, each a way to hand
+somebody the WRONG reading: scoped to the birth (a session with no birth
+recorded is skipped, never guessed at); the local **date** rides through
+verbatim because it is folded into the seed and the server re-derives it; and
+the window is bounded to 24h.
+
+`BookshelfModal` **verifies the seed locally before posting**, using
+`defaultSeed` (reachable from `browser.ts`) via a bare `import("@astra/core")`
+— not `core()`, because comparing a seed has no business booting a WASM
+ephemeris. Without that check a legitimate mismatch is a bewildering 409: the
+seed folds in longitudes rounded to 0.01°, so a chart cast under a different
+ephemeris can round a body the other way, which moved **28.8% of measured
+charts** across the v1.0.3 → v1.0.4 data-file change.
 
 ## What shipped (6 commits, `acb2ee6..ce39ffd`)
 
@@ -189,6 +284,13 @@ the presence filter rather than hardcoding an index.
 
 ## Open threads
 
+0. **Spend the $5.50 claim** — §THE $5.50 above. The only thing owed to a
+   person rather than to the codebase.
+0b. **There is no UI for TIER recovery.** Clearing site data strands an active
+   subscription exactly as it stranded the deluxe claim; the ledger holds it
+   (`entitlement_ledger`, `relink_ref`) and nothing in the app can reach it.
+   Same shape as the hole closed tonight, one layer up — and the next customer
+   who clears their cookies hits it.
 1. **Hear the TTS fix.** One Speak on a long reading. Then
    `docker compose logs --since 20m backend | grep tts` — a 200 with a long
    duration and no `ReadTimeout` is the close.
