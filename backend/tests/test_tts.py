@@ -11,6 +11,20 @@ audio and received a 524). The streaming contract: bytes flow after the
 FIRST upstream response, errors before the first byte keep their HTTP
 status, and a mid-stream failure leaves a playable sentence-aligned prefix
 rather than an error the reader can no longer be sent.
+
+MEASURED 2026-08-28 against the real ElevenLabs API, one 4,700-char chunk
+(eleven_multilingual_v2), and these two numbers are the whole argument:
+
+    buffered endpoint   whole chunk synthesized in   50.70s
+    /stream endpoint    FIRST BYTE at                 3.12s
+                        then 5,046 parts, 5.8 MB, continuous
+
+50.70s is why production answered 502 three times at exactly 90s: against
+the buffered endpoint a 45s budget bounds the SYNTHESIS, 50.70 > 45, both
+the attempt and its retry timed out. Against /stream the same 45s bounds a
+gap between bytes, and the largest real gap is nowhere near it. A five-chunk
+reading is therefore ~250s of upstream work that Cloudflare never sees a
+100s silence inside.
 """
 import asyncio
 import os
