@@ -79,7 +79,58 @@ test("a malformed unlock link is refused without stranding the field", async ({ 
   // The recovery is the point of the test, not the message: the control has to
   // come back so the reader can correct the paste in place.
   await expect(page.locator(".key-import-btn")).toBeEnabled();
-  await expect(page.locator(".key-import-btn")).toContainText(/Import key/i);
+  await expect(page.locator(".key-import-btn")).toContainText(/Unlock this device/i);
+  expect(
+    await page.evaluate(() => localStorage.getItem("aae.entitlement"))
+  ).toBeNull();
+});
+
+test("a payment reference is routed to the card rail, not refused as a bad key", async ({ page }) => {
+  // The field takes what the reader HAS. Someone who cleared their site data
+  // has no key to bring — the key was the thing they lost — so they paste the
+  // reference off their receipt instead. It must not come back "that key
+  // didn't verify": a real payment answered as a bad credential is how the
+  // $5.50 of 2026-08-28 went undelivered.
+  //
+  // The test server's Stripe configuration is not this test's business, so the
+  // assertion is the invariant that holds either way: a DIFFERENT sentence
+  // from the bad-key one, the control back in the reader's hands, and nothing
+  // stored.
+  await openVault(page);
+  await page.locator(".key-import-field").fill("sub_1U4lWeLyOHuDktpUiiUpM3Ri");
+  await page.locator(".key-import-btn").click();
+  await expect(page.locator(".key-import-note")).toBeVisible();
+  await expect(page.locator(".key-import-note")).not.toContainText(/didn't verify/i);
+  await expect(page.locator(".key-import-btn")).toBeEnabled();
+  expect(
+    await page.evaluate(() => localStorage.getItem("aae.entitlement"))
+  ).toBeNull();
+});
+
+test("the crypto field names the card rail instead of denying a card payment", async ({ page }) => {
+  // The other half of the same fix, at the field where the mistake actually
+  // happened. This input is the ON-CHAIN rail: it answers anything it does not
+  // recognise with "on-chain verification unavailable and trust mode is
+  // disabled", which reads as "your payment failed". A customer holding a real,
+  // verified $5.50 receipt read exactly that on 2026-08-28 and stopped looking.
+  //
+  // Session 38 renamed the field, which stops the invitation. This asserts the
+  // stronger thing: a card reference pasted here anyway is recognised and told
+  // where to go, and never reaches the verifier that cannot judge it.
+  await page.goto("/");
+  await expect(page.locator(".wheel-area svg").first()).toBeVisible();
+  await page.locator(".support-pill").click();
+  await page.locator(".lib-support-btn").click();
+
+  const field = page.locator(".crypto-tx-field");
+  await expect(field).toBeVisible();
+  await field.fill("pi_3u9g90LyOHuDktpU0abcdef");
+  await page.locator(".crypto-verify-btn").click();
+
+  const status = page.locator(".modal p", { hasText: /card payment reference/i });
+  await expect(status).toBeVisible();
+  await expect(status).toContainText(/Bring your key/i);
+  // And nothing was sent down the wrong rail: no unlock, no stored key.
   expect(
     await page.evaluate(() => localStorage.getItem("aae.entitlement"))
   ).toBeNull();

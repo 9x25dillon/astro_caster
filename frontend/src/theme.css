@@ -639,7 +639,15 @@ button.ghost:hover {
 
 /* Support modal */
 .modal-overlay {
-  position: fixed; inset: 0; z-index: 50;
+  position: fixed; inset: 0;
+  /* Above the chapter dial (60), which is `position: fixed` and therefore
+     floats over a modal rather than under it. At 50 the rail sat ON the modal:
+     bottom-right on desktop, and a full-width bar across the bottom of every
+     modal under 900px — so any control the rail happened to cover could not be
+     clicked at all. Found by an e2e for the crypto field's new card-reference
+     notice, whose Verify button the rail was intercepting. Stays below the
+     200-level chrome (glossary bubble, install prompt, toasts). */
+  z-index: 70;
   background: rgba(5, 5, 8, 0.78);
   backdrop-filter: blur(3px);
   display: flex; align-items: center; justify-content: center;
