@@ -29,6 +29,13 @@ _MODEL = os.environ.get("ELEVENLABS_MODEL", "eleven_multilingual_v2").strip()
 _CHUNK_CHARS = 4800
 # Hard cap on total synthesized text to avoid runaway billing.
 _MAX_TOTAL_CHARS = 25_000
+# Per-request budget for one synthesis call. The number is set by Cloudflare,
+# not by ElevenLabs: CF 524s an origin after 100 seconds WITHOUT A BYTE, and
+# the longest silent gap the streaming path can produce is one hung call plus
+# its retry — 2 × this. 45s keeps that worst case at 90s. (Observed live: a
+# hang burned the full timeout while the retry synthesized the same chunk in
+# 23s; real synthesis is fast, only hangs ever reach the limit.)
+_CHUNK_TIMEOUT = 45.0
 
 # Last successful /voices payload. ElevenLabs occasionally drops a connection
 # mid-request (observed live: RemoteProtocolError, "server disconnected");
@@ -100,12 +107,19 @@ def _sentence_chunks(text: str, max_chars: int) -> List[str]:
     return chunks or [text[:max_chars]]
 
 
-async def synthesize(text: str, voice_id: Optional[str] = None) -> bytes:
+async def synthesize_stream(text: str, voice_id: Optional[str] = None):
     """
-    Return MP3 audio bytes for the given text. For long readings the text is
-    split into sentence-boundary chunks and the audio segments are concatenated,
-    so the full reading is always spoken regardless of length.
-    Raises on misconfig or upstream error.
+    Yield MP3 audio bytes chunk by chunk as they are synthesized. For long
+    readings the text is split into sentence-boundary chunks and each segment
+    is yielded the moment ElevenLabs returns it, so the response carries bytes
+    while later chunks are still being spoken — a five-chunk reading used to
+    be silent until the LAST chunk finished, and past 100 seconds of silence
+    Cloudflare answers the browser with a 524 for audio that was already paid
+    for. MP3 segments concatenate by simple byte-append, so the streamed body
+    is the same file the buffered path returned.
+
+    Raises on misconfig or upstream error; a raise after the first yield means
+    the consumer has already received a playable, sentence-aligned prefix.
     """
     if not _API_KEY:
         raise RuntimeError("ElevenLabs not configured")
@@ -114,10 +128,9 @@ async def synthesize(text: str, voice_id: Optional[str] = None) -> bytes:
     voice_settings = {"stability": 0.62, "similarity_boost": 0.82, "style": 0.35}
 
     chunks = _sentence_chunks(speakable(text), _CHUNK_CHARS)
-    audio_parts: List[bytes] = []
     prev_request_id: Optional[str] = None
 
-    async with httpx.AsyncClient(timeout=90.0) as client:
+    async with httpx.AsyncClient(timeout=_CHUNK_TIMEOUT) as client:
         for chunk in chunks:
             payload: dict = {
                 "text": chunk,
@@ -141,10 +154,14 @@ async def synthesize(text: str, voice_id: Optional[str] = None) -> bytes:
                     f"{_BASE}/text-to-speech/{vid}", headers=headers, json=payload
                 )
             r.raise_for_status()
-            audio_parts.append(r.content)
             prev_request_id = r.headers.get("request-id") or r.headers.get("x-request-id")
+            yield r.content
 
-    return b"".join(audio_parts)
+
+async def synthesize(text: str, voice_id: Optional[str] = None) -> bytes:
+    """The buffered form of `synthesize_stream`: the whole MP3 in one bytes.
+    Raises on misconfig or upstream error."""
+    return b"".join([part async for part in synthesize_stream(text, voice_id)])
 
 
 async def list_voices() -> List[dict]:
