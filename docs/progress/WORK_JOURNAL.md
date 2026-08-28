@@ -5,6 +5,119 @@ PR bodies; this is the story. Started session 15 at the operator's request._
 
 ---
 
+## Session 38 · 2026-08-28 — the day I broke it worse before I fixed it, and learned what a timeout is for
+
+Yesterday's session found two production timeouts and fixed one. Today closed
+both, shipped a completion guarantee, stopped paid readings from vanishing when
+the reader looked away, and scaffolded a pipeline. But the honest centre of the
+day is the hour where I made the product worse than I found it, so that is
+where this starts.
+
+`/api/v1/tts` was returning 524 after 113 seconds: a reading synthesized,
+billed, and thrown away by Cloudflare before it reached anyone. The diagnosis
+was already written down — sequential ElevenLabs calls, buffered, so the origin
+sat silent for their sum. The fix followed the Course's shape exactly: stream
+the MP3 so bytes in flight keep resetting the proxy's clock. And while I was
+there I lowered the per-call timeout from 90 seconds to 45, reasoning that the
+longest silence the path could produce was one hung attempt plus its retry, and
+2 × 45 sits comfortably under Cloudflare's 100.
+
+The arithmetic was correct. I deployed it. Production answered 502 three times,
+each at exactly ninety seconds.
+
+What I had done was reason carefully from a premise I never checked. A client
+timeout does not bound "a silent gap" — it bounds whatever the endpoint's
+response shape makes it bound, and against a **buffered** endpoint that is the
+entire operation. Afterwards, for about a cent, I measured the thing I should
+have measured first: a single 4,700-character chunk takes **50.70 seconds** to
+synthesize. Fifty is more than forty-five. So the attempt timed out, the retry
+timed out, and a route that had been arriving late now did not arrive at all.
+Against the same API's `/stream` variant the first byte lands in **3.12
+seconds** and the audio then flows in five thousand pieces, and the 45-second
+budget finally means what I had claimed it meant all along.
+
+The lesson is not "test your changes". It is narrower and more useful than
+that: **lowering a timeout never makes an upstream faster.** It converts a slow
+success into a fast failure, and for a paid product that is the worse of the
+two. Before choosing a number, name what the number bounds under that specific
+endpoint's semantics — and if the answer is "a whole job", either the budget
+covers the slowest job or the endpoint is the wrong one. Yesterday's session
+wrote *a claim is not a measurement* at the top of its handoff. I read that
+sentence in the morning and then spent the evening proving it again.
+
+The second piece of the day came from the operator's own instruction — product
+quality first, no truncation, no half-finished readings. That turned out to be
+a real hole and not a general worry. Since session 32 the ask path has known
+how to stop honestly: continue past the token ceiling, and if the budget runs
+out with the model still writing, trim back to the last complete sentence,
+because a clean short paragraph is an honest thing to hand someone and
+"...you are a natural counsel" is not. The long-form paths never got that
+second half. They had the continuation loop and stopped there — so the Oracle
+Report, the Course and the Personal Report, the three most expensive things
+this product makes, could each be handed to a paying reader ending mid-word.
+Both variants finish properly now. The part worth remembering is why it still
+works on the streamed path, where the torn text has already gone out over the
+wire: the terminal frame is authoritative and the client renders it over
+whatever it accumulated, so the copy the reader keeps ends on a sentence even
+though a broken one was briefly on screen.
+
+Then the operator bought a report and told me the text disappeared and dumped
+them back at the first chapter — and added, almost in passing, that they had
+never liked how the readings vanish when you change chapter tabs. Two
+complaints, one mechanism. `ArcanaModal` is mounted per chapter under distinct
+keys, so every touch of the chapter dial remounts it and takes the draw, the
+report and the course down with it. The artifact was never actually lost —
+every Oracle session shelves itself to the Library — but a reader who does not
+know the Library exists has lost their reading, and that is the only definition
+that matters.
+
+The keep that fixes it is nine lines of interesting and forty of careful. Two
+rules make it safe rather than dangerous. It is scoped to one chart, because a
+reading resurfacing under someone else's birth data would be worse than losing
+it; and returning to a previous chart does not resurrect anything, because
+durable storage is the Library's job and a stale in-memory copy competing with
+it is how two sources of truth start. The subtle part was the reset effect that
+clears state when the chart changes: it fires on mount as well, so left
+unguarded it wiped exactly the state I had just restored, and the guard has to
+compare the birth identity rather than the chart object, because a remount
+hands you an equal chart that is not the same reference.
+
+The day ended on the operator's Master Audio-Visual Pipeline — a manuscript, a
+soundscape built from the chart's own geometry, a narration in their cloned
+voice, a game character forged from their placements, sold in tiers from $175
+to $1,200. Scoping it produced one finding that reframes the rest: **the
+pipeline described is a batch job, and the product is a synchronous web
+request.** Every stage is minutes of compute per customer, and every paid
+generation today must complete inside Cloudflare's hundred seconds — the exact
+boundary this session spent its whole length fighting, twice. Streaming bought
+the Course its headroom and does not generalise: a forty-five-minute audio
+render has no partial output to stream, and nobody paying several hundred
+dollars can be asked to hold a browser tab open for it. So the first thing to
+build is not a feature from the brief at all. It is a job queue, an artifact
+store, and a claim-based delivery path.
+
+The happier half of that scoping is how much already exists — the seed, the
+year of transits, the manuscript, the soundtrack spec, and the voice, which
+turns out not to be an integration at all: a Professional Voice Clone is a
+`voice_id`, and `tts.py` has accepted arbitrary voice ids since the day it was
+written. And one finding that will save a day of building the wrong thing: the
+easter egg cannot work as described. Tap Blade is served from the apex origin
+and the chart lives on `app.`, and `localStorage` is partitioned per origin, so
+neither side can hand the other a character. The two-origin split is
+load-bearing and not up for revisiting; serving a copy of the game on the app
+origin is the cheap way through.
+
+Two smaller things worth keeping. A merge dropped one of my commits — pushed
+while the pull request was already queued — and `production_report.sh` caught
+it without being asked, because a local-only branch carrying unique commits
+with no archive tag fails one of its gates. That tool has now paid for itself
+twice. And the deploy blocked for the third time on a Hetzner firewall rule
+pinned to an IP address that rotates, which a valid API token would reduce from
+a console trip to a single call. The token has been invalid since the eleventh
+of August. Some frictions are cheaper to remove than to keep paying.
+
+---
+
 ## Session 37 close · 2026-08-27 — the day the chart learned to sound, and two clocks were found running out
 
 Thirteen commits, and the through-line of almost all of them was the same

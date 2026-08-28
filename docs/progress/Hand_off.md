@@ -1,12 +1,213 @@
 # Hand_off.md
 
-_Last updated: 2026-08-27 (session 37 close — thirteen commits landed, the
-chart learned to sound, APK v1.0.6 shipped, and TWO production timeouts were
-found. `main` is at `f734254`; **production is at `d693f98`, five commits
-behind**, and the Course 524 fix is among what has not shipped. One PR open
-(#215). CodeQL: 0 open alerts — 19/5/4 were dismissed by xar on 08-25 and the
-old "awaiting dismissal" note was stale.)
+_Last updated: 2026-08-28 (session 38 — **both production 524s are dead and
+deployed**, paid readings can no longer end mid-word, and readings survive the
+chapter dial. `main` is at `ce39ffd`; **production is at `4be9d25`, one
+DOCSTRING commit behind — that is not drift and needs no deploy.** No open PRs.
+The Master Audio-Visual Pipeline has a scaffold and five decisions waiting on
+xar.)
 Re-derive before trusting any of this: `git fetch && git status -sb`._
+
+---
+
+# SESSION 38 — 2026-08-28
+
+## Start here — the three truths
+
+```
+local       ce39ffd   backend 687 · frontend 111 · astra-core 86 · e2e 218   all green
+CI          ce39ffd   was RUNNING at close — check it first
+production  4be9d25   one commit behind, and that commit is a TEST DOCSTRING
+APK         v1.0.6    unchanged
+```
+
+**Do not deploy to "catch up".** The `4be9d25..ce39ffd` delta is one docstring
+in `backend/tests/test_tts.py`. Every line of product code on `main` is live.
+
+**What is proven, and what is only deployed.** The Course was proven with a
+real paid generation — `POST /api/v1/course 200 117843ms`, complete output,
+ends on a finished sentence. **TTS was verified by content inside the running
+container but never once heard.** The outstanding proof is one **🔊 Speak** on
+a long reading; if it plays, the second 524 is closed for good.
+
+---
+
+## THE MISTAKE THAT COST THE MOST — read this before touching a timeout
+
+The TTS fix shipped mid-session **made production worse**, and the shape of the
+error is more useful than the fix.
+
+`/api/v1/tts` was 524ing at 113s. I streamed the MP3 and set the per-call
+budget to 45s, reasoning: *the worst silence is one hung attempt plus its
+retry, and 2 × 45 < Cloudflare's 100.* The arithmetic was right. The premise
+was false — and production answered **502 three times at exactly 90 seconds**.
+
+Against a **buffered** upstream endpoint a client timeout does not bound a
+silent gap. It bounds **the whole operation**. Measured afterward against the
+real ElevenLabs API, one 4,700-char chunk:
+
+```
+buffered endpoint   whole chunk synthesized in   50.70s     <- 50.70 > 45
+/stream endpoint    FIRST BYTE at                 3.12s
+                    then 5,046 parts, 5.8 MB, continuous
+```
+
+So both the attempt and its retry timed out, and a route that used to arrive
+LATE now did not arrive at all. **Lowering a timeout never makes an upstream
+faster; it converts a slow success into a fast failure.** The fix was to make
+the premise true — ElevenLabs' `/text-to-speech/{id}/stream` — not to change
+the number.
+
+**The rule this leaves behind:** before choosing a timeout, name what the
+number bounds *under that endpoint's semantics*. And I should have spent one
+cent measuring that before the first PR, not after the deploy. `[[timeout-bounds-what-the-endpoint-says]]`
+
+---
+
+## What shipped (6 commits, `acb2ee6..ce39ffd`)
+
+| commit | what |
+|---|---|
+| `acb2ee6` | the daily-card e2e clicked the card's CENTER, which is now a paid button |
+| `6f17a1a` | **TTS speaks from `/stream`** — the 90s 502 fix |
+| `37f5996` | **no paid reading ends mid-word** — the completion guarantee reaches the long reports |
+| `dd28956` | **readings survive the chapter dial** |
+| `4be9d25` | **the Master Pipeline scaffold** — the ladder as code |
+| `ce39ffd` | the measurement the TTS timeout rests on |
+
+### The completion guarantee (`37f5996`) — what was actually missing
+
+The ask path has trimmed to the last complete sentence since session 32. The
+**long** paths did not: `_call_fable` / `_call_fable_stream` had the
+continuation loop but no last resort, so once two continuations were spent the
+Oracle Report, Course and Personal Report were returned exactly as they
+stopped — mid-word — on the most expensive output the product makes. Both
+variants now end the same way, and the anti-drift lock in
+`tests/test_course_stream.py` was extended rather than one side being tested.
+
+**In the streamed variant the trim still reaches the reader** even though the
+raw deltas already went out, because the `done` frame is authoritative and the
+client renders it over whatever it accumulated. That is not incidental — it is
+why the same guarantee can hold on a streaming path at all.
+
+### Readings survive the chapter dial (`dd28956`) — and the guard that must stay
+
+Reported after a $5.50 purchase: *"the text disappeared and brought me back to
+the first chapter"*, and *"I don't like how the readings disappear if you
+change the chapter tabs either."* One mechanism: `App.tsx` mounts `ArcanaModal`
+per chapter with distinct keys (`ch-ii` / `ch-vi` / `ch-vii`), so a chapter
+switch **remounts** it and destroys the draw, the Oracle Report, the Course.
+
+`frontend/src/lib/arcanaSession.ts` is the keep — `useSessionState`, a
+`useState` that writes through to a module-level map. Two things about it are
+load-bearing:
+
+1. **It is scoped to ONE chart.** A reading resurfacing under someone else's
+   birth data would be worse than losing it. Returning to a previous chart does
+   NOT resurrect its reading; durable storage is the Library's job, and a stale
+   in-memory copy competing with it is how two sources of truth start.
+2. **The `[chart]` reset effect had to be guarded, and removing that guard puts
+   the bug straight back.** It fires on MOUNT as well as on change, so
+   unguarded it wipes the very state just restored. It compares the birth
+   IDENTITY, because a remount produces an equal chart that is not the same
+   reference.
+
+---
+
+## The Master Pipeline scaffold — five decisions waiting on xar
+
+`docs/design/MASTER_PIPELINE.md` + `backend/product_catalog.py`. Read the doc
+before building any of it; the four findings that matter:
+
+1. **The pipeline is a batch job; the product is a synchronous web request.**
+   Every stage is minutes of compute, and today every paid generation must
+   finish inside Cloudflare's 100s — the boundary this whole session was spent
+   fighting, twice. Streaming does not scale here: a 45-minute render has no
+   partial output to stream. **Build the rail first** — job queue, artifact
+   store, claim-based delivery.
+2. **~2/3 already exists.** Seed, 1-year progression, manuscript, soundtrack
+   SPEC, and the voice — a Professional Voice Clone is just a `voice_id`, which
+   `tts.py` has always accepted, so that "integration" is a config value.
+   Missing: rendering the spec to a FILE, the chart→stats forge, mastering.
+3. **The Tap Blade easter egg cannot work as described.** The game is on the
+   APEX origin, the chart on `app.` — `localStorage` is partitioned per origin,
+   so neither can read the other. The split is load-bearing. Cheapest fix:
+   serve a copy of the game at `app.astra-arcana.com/tapblade/`.
+   `[[launch-infra-state]]`
+4. **Two margin corrections**: the text models are Anthropic (Fable 5 + Opus
+   4.8 fallback), not OpenAI; and a full 78-card render is **$2.34–$19.50 of
+   image generation per customer** — the largest variable cost in the ladder,
+   now pinned by test to the Collector tier alone.
+
+**Open decisions (§7 of the doc), two of which block everything:**
+
+1. **Artifact retention window** — blocks the rail. A stored artifact
+   contradicts the "nothing retained" posture; `PHYSICAL_TOME_PRODUCT.md` §3
+   already solved this for the printed book and that answer should be adopted
+   verbatim rather than a second one invented.
+2. **Where the sound bed renders** — blocks mastering. Recommendation:
+   client-side `OfflineAudioContext` (no server cost, bytes never leave the
+   device).
+3. Which origin fix for the game handoff.
+4. Whether the 78-card deck is pre-rendered or on-demand for Collector.
+5. Prices — the $175 / $625 / $1,200 defaults are the brief's midpoints, **not
+   a decision**.
+
+**When building the sound render, two inherited invariants:** it must consume
+the PERSISTED `SoundtrackSpec` (re-deriving re-deals the field — 28.8%
+divergence measured), and `bedrock_hz` is **compacted, not padded**, so replay
+the presence filter rather than hardcoding an index.
+`[[resonarium-soundtrack-engine]]` `[[seed-is-the-session]]`
+
+---
+
+## Traps learned today
+
+1. **A timeout bounds what the ENDPOINT's semantics make it bound.** The
+   headline above. Worth the whole section.
+2. **A fast merge can silently drop a commit pushed while the PR was queued.**
+   #219 merged four of five commits; `74733c4` was orphaned. Nothing functional
+   was lost, and **`production_report.sh` caught it independently** — a
+   local-only branch with unique commits and no archive tag fails a gate. Verify
+   merges by CONTENT, always. `[[stacked-pr-orphan-trap]]`
+3. **`fish` cannot source `ops/origin.env`.** It is POSIX `VAR=value` syntax;
+   fish errors and leaves `$ORIGIN_IP` EMPTY. A deploy command pasted into the
+   `!` prompt therefore produces two minutes of nothing. Use
+   `ORIGIN_IP=178.104.120.219 bash ops/production_report.sh --ssh`, or run the
+   deploy from a bash subshell.
+4. **The Hetzner firewall bit again** (third time). Site 200 through Cloudflare
+   while SSH times out is the signature; the port-22 rule is pinned to xar's
+   IP, which rotates. `~/.hetzner-token` is STILL invalid (401), so it can only
+   be fixed in the console. **Fixing that token once removes this friction
+   permanently.** `[[launch-infra-state]]`
+5. **Playwright clicks an element's geometric CENTER.** When #215 put a paid
+   "Render this card" button inside the daily card's clickable face, a bare
+   `.click()` on the container started hitting the button — whose
+   `stopPropagation` is correct and deliberate. Click the label, not the box.
+
+---
+
+## Open threads
+
+1. **Hear the TTS fix.** One Speak on a long reading. Then
+   `docker compose logs --since 20m backend | grep tts` — a 200 with a long
+   duration and no `ReadTimeout` is the close.
+2. **The five pipeline decisions** above. Two block the rail.
+3. **The character forge is the right first build** once (3) is decided:
+   pure deterministic math over data that already exists, no API spend, and it
+   exercises the new rail end-to-end with a trivial artifact. `CHARS` in
+   `landing/tapblade/tapblade.js` is the stat surface to write into. Emit
+   MODIFIERS over a base character and clamp them — the game must stay winnable
+   for every birth.
+4. **`intention` is still wired to nothing** (unchanged). It moves ONLY
+   `seed32`. Product call: per-session, or persisted with the profile?
+5. **Auto-painting the daily card** — still deliberately off; a spending
+   decision, one flag away.
+6. **A two-step learning path** — still undecided whether a two-endpoint
+   constellation is acceptable output.
+7. **The `/api/v1/tts` 25k-char cap** is fine for a reading and **too small for
+   a full manuscript narration** — the pipeline's Stage 3 needs the job rail,
+   not this endpoint.
 
 ---
 
