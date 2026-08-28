@@ -155,6 +155,30 @@ def test_agreement_holds_across_a_continuation(monkeypatch):
     assert msgs[1]["role"] == "assistant"
 
 
+def test_an_exhausted_budget_still_ends_on_a_finished_sentence(monkeypatch):
+    """The last resort of the completion guarantee: when every continuation is
+    spent and the writer is STILL going, the reader gets a text that ends on a
+    complete sentence — never "...you are a natural counsel". In the streamed
+    path the raw deltas cannot be retracted, but the done frame is the
+    authoritative text and the client renders it over the partial, so the
+    trim reaches the reader there too. Both paths, identically."""
+    def turns():
+        return [
+            _Msg("A finished sentence. ", "max_tokens"),
+            _Msg("Another finished one. ", "max_tokens"),
+            _Msg("And a half-fini", "max_tokens"),   # budget dies mid-word
+        ]
+
+    _install(monkeypatch, turns())
+    buffered = asyncio.run(OR._call_fable("system", "user"))
+    calls = _install(monkeypatch, turns())
+    _chunks, streamed = _drain(turns())
+
+    assert buffered["text"] == streamed["text"] \
+        == "A finished sentence. Another finished one."
+    assert len(calls) == 1 + OR._MAX_CONTINUATIONS, "budget spent exactly"
+
+
 # ------------------------------------------------------- refusal & failure
 
 def test_a_refusal_emits_no_text_and_asks_for_the_fallback(monkeypatch):

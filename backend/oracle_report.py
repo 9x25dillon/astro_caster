@@ -247,6 +247,16 @@ async def _call_fable_stream(
             ]
 
         text = "".join(parts).strip()
+        if text and msg.stop_reason == "max_tokens":
+            # Mirror of _call_fable's last resort, and here it WORKS even
+            # though the raw deltas already streamed: the done frame is the
+            # authoritative text and the client renders it over anything it
+            # accumulated, so the reader's final copy ends on a sentence.
+            from ai import _trim_to_last_complete_sentence
+            _log.warning(
+                "streamed report still unfinished after %d continuations — "
+                "trimming to the last complete sentence", _MAX_CONTINUATIONS)
+            text = _trim_to_last_complete_sentence(text)
         yield ("done", {"text": text, "model": served_by} if text else None)
     except Exception as exc:
         _log.warning("streamed report AI layer failed: %r", exc)
@@ -323,6 +333,17 @@ async def _call_fable(
         text = "".join(parts).strip()
         if not text:
             return None
+        if msg.stop_reason == "max_tokens":
+            # Continuation budget spent and the writer was STILL going — the
+            # ceilings make this remote (2 continuations on a 16k–32k budget),
+            # but a reading that trails off mid-word must never reach a
+            # reader. Same last resort the ask path uses: end on a finished
+            # sentence, and say so in the log.
+            from ai import _trim_to_last_complete_sentence
+            _log.warning(
+                "report still unfinished after %d continuations — trimming to "
+                "the last complete sentence", _MAX_CONTINUATIONS)
+            text = _trim_to_last_complete_sentence(text)
         return {"text": text, "model": served_by}
     except Exception as exc:
         _log.warning("oracle report AI layer failed: %r", exc)
