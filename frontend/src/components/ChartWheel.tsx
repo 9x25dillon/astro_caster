@@ -631,7 +631,17 @@ export const ChartWheel: React.FC<Props> = ({ size = 720 }) => {
                 onMouseEnter={() => hover({ type: "planet", id: p.id })}
                 onMouseLeave={() => hover(null)}
               >
+                {/* The tick-to-glyph leader stays OUTSIDE .planet-mark: its far
+                    end is pinned to the planet's TRUE longitude on the ring,
+                    while the glyph may be nudged off it to dodge a neighbour.
+                    Scaling it would drag that marker off the truth it records. */}
                 <line x1={tx} y1={ty} x2={gx} y2={gy} stroke="var(--rule)" strokeWidth={0.6} />
+                {/* Everything centred on the glyph, and the only thing the
+                    hover scales. The origin must be the glyph's own point in
+                    user units — an SVG element's transform-box is `view-box`,
+                    so the CSS default of `center` would mean the centre of the
+                    WHEEL and send the glyph fleeing the cursor. */}
+                <g className="planet-mark" style={{ transformOrigin: `${gx}px ${gy}px` }}>
                 {/* Generous invisible hit disc — the glyph alone is a tiny
                     touch target; with pinch-zoom this reaches 44px fast. */}
                 <circle cx={gx} cy={gy} r={16} fill="transparent" />
@@ -664,6 +674,7 @@ export const ChartWheel: React.FC<Props> = ({ size = 720 }) => {
                 >
                   {p.glyph.length > 1 ? p.glyph : glyphText(p.glyph)}
                 </text>
+                </g>
               </g>
             );
           })}
@@ -678,20 +689,22 @@ export const ChartWheel: React.FC<Props> = ({ size = 720 }) => {
           return (
             <g key={`t-${p.id}`} className="planet-node" opacity={0.9}>
               <line x1={tx} y1={ty} x2={gx} y2={gy} stroke="rgba(46,134,193,0.3)" strokeWidth={0.6} />
-              {p.retrograde && (
-                <circle cx={gx} cy={gy} r={10} fill="none"
-                  stroke="rgba(184,115,51,0.6)" strokeWidth={0.8} />
-              )}
-              <text
-                className="planet-glyph"
-                x={gx} y={gy}
-                dominantBaseline="central"
-                textAnchor="middle"
-                fontSize={13}
-                fill="rgba(126,184,212,0.92)"
-              >
-                {p.glyph.length > 1 ? p.glyph : glyphText(p.glyph)}
-              </text>
+              <g className="planet-mark" style={{ transformOrigin: `${gx}px ${gy}px` }}>
+                {p.retrograde && (
+                  <circle cx={gx} cy={gy} r={10} fill="none"
+                    stroke="rgba(184,115,51,0.6)" strokeWidth={0.8} />
+                )}
+                <text
+                  className="planet-glyph"
+                  x={gx} y={gy}
+                  dominantBaseline="central"
+                  textAnchor="middle"
+                  fontSize={13}
+                  fill="rgba(126,184,212,0.92)"
+                >
+                  {p.glyph.length > 1 ? p.glyph : glyphText(p.glyph)}
+                </text>
+              </g>
             </g>
           );
         })}
