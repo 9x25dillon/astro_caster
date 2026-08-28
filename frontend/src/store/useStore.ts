@@ -65,6 +65,7 @@ import type {
 import { trackEvent } from "../api/client";
 import { toDatetimeLocal } from "../lib/datetime";
 import { decodeBirthShare, extractChartToken } from "../lib/shareChart";
+import { sameBirth } from "../lib/birthIdentity";
 
 // The neutral settings a chart falls back to when nobody has chosen any:
 // Greenwich, UTC, Placidus, tropical. Kept as the base for the arrival sky
@@ -124,14 +125,10 @@ export const PLACEHOLDER_BIRTH: BirthInput = {
 // Offline app shell (MOBILE_ROADMAP §7.4): the last successful cast persists
 // so a network-dead reload still boots a living observatory. The label is
 // excluded — it's cosmetic, not chart-determining.
-const BIRTH_FIELDS: (keyof BirthInput)[] = [
-  "year", "month", "day", "hour", "minute", "second",
-  "lat", "lng", "tz_offset", "house_system", "zodiac", "ayanamsha",
-];
-
-function sameBirth(a: BirthInput, b: BirthInput): boolean {
-  return BIRTH_FIELDS.every((k) => a[k] === b[k]);
-}
+// The field list and the comparison live in lib/birthIdentity.ts — three
+// copies of "which fields make this the same chart" is three chances for two
+// surfaces to disagree about whether a stored artifact belongs to the chart
+// on screen.
 
 function readLastChart(): { birth: BirthInput; chart: ChartResponse } | null {
   try {

@@ -43,7 +43,8 @@ import {
 import { CLASSROOM, EXPRESSION_KINDS, generateArtifact, type Artifact } from "../lib/tarotCopy";
 import { Interpretation } from "./DetailPanel";
 import { useSpeech, speakableText } from "../lib/speech";
-import { scopeArcanaSession, useSessionState } from "../lib/arcanaSession";
+import { readKeep, scopeArcanaSession, useSessionState } from "../lib/arcanaSession";
+import { latestSessionForBirth } from "../lib/oracleSession";
 import { printSessionTome } from "../lib/tomePrint";
 import { galleryByKind, gallerySave, journalForSeed, shelfAttachPersonal, shelfSaveOracle } from "../lib/bookshelf";
 import { JournalPad } from "./JournalPad";
@@ -202,6 +203,34 @@ export const ArcanaModal: React.FC<{
     setOracleCtx(null);
     setPersonal(null);
     setReportToken(null);   // claims bind to a session seed, not the chart
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scopeKey]);
+
+  // Restore the Oracle session after a page RELOAD.
+  //
+  // `useSessionState` survives the remount a chapter switch causes; it cannot
+  // survive a navigation, and returning from Stripe IS a navigation. A paid
+  // deluxe claim was stranded exactly this way (see lib/oracleSession.ts), so
+  // the session comes back from the Library, where it has always been shelved.
+  //
+  // Runs only when the keep is empty — after a chapter switch `oracle` is
+  // already restored and this is a no-op, so a reader who deliberately cleared
+  // the tab is not fought with. The claim is re-attached too: it is bound to
+  // the seed, so restoring the session restores the right to compile it.
+  const [restoredAt, setRestoredAt] = useSessionState<string | null>("restoredAt", null);
+  useEffect(() => {
+    if (oracle || !birth) return;
+    let live = true;
+    latestSessionForBirth(birth).then((s) => {
+      // `oracle` is captured from this render; the guard re-checks the keep so
+      // a session generated while IndexedDB was reading is never clobbered.
+      if (!live || !s || readKeep<OracleReportResponse | null>("oracle", null)) return;
+      setOracle(s.oracle);
+      setOracleCtx(s.ctx);
+      setReportToken(loadReportToken(s.oracle.seed));
+      setRestoredAt(s.savedAt);
+    }).catch(() => undefined);
+    return () => { live = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scopeKey]);
 
@@ -515,6 +544,7 @@ export const ArcanaModal: React.FC<{
       });
       setOracle(r);
       setOracleCtx({ date, generatedAt: localToday() });
+      setRestoredAt(null);   // freshly generated, not restored
       setPersonal(null);   // a deluxe edition compiles ONE session — clear stale
       setReportToken(loadReportToken(r.seed));   // restore this session's claim
       // Bookshelf (B2): every Oracle session shelves itself — paid readings
@@ -995,6 +1025,17 @@ export const ArcanaModal: React.FC<{
                         </span>
                       )}
                     </div>
+
+                    {/* Provenance, because a reading that reappears without
+                        explanation is unsettling — and because "is this the
+                        one I just paid for?" must have a visible answer. */}
+                    {restoredAt && (
+                      <p className="muted" style={{ fontSize: "0.74rem", margin: "4px 0 0" }}>
+                        ✦ Restored from your Library — this session was kept on{" "}
+                        {new Date(restoredAt).toLocaleString()}. Any deluxe
+                        edition you purchased for it is still yours.
+                      </p>
+                    )}
 
                     <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", margin: "6px 0 10px", fontSize: "0.75rem", opacity: 0.8 }}>
                       <span>
