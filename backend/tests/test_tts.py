@@ -3,6 +3,14 @@ TTS resilience: ElevenLabs transport blips (observed live 2026-07-20 —
 "Server disconnected without sending a response" → 502 on /api/tts/voices)
 must degrade gracefully: one retry, then the last-known-good voice list.
 Real HTTP errors (bad key) still surface.
+
+And TTS delivery: the MP3 is streamed chunk by chunk (observed live
+2026-08-26 — /api/tts silent for 113s while chunks were synthesized
+sequentially, past Cloudflare's 100s no-byte cap, so the reader paid for
+audio and received a 524). The streaming contract: bytes flow after the
+FIRST upstream response, errors before the first byte keep their HTTP
+status, and a mid-stream failure leaves a playable sentence-aligned prefix
+rather than an error the reader can no longer be sent.
 """
 import asyncio
 import os
@@ -10,10 +18,15 @@ import sys
 
 import httpx
 import pytest
+from fastapi.testclient import TestClient
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import entitlements as ENT  # noqa: E402
+import main  # noqa: E402
 import tts as T  # noqa: E402
+
+client_http = TestClient(main.app)
 
 _VOICES_JSON = {"voices": [
     {"voice_id": "v1", "name": "Lily", "category": "premade"},
@@ -131,3 +144,139 @@ def test_synthesize_rejects_bad_voice_id_before_any_request(monkeypatch):
     with pytest.raises(ValueError):
         asyncio.run(T.synthesize("A short reading.", voice_id="../evil"))
     assert client.calls == 0
+
+
+# --------------------------------------------------------------------------- #
+# Streaming delivery — the 524 fix
+# --------------------------------------------------------------------------- #
+
+class _RecordingClient(_FakeClient):
+    """Numbered audio per call, and every payload kept for inspection."""
+
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        self.payloads = []
+
+    async def post(self, url, headers=None, json=None):
+        self.payloads.append(json)
+        r = await self._request()
+        r.content = b"seg%d" % len(self.payloads)
+        r.headers = {"request-id": "req-%d" % len(self.payloads)}
+        return r
+
+
+_THREE_SENTENCES = "First sentence here. Second sentence here. Third sentence here."
+
+
+def test_stream_yields_one_part_per_chunk_and_chains_request_ids(monkeypatch):
+    client = _RecordingClient()
+    _use_client(monkeypatch, client)
+    monkeypatch.setattr(T, "_CHUNK_CHARS", 25)  # force one sentence per chunk
+
+    async def collect():
+        return [part async for part in T.synthesize_stream(_THREE_SENTENCES)]
+
+    parts = asyncio.run(collect())
+    assert parts == [b"seg1", b"seg2", b"seg3"]
+    # Prosodic continuity: each request names the previous one, first names none.
+    assert "previous_request_id" not in client.payloads[0]
+    assert client.payloads[1]["previous_request_id"] == "req-1"
+    assert client.payloads[2]["previous_request_id"] == "req-2"
+
+
+def test_stream_first_bytes_do_not_wait_for_later_chunks(monkeypatch):
+    # The property that beats the 524: audio is in flight after ONE upstream
+    # call, not after their sum.
+    client = _RecordingClient()
+    _use_client(monkeypatch, client)
+    monkeypatch.setattr(T, "_CHUNK_CHARS", 25)
+
+    async def first_only():
+        stream = T.synthesize_stream(_THREE_SENTENCES)
+        first = await anext(stream)
+        calls_at_first_byte = client.calls
+        await stream.aclose()
+        return first, calls_at_first_byte
+
+    first, calls_at_first_byte = asyncio.run(first_only())
+    assert first == b"seg1"
+    assert calls_at_first_byte == 1
+
+
+def test_synthesize_is_the_streams_concatenation(monkeypatch):
+    _use_client(monkeypatch, _RecordingClient())
+    monkeypatch.setattr(T, "_CHUNK_CHARS", 25)
+    assert asyncio.run(T.synthesize(_THREE_SENTENCES)) == b"seg1seg2seg3"
+
+
+# --------------------------------------------------------------------------- #
+# /api/tts endpoint semantics under streaming
+# --------------------------------------------------------------------------- #
+
+def _supporter_token():
+    return ENT.mint_entitlement("supporter", ref="test", verified=True)["token"]
+
+
+def _count_metered(monkeypatch):
+    metered = []
+    monkeypatch.setattr(main.MET, "observe_ai_call", lambda *a, **k: metered.append(a))
+    return metered
+
+
+def test_endpoint_streams_full_audio_and_meters_on_clean_finish(monkeypatch):
+    monkeypatch.setattr(T, "_API_KEY", "test-key")
+
+    async def fake_stream(text, voice_id=None):
+        yield b"seg1"
+        yield b"seg2"
+
+    monkeypatch.setattr(T, "synthesize_stream", fake_stream)
+    metered = _count_metered(monkeypatch)
+    r = client_http.post("/api/tts", json={"text": "A reading.",
+                                           "entitlement": _supporter_token()})
+    assert r.status_code == 200
+    assert r.content == b"seg1seg2"
+    assert r.headers["content-type"].startswith("audio/mpeg")
+    assert r.headers["x-accel-buffering"] == "no"
+    assert len(metered) == 1
+
+
+def test_endpoint_failure_before_first_byte_is_still_a_502(monkeypatch):
+    monkeypatch.setattr(T, "_API_KEY", "test-key")
+
+    async def fake_stream(text, voice_id=None):
+        raise httpx.RemoteProtocolError("Server disconnected")
+        yield  # pragma: no cover — makes this an async generator
+
+    monkeypatch.setattr(T, "synthesize_stream", fake_stream)
+    r = client_http.post("/api/tts", json={"text": "A reading.",
+                                           "entitlement": _supporter_token()})
+    assert r.status_code == 502
+
+
+def test_endpoint_bad_voice_id_is_still_a_400(monkeypatch):
+    # The real generator raises ValueError at first anext(), before any
+    # network client exists — the handler must map it to a 400.
+    monkeypatch.setattr(T, "_API_KEY", "test-key")
+    r = client_http.post("/api/tts", json={"text": "A reading.",
+                                           "voice_id": "../evil",
+                                           "entitlement": _supporter_token()})
+    assert r.status_code == 400
+
+
+def test_endpoint_midstream_failure_keeps_the_prefix_and_is_not_metered(monkeypatch):
+    monkeypatch.setattr(T, "_API_KEY", "test-key")
+
+    async def fake_stream(text, voice_id=None):
+        yield b"seg1"
+        raise httpx.RemoteProtocolError("Server disconnected")
+
+    monkeypatch.setattr(T, "synthesize_stream", fake_stream)
+    metered = _count_metered(monkeypatch)
+    r = client_http.post("/api/tts", json={"text": "A reading.",
+                                           "entitlement": _supporter_token()})
+    # Status went out with the first byte; the reader keeps a playable,
+    # sentence-aligned prefix instead of losing everything to an error.
+    assert r.status_code == 200
+    assert r.content == b"seg1"
+    assert metered == []

@@ -904,21 +904,48 @@ async def tts_voices():
 
 @app.post("/api/tts")
 async def tts(req: TTSRequest):
-    """Synthesize speech; returns audio/mpeg. 503 if TTS is not configured."""
+    """Synthesize speech; returns audio/mpeg. 503 if TTS is not configured.
+
+    The MP3 is STREAMED, one ElevenLabs chunk at a time. A long reading is
+    several sequential upstream calls, and buffering them all meant the origin
+    was silent for their sum — observed live at 113s, past Cloudflare's 100s
+    cap, so the reader paid for audio and received a 524. Bytes in flight reset
+    that clock. The first chunk is awaited BEFORE the response begins so a bad
+    voice id is still a 400 and an upstream failure is still a 502.
+    """
     if not T.tts_status()["available"]:
         raise HTTPException(status_code=503, detail="ElevenLabs TTS not configured")
     _require_supporter(req.entitlement)  # premium neural voice is a supporter feature
     if not req.text.strip():
         raise HTTPException(status_code=400, detail="empty text")
+    stream = T.synthesize_stream(req.text, req.voice_id)
     try:
-        audio = await T.synthesize(req.text, req.voice_id)
+        first = await anext(stream)
     except ValueError:
         raise HTTPException(status_code=400, detail="invalid voice id")
     except Exception as exc:
         raise _client_error("tts failed", exc, status=502)
-    MET.observe_ai_call("tts", len(req.text))
-    return Response(content=audio, media_type="audio/mpeg",
-                    headers={"Cache-Control": "no-store"})
+
+    async def gen():
+        yield first
+        try:
+            async for part in stream:
+                yield part
+        except Exception:
+            # Status and first bytes are already sent; nothing left to raise
+            # to. The chunks are sentence-aligned, so the reader keeps a
+            # playable prefix that ends on a finished sentence.
+            _log.exception("tts failed mid-stream; reader keeps the prefix")
+            return
+        # Metering mirrors the buffered path's placement: only a fully
+        # delivered synthesis counts as an AI call.
+        MET.observe_ai_call("tts", len(req.text))
+
+    return StreamingResponse(
+        gen(), media_type="audio/mpeg",
+        # X-Accel-Buffering: no — nginx must not hold segments back, or the
+        # proxy reintroduces exactly the silence this stream exists to remove.
+        headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"})
 
 
 @app.post("/api/ai-ask-stream")
