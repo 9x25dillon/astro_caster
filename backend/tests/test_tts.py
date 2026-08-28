@@ -48,6 +48,19 @@ class _FakeResponse:
         return self._json
 
 
+def _streaming(r, midfail=False):
+    """Give a _FakeResponse the streamed-body face: aiter_bytes yields its
+    content once (then optionally dies mid-body, like a dropped connection)."""
+
+    async def aiter_bytes():
+        yield r.content
+        if midfail:
+            raise httpx.RemoteProtocolError("Server disconnected mid-body")
+
+    r.aiter_bytes = aiter_bytes
+    return r
+
+
 class _FakeClient:
     """Async client whose first N requests raise a transport error."""
 
@@ -75,6 +88,20 @@ class _FakeClient:
 
     async def post(self, *a, **k):
         return await self._request()
+
+    def stream(self, method, url, headers=None, json=None):
+        # Mimic httpx.AsyncClient.stream: a context manager; transport errors
+        # surface on __aenter__, the body arrives via aiter_bytes.
+        client = self
+
+        class _CM:
+            async def __aenter__(cm):
+                return _streaming(await client._request())
+
+            async def __aexit__(cm, *exc):
+                return False
+
+        return _CM()
 
 
 def _use_client(monkeypatch, client):
@@ -157,12 +184,38 @@ class _RecordingClient(_FakeClient):
         super().__init__(**kw)
         self.payloads = []
 
-    async def post(self, url, headers=None, json=None):
-        self.payloads.append(json)
-        r = await self._request()
-        r.content = b"seg%d" % len(self.payloads)
-        r.headers = {"request-id": "req-%d" % len(self.payloads)}
-        return r
+    def stream(self, method, url, headers=None, json=None):
+        client = self
+
+        class _CM:
+            async def __aenter__(cm):
+                client.payloads.append(json)
+                r = await client._request()
+                r.content = b"seg%d" % len(client.payloads)
+                r.headers = {"request-id": "req-%d" % len(client.payloads)}
+                return _streaming(r)
+
+            async def __aexit__(cm, *exc):
+                return False
+
+        return _CM()
+
+
+class _MidBodyFailClient(_FakeClient):
+    """Every attempt streams one part, then the connection dies mid-body."""
+
+    def stream(self, method, url, headers=None, json=None):
+        client = self
+
+        class _CM:
+            async def __aenter__(cm):
+                client.calls += 1
+                return _streaming(_FakeResponse(), midfail=True)
+
+            async def __aexit__(cm, *exc):
+                return False
+
+        return _CM()
 
 
 _THREE_SENTENCES = "First sentence here. Second sentence here. Third sentence here."
@@ -207,6 +260,25 @@ def test_synthesize_is_the_streams_concatenation(monkeypatch):
     _use_client(monkeypatch, _RecordingClient())
     monkeypatch.setattr(T, "_CHUNK_CHARS", 25)
     assert asyncio.run(T.synthesize(_THREE_SENTENCES)) == b"seg1seg2seg3"
+
+
+def test_stream_never_replays_a_chunk_that_already_sounded(monkeypatch):
+    # A retry is only safe BEFORE a chunk has produced audio. Once bytes of it
+    # are out, replaying the request would speak the same sentences twice —
+    # the stream must stop (the consumer keeps the prefix) rather than retry.
+    client = _MidBodyFailClient()
+    _use_client(monkeypatch, client)
+
+    async def collect():
+        parts = []
+        with pytest.raises(httpx.RemoteProtocolError):
+            async for part in T.synthesize_stream("A short reading."):
+                parts.append(part)
+        return parts
+
+    parts = asyncio.run(collect())
+    assert parts == [b"mp3"]   # the prefix reached the consumer
+    assert client.calls == 1   # and the chunk was NOT replayed
 
 
 # --------------------------------------------------------------------------- #

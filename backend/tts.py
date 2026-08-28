@@ -29,12 +29,15 @@ _MODEL = os.environ.get("ELEVENLABS_MODEL", "eleven_multilingual_v2").strip()
 _CHUNK_CHARS = 4800
 # Hard cap on total synthesized text to avoid runaway billing.
 _MAX_TOTAL_CHARS = 25_000
-# Per-request budget for one synthesis call. The number is set by Cloudflare,
-# not by ElevenLabs: CF 524s an origin after 100 seconds WITHOUT A BYTE, and
-# the longest silent gap the streaming path can produce is one hung call plus
-# its retry — 2 × this. 45s keeps that worst case at 90s. (Observed live: a
-# hang burned the full timeout while the retry synthesized the same chunk in
-# 23s; real synthesis is fast, only hangs ever reach the limit.)
+# Budget for one silent gap while talking to ElevenLabs (connect, and read
+# BETWEEN bytes of its streamed body). The number is set by Cloudflare, not by
+# ElevenLabs: CF 524s an origin after 100 seconds without a byte, and the
+# longest silence this path can produce is one hung attempt plus its retry —
+# 2 × this. It must bound a GAP, never a whole chunk's synthesis: measured
+# live 2026-08-28, the non-streaming upstream endpoint took >45s twice in a
+# row on a ~4800-char chunk (three 502s at exactly 90s), which is why
+# synthesize_stream uses the upstream /stream endpoint — bytes arrive as they
+# are generated, so no legitimate gap approaches this budget.
 _CHUNK_TIMEOUT = 45.0
 
 # Last successful /voices payload. ElevenLabs occasionally drops a connection
@@ -119,7 +122,14 @@ async def synthesize_stream(text: str, voice_id: Optional[str] = None):
     is the same file the buffered path returned.
 
     Raises on misconfig or upstream error; a raise after the first yield means
-    the consumer has already received a playable, sentence-aligned prefix.
+    the consumer has already received a playable prefix.
+
+    Upstream this uses ElevenLabs' /stream variant, and that choice is the
+    fix, not a nicety: the buffered variant synthesizes the WHOLE chunk before
+    answering, measured live at >45s for a near-limit chunk — two attempts of
+    that is a 90s silence and a dead request. /stream returns MP3 bytes as
+    they are generated, so the first byte arrives in seconds and no legitimate
+    gap approaches _CHUNK_TIMEOUT.
     """
     if not _API_KEY:
         raise RuntimeError("ElevenLabs not configured")
@@ -141,21 +151,36 @@ async def synthesize_stream(text: str, voice_id: Optional[str] = None):
             # across chunk boundaries (no audible stitch between segments).
             if prev_request_id:
                 payload["previous_request_id"] = prev_request_id
-            try:
-                r = await client.post(
-                    f"{_BASE}/text-to-speech/{vid}", headers=headers, json=payload
-                )
-            except httpx.TransportError:
-                # Transient drop (connection reset, mid-request disconnect):
-                # one retry so a single upstream blip doesn't waste the
-                # already-synthesized chunks. Auth/quota errors are HTTP
-                # statuses, not transport errors — they still raise below.
-                r = await client.post(
-                    f"{_BASE}/text-to-speech/{vid}", headers=headers, json=payload
-                )
-            r.raise_for_status()
-            prev_request_id = r.headers.get("request-id") or r.headers.get("x-request-id")
-            yield r.content
+            attempt = 0
+            while True:
+                attempt += 1
+                yielded = False
+                try:
+                    async with client.stream(
+                        "POST", f"{_BASE}/text-to-speech/{vid}/stream",
+                        headers=headers, json=payload,
+                    ) as r:
+                        # Auth/quota errors are HTTP statuses, not transport
+                        # errors — they raise here, before any byte, exactly
+                        # as the buffered variant did.
+                        r.raise_for_status()
+                        prev_request_id = (
+                            r.headers.get("request-id") or r.headers.get("x-request-id")
+                        )
+                        async for part in r.aiter_bytes():
+                            if part:
+                                yielded = True
+                                yield part
+                    break
+                except httpx.TransportError:
+                    # Transient drop: one retry so a single upstream blip
+                    # doesn't waste the already-synthesized chunks — but ONLY
+                    # if this chunk has produced no audio yet. Once bytes of
+                    # it are out, replaying the request would speak the same
+                    # sentences twice; the honest move is to stop and let the
+                    # consumer keep the prefix.
+                    if yielded or attempt >= 2:
+                        raise
 
 
 async def synthesize(text: str, voice_id: Optional[str] = None) -> bytes:
