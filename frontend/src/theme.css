@@ -3359,3 +3359,24 @@ input.tz-suspect { border-color: var(--gold); }
 @media (prefers-reduced-motion: reduce) {
   .torus-sound-pulse { animation: none; opacity: 1; }
 }
+
+/* ── The torus's teaching layers ───────────────────────────────────────────
+   A rail of switches, not buttons: each one turns a layer of meaning on over
+   the surface, and the surface is the thing being read. Wraps on narrow
+   screens rather than scrolling — five short labels, and a rail that hides
+   its own options behind a scroll is a rail nobody finds the fifth item in. */
+.torus-layers {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0 4px;
+}
+.torus-layers-lead {
+  font-size: 11px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--sepia);
+  margin-right: 2px;
+}
+.torus-layers .chip { font-size: 12px; padding: 3px 10px; }

@@ -38,6 +38,18 @@ import {
   participatesInSeed,
 } from "../lib/resonance";
 import { audioSupported, TorusVoice } from "../lib/torusAudio";
+import {
+  dignityAt,
+  houseLines,
+  natalCrossings,
+  natalLines,
+  signLines,
+  starLines,
+  DIGNITY_STRENGTH,
+  type AxisLine,
+} from "../lib/torusLayers";
+import { ELEMENT_COLORS } from "../lib/astro";
+import { fetchFixedStars, type FixedStarHit } from "../api/client";
 import { getSoundtrack } from "../lib/soundtrackStore";
 
 // Same glyphs the engine's PLANET_TABLE carries — UI copy, not a second list.
@@ -89,6 +101,67 @@ const prefersReducedMotion = (): boolean => {
   }
 };
 
+// ── The teaching layers ─────────────────────────────────────────────────────
+//
+// One rule places all of them: the torus is a PRODUCT of two circles, so an
+// idea's arity decides its shape. A single longitude is a CIRCLE on each axis;
+// an arc partition is a GRID; a per-body property is a STRIPE FIELD along one
+// axis; a pair relation is a DIAGONAL (the aspect circles, already drawn).
+// The maths lives in lib/torusLayers; this file only draws it.
+type LayerId = "signs" | "dignity" | "natal" | "houses" | "stars";
+
+/** What each layer is, in the sentence a reader gets when they switch it on.
+ *  Written to say what the SHAPE means, not what the feature is called —
+ *  a legend that only names things teaches nothing the label did not. */
+const LAYER_COPY: Record<LayerId, { label: string; note: string }> = {
+  signs: {
+    label: "Signs",
+    note:
+      "The grid was always here — the wireframe sits on sign cusps. Each tile " +
+      "is one sign-pair, so a whole-sign aspect is a TILE, not a diagonal. " +
+      "Cardinal cusps are drawn heavier: they carry the equinox-solstice frame.",
+  },
+  dignity: {
+    label: "Dignity terrain",
+    note:
+      "Dignity depends on where a body IS, so it varies along one axis alone — " +
+      "which is exactly what makes it a terrain rather than a table. Warm and " +
+      "bright is domicile or exaltation, cold and dim is detriment or fall. " +
+      "Watch the trajectory climb and sink through it.",
+  },
+  natal: {
+    label: "Natal field",
+    note:
+      "Each natal body is a fixed longitude, so it is a whole CIRCLE here: a " +
+      "meridian where this pair's first body conjuncts it, a parallel where the " +
+      "second does. Their crossings are marked. This is the same object as the " +
+      "sound — under the bedrock map two drones beat at zero exactly when the " +
+      "longitudes meet, so every crossing is a zero-beat you can hear. The " +
+      "fainter lines are oppositions: 180° is one octave, the only other ratio " +
+      "this map makes rational, and the only other aspect that can lock.",
+  },
+  houses: {
+    label: "Houses",
+    note:
+      "The same construction as the signs and deliberately NOT an even grid — " +
+      "away from the equator Placidus cusps are markedly unequal, and drawing " +
+      "twelve equal arcs would be a falsehood on the charts where houses matter " +
+      "most. The angles are heavier.",
+  },
+  stars: {
+    label: "Fixed stars",
+    note:
+      "A star is a single longitude, so it takes the same shape a natal body " +
+      "does — a thread on each axis. Only stars already contacting this chart " +
+      "are drawn: the whole catalogue would be a fog.",
+  },
+};
+
+/** The fastest beat still heard AS a beat rather than as a rough low tone.
+ *  Above this two drones stop pulsing and start being an interval — so it is
+ *  also the point past which a natal line has nothing to say about right now. */
+const AUDIBLE_BEAT_HZ = 8;
+
 /** How many crossings a single scrub jump may ring. A fast drag over a twelve-
  *  year window can span dozens; ringing them all is noise, not information. */
 const MAX_RINGS_PER_STEP = 3;
@@ -112,6 +185,15 @@ export const TorusPanel: React.FC = () => {
   const [selJd, setSelJd] = useState<number | null>(null);
   const [sounding, setSounding] = useState(false);
   const [audioErr, setAudioErr] = useState<string | null>(null);
+  // The teaching layers. Off by default and switched on ONE AT A TIME by
+  // intent: the surface is already dense with aspect circles and a trajectory,
+  // and a reader who turns everything on at once learns nothing. Each toggle
+  // says what appeared and why it is that shape.
+  const [layers, setLayers] = useState<Record<LayerId, boolean>>({
+    signs: false, dignity: false, natal: false, houses: false, stars: false,
+  });
+  const [stars, setStars] = useState<FixedStarHit[] | null>(null);
+  const [starsBusy, setStarsBusy] = useState(false);
   const voiceRef = useRef<TorusVoice | null>(null);
   const lastJdRef = useRef<number | null>(null);
 
@@ -167,16 +249,38 @@ export const TorusPanel: React.FC = () => {
     return (name: string) => m.get(name) ?? "#c9a84c";
   }, [defs]);
 
+  // Every natal body that has a longitude — the field the transiting pair
+  // sweeps across. Angles included: the Ascendant and Midheaven are longitudes
+  // like any other here, and a transit to them is as real as one to a planet.
+  const natalPos = useMemo(
+    () => (chart?.planets ?? []).map((p) => ({ id: p.id, longitude: p.longitude })),
+    [chart],
+  );
+  // Natal lines are tinted per BODY, not per aspect: the aspect palette already
+  // owns the diagonals, and reusing it here would make two different kinds of
+  // circle look like the same kind of fact.
+  const bodyTint = useMemo(() => {
+    const pal = ["#ffd76e", "#c8e0ff", "#ff9f7a", "#9fe8c0", "#e0a8ff",
+                 "#7ec4d8", "#f0b8d0", "#b8d870", "#d8b088", "#a0b8f0"];
+    const m = new Map(natalPos.map((p, i) => [p.id, pal[i % pal.length]]));
+    return (id: string) => m.get(id) ?? "#ffd76e";
+  }, [natalPos]);
+
   // ── The scene ref: everything the render loop needs, without re-binding ───
   const sceneRef = useRef({
     traj, activeDefs, events, embedding, tIdx, selJd,
     colorOf, bodyA, bodyB,
+    ly: layers, ch: chart, st: stars, natalPos, bodyTint,
   });
   const dirtyRef = useRef(true);
   useEffect(() => {
-    sceneRef.current = { traj, activeDefs, events, embedding, tIdx, selJd, colorOf, bodyA, bodyB };
+    sceneRef.current = {
+      traj, activeDefs, events, embedding, tIdx, selJd, colorOf, bodyA, bodyB,
+      ly: layers, ch: chart, st: stars, natalPos, bodyTint,
+    };
     dirtyRef.current = true;
-  }, [traj, activeDefs, events, embedding, tIdx, selJd, colorOf, bodyA, bodyB]);
+  }, [traj, activeDefs, events, embedding, tIdx, selJd, colorOf, bodyA, bodyB,
+      layers, chart, stars, natalPos, bodyTint]);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -198,6 +302,12 @@ export const TorusPanel: React.FC = () => {
     const fit = () => {
       const dpr = window.devicePixelRatio || 1;
       const w = wrap.clientWidth;
+      // The panel stays MOUNTED but display:none while another Depths tab is
+      // showing — that is what lets its audio survive a tab switch and blend
+      // with the field's instead of being cut. A hidden box measures 0, and
+      // resizing the canvas to nothing on every switch is pure churn: bail and
+      // let the observer fire again when the box comes back.
+      if (w === 0) return;
       const h = Math.min(Math.max(Math.round(w * 0.78), 300), 520);
       canvas.width = Math.round(w * dpr);
       canvas.height = Math.round(h * dpr);
@@ -240,8 +350,10 @@ export const TorusPanel: React.FC = () => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
     if (!canvas || !ctx) return;
-    const { traj: t, activeDefs: ds, events: evs, embedding: kind, tIdx: ti, selJd: sel, colorOf: col } =
-      sceneRef.current;
+    const {
+      traj: t, activeDefs: ds, events: evs, embedding: kind, tIdx: ti,
+      selJd: sel, colorOf: col, bodyA, bodyB, ly, ch, st, natalPos, bodyTint,
+    } = sceneRef.current;
     const w = canvas.width;
     const h = canvas.height;
     ctx.clearRect(0, 0, w, h);
@@ -258,8 +370,14 @@ export const TorusPanel: React.FC = () => {
     const shade = (depth: number) => Math.max(0, Math.min(1, (depth + 2.8) / 5.6));
 
     const segs: Seg[] = [];
+    // `floor` is how much of a line survives on the FAR side of the surface.
+    // The wireframe wants a deep recession (0.35) so the torus reads as a solid
+    // shape. A meaning layer does not: its far half is carrying just as much
+    // information as its near half, and at 0.35 a natal line already dimmed by
+    // its base alpha landed at 0.19 — a line you have to know is there.
     const pushPath = (
-      pts: Array<[number, number]>, color: string, width: number, alpha: number
+      pts: Array<[number, number]>, color: string, width: number, alpha: number,
+      floor = 0.35,
     ) => {
       let prev = P(pts[0][0], pts[0][1]);
       for (let i = 1; i < pts.length; i++) {
@@ -267,23 +385,131 @@ export const TorusPanel: React.FC = () => {
         const depth = (prev.depth + cur.depth) / 2;
         segs.push({
           x1: cx + prev.x, y1: cy + prev.y, x2: cx + cur.x, y2: cy + cur.y,
-          depth, color, width, alpha: alpha * (0.35 + 0.65 * shade(depth)),
+          depth, color, width, alpha: alpha * (floor + (1 - floor) * shade(depth)),
         });
         prev = cur;
       }
     };
 
-    // Wireframe — the θ grid lines sit on sign cusps of body A (every 30°).
-    for (let g = 0; g < 360; g += 30) {
-      const mer: Array<[number, number]> = [];
-      const par: Array<[number, number]> = [];
-      for (let i = 0; i <= 48; i++) {
-        const a = (i / 48) * 360;
-        mer.push([g, a]);
-        par.push([a, g]);
+    // Shared between the natal LINES (which brighten near a crossing) and the
+    // natal MARKS (which appear near one) — computed once, because they are two
+    // views of a single fact and must not disagree about when it happens.
+    let crossingsRef: ReturnType<typeof natalCrossings> = [];
+    let horizonRef = 0;
+    let nowRef = 0;
+
+    // One great circle at a fixed longitude on one axis. Every layer below is
+    // built out of this, because on a product of two circles a single
+    // longitude IS a circle — see lib/torusLayers for the rule.
+    const circleAt = (lon: number, axis: "theta" | "phi", steps = 48) => {
+      const pts: Array<[number, number]> = [];
+      for (let i = 0; i <= steps; i++) {
+        const a = (i / steps) * 360;
+        pts.push(axis === "theta" ? [lon, a] : [a, lon]);
       }
-      pushPath(mer, "#cfd8ff", 0.7, 0.10);
-      pushPath(par, "#cfd8ff", 0.7, 0.07);
+      return pts;
+    };
+    // Layer lines keep a high depth floor: the weight already separates the
+    // important line from the ordinary one, and dimming by depth on top of that
+    // was compounding two reductions into invisibility.
+    const LAYER_FLOOR = 0.62;
+    const pushAxisLines = (lines: AxisLine[], baseAlpha: number, baseWidth: number) => {
+      for (const l of lines) {
+        pushPath(circleAt(l.lon, l.axis), l.color, baseWidth * (0.7 + 0.3 * l.weight),
+                 baseAlpha * (0.62 + 0.38 * l.weight), LAYER_FLOOR);
+      }
+    };
+
+    // Wireframe — the θ grid lines sit on sign cusps of body A (every 30°).
+    // Unnamed and uncoloured unless the Signs layer says otherwise; this is the
+    // structure the surface has always had, just not the statement.
+    if (!ly.signs) {
+      for (let g = 0; g < 360; g += 30) {
+        pushPath(circleAt(g, "theta"), "#cfd8ff", 0.7, 0.10);
+        pushPath(circleAt(g, "phi"), "#cfd8ff", 0.7, 0.07);
+      }
+    } else {
+      const tint = (el: string) => ELEMENT_COLORS[el] ?? "#cfd8ff";
+      // Brighter than the anonymous wireframe they replace (0.10) by enough to
+      // actually read as a statement — measured against the aspect circles,
+      // which are the figure this is the ground for. θ over φ so the two axes
+      // stay tellable apart on a surface where both are the same shape.
+      pushAxisLines(signLines("theta", tint), 0.85, 1.2);
+      pushAxisLines(signLines("phi", tint), 0.62, 1.2);
+    }
+
+    // Dignity — a per-body property, so a stripe field along ONE axis each.
+    // Drawn as a band of closely-spaced circles through every sign arc rather
+    // than as line-per-cusp: the point is the TERRAIN the pair travels, and a
+    // terrain needs area, not edges.
+    if (ly.dignity) {
+      const shadeFor = (strength: number): [string, number] =>
+        strength > 0
+          ? ["#ffd76e", 0.13 + 0.34 * strength]     // dignified: warm, present
+          : strength < 0
+            ? ["#5b86c4", 0.13 + 0.30 * -strength]  // debilitated: cold, sunken
+            : ["#8892a8", 0.06];                    // neutral: quiet, not absent
+      for (let d = 0; d < 360; d += 4) {
+        const sa = DIGNITY_STRENGTH[dignityAt(bodyA, d)] ?? 0;
+        const [ca, aa] = shadeFor(sa);
+        pushPath(circleAt(d, "theta", 40), ca, 4.4, aa, LAYER_FLOOR);
+        const sb = DIGNITY_STRENGTH[dignityAt(bodyB, d)] ?? 0;
+        const [cb, ab] = shadeFor(sb);
+        pushPath(circleAt(d, "phi", 40), cb, 4.4, ab, LAYER_FLOOR);
+      }
+    }
+
+    // Houses — the same construction, an unequal partition.
+    if (ly.houses && ch?.houses?.length) {
+      pushAxisLines(houseLines(ch.houses, "theta", "#e0a878"), 0.8, 1.3);
+      pushAxisLines(houseLines(ch.houses, "phi", "#e0a878"), 0.6, 1.3);
+    }
+
+    // Fixed stars — single longitudes, so threads. Thin: a background the
+    // chart moves against, not part of the chart.
+    if (ly.stars && st?.length) {
+      pushAxisLines(starLines(st, "#b8cdf0"), 0.8, 0.95);
+    }
+
+    // The natal field — the layer that is the same object as the SOUND.
+    //
+    // Fourteen bodies draw 56 circles, and at a brightness where each one is
+    // legible they become a CAGE: the trajectory and the aspect circles vanish
+    // behind their own context. Turning the opacity back down only returned it
+    // to the state where you had to know a line was there.
+    //
+    // So the sweep does the selecting. The field sits low, and a line the pair
+    // is ABOUT TO CROSS comes up — which is the same horizon the crossing marks
+    // use, and means scrubbing lights the lines you are travelling toward. The
+    // cage becomes context, and the instrument points at what is about to sound.
+    // A line is HOT when its beat is slow enough to hear as a beat.
+    //
+    // A time horizon was the wrong measure and the data said so: fifteen days
+    // of Moon is 195° of sky, so nearly every parallel qualified and the cage
+    // came back. What scales correctly across a body moving 1°/day and one
+    // moving 13° is not time but ORB — and under the bedrock map orb IS the
+    // beat rate. Two drones a degree apart beat slowly; twenty degrees apart
+    // they are not beating at all, they are an interval.
+    //
+    // So the visual threshold is an ACOUSTIC one, and the same number in both
+    // places: a line lights when the drone that will meet it is within audible
+    // beating distance. Because the map is exponential this is self-scaling in
+    // the other direction too — 8 Hz is 18° down at 110 Hz and 4.7° up at
+    // 440 Hz, which is exactly how much orb a beat that fast is worth there.
+    if (ly.natal && t && t.samples.length) {
+      const cur = t.samples[Math.max(0, Math.min(ti, t.samples.length - 1))];
+      nowRef = cur.jd;
+      horizonRef = Math.max(3, (t.samples[t.samples.length - 1].jd - t.samples[0].jd) / 24);
+      crossingsRef = natalCrossings(t.samples, natalPos);
+      for (const l of natalLines(natalPos, bodyTint)) {
+        const transiting = l.axis === "theta" ? cur.lonA : cur.lonB;
+        const beat = beatHz(droneHz(transiting), droneHz(l.lon));
+        const heat = Math.max(0, 1 - beat / AUDIBLE_BEAT_HZ);
+        pushPath(circleAt(l.lon, l.axis), l.color,
+                 (0.85 + 1.5 * heat) * (0.7 + 0.3 * l.weight),
+                 (0.22 + 0.78 * heat) * (0.62 + 0.38 * l.weight),
+                 LAYER_FLOOR);
+      }
     }
 
     // Aspect circles — the fixed diagonals. On the Clifford projection these
@@ -323,6 +549,37 @@ export const TorusPanel: React.FC = () => {
 
     // Markers, nearest-last so the close ones sit on top.
     const dots: Dot[] = [];
+
+    // The nodal points the sweep actually REACHES.
+    //
+    // The lattice of natal lines has 4n² intersections, and marking them all
+    // buried the surface in 784 dots that each meant "a crossing could happen
+    // here" — which is true of every point of every line, and so says nothing.
+    // Measured: it read as gold static. The lattice is already visible where
+    // the lines cross; what earns a dot is where THIS pair, in THIS window,
+    // arrives on a natal degree — the instant a transiting drone slides into a
+    // natal one and the beat between them falls to zero.
+    // Marked within a HORIZON of the time cursor, not across the whole window.
+    // A fast body sweeps the whole comb repeatedly — the Moon meets all fourteen
+    // natal degrees, and their oppositions, every month — so a year of Sun–Moon
+    // produced about 390 marks and read as static again. The horizon makes the
+    // dots mean "about to happen", and scrubbing walks them along the
+    // trajectory, which is the sweep the instrument is for.
+    if (ly.natal && crossingsRef.length) {
+      for (const c of crossingsRef) {
+        const dt = Math.abs(c.jd - nowRef);
+        if (dt > horizonRef) continue;
+        const near = 1 - dt / horizonRef;       // 1 at the cursor, 0 at the edge
+        const pr = P(c.lonA, c.lonB);
+        dots.push({
+          x: cx + pr.x, y: cy + pr.y, depth: pr.depth,
+          // The octave lock is real but quieter than the unison; drawn smaller
+          // so the two are not read as the same event.
+          r: (c.opposition ? 1.8 : 2.8) * (0.5 + 0.5 * near),
+          color: bodyTint(c.natal),
+        });
+      }
+    }
     if (t) {
       for (const e of evs) {
         const pr = P(e.lonA, e.lonB);
@@ -440,6 +697,34 @@ export const TorusPanel: React.FC = () => {
 
   // Autoplay policy: the context is constructed inside this handler and never
   // anywhere else. There is no path to sound that is not a button press.
+  /** Switch a teaching layer, and say what appeared. The sentence is the point:
+   *  a legend that only names things teaches nothing the label did not. */
+  const toggleLayer = useCallback((id: LayerId) => {
+    setLayers((prev) => {
+      const next = { ...prev, [id]: !prev[id] };
+      if (next[id]) {
+        trackEvent("torus_layer_on", { layer: id });
+        setMargin({
+          title: LAYER_COPY[id].label,
+          subtitle: "a layer of the torus",
+          body: [LAYER_COPY[id].note],
+        });
+      }
+      return next;
+    });
+    // Stars are the one layer with data we do not already hold. Fetched once,
+    // on demand, and only the ones already contacting this chart.
+    if (id === "stars" && !layers.stars && stars === null && !starsBusy && birth) {
+      setStarsBusy(true);
+      fetchFixedStars(birth, 1.5)
+        .then((r) => setStars(r.hits))
+        // A missing star layer is a layer that stays off, not an error banner
+        // over a working instrument.
+        .catch(() => setStars([]))
+        .finally(() => setStarsBusy(false));
+    }
+  }, [layers.stars, stars, starsBusy, birth, setMargin]);
+
   const startSound = useCallback(async () => {
     if (!soundtrack) return;
     setAudioErr(null);
@@ -553,6 +838,33 @@ export const TorusPanel: React.FC = () => {
           </button>
         )}
       </div>
+
+      {/* The teaching rail. Switched on one at a time by intent — the surface
+          already carries aspect circles and a trajectory, and a reader who
+          turns everything on at once learns nothing. */}
+      <div className="torus-layers">
+        <span className="torus-layers-lead">Layers</span>
+        {(Object.keys(LAYER_COPY) as LayerId[]).map((id) => (
+          <span
+            key={id}
+            className={`chip ${layers[id] ? "active" : ""}`}
+            role="switch"
+            aria-checked={layers[id]}
+            aria-label={LAYER_COPY[id].label}
+            title={LAYER_COPY[id].note}
+            onClick={() => toggleLayer(id)}
+          >
+            {layers[id] ? "◉" : "◯"} {LAYER_COPY[id].label}
+            {id === "stars" && starsBusy ? " …" : ""}
+          </span>
+        ))}
+      </div>
+      {layers.natal && (
+        <p className="arc-ondevice">
+          ✦ Each crossing of a natal line is a zero-beat — sound the pair and
+          scrub to hear one arrive.
+        </p>
+      )}
 
       {err && <p className="arc-error">{err}</p>}
       <p className="arc-ondevice">☾ computed on your device — drag to turn the torus</p>

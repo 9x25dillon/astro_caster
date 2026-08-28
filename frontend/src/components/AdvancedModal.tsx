@@ -1,7 +1,7 @@
 // AdvancedModal.tsx — harmonic charts, midpoint trees, fixed-star contacts.
 // Track R (R-2): a chapter surface (V · Depths), not a modal — no overlay,
 // no ✕; Esc and the dial navigate home via the App shell.
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useStore } from "../store/useStore";
 import {
   fetchHarmonic, fetchMidpointTree, fetchFixedStars, trackEvent,
@@ -12,6 +12,9 @@ import { shelveReading } from "../lib/shelveDoc";
 import type { DocChapter } from "../lib/bookshelf";
 import { TorusPanel } from "./TorusPanel";
 import { FieldPanel } from "./FieldPanel";
+import { AudioSession } from "../lib/audioSession";
+import { TORUS_BUS } from "../lib/torusAudio";
+import { FIELD_BUS } from "../lib/fieldAudio";
 
 type Tab = "harmonics" | "midpoints" | "stars" | "torus" | "field";
 
@@ -19,6 +22,23 @@ export const AdvancedModal: React.FC = () => {
   const birth = useStore((s) => s.birth);
   const setMargin = useStore((s) => s.setMargin);   // R-2: publish selections to the margin glass
   const [tab, setTab] = useState<Tab>("harmonics");
+  // The two sounding tabs stay MOUNTED once opened, hidden rather than
+  // destroyed, so their audio survives a switch. Unmounting ran each panel's
+  // cleanup, which stopped its instrument and — once the last bus went — closed
+  // the shared session outright. Measured: switch away from a sounding Torus,
+  // wait for the fade, and the context reads `closed`; the Field then builds a
+  // SECOND one. There is nothing to crossfade between two contexts, so the
+  // crossfade has to begin by not throwing one of them away.
+  const [visited, setVisited] = useState<Set<Tab>>(() => new Set<Tab>(["harmonics"]));
+  useEffect(() => { setVisited((v) => (v.has(tab) ? v : new Set(v).add(tab))); }, [tab]);
+
+  // Blend the two instruments toward whichever tab is showing. Equal-power, on
+  // the session's one clock — and a no-op until something is actually sounding,
+  // which is why it can run on every tab change without gating.
+  useEffect(() => {
+    if (tab !== "torus" && tab !== "field") return;
+    AudioSession.active()?.blend(TORUS_BUS, FIELD_BUS, tab === "field" ? 1 : 0, 0.45);
+  }, [tab]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [onDevice, setOnDevice] = useState(false);
@@ -152,8 +172,19 @@ export const AdvancedModal: React.FC = () => {
             </div>
           )}
 
-          {tab === "torus" && <TorusPanel />}
-          {tab === "field" && <FieldPanel />}
+          {/* Rendered whenever visited, hidden when not current — see `visited`
+              above. `display: none` measures 0, which TorusPanel's fit() bails
+              on rather than resizing its canvas to nothing every switch. */}
+          {visited.has("torus") && (
+            <div style={{ display: tab === "torus" ? undefined : "none" }}>
+              <TorusPanel />
+            </div>
+          )}
+          {visited.has("field") && (
+            <div style={{ display: tab === "field" ? undefined : "none" }}>
+              <FieldPanel />
+            </div>
+          )}
         </div>
     </div>
   );
