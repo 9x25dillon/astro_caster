@@ -3427,3 +3427,165 @@ input.tz-suspect { border-color: var(--gold); }
   unicode-bidi: isolate;
   font-family: "Noto Sans Hebrew", "Arial Hebrew", "Times New Roman", serif;
 }
+
+/* ── The holographic chart ─────────────────────────────────────────────────
+   Three stacked layers in one box: the torus underlay on canvas, the wheel's
+   SVG over it, and an inert HUD film on top. The stage is the only thing that
+   establishes a stacking context; everything below positions against it. */
+.chart-holo-stage {
+  position: relative;
+  line-height: 0;
+  margin: 0 auto;
+  isolation: isolate;
+  /* Responsive, because the SVG it wraps always was. A hard 720px here cannot
+     shrink, so on a narrow screen it overflowed and widened the LAYOUT
+     VIEWPORT — which drags the position:fixed chapter arc out of reach and is
+     invisible at desktop widths. threshold.spec guards it; it caught this. */
+  width: 100%;
+  aspect-ratio: 1 / 1;
+}
+.chart-holo-stage > svg {
+  position: relative;
+  z-index: 1;
+}
+.chart-hologram {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  /* The underlay is a projection, not an object: additive light so its lines
+     brighten what they cross rather than occluding it. */
+  mix-blend-mode: screen;
+  opacity: 1;
+  /* Dissolve at the rim rather than stopping. A projection has no edge — an
+     underlay that ends on a hard circle reads as a sticker, and the far side of
+     the torus is exactly where it should be losing coherence anyway. */
+  -webkit-mask-image: radial-gradient(circle at 50% 50%, #000 52%, transparent 76%);
+  mask-image: radial-gradient(circle at 50% 50%, #000 52%, transparent 76%);
+}
+
+/* The HUD film. Inert by construction — it sits over the wheel's hit targets,
+   so it must never take a pointer event, or the whole chart stops responding. */
+.chart-hud {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+/* Scanlines. SCANLINE_PITCH = 3px and SCANLINE_ALPHA = 0.055 in lib/hologram,
+   restated here because CSS cannot read the module — the test pins the pair.
+   Deliberately low contrast: a high-contrast stripe field is a photosensitivity
+   hazard in its own right, and this only has to be perceptible. */
+.chart-hud::before {
+  content: "";
+  position: absolute;
+  inset: -8px;
+  /* Stripes that LIGHTEN rather than darken. A CRT scanline works by taking
+     light away, which needs light to take — over a near-black instrument the
+     darkening version was mathematically present and visually absent. On a dark
+     ground the readable form of the same idiom is a faint emitted line. */
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(120, 232, 245, 0.075) 0px,
+    rgba(120, 232, 245, 0.075) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
+
+/* The scan sweep — one soft band crossing the instrument every eight seconds.
+   0.125 Hz, which is a factor of twenty-four inside the flash limit, and the
+   band's edges are gradients rather than steps so nothing in it reads as an
+   edge transition at all. */
+.chart-hud > i,
+.chart-hud::marker { display: none; }
+.chart-holo-stage::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  border-radius: 50%;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(120, 232, 245, 0.055) 46%,
+    rgba(190, 250, 255, 0.10) 50%,
+    rgba(255, 120, 214, 0.055) 54%,
+    transparent 100%);
+  background-size: 100% 260%;
+  background-repeat: no-repeat;
+  opacity: 0;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .chart-holo-stage::after { animation: hudSweep 8s linear infinite; }
+}
+@keyframes hudSweep {
+  0%   { background-position: 0 -160%; opacity: 0.9; }
+  100% { background-position: 0 160%;  opacity: 0.9; }
+}
+
+/* Edge glow + the cyan/magenta bloom, as a vignette rather than a filter: an
+   SVG filter over a 720px instrument repaints the whole tree, and this is
+   compositor-only. */
+.chart-hud::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 50%,
+      transparent 54%,
+      rgba(79, 227, 240, 0.09) 76%,
+      rgba(255, 90, 208, 0.13) 91%,
+      rgba(79, 227, 240, 0.26) 100%);
+  box-shadow:
+    inset 0 0 60px rgba(79, 227, 240, 0.20),
+    inset 0 0 130px rgba(255, 90, 208, 0.12),
+    0 0 50px rgba(79, 227, 240, 0.16);
+}
+
+/* Flicker and drift. BOUNDED, and the bound is the point:
+     · 2.4 Hz  — WCAG's general-flash threshold is 3/second;
+     · 6% swing — the guidance draws its line near 10% of max luminance.
+   Both sit inside their limit with room, and both are gone (not slowed) under
+   prefers-reduced-motion, which the global kill at the top of this file already
+   enforces for duration — this block removes the animation outright so no
+   residue of it can land. */
+@media (prefers-reduced-motion: no-preference) {
+  .chart-hud::before { animation: hudDrift 0.4286s linear infinite; }
+  .chart-hud::after  { animation: hudFlicker 0.4167s ease-in-out infinite; }
+}
+@keyframes hudDrift {
+  from { transform: translateY(0); }
+  to   { transform: translateY(3px); }
+}
+@keyframes hudFlicker {
+  0%, 100% { opacity: 0.97; }
+  50%      { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .chart-hud::before,
+  .chart-hud::after { animation: none; }
+  .chart-hologram { opacity: 0.8; }
+}
+
+/* The letters. Hebrew is read right to left; single glyphs need no direction,
+   but the attribute is what tells a screen reader and a font stack what this
+   character is doing here. */
+.sign-letter {
+  font-family: "Noto Sans Hebrew", "Arial Hebrew", "Times New Roman", serif;
+  font-size: 13px;
+  fill: var(--gold-soft, #e0c578);
+  opacity: 0.62;
+  pointer-events: none;
+}
+.seal-letter {
+  font-family: "Noto Sans Hebrew", "Arial Hebrew", "Times New Roman", serif;
+  font-size: 9.5px;
+  opacity: 0.6;
+  pointer-events: none;
+}

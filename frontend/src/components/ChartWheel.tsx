@@ -17,7 +17,15 @@ import {
   HOUSE_INFLUENCE, ASPECT_INFLUENCE, ASPECT_SYMBOL, formatPos, ORDINAL,
 } from "../lib/astro";
 import { PLANET_METAL, SEAL_ORDER } from "../lib/alchemy";
+import { ASPECT_DEFS } from "@astra/core";
+import { ChartHologram } from "./ChartHologram";
+import { letterAtLongitude, letterForBody } from "../lib/hebrew";
 import type { Aspect, PlanetData, Selection } from "../types";
+
+// The five majors are the five aspects a crystal is allowed (lib/crystal), and
+// they are also the ones whose diagonal circles the underlay draws without
+// turning the surface into a thicket. Minors join when the reader asks.
+const MAJOR_ANGLES = [0, 60, 90, 120, 180];
 
 interface Props {
   size?: number;
@@ -228,6 +236,24 @@ export const ChartWheel: React.FC<Props> = ({ size = 720 }) => {
     );
   }, [transit, asc]);
 
+  // ── Underlay inputs ───────────────────────────────────────────────────────
+  // ABOVE the early return below, and that placement is load-bearing: hooks run
+  // in call order, so a useMemo sitting after `if (!chart) return` is called
+  // zero times on the empty render and twice once a chart arrives. React counts
+  // that as a different component and throws on the render where the chart
+  // lands — which is every first cast. Measured the hard way: the wheel simply
+  // stopped rendering, with nothing wrong that a type checker could see.
+  const holoAngles = useMemo(
+    () => (layers.minorAspects
+      ? ASPECT_DEFS.map((d) => d.angle)
+      : ASPECT_DEFS.filter((d) => MAJOR_ANGLES.includes(d.angle)).map((d) => d.angle)),
+    [layers.minorAspects],
+  );
+  const holoPositions = useMemo(
+    () => (chart?.planets ?? []).map((p) => ({ id: p.id, longitude: p.longitude })),
+    [chart],
+  );
+
   if (!chart) {
     return (
       <div className="panel" style={{ width: size, textAlign: "center", color: "var(--ink)" }}>
@@ -258,6 +284,20 @@ export const ChartWheel: React.FC<Props> = ({ size = 720 }) => {
   });
 
   return (
+    <div className="chart-holo-stage" style={{ maxWidth: size }}>
+      {/* The chart's second dimension. Behind the wheel, in the wheel's own
+          coordinates — see ChartHologram's header for why the camera never
+          yaws. Hidden until there is a chart to be the torus OF. */}
+      {chart && (
+        <ChartHologram
+          size={size}
+          ascendant={asc}
+          positions={holoPositions}
+          aspectAngles={holoAngles}
+          focusId={planetFocus ? focusSel!.id : null}
+          view={view}
+        />
+      )}
     <svg
       ref={svgRef}
       width={size}
@@ -332,8 +372,13 @@ export const ChartWheel: React.FC<Props> = ({ size = 720 }) => {
       {/* Everything visual lives under the zoom/pan transform. */}
       <g transform={`translate(${view.tx} ${view.ty}) scale(${view.k})`}>
 
-      {/* Backdrop disc */}
-      <circle r={rZodiacOuter} fill="url(#discGrad)" stroke="var(--rule)" strokeWidth={0.5} />
+      {/* Backdrop disc — translucent now, because it is no longer the ground.
+          The torus underlay is, and an opaque disc painted straight over it hid
+          the whole layer: the canvas is behind this SVG, so anything solid here
+          erases it. Kept rather than removed so the rings still have something
+          to sit on and the chart does not read as floating in the starfield. */}
+      <circle r={rZodiacOuter} fill="url(#discGrad)" fillOpacity={0.55}
+              stroke="var(--rule)" strokeWidth={0.5} />
 
       {/* Corona gradient — golden bleed at outer edge */}
       <circle r={rZodiacOuter} fill="url(#coronaGrad)" />
@@ -378,7 +423,14 @@ export const ChartWheel: React.FC<Props> = ({ size = 720 }) => {
           const [xi1, yi1] = polar(rZodiacInner, endA);
           const elem = ELEMENT_OF_SIGN_INDEX(i);
           const midA = lonToAngle(i * 30 + 15, asc);
-          const [gx, gy] = polar((rZodiacOuter + rZodiacInner) / 2, midA);
+          // The band is split between the two alphabets rather than crowding
+          // both onto one radius: the sign glyph keeps the outer half, the
+          // letter takes the inner. A letter names the whole 30° arc, so it
+          // sits at the arc's MIDDLE — a glyph on a cusp reads as belonging to
+          // the boundary, which is the one place in a sign it means nothing.
+          const [gx, gy] = polar(rZodiacOuter - (rZodiacOuter - rZodiacInner) * 0.32, midA);
+          const letter = letterAtLongitude(i * 30 + 15);
+          const [lx, ly] = polar(rZodiacInner + (rZodiacOuter - rZodiacInner) * 0.26, midA);
           return (
             <g
               key={`sign-${i}`}
@@ -403,6 +455,16 @@ export const ChartWheel: React.FC<Props> = ({ size = 720 }) => {
                 textAnchor="middle"
               >
                 {glyphText(SIGN_GLYPHS[i])}
+              </text>
+              <text
+                className="sign-letter"
+                x={lx}
+                y={ly}
+                dominantBaseline="central"
+                textAnchor="middle"
+                lang="he"
+              >
+                {letter.glyph}
               </text>
             </g>
           );
@@ -848,20 +910,41 @@ export const ChartWheel: React.FC<Props> = ({ size = 720 }) => {
           <circle r={44} fill="none" stroke="rgba(201,168,76,0.28)" strokeWidth={0.7} strokeDasharray="2 5" />
           {SEAL_ORDER.map((id, i) => {
             const a = (i / SEAL_ORDER.length) * Math.PI * 2 - Math.PI / 2;
+            // SEAL_ORDER is the seven classical planets in descending Chaldean
+            // order, which is exactly the order the Sefer Yetzirah's seven
+            // doubles are walked in — so the letter for the metal at index i is
+            // simply DOUBLES[i]. The ring was already the doubles; nobody had
+            // said so. A test asserts the two orders agree rather than trusting
+            // this comment.
+            const dbl = letterForBody(id, "yetzirah");
             return (
-              <text
-                key={id}
-                x={Math.cos(a) * 44}
-                y={Math.sin(a) * 44}
-                textAnchor="middle"
-                dominantBaseline="central"
-                fontSize={11.5}
-                fill={PLANET_METAL[id].color}
-                opacity={0.85}
-                style={{ filter: "drop-shadow(0 0 3px rgba(201,168,76,0.4))" }}
-              >
-                {PLANET_METAL[id].sigil}
-              </text>
+              <g key={id}>
+                <text
+                  x={Math.cos(a) * 44}
+                  y={Math.sin(a) * 44}
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                  fontSize={11.5}
+                  fill={PLANET_METAL[id].color}
+                  opacity={0.85}
+                  style={{ filter: "drop-shadow(0 0 3px rgba(201,168,76,0.4))" }}
+                >
+                  {PLANET_METAL[id].sigil}
+                </text>
+                {dbl && (
+                  <text
+                    className="seal-letter"
+                    x={Math.cos(a) * 57}
+                    y={Math.sin(a) * 57}
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    lang="he"
+                    fill={PLANET_METAL[id].color}
+                  >
+                    {dbl.letter.glyph}
+                  </text>
+                )}
+              </g>
             );
           })}
         </g>
@@ -899,5 +982,13 @@ export const ChartWheel: React.FC<Props> = ({ size = 720 }) => {
       </text>
       </g>
     </svg>
+      {/* The HUD, over everything and inert. Scanlines and flicker live in CSS
+          rather than in the canvas loop: the underlay redraws only when the
+          chart or the reader's attention moves, and a shimmer that forced a
+          repaint every frame would cost ~2700 strokes for an effect the
+          compositor gives away. Bounded in lib/hologram, not here — 2.4 Hz at
+          6% swing, and gone entirely under prefers-reduced-motion. */}
+      <div className="chart-hud" aria-hidden="true" />
+    </div>
   );
 };

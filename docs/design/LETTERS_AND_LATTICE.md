@@ -265,3 +265,104 @@ reader cannot use. Among themselves the glyphs still sort by depth. Each is
 stroked with a dark halo before its fill — without it a letter crossing a bright
 aspect circle loses its counters and stops being a letter, and several of these
 differ by one stroke.
+
+---
+
+## 7 · The wheel, redesigned
+
+_Shipped 2026-08-28 alongside the above. `components/ChartHologram.tsx` is the
+underlay, `lib/hologram.ts` the treatment, `ChartWheel.tsx` the host. There is no
+toggle: this is what a cast chart looks like now._
+
+Three layers in one box — the torus underlay on canvas, the wheel's SVG over it,
+an inert HUD film on top.
+
+### The alignment is the whole argument
+
+The wheel places a longitude at screen angle `180° − (λ − Asc)` and reads it
+through `polar()`, which is `(cos, sin)` with SVG's y pointing down. The torus
+places its θ at `(cos θ, −sin θ)` after projection, for the same reason
+inverted. So
+
+```
+θ(λ) = ((λ − Asc) mod 360) − 180
+```
+
+makes the two land on the same screen angle for **every** longitude. A natal
+body's meridian points out of the wheel's centre at exactly the degree the wheel
+marks it. `test/hologram.test.ts` pins this against `lonToAngle` rather than
+trusting the derivation — two sign conventions in one line is two chances to be
+wrong.
+
+**Which is why the camera never yaws.** A slow turn would look better and would
+cost the only thing worth having: yaw slides θ off the wheel's angle and the
+correspondence stops being visible. The idle motion is carried by the HUD
+instead. The camera *does* pitch (−24°), which compresses the ring vertically —
+but a pitch about x cannot move points on `y = 0`, so the **Asc/Desc axis stays
+exactly aligned at any tilt**. The chart's most important axis is the one the
+tilt cannot touch. Also tested.
+
+### The letters
+
+- **12 elementals** on the zodiac ring, at each 30° arc's midpoint, sharing the
+  band with the sign glyph (glyph outer half, letter inner).
+- **7 doubles** on the central seal — and that ring was *already* the doubles.
+  `SEAL_ORDER` (`lib/alchemy.ts`) is the seven classical metals in descending
+  Chaldean order, which is exactly the order the Sefer Yetzirah walks its seven
+  doubles in, so the letter for the metal at index *i* is simply `DOUBLES[i]`.
+  Nobody had said so. A test asserts the two orders agree index-for-index.
+- **3 mothers** appear nowhere on the wheel, because they are not positions.
+
+### "Holographic", made to mean something
+
+A hologram records an **interference pattern**. This app has computed
+interference since session 37: two drones beat at `|f_A − f_B|`, zero exactly
+when longitudes meet. So the chromatic split between the cyan and magenta
+channels *is* a beat rate — each body's against its nearest neighbour — and it
+**closes to nothing at a conjunction**. The parts of the chart that are most
+exact are the parts that resolve; the fringes gather on bodies standing alone.
+
+The rest of the idiom — scanlines, sweep, bloom, edge glow — is the requested
+look rather than a derivation, and `lib/hologram.ts` says so in as many words.
+
+### The flicker is bounded in code, not in taste
+
+Photosensitive-epilepsy guidance (WCAG 2.3.1 / Harding) puts the danger above
+**three general flashes per second** at more than about **10% of maximum
+luminance**. This runs at **2.4 Hz** with a **6% swing** — measured, not
+declared: the test samples sixty seconds of the actual waveform at 1 kHz, counts
+its zero crossings, and asserts both bounds. The scan sweep is 0.125 Hz, a factor
+of twenty-four inside the limit.
+
+Under `prefers-reduced-motion` every animation is **removed, not slowed** — a
+reader who asked for no motion has not asked for less — and `flicker()` returns a
+flat 1. Tested by reading `animationName` off all four pseudo-elements.
+
+Scanlines **lighten** rather than darken. A CRT scanline works by taking light
+away, which needs light to take; over a near-black instrument the darkening
+version was mathematically present and visually absent.
+
+### Three bugs a type checker could not see
+
+1. **Conditional hooks.** The underlay's two `useMemo` calls went in just above
+   `return (`, which sits *below* `if (!chart) return`. Hooks run in call order,
+   so they were called zero times on the empty render and twice once a chart
+   arrived — React counts that as a different component and throws. The wheel
+   simply stopped rendering. They now sit above the early return, with a comment
+   saying why that placement is load-bearing.
+2. **The opaque backdrop.** The wheel painted `discGrad` at full opacity over the
+   canvas, hiding the entire underlay. It is now `fillOpacity 0.55`: still a
+   ground for the rings, no longer an eraser.
+3. **The underlay fought the glyphs.** At `FILL = 0.72` the lattice ran through
+   the planet ring. Pulled to `0.62`, inside `rPlanet`, with a radial mask so it
+   dissolves at the rim instead of ending on a hard circle.
+
+All three were found by taking a screenshot and looking at it.
+
+### Cost
+
+The canvas redraws on change — chart, ascendant, focus, size — not on a clock.
+The shimmer is CSS on the compositor, so the ~2700-stroke lattice is not repainted
+per frame. Both new layers are `pointer-events: none`; an e2e test clicks a planet
+*through* them, because a single missing declaration would turn the most-used
+surface in the app into a picture.
