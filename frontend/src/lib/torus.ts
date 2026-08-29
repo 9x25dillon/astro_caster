@@ -59,6 +59,10 @@ export interface AspectAngleDef {
   name: string;
   angle: number; // 0..180
   color?: string;
+  /** The orb the engine allows this aspect. Carried by @astra/core's AspectDef
+   *  and used by lib/crystal to decide how much of an aspect's symmetry an
+   *  inexact one has lost; the torus maths itself never reads it. */
+  defaultOrb?: number;
 }
 
 /** An exact aspect: the trajectory crossing an aspect circle. */

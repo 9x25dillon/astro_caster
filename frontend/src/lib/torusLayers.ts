@@ -391,3 +391,118 @@ export function starLines(
   }
   return out;
 }
+
+// ---------------------------------------------------------------------------
+// The letters — the same arity rule, applied to an alphabet
+// ---------------------------------------------------------------------------
+//
+// The Sefer Yetzirah's partition of the alphabet turns out to be the partition
+// this surface already has, and the arity rule at the top of this file places
+// each part without needing a new idea:
+//
+//   12 elementals → one per SIGN, and a sign is an arc of one axis, so a
+//                   letter is a MARK at the arc's midpoint. Twelve on θ,
+//                   twelve on φ, and the pair standing over any point of the
+//                   surface names the tile the trajectory is currently in.
+//
+//    7 doubles    → one per classical PLANET, and a planet here is a single
+//                   longitude, so its letter is a mark on the circle that
+//                   longitude already draws (see natalLines).
+//
+//    3 mothers    → one per ELEMENT, and an element is not a position at all.
+//                   They get no mark on the surface: they are how the surface
+//                   TURNS, and they live in lib/torus4 as the three orthogonal
+//                   plane-pairs of ℝ⁴. Aleph is the Hopf flow this panel has
+//                   been running since chapter V.
+//
+// A mark needs a reference circle to sit on, since a longitude on one axis is a
+// whole circle in the other. Sign letters ride the equator (φ = 0 for the θ
+// letters, θ = 0 for the φ letters) and body letters ride the quarter (φ = 90,
+// θ = 90) — two rings that never collide and are both on the surface's near
+// face at the default camera.
+
+import {
+  letterAtLongitude,
+  letterForBody,
+  type Attribution,
+  type HebrewLetter,
+} from "./hebrew";
+
+/** A glyph to be drawn at one point of the torus. */
+export interface GlyphMark {
+  theta: number;
+  phi: number;
+  glyph: string;
+  color: string;
+  /** Relative size — the reader's eye should sort these before reading them. */
+  size: number;
+  /** What it says, for the readout and the canvas's accessible label. */
+  title: string;
+}
+
+/** Where sign letters ride, and where body letters ride. Kept apart on purpose. */
+const SIGN_RING = 0;
+const BODY_RING = 90;
+
+/**
+ * The twelve elementals along one axis, each at the middle of its sign.
+ *
+ * The midpoint rather than the cusp, because the letter names the whole arc and
+ * a glyph sitting on a cusp reads as belonging to the boundary — which is the
+ * one place in the sign it does not mean anything special.
+ */
+export function signLetterMarks(
+  axis: "theta" | "phi",
+  colorOfElement: (element: string) => string,
+): GlyphMark[] {
+  return SIGNS.map((sign, i) => {
+    const mid = i * 30 + 15;
+    const letter = letterAtLongitude(mid);
+    return {
+      theta: axis === "theta" ? mid : SIGN_RING,
+      phi: axis === "theta" ? SIGN_RING : mid,
+      glyph: letter.glyph,
+      color: colorOfElement(elementOfSignIndex(i)),
+      size: 1,
+      title: `${letter.glyph} ${letter.name} · ${sign} · path ${letter.path} (${letter.joins}) · ${letter.value}`,
+    };
+  });
+}
+
+/**
+ * The doubles over the natal bodies that have one.
+ *
+ * Bodies outside the seven are skipped rather than given a substitute glyph.
+ * There are seven doubles because there were seven planets, and handing the
+ * North Node a spare letter would make the alphabet look like it covers a sky
+ * it was never asked about — the same reason letterForBody returns null.
+ */
+export function natalLetterMarks(
+  positions: readonly NatalPosition[],
+  colorOf: (bodyId: string) => string,
+  scheme: Attribution = "yetzirah",
+  includeModernOuters = false,
+): GlyphMark[] {
+  const out: GlyphMark[] = [];
+  for (const p of positions) {
+    const hit = letterForBody(p.id, scheme, includeModernOuters);
+    if (!hit) continue;
+    const lon = norm360(p.longitude);
+    const l: HebrewLetter = hit.letter;
+    const title =
+      `${l.glyph} ${l.name} · ${p.id} ${lon.toFixed(1)}° · path ${l.path} (${l.joins}) · ${l.value}` +
+      (hit.traditional ? "" : " · modern attribution");
+    for (const axis of ["theta", "phi"] as const) {
+      out.push({
+        theta: axis === "theta" ? lon : BODY_RING,
+        phi: axis === "theta" ? BODY_RING : lon,
+        glyph: l.glyph,
+        color: colorOf(p.id),
+        // A double is a body, and a body outranks the arc it stands in.
+        size: hit.traditional ? 1.25 : 1.1,
+        title,
+      });
+    }
+  }
+  return out;
+}

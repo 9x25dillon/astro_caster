@@ -18,7 +18,6 @@ import {
 import {
   aspectCirclePath,
   aspectTargets,
-  embed,
   findAspectEvents,
   jdToDate,
   nearestAspect,
@@ -28,8 +27,34 @@ import {
   type AspectAngleDef,
   type AspectEvent,
   type Camera,
-  type Embedding,
 } from "../lib/torus";
+import {
+  embed4,
+  phaseAlpha,
+  HYPER_RADII,
+  type Mother,
+  type Spin,
+  type Surface,
+} from "../lib/torus4";
+import {
+  cellFromLongitudes,
+  crystalForAspect,
+  crystalForNode,
+  harmonicOf,
+  pathName,
+  shardOutline,
+  triclinicMatrix,
+  type Matrix4,
+} from "../lib/crystal";
+import {
+  ATTRIBUTION_LABEL,
+  MOTHERS,
+  MOTHER_ELEMENTS,
+  MOTHER_PLANE_PAIRS,
+  letterForBody,
+  tileWord,
+  type Attribution,
+} from "../lib/hebrew";
 import {
   beatHz,
   centsBetween,
@@ -42,11 +67,14 @@ import {
   dignityAt,
   houseLines,
   natalCrossings,
+  natalLetterMarks,
   natalLines,
+  signLetterMarks,
   signLines,
   starLines,
   DIGNITY_STRENGTH,
   type AxisLine,
+  type GlyphMark,
 } from "../lib/torusLayers";
 import { ELEMENT_COLORS } from "../lib/astro";
 import { fetchFixedStars, type FixedStarHit } from "../api/client";
@@ -108,7 +136,7 @@ const prefersReducedMotion = (): boolean => {
 // an arc partition is a GRID; a per-body property is a STRIPE FIELD along one
 // axis; a pair relation is a DIAGONAL (the aspect circles, already drawn).
 // The maths lives in lib/torusLayers; this file only draws it.
-type LayerId = "signs" | "dignity" | "natal" | "houses" | "stars";
+type LayerId = "signs" | "dignity" | "natal" | "houses" | "hebrew" | "crystal" | "stars";
 
 /** What each layer is, in the sentence a reader gets when they switch it on.
  *  Written to say what the SHAPE means, not what the feature is called —
@@ -148,6 +176,38 @@ const LAYER_COPY: Record<LayerId, { label: string; note: string }> = {
       "twelve equal arcs would be a falsehood on the charts where houses matter " +
       "most. The angles are heavier.",
   },
+  hebrew: {
+    label: "Hebrew letters",
+    note:
+      "The Sefer Yetzirah splits its alphabet 3 + 7 + 12, and this surface was " +
+      "already split the same way. The twelve ELEMENTALS are signs, so each " +
+      "sits at the middle of its 30° arc on both axes — the pair standing over " +
+      "any point names the tile the pair is in, and their gematria is the one " +
+      "number here that survives every rotation. The seven DOUBLES are the " +
+      "classical planets, so each rides the circle its natal longitude already " +
+      "draws. The three MOTHERS are elements, which are not positions at all — " +
+      "they are how the surface TURNS. There are exactly three ways to split " +
+      "four dimensions into two planes that share no coordinate, and Aleph's " +
+      "is the pair the Hopf flow has been running in since chapter V. Bodies " +
+      "outside the seven get no letter, because the alphabet has none for them.",
+  },
+  crystal: {
+    label: "Crystal",
+    note:
+      "There are 32 crystallographic point groups and the Sefer Yetzirah counts " +
+      "32 paths of wisdom — ten sefirot and twenty-two letters — so each path " +
+      "carries one group, from the identity alone at Kether to the cubic " +
+      "holohedry at Tav. Every standing node grows the shard of its own path: a " +
+      "node on a lettered body takes that letter's group, and one on a body the " +
+      "alphabet has no letter for falls to triclinic, which is the system with " +
+      "no symmetry to claim — the identity for a conjunction, the inversion for " +
+      "an opposition, because an opposition IS an inversion. The deeper fact is " +
+      "in the aspects: a lattice may only carry 1-, 2-, 3-, 4- and 6-fold axes, " +
+      "and those are exactly the harmonics of the conjunction, opposition, " +
+      "trine, square and sextile. The five aspects that crystallize are the five " +
+      "this app already calls major. The quintile is 5-fold and the quincunx " +
+      "12-fold, and no lattice in nature permits either.",
+  },
   stars: {
     label: "Fixed stars",
     note:
@@ -157,10 +217,29 @@ const LAYER_COPY: Record<LayerId, { label: string; note: string }> = {
   },
 };
 
+// Canvas falls back per-glyph, so the job of this stack is only to reach a face
+// that HAS the Hebrew block before landing on a box. No webfont: a 22-letter
+// alphabet is not worth a network round trip on a panel that computes offline.
+const HEBREW_FONT = '"Noto Sans Hebrew", "Arial Hebrew", "Times New Roman", system-ui, serif';
+
+/** The two extra circles of the T⁴ surface. "—" is not a body: it zeroes that
+ *  radius, and with both off the hyper-torus is the donut exactly. */
+const NO_BODY = "";
+
 /** The fastest beat still heard AS a beat rather than as a rough low tone.
  *  Above this two drones stop pulsing and start being an interval — so it is
  *  also the point past which a natal line has nothing to say about right now. */
 const AUDIBLE_BEAT_HZ = 8;
+
+/** How many standing nodes may grow a shard at once.
+ *
+ *  Measured, not guessed: a Sun–Moon year puts dozens of crossings inside the
+ *  horizon and they arrive in a clump, because the Moon sweeps the whole natal
+ *  comb every month. At a dozen shards the habits are distinguishable — you can
+ *  see a splinter is not a rosette — and past that they overlap into one smudge
+ *  that says a crossing is near and nothing about which group it carries. The
+ *  nearest in time win, which is the same rule the crossing dots use. */
+const MAX_SHARDS = 12;
 
 /** How many crossings a single scrub jump may ring. A fast drag over a twelve-
  *  year window can span dozens; ringing them all is noise, not information. */
@@ -174,9 +253,20 @@ export const TorusPanel: React.FC = () => {
   const [bodyA, setBodyA] = useState("Sun");
   const [bodyB, setBodyB] = useState("Moon");
   const [days, setDays] = useState(365);
-  const [embedding, setEmbedding] = useState<Embedding>("donut");
+  const [embedding, setEmbedding] = useState<Surface>("donut");
+  // The second couple. Off by default — with neither of them the hyper-torus's
+  // extra radii are zero and the surface is the donut, so nothing is paid for
+  // until something is asked for.
+  const [bodyC, setBodyC] = useState<string>(NO_BODY);
+  const [bodyD, setBodyD] = useState<string>(NO_BODY);
   const [minors, setMinors] = useState(false);
-  const [hopfOn, setHopfOn] = useState(false);
+  const [flowOn, setFlowOn] = useState(false);
+  // Which mother is turning. Aleph is the one that was already here.
+  const [mother, setMother] = useState<Mother>("Aleph");
+  // Whose table the seven doubles come from, and whether the three moderns are
+  // allowed onto the mothers. Both are the reader's call: see lib/hebrew.
+  const [scheme, setScheme] = useState<Attribution>("yetzirah");
+  const [modernOuters, setModernOuters] = useState(false);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [traj, setTraj] = useState<PairTrajectory | null>(null);
@@ -190,8 +280,13 @@ export const TorusPanel: React.FC = () => {
   // and a reader who turns everything on at once learns nothing. Each toggle
   // says what appeared and why it is that shape.
   const [layers, setLayers] = useState<Record<LayerId, boolean>>({
-    signs: false, dignity: false, natal: false, houses: false, stars: false,
+    signs: false, dignity: false, natal: false, houses: false, hebrew: false,
+    crystal: false, stars: false,
   });
+  // The lattice. Separate from the shards on purpose: one is a reading OF the
+  // chart and the other bends the whole space the chart is drawn in, and a
+  // reader should be able to have either without the other.
+  const [lattice, setLattice] = useState(false);
   const [stars, setStars] = useState<FixedStarHit[] | null>(null);
   const [starsBusy, setStarsBusy] = useState(false);
   const voiceRef = useRef<TorusVoice | null>(null);
@@ -208,7 +303,8 @@ export const TorusPanel: React.FC = () => {
           localAspectDefs(),
           localPairTrajectory(
             birth, bodyA, bodyB,
-            new Date(Date.now() - (days / 2) * 86400000), days
+            new Date(Date.now() - (days / 2) * 86400000), days,
+            bodyC || null, bodyD || null
           ),
         ]);
         if (stale) return;
@@ -230,7 +326,7 @@ export const TorusPanel: React.FC = () => {
       }
     })();
     return () => { stale = true; };
-  }, [birth, bodyA, bodyB, days]);
+  }, [birth, bodyA, bodyB, bodyC, bodyD, days]);
 
   const activeDefs = useMemo(
     () => defs.filter((d) => minors || MAJORS.has(d.name)),
@@ -270,29 +366,39 @@ export const TorusPanel: React.FC = () => {
   const sceneRef = useRef({
     traj, activeDefs, events, embedding, tIdx, selJd,
     colorOf, bodyA, bodyB,
-    ly: layers, ch: chart, st: stars, natalPos, bodyTint,
+    ly: layers, ch: chart, st: stars, natalPos, bodyTint, scheme, modernOuters,
+    lat: lattice,
   });
   const dirtyRef = useRef(true);
   useEffect(() => {
     sceneRef.current = {
       traj, activeDefs, events, embedding, tIdx, selJd, colorOf, bodyA, bodyB,
-      ly: layers, ch: chart, st: stars, natalPos, bodyTint,
+      ly: layers, ch: chart, st: stars, natalPos, bodyTint, scheme, modernOuters,
+      lat: lattice,
     };
     dirtyRef.current = true;
   }, [traj, activeDefs, events, embedding, tIdx, selJd, colorOf, bodyA, bodyB,
-      layers, chart, stars, natalPos, bodyTint]);
+      layers, chart, stars, natalPos, bodyTint, scheme, modernOuters, lattice]);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const rotRef = useRef({ x: -28, y: 36 });
   const autoSpinRef = useRef(true); // gentle spin until the reader takes the wheel
-  const hopfRef = useRef({ angle: 0, playing: false });
+  // The mother's turn. `angle` is the isoclinic parameter — the SAME angle in
+  // both planes of the pair — which for Aleph is exactly the Hopf angle this
+  // ref used to be named after (lib/torus4 proves the two agree to 1e-12).
+  const flowRef = useRef<{ angle: number; playing: boolean; mother: Mother }>({
+    angle: 0, playing: false, mother: "Aleph",
+  });
   const dragRef = useRef<{ px: number; py: number } | null>(null);
 
   useEffect(() => {
-    hopfRef.current.playing = hopfOn && embedding === "clifford";
+    // The donut has no fourth dimension to be turned in, so the flow simply has
+    // nowhere to act there — the control is hidden rather than made to lie.
+    flowRef.current.playing = flowOn && embedding !== "donut";
+    flowRef.current.mother = mother;
     dirtyRef.current = true;
-  }, [hopfOn, embedding]);
+  }, [flowOn, embedding, mother]);
 
   // ── Size the canvas to its box, in device pixels ──────────────────────────
   useEffect(() => {
@@ -331,8 +437,8 @@ export const TorusPanel: React.FC = () => {
         rotRef.current.y += dt * 5;
         dirtyRef.current = true;
       }
-      if (hopfRef.current.playing) {
-        hopfRef.current.angle = (hopfRef.current.angle + dt * 14) % 360;
+      if (flowRef.current.playing) {
+        flowRef.current.angle = (flowRef.current.angle + dt * 14) % 360;
         dirtyRef.current = true;
       }
       if (dirtyRef.current) {
@@ -353,6 +459,7 @@ export const TorusPanel: React.FC = () => {
     const {
       traj: t, activeDefs: ds, events: evs, embedding: kind, tIdx: ti,
       selJd: sel, colorOf: col, bodyA, bodyB, ly, ch, st, natalPos, bodyTint,
+      scheme: sch, modernOuters: modern, lat,
     } = sceneRef.current;
     const w = canvas.width;
     const h = canvas.height;
@@ -363,11 +470,52 @@ export const TorusPanel: React.FC = () => {
       dist: 7,
       scale: Math.min(w, h) / 5.6,
     };
-    const hopf = kind === "clifford" ? hopfRef.current.angle : 0;
+    // The mother's turn, isoclinic: the same angle in both planes of her pair.
+    const spin: Spin = kind === "donut"
+      ? { mother: "Aleph", alpha: 0, beta: 0 }
+      : { mother: flowRef.current.mother, alpha: flowRef.current.angle };
     const cx = w / 2;
     const cy = h / 2;
-    const P = (th: number, ph: number) => project(embed(kind, th, ph, hopf), cam);
+
+    // The SLICE. T⁴ has four free angles and this canvas draws a 2-surface, so
+    // everything that is a shape on T² — the wireframe, the aspect circles, the
+    // natal lattice — is drawn at the third and fourth bodies' CURRENT
+    // longitudes. Scrubbing time therefore does two things at once: it walks
+    // the cursor along the curve, and it slides the whole surface sideways
+    // through the other two circles. The trajectory itself is exempt; it is a
+    // curve in the full T⁴ and uses each sample's own c and d.
+    const at = t?.samples[Math.max(0, Math.min(ti, t.samples.length - 1))];
+    const sliceC = at?.lonC ?? 0;
+    const sliceD = at?.lonD ?? 0;
+
+    // The cell. Nothing about it is chosen: its three interaxial angles ARE the
+    // three pairwise separations of three real longitudes — the two transiting
+    // bodies and, as the third axis, either the third circle when the reader has
+    // asked for one or body A's own natal degree, which is always there. So the
+    // crystal is triclinic exactly when those three are in no relation, and
+    // visibly straightens as they come into aspect.
+    let cell: Matrix4 | null = null;
+    if (lat && at) {
+      const third = at.lonC ?? t?.natal?.lonA ?? at.lonA;
+      cell = triclinicMatrix(cellFromLongitudes(at.lonA, at.lonB, third));
+    }
+
+    const PAt = (th: number, ph: number, c: number, d: number) => {
+      const s4 = embed4(kind, { a: th, b: ph, c, d }, spin, undefined, cell);
+      const pr = project(s4, cam);
+      return { x: pr.x, y: pr.y, depth: pr.depth, w: s4.w };
+    };
+    const P = (th: number, ph: number) => PAt(th, ph, sliceC, sliceD);
     const shade = (depth: number) => Math.max(0, Math.min(1, (depth + 2.8) / 5.6));
+
+    // Phasing by the fourth coordinate, but ONLY where a coordinate was really
+    // lost. Stereographic projection of the Clifford torus is invertible — w is
+    // recoverable from where the point landed, and is already visible as size —
+    // so dimming by it there would be saying the same thing twice. The nested
+    // hyper-torus is not on a sphere, so its w genuinely does not survive the
+    // divide, and fading is the only way it can be seen at all.
+    const wMax = HYPER_RADII.R3 + HYPER_RADII.R4;
+    const phase = (pw: number) => (kind === "hyper" ? phaseAlpha(pw, wMax) : 1);
 
     const segs: Seg[] = [];
     // `floor` is how much of a line survives on the FAR side of the surface.
@@ -496,12 +644,15 @@ export const TorusPanel: React.FC = () => {
     // beating distance. Because the map is exponential this is self-scaling in
     // the other direction too — 8 Hz is 18° down at 110 Hz and 4.7° up at
     // 440 Hz, which is exactly how much orb a beat that fast is worth there.
-    if (ly.natal && t && t.samples.length) {
+    // The crossings serve two layers now — the natal lines brighten toward them
+    // and the crystal grows a shard on each — so they are found once. Two views
+    // of one fact must not disagree about when it happens.
+    if ((ly.natal || ly.crystal) && t && t.samples.length) {
       const cur = t.samples[Math.max(0, Math.min(ti, t.samples.length - 1))];
       nowRef = cur.jd;
       horizonRef = Math.max(3, (t.samples[t.samples.length - 1].jd - t.samples[0].jd) / 24);
       crossingsRef = natalCrossings(t.samples, natalPos);
-      for (const l of natalLines(natalPos, bodyTint)) {
+      for (const l of ly.natal ? natalLines(natalPos, bodyTint) : []) {
         const transiting = l.axis === "theta" ? cur.lonA : cur.lonB;
         const beat = beatHz(droneHz(transiting), droneHz(l.lon));
         const heat = Math.max(0, 1 - beat / AUDIBLE_BEAT_HZ);
@@ -522,14 +673,18 @@ export const TorusPanel: React.FC = () => {
 
     // The trajectory itself — the pair's year (or twelve) of actual motion.
     if (t) {
-      let prev = P(t.samples[0].lonA, t.samples[0].lonB);
+      const sampleAt = (i: number) => {
+        const sm = t.samples[i];
+        return PAt(sm.lonA, sm.lonB, sm.lonC ?? sliceC, sm.lonD ?? sliceD);
+      };
+      let prev = sampleAt(0);
       for (let i = 1; i < t.samples.length; i++) {
-        const cur = P(t.samples[i].lonA, t.samples[i].lonB);
+        const cur = sampleAt(i);
         const depth = (prev.depth + cur.depth) / 2;
         segs.push({
           x1: cx + prev.x, y1: cy + prev.y, x2: cx + cur.x, y2: cy + cur.y,
           depth, color: "#f0e6c8", width: 1.9,
-          alpha: 0.28 + 0.6 * shade(depth),
+          alpha: (0.28 + 0.6 * shade(depth)) * phase((prev.w + cur.w) / 2),
         });
         prev = cur;
       }
@@ -624,6 +779,123 @@ export const TorusPanel: React.FC = () => {
       }
     }
     ctx.globalAlpha = 1;
+
+    // ── The crystal ─────────────────────────────────────────────────────────
+    //
+    // A standing node is the instant a transiting drone slides onto a natal one
+    // and the beat between them falls to zero — which is what a standing wave's
+    // node IS, and the reason the word is not a metaphor here. Each grows the
+    // habit of its own path: the orbit of a small asymmetric motif under that
+    // path's point group, so the SHAPE names the group before any symbol does.
+    // A splinter is 1, a splinter with a partner through the centre is -1, and a
+    // twelve-fold rosette is 6/mmm.
+    if (ly.crystal && crossingsRef.length) {
+      ctx.lineJoin = "round";
+      const shown = crossingsRef
+        .map((c) => ({ c, dt: Math.abs(c.jd - nowRef) }))
+        .filter((x) => x.dt <= horizonRef)
+        .sort((a, b) => a.dt - b.dt)
+        .slice(0, MAX_SHARDS);
+      for (const { c, dt } of shown) {
+        const near = 1 - dt / horizonRef;
+        const pr = P(c.lonA, c.lonB);
+        const cr = crystalForNode(c.natal, c.opposition, sch, modern);
+        // A habit has to be big enough to count its own vertices — a 6px
+        // rosette and a 6px splinter are the same grey dot.
+        const r = (10 + 9 * near) * px * (0.75 + 0.45 * shade(pr.depth));
+        ctx.globalAlpha = (0.35 + 0.6 * near) * phase(pr.w);
+        ctx.strokeStyle = bodyTint(c.natal);
+        ctx.lineWidth = 1.35 * px;
+        ctx.beginPath();
+        shardOutline(cr.group).forEach(([ox, oy], i) => {
+          // Screen-space, so the habit faces the reader however the surface is
+          // turned — the same billboarding the glyphs get, and free for the
+          // same reason: this renderer draws in two dimensions already.
+          const X = cx + pr.x + ox * r;
+          const Y = cy + pr.y - oy * r;
+          if (i === 0) ctx.moveTo(X, Y); else ctx.lineTo(X, Y);
+        });
+        ctx.closePath();
+        ctx.stroke();
+
+        // The letter at the centre of its own habit — but only for the nodes
+        // near the cursor. Every shard carrying a glyph turns the surface back
+        // into the fog the crossing marks were built to avoid.
+        if (cr.letter && near > 0.55) {
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.font = `${Math.round(11 * px)}px ${HEBREW_FONT}`;
+          ctx.globalAlpha = (0.35 + 0.6 * near) * phase(pr.w);
+          ctx.fillStyle = bodyTint(c.natal);
+          ctx.fillText(cr.letter.glyph, cx + pr.x, cy + pr.y);
+          ctx.textAlign = "start";
+          ctx.textBaseline = "alphabetic";
+        }
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    // ── The letters ─────────────────────────────────────────────────────────
+    //
+    // Drawn last and unsorted against the rest, because they are LABELS: a
+    // glyph that disappears behind a wireframe line is a glyph the reader
+    // cannot use. Among themselves they still sort by depth, so the far side of
+    // the surface reads as the far side.
+    //
+    // No billboarding code is needed and none should be added. The spec is
+    // right that glyphs must not warp with the surface — but this renderer is
+    // canvas-2D, and fillText already draws in screen space at a projected
+    // point, which IS billboarding. In a WebGL build this would be a vertex
+    // shader; here it is the default, and the whole 22-glyph pass costs one
+    // sort and one loop.
+    if (ly.hebrew) {
+      const tint = (el: string) => ELEMENT_COLORS[el] ?? "#cfd8ff";
+      const marks: GlyphMark[] = [
+        ...signLetterMarks("theta", tint),
+        ...signLetterMarks("phi", tint),
+        ...natalLetterMarks(natalPos, bodyTint, sch, modern),
+      ];
+      const placed = marks
+        .map((m) => ({ m, p: P(m.theta, m.phi) }))
+        .sort((a, b) => a.p.depth - b.p.depth);
+
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      for (const { m, p } of placed) {
+        ctx.globalAlpha = (0.4 + 0.6 * shade(p.depth)) * phase(p.w);
+        ctx.font = `${Math.round(m.size * 17 * px)}px ${HEBREW_FONT}`;
+        // A dark stroke under the fill. Without it a letter crossing a bright
+        // aspect circle loses its counters and stops being a letter — these
+        // glyphs are read, not merely spotted, and several differ by one stroke.
+        ctx.lineWidth = 3.2 * px;
+        ctx.strokeStyle = "rgba(4, 6, 16, 0.85)";
+        ctx.strokeText(m.glyph, cx + p.x, cy + p.y);
+        ctx.fillStyle = m.color;
+        ctx.fillText(m.glyph, cx + p.x, cy + p.y);
+      }
+
+      // The tile the pair is standing in, on the cursor. Unlike the doubles —
+      // which are fixed to their bodies and so never change — this is the one
+      // pair of letters that MOVES, and its gematria is the only quantity on
+      // the surface that no rotation can alter.
+      if (at) {
+        const tile = tileWord(at.lonA, at.lonB);
+        const pr = P(at.lonA, at.lonB);
+        ctx.globalAlpha = 0.95 * phase(pr.w);
+        ctx.font = `${Math.round(21 * px)}px ${HEBREW_FONT}`;
+        ctx.lineWidth = 3.6 * px;
+        ctx.strokeStyle = "rgba(4, 6, 16, 0.9)";
+        // BELOW the cursor: the date label already sits above it, and the two
+        // were landing on each other — measured on a screenshot, not reasoned about.
+        const ty = cy + pr.y + 24 * px;
+        ctx.strokeText(tile.word, cx + pr.x, ty);
+        ctx.fillStyle = "#f4ecd4";
+        ctx.fillText(tile.word, cx + pr.x, ty);
+      }
+      ctx.textAlign = "start";
+      ctx.textBaseline = "alphabetic";
+      ctx.globalAlpha = 1;
+    }
   }, []);
 
   // ── Pointer: drag to rotate ───────────────────────────────────────────────
@@ -646,6 +918,9 @@ export const TorusPanel: React.FC = () => {
   // ── Readouts ──────────────────────────────────────────────────────────────
   const gA = BODY_GLYPHS[bodyA] ?? bodyA;
   const gB = BODY_GLYPHS[bodyB] ?? bodyB;
+  // The doubles are fixed to their bodies, so these do not move; the tile does.
+  const doubleA = letterForBody(bodyA, scheme, modernOuters);
+  const doubleB = letterForBody(bodyB, scheme, modernOuters);
   const cur = traj?.samples[Math.max(0, Math.min(tIdx, traj.samples.length - 1))];
   const curDelta = cur ? Math.abs(wrap180(cur.lonA - cur.lonB)) : null;
   const curNear = curDelta !== null && activeDefs.length
@@ -697,6 +972,41 @@ export const TorusPanel: React.FC = () => {
 
   // Autoplay policy: the context is constructed inside this handler and never
   // anywhere else. There is no path to sound that is not a button press.
+  // ── The three mothers ─────────────────────────────────────────────────────
+  const motherLetter = MOTHERS.find((l) => l.name === mother) ?? MOTHERS[0];
+
+  /** What a mother's turn IS: her plane pair, and what the surface does in it. */
+  const motherNote = useCallback((m: Mother): string => {
+    const [p1, p2] = MOTHER_PLANE_PAIRS[m];
+    const head =
+      `${m} — ${MOTHER_ELEMENTS[m]}. Four dimensions have no axis to turn about, ` +
+      `only planes, and the six of them fall into exactly three pairs that share ` +
+      `no coordinate. This mother owns ${p1} and ${p2}, turned at the same rate. ` +
+      `Because they share nothing, it is one motion rather than two in sequence.`;
+    return m === "Aleph"
+      ? `${head} On the Clifford torus the xy plane carries ${bodyA}'s longitude and ` +
+        `zw carries ${bodyB}'s, so this turn is the Hopf flow already here: the ` +
+        `surface slides along its own aspect circles and never tilts. Air is the ` +
+        `balance between fire and water, and this is the one turn that leaves the ` +
+        `torus where it found it.`
+      : `${head} It mixes the two bodies' planes together, which no rotation in this ` +
+        `panel has done before — the surface leaves the pose it is always drawn in, ` +
+        `and passes through the projection pole four times per turn, folding inside ` +
+        `out each time. That passage is the one thing four dimensions can do that ` +
+        `three cannot.`;
+  }, [bodyA, bodyB]);
+
+  const selectMother = useCallback((m: Mother) => {
+    setMother(m);
+    trackEvent("torus_mother", { mother: m });
+    const l = MOTHERS.find((x) => x.name === m) ?? MOTHERS[0];
+    setMargin({
+      title: `${l.glyph} ${m}`,
+      subtitle: "one of the three mothers",
+      body: [motherNote(m)],
+    });
+  }, [motherNote, setMargin]);
+
   /** Switch a teaching layer, and say what appeared. The sentence is the point:
    *  a legend that only names things teaches nothing the label did not. */
   const toggleLayer = useCallback((id: LayerId) => {
@@ -814,19 +1124,63 @@ export const TorusPanel: React.FC = () => {
           </select>
         </label>
         <label>Surface
-          <select value={embedding} onChange={(e) => setEmbedding(e.target.value as Embedding)}>
+          <select value={embedding} onChange={(e) => setEmbedding(e.target.value as Surface)}>
             <option value="donut">Torus (donut)</option>
             <option value="clifford">Clifford (4D, projected)</option>
+            <option value="hyper">Hyper-torus (T⁴, projected)</option>
           </select>
         </label>
+        {embedding === "hyper" && (
+          <>
+            <label>Third circle
+              <select value={bodyC} onChange={(e) => setBodyC(e.target.value)}>
+                <option value={NO_BODY}>— none —</option>
+                {TORUS_BODIES.map((b) => (
+                  <option key={b} value={b} disabled={b === bodyA || b === bodyB || b === bodyD}>
+                    {BODY_GLYPHS[b]} {b}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>Fourth circle
+              <select value={bodyD} onChange={(e) => setBodyD(e.target.value)}>
+                <option value={NO_BODY}>— none —</option>
+                {TORUS_BODIES.map((b) => (
+                  <option key={b} value={b} disabled={b === bodyA || b === bodyB || b === bodyC}>
+                    {BODY_GLYPHS[b]} {b}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </>
+        )}
         <label style={{ display: "inline-flex", alignItems: "center", gap: "0.4em" }}>
           <input type="checkbox" checked={minors} onChange={(e) => setMinors(e.target.checked)} />
           minor aspects
         </label>
-        {embedding === "clifford" && (
-          <button className="arc-draw-btn" onClick={() => setHopfOn((v) => !v)}>
-            {hopfOn ? "◼ Hopf flow" : "▶ Hopf flow"}
-          </button>
+        {embedding !== "donut" && (
+          <span className="torus-mothers" role="radiogroup" aria-label="Which mother turns the surface">
+            <button
+              className="arc-draw-btn"
+              onClick={() => setFlowOn((v) => !v)}
+              aria-pressed={flowOn}
+            >
+              {flowOn ? "◼" : "▶"} {motherLetter.glyph} flow
+            </button>
+            {MOTHERS.map((m) => (
+              <span
+                key={m.name}
+                className={`chip ${mother === m.name ? "active" : ""}`}
+                role="radio"
+                aria-checked={mother === m.name}
+                aria-label={`${m.name}, the ${MOTHER_ELEMENTS[m.name]} rotation`}
+                title={motherNote(m.name as Mother)}
+                onClick={() => selectMother(m.name as Mother)}
+              >
+                {m.glyph} {m.name}
+              </span>
+            ))}
+          </span>
         )}
         {audioSupported() && soundtrack && (
           <button
@@ -865,6 +1219,59 @@ export const TorusPanel: React.FC = () => {
           scrub to hear one arrive.
         </p>
       )}
+      {layers.crystal && (
+        <div className="torus-hebrew-rail">
+          <label style={{ display: "inline-flex", alignItems: "center", gap: "0.4em" }}>
+            <input
+              type="checkbox"
+              checked={lattice}
+              onChange={(e) => setLattice(e.target.checked)}
+            />
+            triclinic lattice
+          </label>
+          <p className="arc-ondevice">
+            ✧ The shards are a reading of the chart; the lattice bends the space
+            the chart is drawn in, which is why they switch separately. Its cell
+            is not invented — the three interaxial angles ARE three pairwise
+            separations of real longitudes, so the cell is triclinic exactly when
+            those bodies stand in no relation, and straightens as they come into
+            aspect. A cubic cell is the identity matrix, which is what the switch
+            returns to when it is off.
+          </p>
+        </div>
+      )}
+      {layers.hebrew && (
+        <div className="torus-hebrew-rail">
+          <label>Doubles from
+            <select
+              value={scheme}
+              onChange={(e) => setScheme(e.target.value as Attribution)}
+            >
+              {(Object.keys(ATTRIBUTION_LABEL) as Attribution[]).map((k) => (
+                <option key={k} value={k}>{ATTRIBUTION_LABEL[k]}</option>
+              ))}
+            </select>
+          </label>
+          <label style={{ display: "inline-flex", alignItems: "center", gap: "0.4em" }}>
+            <input
+              type="checkbox"
+              checked={modernOuters}
+              onChange={(e) => setModernOuters(e.target.checked)}
+            />
+            moderns on the mothers
+          </label>
+          <p className="arc-ondevice">
+            ✡ The two tables disagree about every one of the seven planets, which
+            is why both are here — a reader arriving from a tarot deck and a
+            reader arriving from the Sefer Yetzirah are looking for different
+            letters over the same Sun. Uranus, Neptune and Pluto have no ancient
+            letter at all; the moderns place them on the three mothers, and that
+            attribution is younger than the planets. The Nodes, Chiron, Lilith
+            and the angles stay unlettered, because the alphabet has none for
+            them and a borrowed glyph would be a lie about its own tradition.
+          </p>
+        </div>
+      )}
 
       {err && <p className="arc-error">{err}</p>}
       <p className="arc-ondevice">☾ computed on your device — drag to turn the torus</p>
@@ -877,7 +1284,15 @@ export const TorusPanel: React.FC = () => {
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
-          aria-label={`Torus of ${bodyA} and ${bodyB}: the pair's trajectory with aspect circles`}
+          aria-label={
+            `Torus of ${bodyA} and ${bodyB}: the pair's trajectory with aspect circles` +
+            (embedding === "hyper" && (bodyC || bodyD)
+              ? `, on a hyper-torus sliced by ${[bodyC, bodyD].filter(Boolean).join(" and ")}`
+              : "") +
+            (layers.hebrew
+              ? ", lettered with the twelve elementals on each axis and the doubles over the natal bodies"
+              : "")
+          }
         />
       </div>
 
@@ -918,6 +1333,75 @@ export const TorusPanel: React.FC = () => {
                 <> {offSeed.join(" and ")} sounds, but carries no natal tone — it is
                 outside the canonical chart the field is sealed from.</>
               )}
+            </p>
+          )}
+          {layers.hebrew && (() => {
+            const tile = tileWord(cur.lonA, cur.lonB);
+            const unlettered = [
+              !doubleA ? bodyA : null,
+              !doubleB ? bodyB : null,
+            ].filter(Boolean) as string[];
+            return (
+              <p className="arc-themes">
+                ✡ tile <b lang="he" style={{ fontSize: "1.25em" }}>{tile.word}</b>
+                {" — "}{tile.theta.name} ({tile.theta.value}) over {tile.phi.name} ({tile.phi.value}),
+                gematria <b>{tile.value}</b>. The two bodies are somewhere in 144
+                tiles, and this number is the only thing on the surface that no
+                rotation can alter — turn a mother, change the projection, fold
+                the whole thing inside out, and the tile still sums to what it sums to.
+                {doubleA && (
+                  <> {gA} {bodyA} carries <b lang="he">{doubleA.letter.glyph}</b> {doubleA.letter.name},
+                  path {doubleA.letter.path} ({doubleA.letter.joins}){doubleA.traditional ? "" : ", a modern attribution"}.</>
+                )}
+                {doubleB && (
+                  <> {gB} {bodyB} carries <b lang="he">{doubleB.letter.glyph}</b> {doubleB.letter.name},
+                  path {doubleB.letter.path} ({doubleB.letter.joins}){doubleB.traditional ? "" : ", a modern attribution"}.</>
+                )}
+                {unlettered.length > 0 && (
+                  <> {unlettered.join(" and ")} {unlettered.length > 1 ? "have" : "has"} no
+                  letter — there are seven doubles because there were seven planets, and
+                  this is not one of them.</>
+                )}
+              </p>
+            );
+          })()}
+          {layers.crystal && curNear && (() => {
+            const orb = (curNear.def as { defaultOrb?: number }).defaultOrb ?? 6;
+            const cr = crystalForAspect(curNear.def.angle, curNear.orb, orb);
+            const n = harmonicOf(curNear.def.angle);
+            return (
+              <p className="arc-themes">
+                ✧ nearest aspect is the {curNear.def.name.toLowerCase()}, the{" "}
+                <b>{n}</b>{n === 1 ? "st" : n === 2 ? "nd" : n === 3 ? "rd" : "th"} harmonic
+                {cr ? (
+                  <> — <b>{cr.group.hm}</b> ({cr.group.schoenflies}), {cr.group.system},
+                  order {cr.group.order}, path {cr.group.path} ({pathName(cr.group.path)}).
+                  {" "}At exact orb an aspect carries its system's full symmetry and loses
+                  operations as the orb widens, the way strain takes them from a real
+                  crystal: {(cr.retained * 100).toFixed(0)}% of the way to exact here.</>
+                ) : (
+                  <> — and <b>no crystal at all</b>. A lattice may carry 1-, 2-, 3-, 4-
+                  and 6-fold axes and no others, so a {n}-fold aspect has no cell that
+                  can repeat. That is not a gap in the table: the five aspects that
+                  crystallize are exactly the five this app already calls major, and
+                  every minor is forbidden by the same theorem. A 5-fold arrangement
+                  of matter is a quasicrystal, which nobody believed was possible
+                  until 1982.</>
+                )}
+              </p>
+            );
+          })()}
+          {embedding === "hyper" && (bodyC || bodyD) && cur && (
+            <p className="arc-themes">
+              ✧ third and fourth circles:
+              {bodyC && <> {BODY_GLYPHS[bodyC] ?? ""} {bodyC} {(cur.lonC ?? 0).toFixed(1)}°</>}
+              {bodyC && bodyD && " ·"}
+              {bodyD && <> {BODY_GLYPHS[bodyD] ?? ""} {bodyD} {(cur.lonD ?? 0).toFixed(1)}°</>}
+              {" — "}these two are not drawn as curves; they choose WHICH torus you
+              are looking at. Scrubbing walks the cursor along the pair and slides
+              the whole surface sideways through the other two circles at once.
+              With both set to none the extra radii go to zero and this is the
+              donut again, exactly.
             </p>
           )}
           {audioErr && <p className="arc-error">{audioErr}</p>}
