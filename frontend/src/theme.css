@@ -3380,3 +3380,50 @@ input.tz-suspect { border-color: var(--gold); }
   margin-right: 2px;
 }
 .torus-layers .chip { font-size: 12px; padding: 3px 10px; }
+
+/* ── The three mothers, and the letters ────────────────────────────────────
+   A radio group rather than a rail of switches: the surface turns in exactly
+   one plane-pair at a time, because a rotation is one motion and offering to
+   compose two would be offering something four dimensions do not have here. */
+.torus-mothers {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+}
+.torus-mothers .chip {
+  font-size: 12px;
+  padding: 3px 9px;
+  cursor: pointer;
+}
+
+/* The letters' own controls. Indented under the layer rail because they are
+   settings FOR a layer, not more layers — a reader who has not switched the
+   letters on should never see a table-attribution select at all. */
+.torus-hebrew-rail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 6px 0 2px;
+  padding-left: 10px;
+  border-left: 2px solid rgba(201, 168, 76, 0.35);
+}
+.torus-hebrew-rail label {
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+}
+.torus-hebrew-rail .arc-ondevice {
+  flex-basis: 100%;
+  margin: 2px 0 0;
+}
+/* Hebrew is read right to left. The glyphs on the canvas are drawn one at a
+   time so they need nothing, but a two-letter tile word in the readout is a
+   WORD, and a word in the wrong direction is a different word. */
+[lang="he"] {
+  direction: rtl;
+  unicode-bidi: isolate;
+  font-family: "Noto Sans Hebrew", "Arial Hebrew", "Times New Roman", serif;
+}
