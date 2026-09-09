@@ -2,7 +2,9 @@
 
 <p align="center"><i>Read the sky. Draw the cards. Know your timing.</i></p>
 
-<p align="center">A modern fortune-telling app that actually does the math — natal astrology, tarot, and predictive timing, computed to arc-second precision. Your birth details draw the chart and are then let go — <b>never written to a database, never written to a log</b>.</p>
+<p align="center"> Astro Caster is a TypeScript web app that generates natal charts and translates planetary placements into readable interpretations.
+Run locally with npm run dev — or just play with the hosted version.
+It’s an experiment in mapping traditional astrology data to modern UI patterns. A modern fortune-telling app that actually does the math — natal astrology, tarot, and predictive timing, computed to arc-second precision. Your birth details draw the chart and are then let go — <b>never written to a database, never written to a log</b>.</p>
 
 <p align="center"><a href="https://github.com/9x25dillon/astro_caster/actions/workflows/ci.yml"><img src="https://github.com/9x25dillon/astro_caster/actions/workflows/ci.yml/badge.svg" alt="CI"></a></p>
 
