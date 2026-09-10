@@ -191,7 +191,7 @@ export const DailyCardPanel: React.FC = () => {
           </label>
           {prefs.enabled && (
             <label className="daily-notify-row">
-              <span className="muted">at</span>
+              <span className="muted">around</span>
               <input
                 type="time"
                 className="daily-notify-time"
@@ -211,7 +211,7 @@ export const DailyCardPanel: React.FC = () => {
           )}
           <p className="muted daily-notify-fine">
             Computed on this device and scheduled here — the card is drawn from
-            your chart, and nothing about it is sent anywhere.
+            your chart, and nothing about it is sent anywhere. The notification will fire within a one-hour window.
           </p>
         </div>
       )}
