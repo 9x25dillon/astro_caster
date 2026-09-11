@@ -5,6 +5,80 @@ PR bodies; this is the story. Started session 15 at the operator's request._
 
 ---
 
+## Session 40 · 2026-09-11 — the session that shipped nothing, and the two
+sentences that made it worth doing
+
+Maintenance sessions have a reputation for being the ones where nothing
+happens. This one caught a lie, took a feature back, and patched a box that had
+been running untouched for a month, and I think the shape of it is worth
+recording precisely because no feature came out the other end.
+
+It began with a broad ask — check the web page and the box — and the first
+thing the sweep produced was wrong. `production_report.sh` printed its gates,
+the outside probes passed, and I reported that production was a single README
+commit behind `main`. It wasn't. It was a whole frontend commit behind: three
+thousand lines of Hebrew letters and crystal lattice that had been sitting on
+`main` for two weeks without ever reaching a reader. The report wasn't lying;
+its first section compares the local repo to its own remote and never asks the
+box anything. My own notes say so, in a memory written for exactly this failure,
+and I read the report's green anyway. The correction came a few minutes later
+from the one command that answers the question — diff the deployed SHA against
+`main` — and the lesson is not "the tool is broken" but "know which question a
+green gate answered."
+
+Then the operator said the two sentences the session turned on: *"im not fully
+committed to the natal wheels changes yet"* and *"its a live running service and
+theres a single subscriber still using it."* That is a blast radius, stated
+plainly, and it settles a design question that could otherwise have been argued
+for an hour. Unreviewed work does not sit on the branch that a paying person's
+service is cut from. So the lettered surface came off `main` and onto its own
+branch, by revert rather than force-push — ten Dependabot PRs and the
+holographic wheel were based on `main`, and rewriting it would have orphaned all
+of them. The commit survives untouched, the stacked PR was retargeted onto it,
+and bringing it back is one revert away. Nothing was lost, which is the only
+acceptable version of "take it off main."
+
+The operator also believed a fix was hiding inside that work, and asked for it
+to be saved. I went looking and found none: the two bugs its commit message
+names are bugs in the code it introduces, and the sampling-rate correction only
+fires on a code path the same commit adds. Reporting "there is nothing here"
+felt like a failure for about a minute, and then didn't — the alternative was
+carrying an unreviewed three-thousand-line feature back onto a live branch to
+rescue a fix that does not exist.
+
+The rest was the ordinary work of keeping something alive. Sixteen security
+alerts, all dev-dependencies, went to zero across nine merges. One of them
+closed itself when a sibling bump satisfied the advisory, which is a thing I had
+not seen Dependabot do and had to verify against the lockfile rather than
+assume. The box took twenty-nine package upgrades and its first reboot in
+thirty-one days; it was gone for thirty-three seconds and came back with a new
+kernel, and a cloud-init unit that had been quietly failing since August cleared
+itself in the process. Five and a half gigabytes of stale Docker build cache
+went with it.
+
+Two mistakes of mine are worth writing down because both are the same mistake.
+I put an ssh command in a shell variable and ran it as `$K`, which this shell
+does not word-split, so the reboot never happened — and I had already told the
+operator the site was briefly down. Later I extracted a function with a `sed`
+range whose terminator didn't match, and `eval` ran half the script. Both are
+what happens when a fragile construct is trusted without a two-second check, and
+both were caught by looking at output I could have looked at immediately. The
+first one is now a memory; the second should have been covered by the first.
+
+The most satisfying thing built today refuses to do its job. The firewall helper
+must send Hetzner an entire rule set to change one field, so it compares
+everything else before and after and declines to write if anything but the ssh
+source moved. Its first dry run printed REFUSING at its own correct output — a
+null `port` on the icmp rule, stripped on one side of the comparison and not the
+other. That is a guard catching its author, which is the only real evidence a
+guard works, and it cost nothing because a dry run is where that happens
+instead of at three in the morning when the door is shut and the site is down.
+
+Production ended the day at the same commit as `main`, verified not by a
+matching SHA but by finding the words "battery saver" inside the JavaScript the
+edge actually served, and by paying for one real reading to watch the AI answer
+come back. A deployed commit is not a working product. This one is.
+
 ## Session 39 · 2026-08-28 — the door for the next person, and a number that
 means two things
 

@@ -1,12 +1,176 @@
 # Hand_off.md
 
-_Last updated: 2026-08-28 (session 39 — **a paid TIER can now be recovered from
-its Stripe reference**, the wheel's glyphs stop fleeing the pointer, and the
-Depths chapter can sound its pair and its whole field together over one audio
-session. `main` is at `95e42c2` and **production is IN SYNC at the same
-commit — deployed and verified by content**. No open PRs. THE ONE THING
-STILL OWED: the same real purchase, still unspent; see §THE $5.50 below.)
+_Last updated: 2026-09-11 (session 40 — **a maintenance session: no feature
+shipped and that was the point**. `main` is at `eb13b43` and **production is IN
+SYNC at the same commit — deployed and verified by content**. Sixteen security
+alerts went to zero, the box took its first reboot in a month, and the lettered
+surface was lifted off `main` onto `experiment/letters-and-lattice` because it
+had never been reviewed for release. TWO PRs OPEN: `#243` (ops script, green,
+unmerged) and `#228` (the holographic wheel, now stacked on the experiment
+branch). THE ONE THING STILL OWED is unchanged: the $5.50, see §THE $5.50.)
 Re-derive before trusting any of this: `git fetch && git status -sb`._
+
+---
+
+# SESSION 40 — 2026-09-11
+
+**What this session was.** The operator asked for maintenance on the web page
+and the Hetzner box. Nothing was built. What happened instead: a deployment lie
+was caught, the unreviewed feature was taken back off `main`, sixteen security
+alerts were cleared, the server was patched and rebooted for the first time in
+31 days, the Hetzner API token was replaced after a month invalid, and one new
+ops script was written. Production was then deployed and verified by content.
+
+## Start here — the three truths
+
+```
+local / main   eb13b43   counts unchanged from s39 (backend 734 · frontend 165 · core 86 · e2e 235)
+CI             eb13b43   green (12/12) — CodeQL green
+production     eb13b43   IN SYNC — deployed and verified by CONTENT, not by SHA
+APK            v1.0.6    unchanged, untouched
+```
+
+Deployed 2026-09-11. Pre-flight was empty (`git diff 95e42c2..eb13b43 --
+.env.example docker-compose.yml frontend/nginx.conf */Dockerfile`), so it was a
+plain `git pull --ff-only && docker compose up -d --build`. Rollback point was
+`95e42c2`.
+
+How it was verified — **the frontend probe is a STRING, not a class this time**,
+because the change was copy:
+
+```bash
+JS=$(curl -s https://app.astra-arcana.com/ | grep -oE '/assets/index-[A-Za-z0-9_-]+\.js' | head -1)
+curl -s "https://app.astra-arcana.com$JS" | grep -c 'battery saver'   # 1 = the new copy is LIVE
+# and the paid path, because a deployed commit is not a working product:
+#   /api/generate-chart -> 17 bodies incl. Chiron
+#   /api/ai-ask         -> source: llm, 8.9s   (this is what proves anthropic 1.4 works)
+```
+
+## What shipped
+
+| PR | what |
+|---|---|
+| `#241` | **the revert** — `b9df1e2` off `main`; main's code returns to what production serves |
+| `#230-#238`, `#234` | nine Dependabot merges; **16 open alerts → 0** |
+| `#239` | an outside contributor's notification copy ("at" → "around") |
+| `#242` | the follow-up that makes #239's hour claim TRUE |
+
+`#243` (`ops/ssh_allow_my_ip.sh`) is **open and green, deliberately unmerged** —
+it was written, not asked to be merged.
+
+### The revert, and why it was not a force-push
+
+`b9df1e2` (Hebrew letters, T⁴ mothers, crystal lattice — 3,102 lines) was on
+`main` and had never been deployed. The operator: *"im not fully committed to
+the natal wheels changes yet… i want the main to be functioning like its
+supposed to. since its a live running service and theres a single subscriber
+still using it."*
+
+- The commit is preserved **unchanged** at `experiment/letters-and-lattice`
+  (`b9df1e2`). Nothing was lost.
+- `#228` (the holographic wheel, `39fa572`) was **retargeted onto that branch**,
+  because it was stacked on `b9df1e2` and would have orphaned.
+  `[[stacked-pr-orphan-trap]]`
+- A revert, not a rewrite: ten Dependabot PRs and `#228` were based on `main`.
+- **To bring it back: revert `e6ae87a`**, or merge the experiment branch.
+- `claude/hebrew-letters-and-crystal-lattice` (local only, `62be5ff`) is an
+  older draft of the same commit — differs from `main` by README alone. Safe to
+  delete.
+
+**A fix was searched for inside it and there is none.** The operator suspected
+one was hiding there. Checked: the two bugs its message names (`tileWord` on the
+date label, 6px shards) live in code the commit itself introduces; the
+`client.ts` sampling-rate fix only fires when `bodyC`/`bodyD` are passed, which
+is also new. Nothing in it repairs shipped behaviour.
+
+### The notification copy, and the fact underneath it
+
+`#239` claimed the daily card "will fire within a one-hour window". Half true,
+and the half matters:
+
+- `@capacitor/local-notifications`'s own manifest **declares
+  `SCHEDULE_EXACT_ALARM`**, and `isExactNotification` defaults **true**, so the
+  plugin asks for an exact alarm and falls back only when refused.
+- The app targets **SDK 36** and never calls `checkExactNotificationSetting`.
+- So: **Android ≤13 → exact, on time. Android 14+ fresh install → not granted →
+  `setAndAllowWhileIdle`**, which Android documents as firing *"within one hour
+  of the supplied trigger time, unless any battery-saving restrictions are in
+  effect such as battery saver or Doze."*
+
+`#242` says that in the UI. If the daily card is ever reported "late", this is
+why, and it is not a bug.
+
+## The box — first maintenance since provisioning
+
+```
+kernel   6.8.0-137  ->  6.8.0-139   (reboot: ssh back 29s, site 200 at 33s)
+packages 29 upgraded incl. Docker 29.8.0; 0 security-flagged; unattended-upgrades active
+disk     9.9G -> 5.1G after `docker builder prune -af` (5.63GB of cache) -> 7.3G after the rebuild
+uptime   was 31 days; cloud-init-hotplugd (failed since 2026-08-28) cleared on reboot
+```
+
+Both containers report **healthy** — the IPv6 healthcheck false alarm recorded
+in `[[launch-infra-state]]` is GONE; "unhealthy" on this box now means something.
+
+Logs, 7 days before the deploy: **zero** entries at warning/error/critical, zero
+5xx. The only 402s were TTS and deck-art refused in 1–4ms, which is the paid-tier
+gate doing its job, not a billing failure. 877 404s are bots hunting WordPress
+and `/.env`; `robots.txt`, `sitemap.xml` and `favicon.ico` genuinely 404 on
+`app.` (175/98/48 hits) — optional polish, not a defect.
+
+## The Hetzner token is VALID again
+
+64 chars, Read & Write, `GET /v1/firewalls/11451407` → 200. `astra-edge` rules:
+ssh/22 → the operator's `/32`, 80+443 → 22 Cloudflare ranges, icmp → world.
+**`[[launch-infra-state]]`'s "token still 401, console only" notes are now
+history.**
+
+`ops/ssh_allow_my_ip.sh` (PR `#243`) repoints the ssh rule at the current IP;
+`--check` reads only. **Its write path has NEVER been exercised** — a live round
+trip against the production firewall was declined by the permission layer, so
+the first real IP rotation is its first real run. It re-reads and re-verifies
+after writing for exactly that reason.
+
+## Traps learned today
+
+1. **`production_report.sh` lied by omission — again, and I believed it.** §1
+   compares `main` to `origin/main`, not to the box. The first report of this
+   session said production was "only a README behind"; it was a whole frontend
+   commit behind. **Diff the DEPLOYED sha against main for CONTENT before
+   saying anything about drift**, every time. `[[deployment-drift-probes]]`
+2. **The tool shell does not word-split `$VAR` used as a command.**
+   `K="ssh -i … host"; $K 'sudo systemctl reboot'` → `no such file or
+   directory`. The reboot never ran while a poll loop sat waiting to report the
+   wrong failure. Multi-step remote work goes in a `#!/usr/bin/env bash` FILE
+   with a function, and **read a background task's first line before believing
+   step one happened.** `[[bash-tool-no-word-split]]`
+3. **A `sed` range that misses its end feeds the rest of the file to `eval`.**
+   Extracting a 2-line function with `/^others() {/,/}; *$/p` matched nothing
+   and executed half the script. Assert the extraction's line count before
+   evaluating it.
+4. **A guard refusing its own correct output is still a good guard.** The
+   firewall script's first draft stripped nulls from the new rules and compared
+   them against the raw old ones; the icmp rule's `"port": null` made every
+   dry run print REFUSING. Normalise BOTH sides. Had the guard not existed, that
+   same asymmetry is how 80/443 quietly disappear.
+5. **Dependabot closes its own PR when a sibling bump satisfies it.** `#240`
+   (baseline-browser-mapping 2.11.22) closed itself once `#237` pulled the tree
+   to 2.11.21 — past the 2.11.0 patch. A closed Dependabot PR is not
+   necessarily an unfixed alert; check the lockfile version against the
+   advisory's `first_patched_version`.
+
+## Open threads
+
+- **THE $5.50** — unchanged, still owed, see §SESSION 38. Nothing this session
+  touched it.
+- **The dual sweep has still never been heard** (§SESSION 39). Unchanged.
+- **`#243`** — merge it when you want the firewall helper on `main`.
+- **`experiment/letters-and-lattice` + `#228`** — the operator intends to
+  experiment there. Neither has been deployed; both are green.
+- **APK import flow, cancel→refund order, optional wallet** — from
+  `[[next-build-order]]`, untouched today.
+- Optional: `robots.txt` / `sitemap.xml` / `favicon.ico` on `app.`; the
+  `frontend` healthcheck probes `localhost` (now passing, but still IPv6-fragile).
 
 ---
 
