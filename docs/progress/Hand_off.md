@@ -1,8 +1,9 @@
 # Hand_off.md
 
 _Last updated: 2026-09-11 (session 40 — **a maintenance session: no feature
-shipped and that was the point**. `main` is at `eb13b43` and **production is IN
-SYNC at the same commit — deployed and verified by content**. Sixteen security
+shipped and that was the point**. `main` is at `4638dc9`, which is THIS FILE and
+the journal; **production is at `eb13b43` and carries every line of main's
+code** — deployed and verified by content. Sixteen security
 alerts went to zero, the box took its first reboot in a month, and the lettered
 surface was lifted off `main` onto `experiment/letters-and-lattice` because it
 had never been reviewed for release. TWO PRs OPEN: `#243` (ops script, green,
@@ -24,9 +25,10 @@ ops script was written. Production was then deployed and verified by content.
 ## Start here — the three truths
 
 ```
-local / main   eb13b43   counts unchanged from s39 (backend 734 · frontend 165 · core 86 · e2e 235)
+local / main   4638dc9   docs-only ahead of production (this handoff + the journal)
+code on main   eb13b43   counts unchanged from s39 (backend 734 · frontend 165 · core 86 · e2e 235)
 CI             eb13b43   green (12/12) — CodeQL green
-production     eb13b43   IN SYNC — deployed and verified by CONTENT, not by SHA
+production     eb13b43   IN SYNC with main's CODE — verified by CONTENT, not by SHA
 APK            v1.0.6    unchanged, untouched
 ```
 
