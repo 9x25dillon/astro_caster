@@ -211,7 +211,9 @@ export const DailyCardPanel: React.FC = () => {
           )}
           <p className="muted daily-notify-fine">
             Computed on this device and scheduled here — the card is drawn from
-            your chart, and nothing about it is sent anywhere. The notification will fire within a one-hour window.
+            your chart, and nothing about it is sent anywhere. Newer Android phones
+            may deliver it up to an hour after the time you set, and later still
+            with battery saver on.
           </p>
         </div>
       )}
