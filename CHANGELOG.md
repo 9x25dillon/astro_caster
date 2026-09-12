@@ -3,6 +3,59 @@
 Per-phase log for the Production Hardening & Symbolic Intelligence Expansion pass.
 Baseline: `d9afc4b` (36 backend tests, clean frontend build).
 
+## The engraved observatory — the chart's second dimension, and the room it sits in (2026-09-11, release/engraved-observatory · APK v1.0.7)
+
+Three commits that had been waiting on their own review, brought back to
+`main` together and shipped as one look.
+
+- **The lettered surface returns** (`b9df1e2`, reverted out of `main` on
+  2026-09-11 while unreviewed; the revert is now reverted). Hebrew letters on
+  the zodiac band and the seal ring, the T⁴ mothers, the crystal lattice on
+  the torus panel. Nothing in it changed; the two commits below import it.
+- **The holographic wheel** (`39fa572`, was PR #228). The natal chart is
+  three layers in one box: the torus underlay on canvas, the wheel's SVG
+  over it, an inert HUD film on top. The underlay's θ is pinned to the
+  wheel's `lonToAngle`, so a natal meridian points out of the centre at
+  exactly the degree the wheel marks — and the camera never yaws, because a
+  yaw would slide that alignment off. The cyan/magenta split is the beat
+  rate between neighbouring bodies (`lib/hologram`), zero at a conjunction.
+  Flicker bounded in code at 2.4 Hz / 6% swing, gone under
+  `prefers-reduced-motion`.
+- **The engraved observatory** (`fcc96f1`, the Codex review branch). A new
+  material system in `observatory.css`, loaded after the legacy theme:
+  green-black obsidian, brass rules for reference structure, vitriol green
+  for anything computed, parchment for the reading. The **Celestial Index**
+  instrument in the masthead — seven classical bodies from the live chart,
+  keyboard-selectable, driving the detail panel. The transit timeline
+  re-laid in rows (steps, range, date, aspects) and the desktop chapter
+  dial moved to a strip above the wheel so no chapter button sits over a
+  planet. Labels 13–14px, reading text 15–16px with explicit leading.
+- **Two corrections found in release review**, both phone-shaped:
+  the underlay's pan was written in pixels while the wheel's is in viewBox
+  units, so on any shrunk wheel a pinch pulled the two layers apart by the
+  exact amount of the pan (`underlayTransform`, now in percent of the box;
+  tested at three rendered widths); and the Celestial Index is laid out by
+  container queries with the four-column desktop grid as its base rule, so
+  a WebView below Chromium 105 would have kept 116+290+150px on a 390px
+  screen — a `@supports not (container-type)` block mirrors the breakpoints
+  as viewport queries for those engines only.
+- **The vendored faces lead the type stacks again.** The redesign's system
+  stacks (Palatino, Baskerville, Georgia) render as Noto Serif on a phone,
+  which has none of them; `no-external.spec` caught EB Garamond no longer
+  loading. Cormorant / EB Garamond lead both serif stacks, the system faces
+  stay as fallbacks. No font request either way.
+- README screenshots re-captured from the real app (`capture-screenshots
+  .spec`, which now scrolls the wheel into view for the wheel shots — the
+  Index above the chart had pushed it below a 720px fold); seventeen stale
+  timestamped `ui-*.png` files that nothing referenced removed.
+- Landing page tokens aligned to the same palette, so the door and the room
+  match. APK **v1.0.7 / versionCode 7**; landing page repointed at it.
+- No backend change; no new env var; no new dependency. Frontend unit
+  **217** (was 216), e2e **279 passed · 21 skipped · 0 failed** green on a clean
+  non-personal-mode stack. Design thesis in
+  `docs/design/engraved-observatory.md`; the hologram's argument in
+  `docs/design/LETTERS_AND_LATTICE.md` §7.
+
 ## The natal field — the whole chart sounding, and a bridge to SPINE (2026-08-26, natal-field-player)
 
 The Torus sounds a **pair**; this sounds all **fourteen** canonical bodies at
