@@ -247,6 +247,28 @@ button:disabled { cursor: not-allowed; }
   .index-bodies { gap: 2px; }
   .index-coordinate { margin: 0; }
 }
+/* Older Android WebViews (Chromium < 105) have no container queries. Without
+ * these the index keeps its four desktop columns on a phone and overflows the
+ * viewport sideways — which drags the fixed chapter arc out of reach. The
+ * viewport stands in for the container here: the index spans the full app
+ * column, so the two widths differ only by the app's gutter. Engines that DO
+ * support containers never see this block; the rules above govern them. */
+@supports not (container-type: inline-size) {
+  @media (max-width: 900px) {
+    .celestial-index-inner { grid-template-columns: 90px 1fr 1.2fr; gap: 1rem; padding: 1rem; }
+    .index-seal { width: 90px; }
+    .index-colophon { display: none; }
+    .index-reading { padding-inline: 1rem 0; border-right: 0; }
+  }
+  @media (max-width: 620px) {
+    .celestial-index-inner { grid-template-columns: 74px minmax(0, 1fr); }
+    .index-seal { width: 74px; }
+    .index-title h2 { font-size: 1.8rem; }
+    .index-reading { grid-column: 1 / -1; padding: .7rem 0 0; border: 0; border-top: 1px solid var(--rule); display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; align-items: center; justify-content: space-between; }
+    .index-bodies { gap: 2px; }
+    .index-coordinate { margin: 0; }
+  }
+}
 /* Motion: only the non-data lattice rotates. Longitude needles stay truthful. */
 @keyframes hermetic-orbit { to { transform: rotate(360deg); } }
 @keyframes folio-reveal { from { opacity: .35; transform: translate3d(0, 16px, 0); } to { opacity: 1; transform: translate3d(0, 0, 0); } }

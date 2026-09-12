@@ -163,3 +163,34 @@ export function depthFade(depth: number, span = 5.6, floor = 0.22): number {
   const t = Math.max(0, Math.min(1, (depth + span / 2) / span));
   return floor + (1 - floor) * t;
 }
+
+// ---------------------------------------------------------------------------
+// Lockstep
+// ---------------------------------------------------------------------------
+
+/**
+ * The underlay's CSS transform for the wheel's current zoom/pan.
+ *
+ * The wheel's pan (`tx`, `ty`) is in VIEWBOX units — its SVG group is
+ * `translate(tx ty) scale(k)` inside a viewBox that is `size` wide. On a
+ * desktop the SVG renders at exactly `size` pixels and a viewBox unit is a
+ * pixel, so `translate(${tx}px)` on the canvas underneath was correct there
+ * and only there. The stage shrinks with the viewport (`max-width: 100%`),
+ * and on a phone the SVG renders at perhaps half of `size`: the wheel then
+ * moves `tx/2` screen pixels for every `tx` while a pixel translate on the
+ * canvas still moved the full `tx`, so the two layers drifted apart by the
+ * exact amount of the pan — on precisely the screens the APK ships to, and
+ * only once the reader pinched, which is why no screenshot showed it.
+ *
+ * A percentage translate resolves against the element's own box, and the
+ * canvas box IS the rendered SVG box, so `tx / size` of the width is `tx`
+ * viewBox units at every rendered size. Scale is unitless and unaffected.
+ */
+export function underlayTransform(
+  view: { k: number; tx: number; ty: number },
+  size: number,
+): string {
+  const px = (view.tx / size) * 100;
+  const py = (view.ty / size) * 100;
+  return `translate(${px}%, ${py}%) scale(${view.k})`;
+}
