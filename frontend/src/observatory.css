@@ -1,0 +1,281 @@
+/* ASTRA / THE ENGRAVED OBSERVATORY
+ * Gold = reference structure; vitriol = computation; parchment = reading.
+ * Loaded after the legacy theme: selectors and application contracts survive.
+ */
+:root {
+  color-scheme: dark;
+  --void: #080d0c;
+  --obsidian: #0c1210;
+  --obsidian-2: #141d18;
+  --obsidian-3: #202b23;
+  --gold: #c5a66b;
+  --gold-soft: #ddc393;
+  --gold-bright: #f3dfb5;
+  --copper: #bc7954;
+  --parchment: #ece4d2;
+  --sepia: #ccbea2;
+  --ink: #b1ac98;
+  --rule: #465044;
+  --ion: #8bc5ad;
+  --ion-soft: #638b79;
+  --amethyst: var(--ion);
+  --amethyst-soft: #b5dcca;
+  --danger: #e5947a;
+  --harmonious: #8bc5ad;
+  --glass-hi: #172019f5;
+  --glass-lo: #0d1511f5;
+  --scanline: linear-gradient(transparent, transparent);
+  --serif: "Palatino Linotype", "Book Antiqua", Palatino, Georgia, serif;
+  --display: "Baskerville", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --space-1: .25rem;
+  --space-2: .5rem;
+  --space-3: .75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-12: 3rem;
+  --type-label: .8125rem;
+  --type-body: 1rem;
+  --type-heading: clamp(1.75rem, 3vw, 3rem);
+  --elevation-1: 0 8px 24px #0003, inset 0 1px #e5cb9420;
+  --elevation-2: 0 24px 80px #0008, inset 0 1px #e5cb942b;
+  --glow-gold: 0 0 24px #c5a66b12;
+  --glow-gold-strong: 0 0 40px #c5a66b20;
+  --ease-orbit: cubic-bezier(.22, .61, .36, 1);
+}
+/* Perceptual color space enhancement; the hex tokens above remain fallbacks. */
+@supports (color: oklch(80% .1 85)) {
+  :root { --gold: oklch(74% .085 82); --ion: oklch(77% .07 162); }
+}
+/* Typed custom property: bounded focus illumination, never a full-screen paint loop. */
+@property --index-light {
+  syntax: '<percentage>';
+  inherits: false;
+  initial-value: 8%;
+}
+html, body, #root { background: var(--void); }
+body::before {
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 48% 18%, #8f78431a, transparent 48%),
+    radial-gradient(ellipse at 85% 65%, #3c785b18, transparent 55%);
+  animation: none;
+}
+.app { gap: var(--space-6); }
+.masthead {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: .4rem 1rem;
+  padding: var(--space-3) 0 0;
+  border-bottom: 0;
+}
+.masthead h1 {
+  font-size: clamp(1.8rem, 3vw, 2.8rem);
+  letter-spacing: .08em;
+  color: var(--parchment);
+  background: none;
+  filter: none;
+  animation: none;
+  font-weight: 400;
+}
+.masthead h1 > span:first-child { color: var(--gold); }
+.masthead-edition { font-style: italic; color: var(--gold); letter-spacing: -.03em; }
+.masthead .sub { grid-column: 1; font: var(--type-label)/1.8 var(--mono); text-transform: uppercase; letter-spacing: .06em; color: var(--ink); }
+.masthead-actions { grid-column: 2; grid-row: 1 / 3; position: static; margin: 0; }
+.panel, .modal, .arcana-modal, .forecast-modal, .shelf-modal, .lib-surface, .soul-modal, .oracle-modal {
+  background: linear-gradient(145deg, var(--glass-hi), var(--glass-lo));
+  border-color: var(--rule);
+  border-radius: 2px;
+  box-shadow: var(--elevation-1);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.panel:hover { border-color: var(--gold); box-shadow: var(--elevation-1); }
+.arcana-modal::after, .soul-modal::after, .oracle-modal::after,
+.forecast-modal::after, .shelf-modal::after, .lib-surface::after { background: linear-gradient(130deg, #c5a66b65, transparent 35%, #8bc5ad25); }
+h2.section { font: .875rem/1.6 var(--mono); text-transform: uppercase; letter-spacing: .08em; color: var(--gold-soft); }
+/* Explicit leading keeps the book face readable in dense instrument panels. */
+.controls, .detail, .chapter-host { font-size: 16px; line-height: 1.6; }
+label.field { font-size: 14px; line-height: 1.5; margin-bottom: 14px; }
+label.field span { margin-bottom: 6px; letter-spacing: .02em; }
+.controls .row { gap: 12px; margin-bottom: 12px; }
+.controls .row > * { min-width: 0; }
+input, select, textarea { font-size: 16px; line-height: 1.5; }
+button { line-height: 1.5; }
+/* The legacy controls carry inline miniature sizes; scope this override to
+ * form actions rather than changing chart glyphs or every app button. */
+.controls button.ghost { font-size: 13px !important; min-height: 36px; }
+.controls .chip { font-size: 13px; line-height: 1.5; padding: 5px 10px; }
+.detail .muted, .detail .kv, .aspect-line-item { font-size: 15px; line-height: 1.6; }
+.detail .kv { gap: 12px; padding-block: 7px; flex-wrap: wrap; }
+.aspect-line-item { padding-block: 5px; }
+.threshold-sub { font-size: 16px; line-height: 1.6; }
+.threshold-fine { font-size: 13px; line-height: 1.6; }
+button, input, select, textarea { border-radius: 2px; }
+input, select, textarea { background-color: var(--obsidian); color: var(--parchment); border-color: var(--rule); }
+input { accent-color: var(--gold); }
+button { transition: color 180ms, border-color 180ms, background-color 180ms; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--ion); outline-offset: 4px;
+}
+button:disabled { cursor: not-allowed; }
+.threshold {
+  padding: var(--space-6) var(--space-8);
+  background: linear-gradient(115deg, #d8c59c, #efe3c5 60%, #cab88f);
+  border: 1px solid #eedcb2;
+  border-radius: 2px;
+  color: #202b23;
+  box-shadow: var(--elevation-1);
+}
+.threshold-title { color: #202b23; font: 400 var(--type-heading)/1.15 var(--display); letter-spacing: -.035em; }
+.threshold-sub, .threshold-fine { color: #3f493c; }
+.threshold .th-live { color: #275f49; }
+.threshold .threshold-primary { background: #203b2e; border: 1px solid #203b2e; color: #f4e6c7; min-height: 44px; box-shadow: none; }
+.threshold .threshold-primary:hover { background: #31513e; }
+.threshold .threshold-second { color: #253e30; border-color: #59664c; min-height: 44px; }
+.threshold a { color: #244d3b; }
+.wheel-area { min-width: 0; }
+/* Both grid rows remain in document flow. A sticky wheel can extend into the
+ * timeline row and intercept its controls on short or wide viewports. */
+@media (min-width: 1101px) {
+  .app:not(:has(.has-chapter)) { grid-template-rows: auto auto 1fr; }
+  .app.has-threshold:not(:has(.has-chapter)) { grid-template-rows: auto auto auto 1fr; }
+  .wheel-area:not(.has-chapter) {
+    align-self: start; justify-self: center; position: relative;
+    width: 100%; max-width: 720px;
+  }
+}
+.timeline { align-self: start; min-width: 0; container: transit / inline-size; }
+.timeline-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.timeline-head h2 { margin: 0; font: 14px/1.5 var(--mono); letter-spacing: .04em; color: var(--gold-soft); }
+.timeline-head .chip { width: auto; margin: 0; min-height: 40px; font-size: 14px; }
+.timeline-steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.timeline-steps button { min-height: 44px; padding: 8px 4px; font-size: 14px; }
+.timeline-range { display: block; width: 100%; min-width: 0; min-height: 44px; margin-block: 8px; }
+.timeline-date { display: grid; gap: 6px; font-size: 14px; line-height: 1.5; color: var(--ink); }
+.timeline-date input { width: 100%; min-width: 0; max-width: 100%; }
+.timeline-value { margin: 12px 0 0; font-size: 16px; line-height: 1.6; color: var(--gold-soft); overflow-wrap: anywhere; }
+.timeline-aspects { display: grid; gap: 10px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--rule); font-size: 15px; line-height: 1.6; color: var(--sepia); }
+@container transit (min-width: 600px) {
+  .timeline-aspects { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 24px; }
+}
+.chart-holo-stage::after { animation: none; background: none; }
+.chart-hud::before { animation: none; background: none; }
+.chart-hud::after {
+  animation: none;
+  background: radial-gradient(circle, transparent 62%, #c5a66b0d 85%, #8bc5ad12);
+  box-shadow: inset 0 0 65px #8bc5ad0d, 0 0 50px #c5a66b0d;
+}
+.dial-node, .dial-node.myst { border-color: var(--rule); border-radius: 2px; background: var(--obsidian); color: var(--parchment); font-size: 13px; line-height: 1.5; }
+@media (min-width: 901px) {
+  /* A dedicated chapter strip leaves every longitude and adjacent panel
+   * accessible. Navigation participates in the wheel row's measured height. */
+  .wheel-area:not(.has-chapter) { flex-direction: column; }
+  .chapter-dial.at-rest {
+    order: -1; position: relative; inset: auto; width: 100%; max-width: 720px;
+    aspect-ratio: auto; max-height: none; margin: 0 0 20px;
+  }
+  .chapter-dial.at-rest::before { display: none; }
+  .chapter-dial.at-rest .dial-orbit {
+    position: static; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px;
+  }
+  .chapter-dial.at-rest .dial-node {
+    position: static; transform: none; min-width: 0; width: 100%;
+    min-height: 56px; padding: 6px; white-space: normal;
+  }
+  .chapter-dial.at-rest .dial-name { display: block; }
+  .chart-holo-stage { flex-shrink: 0; }
+}
+.dial-node.active, .dial-node.myst.active, .dial-node.myst:hover { color: var(--gold-bright); border-color: var(--gold); box-shadow: var(--glow-gold); }
+.dial-node.waiting { opacity: .8; }
+.dial-node.waiting .dial-num { color: var(--sepia); }
+.chapter-dial.at-rest::before { border-style: solid; box-shadow: 0 0 0 6px #c5a66b08, inset 0 0 0 6px #c5a66b08; }
+
+/* Signature instrument: semantic section + SVG + native stateful buttons. */
+.celestial-index { grid-column: 1 / -1; container: celestial / inline-size; margin-top: var(--space-4); }
+.celestial-index-inner {
+  display: grid; grid-template-columns: 116px 1fr minmax(290px, 1.1fr) 150px;
+  gap: var(--space-6); align-items: center;
+  position: relative; isolation: isolate; overflow: hidden;
+  padding: var(--space-4) var(--space-6);
+  border-block: 1px solid var(--rule);
+  background: linear-gradient(100deg, #19231a, #0e1712 55%, #1a241b);
+}
+.celestial-index-inner::before {
+  content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: repeating-linear-gradient(90deg, transparent 0 79px, #c5a66b08 79px 80px),
+    radial-gradient(ellipse at 30% 100%, #c5a66b18, transparent 65%);
+}
+.index-seal { width: 116px; aspect-ratio: 1; }
+.index-seal svg { width: 100%; height: 100%; stroke: var(--gold); stroke-width: .65; }
+.index-lattice { transform-origin: 80px 80px; opacity: .5; }
+.index-pointer { stroke: var(--ion); stroke-width: 1.5; }
+.index-pointer circle, .index-axis { fill: var(--gold-bright); }
+.instrument-label { margin: 0; font: var(--type-label)/1.7 var(--mono); text-transform: uppercase; letter-spacing: .06em; color: var(--gold); }
+.index-title h2 { font: 400 clamp(1.7rem, 3cqi, 2.7rem)/1.2 var(--display); color: var(--parchment); letter-spacing: -.025em; margin: .35rem 0; }
+.index-motto { color: var(--ink); font-style: italic; margin: 0; }
+.index-reading { padding-inline: var(--space-6); border-inline: 1px solid var(--rule); }
+.index-bodies { display: flex; gap: 3px; flex-wrap: wrap; }
+.index-bodies button { width: 36px; min-height: 44px; padding: 0; font: 1.35rem/1 var(--serif); color: var(--sepia); border: 1px solid transparent; background: transparent; }
+.index-bodies button[aria-pressed="true"] { color: var(--gold-bright); border-color: var(--gold); background: #c5a66b14; }
+.index-coordinate { margin: var(--space-2) 0 0; display: grid; gap: .3rem; }
+.index-coordinate > span { text-transform: uppercase; letter-spacing: .06em; font: .8125rem/1.6 var(--mono); color: var(--ink); }
+.index-coordinate strong { color: var(--parchment); font: 1.5rem/1.3 var(--display); font-variant-numeric: tabular-nums; }
+.index-coordinate small { font: .8125rem/1.5 var(--mono); color: var(--ion); margin-left: .5rem; }
+.index-colophon { display: grid; justify-items: center; gap: .35rem; text-align: center; font: .75rem/1.5 var(--mono); color: var(--sepia); }
+.index-colophon > span:first-child { color: var(--gold); font-size: 2rem; }
+/* :has() links focus to its enclosing instrument without JS listeners. */
+.celestial-index-inner:has(button:focus-visible) { border-color: var(--ion); }
+@supports (background: color-mix(in oklch, white, black)) {
+  .index-bodies button { background: color-mix(in oklch, var(--gold) var(--index-light), transparent); transition: --index-light 180ms, border-color 180ms; }
+  .index-bodies button:hover { --index-light: 20%; }
+}
+/* Component width, not device identity, determines compression. */
+@container celestial (max-width: 850px) {
+  .celestial-index-inner { grid-template-columns: 90px 1fr 1.2fr; gap: 1rem; padding: 1rem; }
+  .index-seal { width: 90px; }
+  .index-colophon { display: none; }
+  .index-reading { padding-inline: 1rem 0; border-right: 0; }
+}
+@container celestial (max-width: 580px) {
+  .celestial-index-inner { grid-template-columns: 74px minmax(0, 1fr); }
+  .index-seal { width: 74px; }
+  .index-title h2 { font-size: 1.8rem; }
+  .index-reading { grid-column: 1 / -1; padding: .7rem 0 0; border: 0; border-top: 1px solid var(--rule); display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; align-items: center; justify-content: space-between; }
+  .index-bodies { gap: 2px; }
+  .index-coordinate { margin: 0; }
+}
+/* Motion: only the non-data lattice rotates. Longitude needles stay truthful. */
+@keyframes hermetic-orbit { to { transform: rotate(360deg); } }
+@keyframes folio-reveal { from { opacity: .35; transform: translate3d(0, 16px, 0); } to { opacity: 1; transform: translate3d(0, 0, 0); } }
+@keyframes aether-tide { from { opacity: .45; transform: translate3d(-1%, 0, 0); } to { opacity: .85; transform: translate3d(1%, 0, 0); } }
+@media (prefers-reduced-motion: no-preference) {
+  .index-lattice { animation: hermetic-orbit 180s linear infinite; }
+  .celestial-index-inner::before { animation: aether-tide 18s ease-in-out infinite alternate; }
+  .chapter-host { animation: folio-reveal 320ms var(--ease-orbit) both; }
+  @supports (animation-timeline: view()) {
+    .threshold { animation: folio-reveal linear both; animation-timeline: view(); animation-range: entry 0% entry 90%; }
+  }
+  @supports (scroll-timeline-name: --folio) {
+    html { scroll-timeline-name: --folio; scroll-timeline-axis: block; }
+    .masthead h1 { animation: folio-reveal linear reverse both; animation-timeline: --folio; animation-range: 0px 500px; }
+  }
+}
+@media (max-width: 600px) {
+  .app { gap: var(--space-4); }
+  .masthead { grid-template-columns: 1fr; }
+  .masthead-actions { grid-column: 1; grid-row: auto; justify-self: start; }
+  .threshold { padding: var(--space-4); }
+  .threshold-title { font-size: 2rem; }
+  .masthead .sub { font-size: .8125rem; letter-spacing: .02em; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+@media (forced-colors: active) {
+  .index-seal svg, .index-pointer { stroke: CanvasText; }
+  .index-bodies button[aria-pressed="true"] { outline: 2px solid Highlight; }
+  .threshold, .threshold p, .threshold .th-live, .threshold button { background: Canvas; color: CanvasText; }
+}

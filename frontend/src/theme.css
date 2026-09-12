@@ -16,8 +16,8 @@
   --danger: #b03a2e;
   --harmonious: #2e86c1;
   /* Mystic accent — amethyst, woven sparingly alongside gold + copper */
-  --amethyst: #8e7cc3;
-  --amethyst-soft: #b5a8e0;
+  --amethyst: #8bc5ad;
+  --amethyst-soft: #b5dcca;
 
   /* Reusable luminous shadows */
   --glow-gold: 0 0 24px rgba(201, 168, 76, 0.22);
@@ -702,13 +702,13 @@ button.ghost:hover {
   width: auto; cursor: pointer; font-size: 13px;
   padding: 6px 14px; border-radius: 999px;
   border: 1px solid var(--amethyst); color: var(--amethyst-soft);
-  background: rgba(142, 124, 195, 0.10);
+  background: rgba(139, 197, 173, 0.10);
   transition: background 0.25s var(--ease-out), box-shadow 0.25s var(--ease-out),
               transform 0.15s var(--ease-spring);
 }
 .arcana-pill:hover {
-  background: rgba(142, 124, 195, 0.22);
-  box-shadow: 0 0 16px rgba(142, 124, 195, 0.28);
+  background: rgba(139, 197, 173, 0.22);
+  box-shadow: 0 0 16px rgba(139, 197, 173, 0.28);
   transform: translateY(-1px);
 }
 
@@ -834,7 +834,7 @@ button.ghost:hover {
   border: 1px solid var(--gold);
   border-radius: 10px;
   padding: 9px 12px 10px;
-  box-shadow: 0 8px 30px rgba(0,0,0,0.6), 0 0 0 1px rgba(142,124,195,0.12),
+  box-shadow: 0 8px 30px rgba(0,0,0,0.6), 0 0 0 1px rgba(139,197,173,0.12),
               inset 0 0 18px rgba(201,168,76,0.05);
   /* Calm fade — keyed remount in JSX replays this cleanly on each new hover
      instead of the card teleporting between targets. */
@@ -907,9 +907,9 @@ button.ghost:hover {
   border-radius: 12px;
   padding: 22px;
   animation: modalRise 0.36s var(--ease-spring);
-  box-shadow: 0 0 60px rgba(142,124,195,0.2),
+  box-shadow: 0 0 60px rgba(139,197,173,0.2),
               0 0 90px rgba(201,168,76,0.1),
-              inset 0 0 1px rgba(181,168,224,0.4);
+              inset 0 0 1px rgba(181,220,202,0.4);
 }
 /* A faint amethyst→gold aura glows above the modal's title. */
 .oracle-modal .section {
@@ -917,7 +917,7 @@ button.ghost:hover {
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  border-bottom-color: rgba(142,124,195,0.35);
+  border-bottom-color: rgba(139,197,173,0.35);
 }
 
 .oracle-tabs {
@@ -948,7 +948,7 @@ button.ghost:hover {
   border-image: linear-gradient(90deg, var(--amethyst), var(--gold)) 1;
   border-bottom-width: 2px;
   border-bottom-style: solid;
-  text-shadow: 0 0 16px rgba(142,124,195,0.35);
+  text-shadow: 0 0 16px rgba(139,197,173,0.35);
 }
 
 /* Life path */
@@ -1004,7 +1004,7 @@ button.ghost:hover {
   padding: 12px 14px;
   border-left: 2px solid;
   /* Numerology × astrology — a faint amethyst→gold field beneath the text. */
-  background: linear-gradient(100deg, rgba(142,124,195,0.08), rgba(201,168,76,0.04));
+  background: linear-gradient(100deg, rgba(139,197,173,0.08), rgba(201,168,76,0.04));
   font-size: 13px;
   color: var(--sepia);
   line-height: 1.65;
@@ -1178,16 +1178,16 @@ button.ghost:hover {
   border-radius: 12px;
   padding: 22px;
   animation: modalRise 0.36s var(--ease-spring);
-  box-shadow: 0 0 60px rgba(142,124,195,0.2),
+  box-shadow: 0 0 60px rgba(139,197,173,0.2),
               0 0 90px rgba(201,168,76,0.1),
-              inset 0 0 1px rgba(181,168,224,0.4);
+              inset 0 0 1px rgba(181,220,202,0.4);
 }
 .soul-modal .section {
   background: linear-gradient(100deg, var(--amethyst-soft), var(--gold-soft) 70%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  border-bottom-color: rgba(142,124,195,0.35);
+  border-bottom-color: rgba(139,197,173,0.35);
 }
 
 /* Amethyst diamond marker leading each section label across the esoteric modals. */
@@ -1199,7 +1199,7 @@ button.ghost:hover {
 }
 .soul-modal .soul-section,
 .oracle-modal .soul-section {
-  border-top-color: rgba(142,124,195,0.22);
+  border-top-color: rgba(139,197,173,0.22);
 }
 
 .soul-header {
@@ -1340,7 +1340,7 @@ button.ghost:hover {
   font-size: 14px;
   color: var(--sepia);
   line-height: 1.6;
-  background: linear-gradient(100deg, rgba(142,124,195,0.08), rgba(201,168,76,0.04));
+  background: linear-gradient(100deg, rgba(139,197,173,0.08), rgba(201,168,76,0.04));
   border-radius: 0 6px 6px 0;
 }
 
@@ -2229,7 +2229,7 @@ button.ghost:hover {
   background: linear-gradient(180deg, var(--obsidian-2), var(--obsidian));
   border: 1px solid var(--amethyst);
   border-radius: 14px;
-  box-shadow: 0 0 64px rgba(142, 124, 195, 0.22), inset 0 0 1px rgba(181, 168, 224, 0.4);
+  box-shadow: 0 0 64px rgba(139, 197, 173, 0.22), inset 0 0 1px rgba(181, 220, 202, 0.4);
   padding: 22px;
   animation: modalRise 0.36s var(--ease-spring);
 }
@@ -2244,7 +2244,7 @@ button.ghost:hover {
   border: 1px solid var(--rule); border-radius: 999px;
   transition: color 0.2s var(--ease-out), border-color 0.2s var(--ease-out), background 0.2s var(--ease-out);
 }
-.arcana-tab:hover { color: var(--amethyst-soft); border-color: rgba(142,124,195,0.5); }
+.arcana-tab:hover { color: var(--amethyst-soft); border-color: rgba(139,197,173,0.5); }
 .arcana-tab.is-active { color: var(--void); background: linear-gradient(180deg, var(--amethyst-soft), var(--amethyst)); border-color: var(--amethyst); }
 
 .arcana-body { min-height: 220px; }
@@ -2262,8 +2262,8 @@ button.ghost:hover {
 
 .arc-chip {
   display: inline-block; font-size: 12px; color: var(--amethyst-soft);
-  border: 1px solid rgba(142,124,195,0.45); border-radius: 6px;
-  padding: 2px 8px; background: rgba(142,124,195,0.08);
+  border: 1px solid rgba(139,197,173,0.45); border-radius: 6px;
+  padding: 2px 8px; background: rgba(139,197,173,0.08);
 }
 .arc-chip--rev { color: var(--gold-soft); border-color: rgba(201,168,76,0.4); background: rgba(201,168,76,0.07); }
 
@@ -2753,11 +2753,11 @@ h2.section::after {
   color: var(--gold, #c9a84c);
   box-shadow: 0 0 16px rgba(201, 168, 76, 0.3);
 }
-.dial-node.myst { border-color: color-mix(in srgb, var(--amethyst, #7a5cc4) 55%, transparent); }
+.dial-node.myst { border-color: color-mix(in srgb, var(--amethyst, #638b79) 55%, transparent); }
 .dial-node.myst:hover, .dial-node.myst.active {
-  border-color: var(--amethyst-soft, #b9a0e8);
-  color: var(--amethyst-soft, #b9a0e8);
-  box-shadow: 0 0 14px rgba(122, 92, 196, 0.3);
+  border-color: var(--amethyst-soft, #b5dcca);
+  color: var(--amethyst-soft, #b5dcca);
+  box-shadow: 0 0 14px rgba(99, 139, 121, 0.3);
 }
 
 /* Inside a chapter: the dial collapses to a numeral rail, pinned bottom-right
@@ -3033,7 +3033,7 @@ h2.section { border-bottom-color: rgba(201, 168, 76, 0.35); }
 /* ── Border-fields — surfaces glow through a gradient edge instead of a flat
       line. Amethyst for the esoteric surfaces, gold for the working ones. */
 .forecast-modal, .shelf-modal, .lib-surface { position: relative; }
-.arcana-modal, .soul-modal, .oracle-modal { border-color: rgba(142, 124, 195, 0.32); }
+.arcana-modal, .soul-modal, .oracle-modal { border-color: rgba(139, 197, 173, 0.32); }
 .forecast-modal, .shelf-modal, .lib-surface { border-color: rgba(201, 168, 76, 0.30); }
 .arcana-modal::after, .soul-modal::after, .oracle-modal::after,
 .forecast-modal::after, .shelf-modal::after, .lib-surface::after {
@@ -3043,8 +3043,8 @@ h2.section { border-bottom-color: rgba(201, 168, 76, 0.35); }
   border-radius: inherit;
   padding: 1px;
   background: linear-gradient(130deg,
-    rgba(181, 168, 224, 0.55), transparent 32%,
-    transparent 68%, rgba(142, 124, 195, 0.5));
+    rgba(181, 220, 202, 0.55), transparent 32%,
+    transparent 68%, rgba(139, 197, 173, 0.5));
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
@@ -3326,7 +3326,7 @@ button.is-live { color: var(--ion); background: rgba(127, 231, 220, 0.08); }
 .engine-note--replayed {
   color: var(--amethyst-soft);
   border-color: var(--amethyst);
-  background: rgba(142, 124, 195, 0.07);
+  background: rgba(139, 197, 173, 0.07);
 }
 
 /* TZ-3 — the typed-offset guard. Two levels, because they mean different
