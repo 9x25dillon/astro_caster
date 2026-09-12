@@ -13,7 +13,7 @@ The complete executable token set is [`frontend/src/observatory.css`](../../fron
 | Computed coordinates | `--ion`, `--ion-soft` | Vitriol green separates coordinates from brass structure. |
 | Reading | `--parchment`, `--sepia`, `--ink` | Warm, opaque surfaces and quieter secondary text. |
 | Tension / harmony | `--danger`, `--harmonious` | Copper and verdigris preserve semantic distinctions. |
-| Type | `--display`, `--serif`, `--mono` | Book display, sustained reading, tabular instrument notation. System stacks require no font requests. |
+| Type | `--display`, `--serif`, `--mono` | Book display, sustained reading, tabular instrument notation. The vendored Cormorant / EB Garamond faces lead both serif stacks (no font request either way, and the only faces an Android WebView can render); the system faces are fallbacks. |
 | Spacing | `--space-1` … `--space-12` | Quarter-rem scale, dense instrumentation with separated reading areas. |
 | Elevation | `--elevation-1`, `--elevation-2` | Inset metallic edge and restrained physical shadow. |
 

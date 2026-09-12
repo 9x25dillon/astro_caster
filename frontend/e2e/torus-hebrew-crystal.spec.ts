@@ -21,7 +21,11 @@ async function openTorus(page: import("@playwright/test").Page) {
   await expect(canvas(page)).toBeVisible();
   // Stop the idle spin — same reason as torus-layers.spec: the surface turns on
   // its own until the reader takes the wheel, and a diff against a moving
-  // target proves nothing.
+  // target proves nothing. And the drag has to land: page.mouse does not
+  // scroll, and the masthead's Celestial Index can put the canvas centre
+  // below a 720px fold, where a pointerdown reaches nothing.
+  await canvas(page).scrollIntoViewIfNeeded();
+  await page.waitForTimeout(400);
   const box = (await canvas(page).boundingBox())!;
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.down();

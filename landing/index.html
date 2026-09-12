@@ -37,9 +37,12 @@
 
 <style>
   :root{
-    --bg:#0b0b0f; --panel:#12121a; --gold:#c9a84c; --gold-soft:#e0c578;
-    --gold-bright:#f2dca0; --ink:#9a8f78; --rule:#3a3320; --amethyst:#8e7cc3;
-    --ion:#7fe7dc; --text:#e8e3d6;
+    /* The engraved observatory's palette (frontend/src/observatory.css), so the
+       door and the room match: green-black obsidian, brass rules, vitriol for
+       anything computed, parchment for the reading. */
+    --bg:#080d0c; --panel:#0c1210; --gold:#c5a66b; --gold-soft:#ddc393;
+    --gold-bright:#f3dfb5; --ink:#b1ac98; --rule:#465044; --amethyst:#8bc5ad;
+    --ion:#8bc5ad; --text:#ece4d2;
     --serif: "Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
   }
   *{box-sizing:border-box}
@@ -108,11 +111,11 @@
   th,td{padding:13px 12px; text-align:left; border-bottom:1px solid var(--rule); vertical-align:top}
   th{color:var(--gold); font-weight:600; font-size:13px; letter-spacing:.09em; text-transform:uppercase}
   .price{color:var(--gold-bright); font-weight:600; white-space:nowrap}
-  .free-row td{background:#12121a55}
+  .free-row td{background:#0c121055}
 
   blockquote{
     margin:0; padding:22px 26px; border-left:2px solid var(--amethyst);
-    background:#12121a88; border-radius:0 10px 10px 0; font-style:italic;
+    background:#0c121088; border-radius:0 10px 10px 0; font-style:italic;
     color:var(--text); font-size:17.5px;
   }
   .attest{color:var(--ion); font-size:14px; margin-top:14px}

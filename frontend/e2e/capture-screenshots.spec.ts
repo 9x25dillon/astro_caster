@@ -53,6 +53,16 @@ async function shot(page: import("@playwright/test").Page, name: string) {
   await page.screenshot({ path: path.join(OUT, `${name}.png`), fullPage: false });
 }
 
+/** The wheel shot. The masthead now carries the Celestial Index above the
+ *  chart, and on a 1280×720 viewport that puts the wheel below the fold — a
+ *  "chart wheel" screenshot that shows a header is not one. Bring the stage
+ *  into view first; the clipped viewport is still what a visitor sees. */
+async function wheelShot(page: import("@playwright/test").Page, name: string) {
+  await page.locator(".chart-holo-stage").scrollIntoViewIfNeeded();
+  await page.waitForTimeout(250);
+  await shot(page, name);
+}
+
 async function chapter(page: import("@playwright/test").Page, ch: string, name: string) {
   await page.locator(`.dial-node[data-ch="${ch}"]`).click();
   await page.waitForTimeout(700); // chapter bloom is a 240ms clip-path wipe
@@ -76,7 +86,7 @@ test("capture: the free tier, as a first-time visitor meets it", async ({ page }
 
 test("capture: the chart and the chapters, free tier", async ({ page }) => {
   await enter(page);
-  await shot(page, "03-chart-wheel");
+  await wheelShot(page, "03-chart-wheel");
   await chapter(page, "II", "04-reading-arcana");
   await chapter(page, "III", "05-timing-forecast");
   await chapter(page, "IV", "06-relations");
@@ -105,7 +115,7 @@ test("capture: the premium surfaces, on an oracle entitlement", async ({ page })
   const { oracle } = mintedTokens();
   test.skip(!oracle, "no oracle token — global-setup could not mint one");
   await enter(page, oracle);
-  await shot(page, "10-oracle-tier-chart");
+  await wheelShot(page, "10-oracle-tier-chart");
   await chapter(page, "II", "11-oracle-reading-surface");
   await chapter(page, "VI", "12-study-course-and-path");
   await chapter(page, "VII", "13-studio-deck-art");
@@ -128,7 +138,7 @@ test("capture: mobile viewport", async ({ browser }) => {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const page = await ctx.newPage();
   await enter(page);
-  await shot(page, "15-mobile-chart");
+  await wheelShot(page, "15-mobile-chart");
   await page.locator(`.dial-node[data-ch="II"]`).click();
   await page.waitForTimeout(700);
   await shot(page, "16-mobile-reading");

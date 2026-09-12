@@ -21,6 +21,14 @@ async function openTorus(page: import("@playwright/test").Page) {
   // Stop the idle spin before comparing pixels. The torus turns gently until
   // the reader takes the wheel, so consecutive frames differ on their own and
   // a diff would prove nothing about the layer. One drag hands over control.
+  //
+  // The drag has to LAND. `page.mouse` moves to viewport coordinates and does
+  // not scroll, and since the masthead grew the Celestial Index the canvas's
+  // centre can sit below a 720px fold — elementFromPoint there is null, the
+  // pointerdown reaches nothing, the spin never stops, and every diff below
+  // fails while looking like a layer bug. Bring the canvas in first.
+  await canvas(page).scrollIntoViewIfNeeded();
+  await page.waitForTimeout(400); // the chapter's arrival animation, settled
   const box = (await canvas(page).boundingBox())!;
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.down();
