@@ -1413,11 +1413,15 @@ export async function localFixedStars(natal: BirthInput, orb = 1.5): Promise<Fix
 // planet is.
 
 export interface PairTrajectory {
-  /** Ephemeris samples for lib/torus.findAspectEvents & the drawn curve. */
-  samples: { jd: number; lonA: number; lonB: number }[];
+  /** Ephemeris samples for lib/torus.findAspectEvents & the drawn curve.
+   *  lonC/lonD are present only when a third and fourth body were asked for —
+   *  the two extra circles of the T⁴ surface (lib/torus4). They carry no
+   *  aspect machinery: the pair is still the pair, and the second couple is
+   *  there to give the hyper-torus two angles that are genuinely free of it. */
+  samples: { jd: number; lonA: number; lonB: number; lonC?: number; lonD?: number }[];
   /** The natal pair — one fixed point on the torus (null if either body is
    *  outside the natal chart's set, e.g. Chiron under Moshier). */
-  natal: { lonA: number; lonB: number } | null;
+  natal: { lonA: number; lonB: number; lonC?: number; lonD?: number } | null;
 }
 
 /** Bodies the sampler can move through time (the WASM Swiss set — derived
@@ -1445,12 +1449,22 @@ export async function localPairTrajectory(
   bodyA: string,
   bodyB: string,
   start: Date,
-  days: number
+  days: number,
+  // The second couple of the hyper-torus. Optional and null-by-default: with
+  // neither of them the surface's extra radii go to zero and it is the donut
+  // again, so asking for them is the only thing that costs anything.
+  bodyC: string | null = null,
+  bodyD: string | null = null
 ): Promise<PairTrajectory> {
   const c = await core();
   const fast = (b: string) =>
     b === "Moon" ? 8 : b === "Mercury" || b === "Venus" || b === "Sun" ? 2 : 1;
-  const perDay = Math.max(fast(bodyA), fast(bodyB));
+  // The sampling rate has to answer to the FASTEST body drawn, not the fastest
+  // of the first pair: a Moon in the C slot under a Saturn–Pluto pair would
+  // otherwise be sampled once a day and wind 13 times between samples.
+  const perDay = Math.max(
+    ...[bodyA, bodyB, bodyC, bodyD].filter((b): b is string => !!b).map(fast)
+  );
   const ut =
     start.getUTCHours() + start.getUTCMinutes() / 60 + start.getUTCSeconds() / 3600;
   const jd0 = c.julianDay(
@@ -1463,7 +1477,16 @@ export async function localPairTrajectory(
     const a = c.eclipticLonSpeed(jd, bodyA, natal);
     const b = c.eclipticLonSpeed(jd, bodyB, natal);
     if (!a || !b) continue; // WASM unavailable for an extended body — skip
-    samples.push({ jd, lonA: a.lon, lonB: b.lon });
+    // A missing third or fourth body drops that coordinate rather than the
+    // sample: the pair is the dish and the second couple is the garnish, so a
+    // Chiron the ephemeris cannot move must not delete the Sun–Moon curve.
+    const cc = bodyC ? c.eclipticLonSpeed(jd, bodyC, natal) : null;
+    const dd = bodyD ? c.eclipticLonSpeed(jd, bodyD, natal) : null;
+    samples.push({
+      jd, lonA: a.lon, lonB: b.lon,
+      ...(cc ? { lonC: cc.lon } : {}),
+      ...(dd ? { lonD: dd.lon } : {}),
+    });
   }
   if (samples.length < 2) {
     throw new Error(
@@ -1473,9 +1496,19 @@ export async function localPairTrajectory(
   let natalPair: PairTrajectory["natal"] = null;
   try {
     const chart = c.calculateChart(natal);
-    const pa = chart.planets.find((p) => p.id === bodyA);
-    const pb = chart.planets.find((p) => p.id === bodyB);
-    if (pa && pb) natalPair = { lonA: pa.longitude, lonB: pb.longitude };
+    const lonOf = (id: string | null) =>
+      id ? chart.planets.find((p) => p.id === id)?.longitude : undefined;
+    const pa = lonOf(bodyA);
+    const pb = lonOf(bodyB);
+    if (pa !== undefined && pb !== undefined) {
+      const pc = lonOf(bodyC);
+      const pd = lonOf(bodyD);
+      natalPair = {
+        lonA: pa, lonB: pb,
+        ...(pc !== undefined ? { lonC: pc } : {}),
+        ...(pd !== undefined ? { lonD: pd } : {}),
+      };
+    }
   } catch {
     // the natal marker is a garnish; the trajectory is the dish
   }

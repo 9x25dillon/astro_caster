@@ -88,7 +88,8 @@ test("layers are independent — one on does not turn another on", async ({ page
   await openTorus(page);
   await page.getByRole("switch", { name: "Signs" }).click();
   await expect(page.getByRole("switch", { name: "Signs" })).toHaveAttribute("aria-checked", "true");
-  for (const other of ["Dignity terrain", "Natal field", "Houses", "Fixed stars"]) {
+  for (const other of ["Dignity terrain", "Natal field", "Houses",
+                       "Hebrew letters", "Crystal", "Fixed stars"]) {
     await expect(page.getByRole("switch", { name: other })).toHaveAttribute("aria-checked", "false");
   }
 });
