@@ -119,6 +119,68 @@ Script used: `deploy-frontend.sh` (pull --ff-only, `compose build frontend`,
    bar at short desktop heights (visible in the 1440×720 capture). Pre-existing;
    the panel scrolls. Cosmetic.
 
+## Next session — start here, in this order
+
+**0. Re-derive the three truths before believing this file.**
+
+```bash
+git fetch && git status -sb && git log --oneline -3          # main @ 07325e0 (docs) over 3ff877e (code)
+ssh -i ~/.ssh/astra_hetzner astra@178.104.120.219 'cd ~/astro-aae && git rev-parse --short HEAD && docker compose ps --format "{{.Name}} {{.Status}}"'
+curl -s https://astra-arcana.com/ | grep -oE 'astra-1\.0\.[0-9]+-reader\.apk'   # expect 1.0.7
+ss -tlnp | grep -E ':5173|:8787' || echo "dev ports free"      # if NOT free: kill by PID before any suite
+curl -s http://127.0.0.1:8787/api/entitlement                  # tier:"oracle" with no token = personal mode = poison
+```
+
+If SSH times out while the site serves 200, it is the firewall, not the box:
+`bash ops/ssh_allow_my_ip.sh` (the Hetzner token is valid again).
+
+**1. The operator's visual review is the first thing to ask for.** Session 41
+was a RELEASE review (does it work on a phone); nobody has yet done the
+DESIGN review the Codex handoff asked for (does it look right to xar). Ask for
+the screen, the viewport, and a screenshot before changing anything — and
+apply only what is asked. Do not run an unsolicited redesign pass.
+
+**2. If they report the app on their own phone looks the same as before:**
+their phone still carries the previous version. Update from
+https://astra-arcana.com (the download button, then install over the top —
+same key, versionCode 7 > 6, keeps charts/journal/entitlement). The Pixel
+`5C091JEA325346` is the TEST device and has no key; "Support / Unlock" in its
+masthead is correct.
+
+**3. Before running ANY local suite:** step 0's last two lines. The personal-
+mode flag in `backend/.env` has now cost three sessions (39, 40, 41 via the
+Codex handoff's "returns Supporter"). Let Playwright boot the stack itself
+(it passes `AAE_PERSONAL_MODE=""`), and read the failure COUNT from a captured
+file, never from a piped `tail`. `[[e2e-green-that-lies]]`.
+
+**4. Any frontend-only change → deploy with `ops/deploy_frontend.sh`**
+(scp it to the box, run it there). Backend never restarts. Precondition: the
+pre-flight diff AND `git diff --stat <box-sha>..main -- backend/ packages/`
+are both empty. Otherwise the full `docker compose up -d --build`.
+
+**5. Any APK rebuild → `RELEASE_v1.0.3.md` order of operations, exactly.**
+versionCode 8 / 1.0.8 next. Landing page AFTER signing. `gh release create
+--target main` (a short sha is refused). Verify the checksum against an
+independent re-download, with `grep -oE '>[0-9a-f]{64}<'` — not `tr -d`.
+
+**6. Housekeeping nobody is blocked on:** delete remote branches
+`claude/holographic-natal-wheel`, `codex/engraved-observatory-review`,
+`experiment/letters-and-lattice`, `revert/letters-and-lattice`,
+`release/engraved-observatory`; the local ones with `[gone]` upstreams too.
+The untracked exported reading at the repo root (`astra-randy-…txt`) is the
+operator's — it makes `production_report.sh`'s dirty-tree gate FAIL; ask them
+to move it out of the repo rather than touching it.
+
+**7. What was learned about working efficiently here, for the assistant:**
+run the FULL e2e once, first, on a clean stack, and attribute every failure —
+before making any edit. Session 41 ran targeted specs, then the full suite,
+then isolated reruns, then a probe, then the full suite again; one clean run
+up front would have surfaced the font and torus findings alongside the review
+findings and needed one confirmation run at the end. Check `git status`
+before every commit — a `git mv -k` failed silently and produced a commit with
+nothing but deletions in it. And read memory files by size (`wc -c`) before
+`cat`-ing seven of them at once.
+
 ---
 
 # SESSION 40 — 2026-09-11
