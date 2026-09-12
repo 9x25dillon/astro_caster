@@ -25,8 +25,13 @@
   --glass-hi: #172019f5;
   --glass-lo: #0d1511f5;
   --scanline: linear-gradient(transparent, transparent);
-  --serif: "Palatino Linotype", "Book Antiqua", Palatino, Georgia, serif;
-  --display: "Baskerville", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  /* The vendored faces lead both stacks (public/fonts, no network request):
+   * they are the only ones an Android WebView can actually render — a phone
+   * has no Palatino, Baskerville or Georgia and would fall to Noto Serif —
+   * and no-external.spec pins that they load. The system faces stay as the
+   * fallback for a reader whose font files never arrived. */
+  --serif: "EB Garamond", "Palatino Linotype", "Book Antiqua", Palatino, Georgia, serif;
+  --display: "Cormorant Garamond", "EB Garamond", Baskerville, "Iowan Old Style", "Palatino Linotype", Georgia, serif;
   --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   --space-1: .25rem;
   --space-2: .5rem;
