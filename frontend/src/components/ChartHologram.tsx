@@ -141,8 +141,8 @@ export const ChartHologram: React.FC<Props> = ({
 
     // 1 · the surface itself, on sign cusps — the ground the rest sits on
     for (let g = 0; g < 360; g += 30) {
-      stroke(circle(torusTheta(g, ascendant), "theta", 40), "#7fd6e8", 0.7, 0.20);
-      stroke(circle(g, "phi", 40), "#7fd6e8", 0.7, 0.13);
+      stroke(circle(torusTheta(g, ascendant), "theta", 40), "#8bc5ad", 0.7, 0.20);
+      stroke(circle(g, "phi", 40), "#8bc5ad", 0.7, 0.13);
     }
 
     // 2 · the aspect circles — the diagonals whose shadows are the wheel's
