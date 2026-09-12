@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useStore } from "./store/useStore";
 import { syncDailySurfaces } from "./lib/dailySync";
 import { Controls } from "./components/Controls";
+import { CelestialIndex } from "./components/CelestialIndex";
 import { ChartWheel } from "./components/ChartWheel";
 import { DetailPanel } from "./components/DetailPanel";
 import { TransitSlider } from "./components/TransitSlider";
@@ -176,7 +177,7 @@ export const App: React.FC = () => {
     )}
     <div className={`app${showThreshold ? " has-threshold" : ""}`}>
       <header className="masthead">
-        <h1>☤ Astra</h1>
+        <h1><span aria-hidden="true">☤</span> Astra <span className="masthead-edition">Arcana</span></h1>
         <div className="sub">
           Natal observatory · celestial cartography · oracle
         </div>
@@ -202,6 +203,7 @@ export const App: React.FC = () => {
             </button>
           )}
         </div>
+        <CelestialIndex />
       </header>
 
       <SupportModal />

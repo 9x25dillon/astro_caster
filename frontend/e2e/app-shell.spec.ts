@@ -2,7 +2,7 @@ import { test, expect, openChapter } from "./helpers";
 
 test("observatory boots and casts the default chart", async ({ page }) => {
   await page.goto("/");
-  await expect(page.locator(".masthead h1")).toHaveText("☤ Astra");
+  await expect(page.locator(".masthead h1")).toHaveText("☤ Astra Arcana");
 
   // The default chart auto-casts on mount; a populated wheel means the full
   // frontend → FastAPI → ephemeris path worked.

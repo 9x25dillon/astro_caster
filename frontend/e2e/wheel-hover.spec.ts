@@ -17,6 +17,9 @@ test("a hovered planet glyph grows in place, without sliding out from under the 
   await pastThreshold(page);
   const mark = page.locator(".planet-mark").first();
   await expect(mark).toBeVisible();
+  // The expanded masthead can place the wheel below the fold. Settle the
+  // viewport before comparing glyph geometry; hover also auto-scrolls.
+  await mark.scrollIntoViewIfNeeded();
 
   const before = await mark.boundingBox();
   await mark.hover();

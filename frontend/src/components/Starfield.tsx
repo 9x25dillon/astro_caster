@@ -16,8 +16,10 @@ export const Starfield: React.FC = () => {
   useEffect(() => {
     const canvas = ref.current;
     if (!canvas) return;
-    const ctx = canvas.getContext("2d")!;
-    let rafId: number;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    let rafId = 0;
     let stars: Star[] = [];
 
     const seed = (w: number, h: number) => {
@@ -42,6 +44,7 @@ export const Starfield: React.FC = () => {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
       seed(canvas.width, canvas.height);
+      restart();
     };
 
     let t = 0;
@@ -50,7 +53,7 @@ export const Starfield: React.FC = () => {
       ctx.clearRect(0, 0, w, h);
 
       for (const s of stars) {
-        const op = s.twinkle
+        const op = s.twinkle && !motion.matches
           ? s.baseOpacity * (0.4 + 0.6 * Math.sin(t * s.speed + s.phase))
           : s.baseOpacity;
 
@@ -73,21 +76,32 @@ export const Starfield: React.FC = () => {
       }
 
       t += 0.013;
-      rafId = requestAnimationFrame(draw);
+      if (!motion.matches && !document.hidden) rafId = requestAnimationFrame(draw);
+    };
+
+    // Canvas motion must honor the same preference as CSS, including changes
+    // made while the app is open. Hidden documents do no decorative work.
+    const restart = () => {
+      cancelAnimationFrame(rafId);
+      if (!document.hidden) draw();
     };
 
     resize();
     window.addEventListener("resize", resize);
-    draw();
+    motion.addEventListener("change", restart);
+    document.addEventListener("visibilitychange", restart);
 
     return () => {
       cancelAnimationFrame(rafId);
       window.removeEventListener("resize", resize);
+      motion.removeEventListener("change", restart);
+      document.removeEventListener("visibilitychange", restart);
     };
   }, []);
 
   return (
     <canvas
+      aria-hidden="true"
       ref={ref}
       style={{
         position: "fixed",

@@ -58,42 +58,46 @@ export const TransitSlider: React.FC = () => {
 
   return (
     <div className="panel timeline">
-      <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-        <span
+      <div className="timeline-head">
+        <h2>Transit timeline</h2>
+        <button
+          type="button"
+          aria-pressed={layers.transits}
           className={`chip ${layers.transits ? "active" : ""}`}
           onClick={() => toggleLayer("transits")}
         >
           {layers.transits ? "◉" : "○"} Transits
-        </span>
-        <button className="ghost" style={{ width: "auto" }} onClick={() => step(-365)}>‹ yr</button>
-        <button className="ghost" style={{ width: "auto" }} onClick={() => step(-30)}>‹ mo</button>
-        <input
-          type="range"
-          aria-label="Transit date"
-          min={min}
-          max={max}
-          step={DAY}
-          value={value}
-          onChange={(e) => setTransitIso(toDatetimeLocal(Number(e.target.value)))}
-          style={{ flex: 1, minWidth: 180 }}
-        />
-        <button className="ghost" style={{ width: "auto" }} onClick={() => step(30)}>mo ›</button>
-        <button className="ghost" style={{ width: "auto" }} onClick={() => step(365)}>yr ›</button>
+        </button>
+      </div>
+      <div className="timeline-steps" role="group" aria-label="Shift transit date">
+        <button className="ghost" aria-label="Back one year" onClick={() => step(-365)}>‹ yr</button>
+        <button className="ghost" aria-label="Back one month" onClick={() => step(-30)}>‹ mo</button>
+        <button className="ghost" aria-label="Forward one month" onClick={() => step(30)}>mo ›</button>
+        <button className="ghost" aria-label="Forward one year" onClick={() => step(365)}>yr ›</button>
+      </div>
+      <input
+        className="timeline-range"
+        type="range"
+        aria-label="Transit date"
+        min={min}
+        max={max}
+        step={DAY}
+        value={value}
+        onChange={(e) => setTransitIso(toDatetimeLocal(Number(e.target.value)))}
+      />
+      <label className="timeline-date">Local date &amp; time
         <input
           type="datetime-local"
           aria-label="Transit date and time"
           value={transitIso}
           onChange={(e) => setTransitIso(e.target.value)}
-          style={{ width: 210 }}
         />
-        <span style={{ color: "var(--gold-soft)", fontFamily: "var(--display)", fontSize: 16 }}>
-          {label}
-        </span>
-      </div>
+      </label>
+      <p className="timeline-value">{label}</p>
       {layers.transits && transit && (
-        <div style={{ marginTop: 8, fontSize: 13, color: "var(--sepia)" }}>
+        <div className="timeline-aspects">
           {transit.aspects_to_natal.slice(0, 6).map((a, i) => (
-            <span key={i} style={{ marginRight: 12 }}>
+            <span key={i}>
               <span style={{ color: a.color }}>{a.type}</span> {a.p1.replace("t:", "")}→{a.p2}{" "}
               <span className="muted">({a.orb}°)</span>
             </span>
