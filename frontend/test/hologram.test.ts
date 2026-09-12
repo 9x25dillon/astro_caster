@@ -32,6 +32,7 @@ import {
   flicker,
   scanlinePhase,
   splitPasses,
+  underlayTransform,
 } from "../src/lib/hologram";
 
 // ── 1. The flicker is inside the safety envelope ────────────────────────────
@@ -194,4 +195,25 @@ test("SEAL_ORDER and the seven doubles are the same order, index for index", () 
   });
   assert.deepEqual([...SEAL_ORDER],
     ["Saturn", "Jupiter", "Mars", "Sun", "Venus", "Mercury", "Moon"]);
+});
+
+// ── 4. The two layers stay in lockstep at every rendered size ───────────────
+
+test("the underlay pans in percent of its box, so a shrunk wheel does not drift", () => {
+  // The wheel's SVG group is translate(tx ty) scale(k) in a viewBox `size`
+  // wide. Rendered at W pixels, a pan of tx viewBox units moves the wheel
+  // tx·W/size screen pixels. A percentage translate on the canvas resolves
+  // against its own W-wide box, so tx/size of it is the same tx·W/size — at
+  // W = size (desktop) and at W = size/2 (a phone) alike. The pixel form this
+  // replaces was right at the first and wrong by exactly tx/2 at the second.
+  const size = 720;
+  const t = underlayTransform({ k: 2, tx: 72, ty: -36 }, size);
+  assert.equal(t, "translate(10%, -5%) scale(2)");
+  for (const W of [720, 360, 293]) {
+    const screenDx = (72 / size) * W;           // what the SVG does
+    const canvasDx = (10 / 100) * W;            // what the percent translate does
+    assert.ok(Math.abs(screenDx - canvasDx) < 1e-9, `drift at W=${W}`);
+  }
+  // The rest state is the identity, spelled the way the wheel spells it.
+  assert.equal(underlayTransform({ k: 1, tx: 0, ty: 0 }, size), "translate(0%, 0%) scale(1)");
 });

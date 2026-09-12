@@ -35,7 +35,7 @@ import React, { useEffect, useMemo, useRef } from "react";
 import { embedDonut, project, type Camera } from "../lib/torus";
 import { natalLines, type NatalPosition } from "../lib/torusLayers";
 import { beatHz, droneHz } from "../lib/resonance";
-import { CHANNEL_A, CHANNEL_B, chromaticSplit, depthFade } from "../lib/hologram";
+import { CHANNEL_A, CHANNEL_B, chromaticSplit, depthFade, underlayTransform } from "../lib/hologram";
 
 interface Props {
   size: number;
@@ -205,11 +205,11 @@ export const ChartHologram: React.FC<Props> = ({
         // at size × dpr, so the drawing is unchanged — only its box scales.
         width: "100%",
         height: "100%",
-        // The wheel's own transform, mirrored. Its SVG group is
-        // translate(tx ty) scale(k) about the viewBox centre, and the viewBox is
-        // 1:1 with pixels, so the same operations about the element's centre put
-        // the two layers in lockstep through a pinch.
-        transform: `translate(${view.tx}px, ${view.ty}px) scale(${view.k})`,
+        // The wheel's own transform, mirrored — in PERCENT of this box, not in
+        // pixels, because the pan is in viewBox units and the box is only
+        // `size` pixels wide on a desktop. See underlayTransform for the
+        // phone-sized failure the pixel form had.
+        transform: underlayTransform(view, size),
         transformOrigin: "center",
       }}
     />
