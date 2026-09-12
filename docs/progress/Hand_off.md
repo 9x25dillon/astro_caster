@@ -1,15 +1,123 @@
 # Hand_off.md
 
-_Last updated: 2026-09-11 (session 40 — **a maintenance session: no feature
-shipped and that was the point**. `main` is at `4638dc9`, which is THIS FILE and
-the journal; **production is at `eb13b43` and carries every line of main's
-code** — deployed and verified by content. Sixteen security
-alerts went to zero, the box took its first reboot in a month, and the lettered
-surface was lifted off `main` onto `experiment/letters-and-lattice` because it
-had never been reviewed for release. TWO PRs OPEN: `#243` (ops script, green,
-unmerged) and `#228` (the holographic wheel, now stacked on the experiment
-branch). THE ONE THING STILL OWED is unchanged: the $5.50, see §THE $5.50.)
+_Last updated: 2026-09-11, late (session 41 — **the engraved observatory
+shipped**: the lettered surface is back on `main`, the holographic wheel and
+the Codex redesign landed on top of it, four release-review findings fixed,
+**APK v1.0.7 published**, landing page repointed, and **production IN SYNC at
+`3ff877e`, verified by content, backend never restarted**. PR #244; #228
+closed as superseded.)
 Re-derive before trusting any of this: `git fetch && git status -sb`._
+
+---
+
+# SESSION 41 — 2026-09-11 (the engraved observatory ships)
+
+## Start here — the three truths
+
+```
+local / main   3ff877e   backend unchanged · frontend unit 217 · e2e 279 passed · 21 skipped   all green
+CI             3ff877e   green — PR #244, all 12 checks, incl. E2E + CodeQL
+production     3ff877e   IN SYNC — deployed 2026-09-12 05:30 UTC, verified BY CONTENT (below)
+APK            v1.0.7    PUBLISHED — sha 80837fe8…12ed, installed on the Pixel as an update
+```
+
+**What this session did, in one line:** brought the lettered surface back to
+`main` (revert of `e6ae87a`), landed the holographic wheel (`39fa572`, was
+draft #228) and the Codex redesign (`fcc96f1`) on top of it, fixed what release
+review found, built + signed + published **v1.0.7**, repointed the landing
+page, and deployed — frontend container only, backend untouched.
+
+## What landed — PR #244, rebase-merged 2026-09-12T05:27Z, seven commits
+
+| commit | what |
+|---|---|
+| revert of `e6ae87a` | the lettered surface returns; the two commits below import `lib/hebrew` / `torusLayers` / `torus4` and cannot land without it |
+| `39fa572` replay | the holographic wheel: torus underlay on canvas, wheel SVG over it, inert HUD; θ pinned to `lonToAngle`, no yaw |
+| `fcc96f1` replay | the engraved observatory: `observatory.css` after the legacy theme, the Celestial Index, the timeline in rows, the desktop chapter strip |
+| release review 1 | **underlay pan drift on any shrunk wheel** — pan mirrored in px, wheel pans in viewBox units; `underlayTransform` writes percent of the box; tested at 3 widths |
+| release review 2 | **old WebViews got the desktop index on a phone** — container-query layout with a 4-column base rule; `@supports not (container-type)` mirrors the breakpoints as viewport queries |
+| release review 3 | **EB Garamond stopped loading** — system stacks (Palatino/Baskerville/Georgia) don't exist on Android; vendored faces lead again, `no-external.spec` pins it |
+| release review 4 | **two torus specs dragged below the fold** — `page.mouse` doesn't scroll; the index put the canvas centre past 720px; `elementFromPoint` null, spin never stopped, 3 layer tests failed looking like a layer bug. Both specs `scrollIntoViewIfNeeded()` first |
+| docs | README screenshots re-captured (wheel shots scroll the wheel into view); 17 unreferenced `ui-*.png` removed; landing tokens = the observatory palette; CHANGELOG entry |
+
+## How each finding was found — carry these forward
+
+- **The pan-unit mismatch** is invisible at desktop width and to every
+  screenshot; it needs reading the two coordinate systems side by side. Any
+  overlay that mirrors an SVG group transform must use PERCENT of the box.
+- **Container-query-only layouts have no phone fallback.** The APK floor is
+  Android 7; WebView auto-updates, but "usually" is not a layout strategy.
+- **"System fonts make no request" is true and beside the point** — vendored
+  fonts make none either and are the only serifs a WebView has.
+- **`page.mouse` does not scroll.** Any spec that computes a `boundingBox()`
+  and drags at it must `scrollIntoViewIfNeeded()` first; the masthead grew
+  ~170px and every canvas below it moved. One probe settles it:
+  `document.elementFromPoint(cx, cy)` → `null` means the point is off-screen.
+- **The Codex handoff's "local service returns Supporter"** was the
+  personal-mode backend, not a product change — `[[e2e-green-that-lies]]`.
+  Kill by PID, let Playwright boot with `AAE_PERSONAL_MODE=""`.
+
+## The release
+
+```
+astra-1.0.7-reader.apk   7,576,639 bytes   versionCode 7   minSdk 24
+sha256   80837fe833319827a6ca0ef30fd60ab093196423a34e1cc328d6370f9ced12ed
+cert     c568d41d45af616f034819320640f1a7368dbdaeb04346bda72ab203b2d0a82e   (unchanged)
+release  https://github.com/9x25dillon/astro_caster/releases/tag/v1.0.7   tag on main @ 3ff877e, not pre-release
+```
+
+Built from the merged content with the exact recipe in `APK_A0_FINDINGS.md`
+§"To build it" (JDK 21, `VITE_READER_MODE=1`, `cap sync`, `assembleRelease
+--max-workers=1`, zipalign, `apksigner --ks-pass env:`). `BUILD SUCCESSFUL in
+1m 42s`. The landing page was edited AFTER signing, and the checksum on it was
+verified against an INDEPENDENT re-download of the published asset — bytes
+and sha256 both match. The `--target` for `gh release create` must be a
+branch name or full SHA; a short SHA is refused as "target_commitish is
+invalid".
+
+On the Pixel (`5C091JEA325346`, a TEST device with no key): `adb install -r`
+went in as an UPDATE over the 1.0.5 it was carrying — same signing key, no
+uninstall — and launched in 300 ms. Screenshots of the masthead + index, and
+of the wheel with the underlay, letters and the timeline rows, all rendering
+in the real WebView with the vendored faces.
+
+## Deploying — what happened on the box
+
+```
+box   eb13b43 -> 3ff877e   frontend image rebuilt, frontend container swapped (--no-deps)
+      astra-backend-1  Up 7 hours (healthy)     <- NOT restarted
+      astra-frontend-1 Up ~1 minute (healthy)
+pre-flight diff eb13b43..main -- compose/nginx/Dockerfiles: EMPTY;  backend/ + packages/: EMPTY
+verified from outside: cf-cache-status DYNAMIC · live index-Bq5Dg1o3.css BYTE-IDENTICAL to the
+      local build · carries celestial-index / chart-holo-stage / "EB Garamond" · live JS carries the
+      percent underlay transform · /api/health ok swiss-files personal_mode false ai configured
+apex  advertises astra-1.0.7-reader.apk + 80837fe8… + cert c568d41d…; the download link is 200 / 7,576,639
+production_report.sh --ssh: "production == main @ 3ff877e" (its one FAIL is the LOCAL tree being
+      dirty — the operator's untracked exported reading at the repo root, deliberately left alone)
+```
+
+The operator asked for no interruption of backend or frontend services. The
+backend was never touched; the frontend swap is one nginx container restart
+(~3 s) behind Cloudflare — that is the floor with a single origin and one
+port binding, and it is what `docker compose up -d --no-deps frontend` costs.
+Script used: `deploy-frontend.sh` (pull --ff-only, `compose build frontend`,
+`compose up -d --no-deps frontend`, then `ps`) — worth committing to `ops/`.
+
+## Open threads
+
+1. **PR #228 closed as superseded** — its content landed here. The remote
+   branches `claude/holographic-natal-wheel`, `codex/engraved-observatory-review`,
+   `experiment/letters-and-lattice`, `revert/letters-and-lattice` are now
+   history; delete at leisure.
+2. **The v1.0.7 APK on a real device**: installed + launched on the Pixel (test device). The operator's OWN phone — the one holding the subscription — has not been updated; that is theirs to do from the landing page, and it keeps charts/journal/entitlement (same key, versionCode 7 > 6).
+3. **The design review the Codex handoff asked for** — the operator's visual
+   review of the live redesign — is still the operator's to give. Everything
+   here was release review: correctness on a phone, not taste.
+4. Carried from session 39: the $5.50 real purchase is still unspent; the dual
+   sweep has still not been heard by a person.
+5. The detail panel's *Suggestions / In-depth reading* row sits under the ask
+   bar at short desktop heights (visible in the 1440×720 capture). Pre-existing;
+   the panel scrolls. Cosmetic.
 
 ---
 

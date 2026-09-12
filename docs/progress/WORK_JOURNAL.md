@@ -5,6 +5,81 @@ PR bodies; this is the story. Started session 15 at the operator's request._
 
 ---
 
+## Session 41 · 2026-09-11 — the room is rebuilt around the chart, and the
+chart is given its second dimension
+
+Session 40 ended by taking a feature back. It reverted three thousand lines of
+Hebrew letters and crystal lattice out of `main` — not because they were wrong,
+but because nobody had reviewed them for release and `main` is what a
+subscriber runs. The holographic wheel was stacked on top of that work, and a
+Codex session had then built a whole visual redesign on top of *that*, on its
+own branch, with a handoff that said in so many words: do not merge, do not
+rebuild the APK, do not publish, until the operator has looked. This session
+opened with the operator having looked. "There are some new additions to the
+style and the look of the app — rebuild the APK and the release, update the
+website, enhance and correct anything you see fit, then review GitHub and merge
+without interrupting the services."
+
+So the first job was archaeology. Three commits in a stack, the bottom one
+reverted out of `main`, ten Dependabot bumps and a notification-copy fix landed
+underneath in the meantime. The clean way back was the one session 40's own
+revert message had named: revert the revert, then replay the two commits above
+it. The result differed from the Codex branch by exactly one file — the
+notification copy from `main` — which is the difference you want and nothing
+else.
+
+Then the review the handoff had asked for, done as a release review rather than
+a design review: what breaks on a phone. Two things did, and neither could have
+shown in a screenshot. The hologram under the wheel mirrors the wheel's
+zoom/pan so the two layers stay locked through a pinch — but it mirrored the
+pan in pixels while the wheel's pan is in viewBox units, and the two agree only
+when the SVG renders at its full 720px. On a phone it renders at half that, so
+a pinch pulled the underlay away from the wheel by exactly the amount of the
+pan. A percentage translate resolves against the canvas's own box, which *is*
+the rendered SVG box, and the drift is gone at every width; a test now checks
+the arithmetic at three of them. The second was the new Celestial Index, laid
+out entirely by container queries with the four-column desktop grid as its base
+rule. Chromium below 105 has no container queries, and the APK's floor is
+Android 7. A `@supports not` block mirrors the breakpoints as viewport queries
+for those engines only.
+
+The full end-to-end suite then found two more, on a clean stack — which is
+itself worth recording, because the Codex handoff had been unable to get its
+last shell check green and had correctly declined to weaken the assertion. The
+running backend was in personal mode. Booted by Playwright with the flag empty,
+the check passed first time; the memory that says *probe `/api/entitlement`
+before believing any local suite* earned its keep again without anyone
+having to re-learn it.
+
+The two the suite found: the redesign had written the type stacks as system
+faces — Palatino, Baskerville, Georgia — on the sound-looking reasoning that a
+system stack makes no font request. True, and beside the point. The vendored
+faces in `public/fonts` make no request either, and they are the only serifs an
+Android WebView can render; a phone has none of the four named and would have
+fallen to Noto Serif on every screen. The test that pins EB Garamond actually
+loading is what caught it. And two torus specs stop the surface's idle spin
+with a mouse drag at the canvas's centre — a centre which the new masthead had
+pushed below a 720px fold. `page.mouse` does not scroll. The pointerdown
+reached nothing, the spin never stopped, and three layer tests failed in a way
+that looked exactly like a layer bug. A probe that printed "under centre: none"
+settled it in one line. Both specs scroll the canvas into view first now.
+
+After that: the build. JDK 21, reader flag, sync, Gradle, zipalign, sign — the recipe the earlier sessions wrote down, followed rather than improvised — then the checksum taken from the exact file uploaded, the landing page edited only after that, and the published asset re-downloaded and compared before the page went live. The Pixel took it as an update over the 1.0.5 it was carrying and opened in a third of a second. The README's screenshots were re-captured from the real
+app, because the look they documented no longer existed — and the wheel shots
+now scroll the wheel into view, for the same reason the torus specs do. The
+landing page's colour tokens were moved to the observatory's palette so the
+door matches the room. The deploy was the one the operator asked for: the backend container was never touched, and the frontend swap was a single nginx restart behind Cloudflare. Verified by content — the live stylesheet is byte-identical to the local build — because a matching SHA on the box has fooled this project before.
+
+What the session was, underneath: the difference between a design review and a
+release review. The design had been looked at; every one of today's four
+findings was invisible to looking, and each was found by a different
+instrument — one by reading the coordinate system, one by reading a browser
+support table, two by a suite that had not been allowed to run clean. None of
+them was a matter of taste, and that is the point of running them before the
+binary is signed rather than after.
+
+---
+
 ## Session 40 · 2026-09-11 — the session that shipped nothing, and the two
 sentences that made it worth doing
 
