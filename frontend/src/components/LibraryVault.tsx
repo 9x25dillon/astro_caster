@@ -1,8 +1,9 @@
 // LibraryVault.tsx — R-3: the Library's ground floor (wireframes fig. 4).
 // The vault (export / restore everything) and support & unlock live here now;
 // the masthead keeps identity only.
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { downloadVault, restoreVault } from "../lib/vault";
+import { handoffQr, handoffUrl } from "../lib/handoff";
 import { PricingPanel } from "./PricingPanel";
 import { useStore } from "../store/useStore";
 
@@ -38,8 +39,46 @@ export const LibraryVault: React.FC = () => {
   // expires. Default-hidden costs one tap and removes it from every incidental
   // capture.
   const entitlement = useStore((s) => s.entitlement);
+  const entitlementExp = useStore((s) => s.entitlementExp);
+  const refreshEntitlement = useStore((s) => s.refreshEntitlement);
   const [keyShown, setKeyShown] = useState(false);
   const [copyNote, setCopyNote] = useState("");
+  // Session 42: the key gets a shape that crosses devices by itself — an
+  // unlock link and a QR of it (handoff.ts). Scan the QR with the phone's
+  // camera: the reader APK opens on it (App Link) or, without the APK, the
+  // PWA does; both import the key the same way the paste field would.
+  const [qr, setQr] = useState<string | null>(null);
+  const [qrShown, setQrShown] = useState(false);
+  const [checkNote, setCheckNote] = useState("");
+  const [checkBusy, setCheckBusy] = useState(false);
+
+  useEffect(() => {
+    if (!qrShown || !entitlement) { setQr(null); return; }
+    let live = true;
+    handoffQr(entitlement).then((d) => { if (live) setQr(d); }).catch(() => { if (live) setQr(null); });
+    return () => { live = false; };
+  }, [qrShown, entitlement]);
+
+  const recheckKey = async () => {
+    if (checkBusy) return;
+    setCheckBusy(true);
+    try {
+      const res = await refreshEntitlement();
+      setCheckNote(res.note);
+    } finally {
+      setCheckBusy(false);
+    }
+  };
+
+  const copyText = async (text: string, done: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopyNote(done);
+    } catch {
+      setCopyNote("Could not reach the clipboard — reveal the key and copy it by hand.");
+    }
+    setTimeout(() => setCopyNote(""), 6000);
+  };
 
   const copyKey = async () => {
     if (!entitlement) return;
@@ -231,15 +270,63 @@ export const LibraryVault: React.FC = () => {
             with no subscription this would be a button that can only disappoint. */}
         {isSupporter && entitlement && (
           <div className="key-export" style={{ marginTop: 14 }}>
-            <h4 className="lib-subtitle" style={{ fontSize: 13 }}>⚿ Take your key to another device</h4>
-            <p className="shelf-sub">
-              Your subscription lives in this browser as a single key. Reveal it
-              here, copy it, and paste it into the same field on your phone or
-              tablet — it works on as many of your own devices as you like.{" "}
-              <strong>Treat it like a password:</strong> anyone holding this key
-              has your tier until it expires.
+            <h4 className="lib-subtitle" style={{ fontSize: 13 }}>⚿ Your key</h4>
+            {/* The question "is my subscription still good on this device?" gets
+                a line, not a devtools trip. Re-check asks the server now and
+                renews a key that is inside its last 45 days (the app also does
+                this quietly on launch). */}
+            <p className="shelf-sub key-status" role="status">
+              Active on this device
+              {entitlementExp
+                ? ` · valid until ${new Date(entitlementExp * 1000).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })}`
+                : ""}
+              . A subscription renews this key on its own for as long as it is paid.
             </p>
             <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              <button
+                className="ghost key-recheck-btn"
+                style={{ width: "auto", fontSize: 12, padding: "4px 12px" }}
+                disabled={checkBusy}
+                onClick={() => void recheckKey()}
+                title="Ask the observatory whether this key is still valid, and renew it if it is close to expiring"
+              >
+                {checkBusy ? "Checking…" : "↻ Re-check my key"}
+              </button>
+            </div>
+            {checkNote && (
+              <p className="muted key-check-note" role="status" style={{ fontSize: 11, marginTop: 6 }}>
+                {checkNote}
+              </p>
+            )}
+
+            <h4 className="lib-subtitle" style={{ fontSize: 13, marginTop: 14 }}>⚿ Take your key to another device</h4>
+            <p className="shelf-sub">
+              Your subscription lives here as a single key, and it works on as
+              many of your own devices as you like. The quickest way across:
+              {" "}<b>show the QR and scan it with your phone's camera</b> — the
+              Astra app opens on it if it is installed, the web version if not,
+              and either one takes the key. Or copy the unlock link and send it
+              to yourself; or copy the bare key and paste it into this same
+              field over there.{" "}
+              <strong>Treat all three like a password:</strong> anyone holding
+              the key has your tier until it expires.
+            </p>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              <button
+                className="ghost key-qr-btn"
+                style={{ width: "auto", fontSize: 12, padding: "4px 12px" }}
+                aria-expanded={qrShown}
+                onClick={() => { setQrShown((v) => !v); setCopyNote(""); }}
+              >
+                {qrShown ? "◦ Hide QR" : "▦ Show QR for my phone"}
+              </button>
+              <button
+                className="ghost key-link-btn"
+                style={{ width: "auto", fontSize: 12, padding: "4px 12px" }}
+                onClick={() => void copyText(handoffUrl(entitlement), "Unlock link copied — open it on the other device and the key comes with it.")}
+              >
+                ⧉ Copy unlock link
+              </button>
               <button
                 className="ghost key-reveal-btn"
                 style={{ width: "auto", fontSize: 12, padding: "4px 12px" }}
@@ -256,6 +343,16 @@ export const LibraryVault: React.FC = () => {
                 ⧉ Copy my key
               </button>
             </div>
+            {qrShown && (
+              <div className="key-qr" style={{ marginTop: 10 }}>
+                {qr
+                  ? <img src={qr} width={220} height={220} alt="QR code of your unlock link" style={{ display: "block", borderRadius: 6, maxWidth: "100%" }} />
+                  : <span className="muted" style={{ fontSize: 11 }}>Drawing the code…</span>}
+                <p className="muted" style={{ fontSize: 11, marginTop: 6 }}>
+                  This code IS your key. Hide it before sharing your screen.
+                </p>
+              </div>
+            )}
             {keyShown && (
               <textarea
                 className="key-export-field"
