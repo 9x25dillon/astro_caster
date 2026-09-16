@@ -85,6 +85,7 @@
   .btn:hover{transform:translateY(-1px)}
   .btn-primary{background:linear-gradient(180deg,var(--gold-soft),var(--gold)); color:#191400; font-weight:600}
   .btn-ghost{color:var(--gold-soft); border-color:var(--rule)}
+  .btn-sm{padding:9px 16px; font-size:14.5px; margin:4px 8px 4px 0}
   .cta-note{font-size:13.5px; color:var(--ink); margin-top:10px}
 
   figure{margin:44px 0}
@@ -274,10 +275,37 @@
     </tbody>
   </table>
 
+  <!--
+    The buy surface lives in the app (app.astra-arcana.com), not on this page:
+    the checkout needs the server to mint the session, and this page is static
+    on purpose (script-src 'self', no third-party scripts). `#support` there
+    deep-links straight into the Support panel — App.tsx routes the hash. So
+    this page's job is to point, and to say clearly what a phone user does next.
+  -->
+  <div class="cta" style="margin-top:26px">
+    <a class="btn btn-primary" href="https://app.astra-arcana.com/#support">Unlock on the web →</a>
+    <a class="btn btn-ghost" href="https://app.astra-arcana.com/#support">…or contribute with crypto</a>
+  </div>
+
   <p style="margin-top:22px; color:var(--ink); font-size:15px">
     Cancel any time from your own billing portal — no email required. Refunds
-    within fourteen days. You can also contribute with crypto instead of a card.
+    within fourteen days. Card or crypto; on-chain contributions unlock the same
+    tiers and go straight to the treasury, never through us.
   </p>
+
+  <div class="card" style="margin-top:22px">
+    <h3>Using the Android app?</h3>
+    <p>
+      The app doesn't sell anything — that is what lets one build be installed
+      directly, listed on a store, or handed around, with a single review story.
+      Unlock here in the browser instead, then bring the key across:
+    </p>
+    <ol style="margin:12px 0 0; padding-left:22px; font-size:15px; color:var(--text)">
+      <li>Tap <strong>Unlock on the web</strong> above and subscribe.</li>
+      <li>In the browser, open <strong>Library → ⚿ Bring your key</strong> and copy your key.</li>
+      <li>In the app, open the same panel and paste it. Your tier follows the key, not the device.</li>
+    </ol>
+  </div>
 </section>
 
 <section>
@@ -379,6 +407,48 @@
     file is the one we built; the source it was built from is
     <a href="https://github.com/9x25dillon/astro_caster">public</a>.
   </p>
+</section>
+
+<!--
+  Other work from the same workshop. Both are direct GitHub links; the Saint's
+  APK is served from its own release, not from here, so its checksum lives on
+  that release page (SHA256SUMS.txt) rather than being copied to this one —
+  the same stale-checksum lesson as the Android section above.
+-->
+<section id="workshop">
+  <h2>From the same workshop</h2>
+  <p class="sub">Two more tools built the same way — local-first, no accounts, source in the open.</p>
+  <div class="grid">
+    <div class="card">
+      <span class="glyph">◉</span>
+      <h3>The Saint</h3>
+      <p>
+        A local lens on your own data: your notes and journals set against the
+        exports platforms hand you — TikTok, YouTube, Spotify, Reddit, X, your
+        browser history. It maps who you are against who the algorithm decided
+        you are, and nothing leaves the machine.
+      </p>
+      <p style="margin-top:14px">
+        <a class="btn btn-primary btn-sm" href="https://github.com/9x25dillon/The_St/releases/latest/download/the-saint.apk">Android APK</a>
+        <a class="btn btn-ghost btn-sm" href="https://github.com/9x25dillon/The_St/releases/tag/v0.2.1">Release notes</a>
+        <a class="btn btn-ghost btn-sm" href="https://github.com/9x25dillon/The_St">Source</a>
+      </p>
+    </div>
+    <div class="card">
+      <span class="glyph">⌘</span>
+      <h3>VibeCoder</h3>
+      <p>
+        A Python puzzle game that scores your code on three axes — is it right,
+        how fast did you write it, and how much work does it actually do — then
+        adapts its challenges to how you already write. Boss fights run your
+        code one line at a time and let you type a fix into the paused fight.
+        Zero third-party dependencies.
+      </p>
+      <p style="margin-top:14px">
+        <a class="btn btn-ghost btn-sm" href="https://github.com/9x25dillon/VIbe_coder_9xk1ll">Source</a>
+      </p>
+    </div>
+  </div>
 </section>
 
 <section>
