@@ -1,12 +1,104 @@
 # Hand_off.md
 
-_Last updated: 2026-09-11, late (session 41 — **the engraved observatory
-shipped**: the lettered surface is back on `main`, the holographic wheel and
-the Codex redesign landed on top of it, four release-review findings fixed,
-**APK v1.0.7 published**, landing page repointed, and **production IN SYNC at
-`3ff877e`, verified by content, backend never restarted**. PR #244; #228
-closed as superseded.)
+_Last updated: 2026-09-15 (session 42 — **the key that crosses on its own**:
+unlock links + QR hand-off + Android App Link + quiet renewal gated on Stripe;
+landing page gained buy buttons, the phone hand-off card and a workshop shelf;
+**APK v1.0.8 built, signed and PUBLISHED**; **NOTHING MERGED and NOTHING
+DEPLOYED** — the permission classifier blocked merges, SSH and anything
+production-shaped, so PR #246 waits on the operator.)
 Re-derive before trusting any of this: `git fetch && git status -sb`._
+
+---
+
+# SESSION 42 — 2026-09-15 (the key that crosses on its own)
+
+## Start here — the three truths
+
+```
+local          release/key-handoff-1.0.8 @ 916f8b7   backend 742 · frontend 223 · entitlement e2e 26   all green
+main           a88dfe9   UNCHANGED this session — PR #246 (which contains #245) is OPEN, not merged
+production     3ff877e   STALE relative to #246 — backend changed (renew gating) → full `docker compose up -d --build`, NOT deploy_frontend.sh
+APK            v1.0.8    PUBLISHED at https://github.com/9x25dillon/astro_caster/releases/tag/v1.0.8 — sha c5549b1c…ab38, cert unchanged, tag on the BRANCH commit 916f8b7
+```
+
+**What this session did, in one line:** gave the subscription key a shape that
+moves between devices by itself (an `/unlock` link, a QR of it, an Android App
+Link that opens the APK on it), a status line and a re-check button, quiet
+renewal in the key's last 45 days with the renew endpoint now gated on a live
+Stripe subscription, buy buttons on the landing page so the APK's signpost
+finally reaches a checkout, a workshop shelf for The Saint and VibeCoder, and
+built + signed + published **v1.0.8**.
+
+## The operator's four moves, in order (all blocked for the agent)
+
+1. **Merge PR #246 with a MERGE COMMIT, not rebase**: `gh pr merge 246 --merge
+   --delete-branch`. The `v1.0.8` tag points at `916f8b7` on the branch; a
+   rebase-merge rewrites the shas and leaves the tag off `main`'s history (the
+   tag still pins the commit, so nothing is lost, but [[stacked-pr-orphan-trap]]
+   applies). #245 (landing) is fully contained in #246 and will show as merged.
+2. **Deploy — the whole stack**, because `backend/main.py` changed:
+   ```
+   ssh -i ~/.ssh/astra_hetzner astra@178.104.120.219 'cd ~/astro-aae && git pull --ff-only origin main && docker compose up -d --build 2>&1 | tail -3 && docker compose ps'
+   ```
+   Then prove it from outside, in this order:
+   ```
+   curl -s https://app.astra-arcana.com/.well-known/assetlinks.json   # the App Link proof — MUST be live before a phone installs 1.0.8
+   curl -s https://astra-arcana.com/ | grep -c 'v1.0.8'               # landing repointed (expect ≥ 2)
+   curl -s -X POST https://app.astra-arcana.com/api/entitlement/renew -H 'content-type: application/json' -d '{"entitlement":"x"}'   # → 401, proves the new handler
+   ```
+3. **Retry the subscription payment** (the operator's own plan) — the script
+   is `ops/stripe_retry_subscription.sh`, run ON THE BOX where the live key is:
+   ```
+   scp -i ~/.ssh/astra_hetzner ops/stripe_retry_subscription.sh astra@178.104.120.219:/tmp/
+   ssh -i ~/.ssh/astra_hetzner astra@178.104.120.219 'bash /tmp/stripe_retry_subscription.sh'          # dry-run: lists every subscription + latest invoice
+   ssh -i ~/.ssh/astra_hetzner astra@178.104.120.219 'bash /tmp/stripe_retry_subscription.sh --pay'    # retries open invoices on past_due/unpaid plans
+   ```
+   A paid invoice moves the subscription back to `active`; the key was never
+   revoked by `past_due` (only `customer.subscription.deleted` revokes), so
+   the phone's key keeps verifying throughout. Then on the phone: Library →
+   ⚿ Bring your key → **↻ Re-check my key** — it should say *Key valid — …
+   until <date>*, and will quietly renew if inside 45 days.
+4. **Install 1.0.8 on the operator's own phone** AFTER step 2 (the App Link
+   verifies against the site at install time). Then from the desktop browser:
+   Library → ⚿ Bring your key → **Show QR for my phone** → scan with the camera
+   → the APK opens and imports. If it opens the browser instead, the
+   assetlinks file was not live at install; the PWA still imports the key.
+
+## Still open
+
+- **Crypto wallet**: wiring is complete and fail-closed (`crypto_available:
+  false` live). Needs the operator's EVM address + the chain's RPC URL in the
+  production `.env` (`AAE_TREASURY_ETH`, `AAE_ETH_RPC`) and a backend
+  recreate. Never invent the address.
+- The landing's Android section copy still says "import the key" generically;
+  it could mention the QR now. Cosmetic.
+- `frontend/dist/` is currently the READER build (the APK script built it);
+  irrelevant to deploys (docker rebuilds) but don't `npm run preview` it and
+  think the web build lost its checkout.
+
+## What landed — PR #246 (contains #245), four commits on the branch
+
+| commit | what |
+|---|---|
+| `d1cc7d9` | landing: **Unlock on the web →** / **…or contribute with crypto** under the pricing table (the APK's `#support` signpost had landed on a table with no button); "Using the Android app?" 3-step card; **From the same workshop** — The Saint (APK via `releases/latest/download`, v0.2.1 notes, source) + VibeCoder |
+| `c560ad6` | the key that crosses: `handoff.ts` (`/unlock?entitlement=`), QR in the vault (`qrcode`), App Link in the manifest + `public/.well-known/assetlinks.json` (fingerprint read from the keystore with keytool) + nginx location, `nativeUnlockLinks.ts` (`@capacitor/app`, dynamic import), `entitlementExp` + **Re-check my key**, quiet renewal < 45 days, **renew gated on Stripe** for `sub_…` (402/503; 8 tests), `ops/stripe_retry_subscription.sh`, versionCode 8 |
+| `d8a6196` | CHANGELOG |
+| `916f8b7` | landing repointed at v1.0.8 with the digest of the uploaded file (verified by re-downloading the asset: identical) |
+
+## Lessons this session, named
+
+- **The APK's signpost was a dead end for eleven weeks.** `PURCHASE_URL` was
+  checked for *existing* (the anchor) but never for *reaching a checkout*. A
+  route needs to be walked to the end, not just to the first hop.
+- **Renewal that becomes automatic changes what the endpoint is.** A button a
+  customer presses can lean on the webhook; a thing that fires on every launch
+  is the mechanism that keeps a cancelled plan alive if the webhook was ever
+  missed. The Stripe gate was cheap; not having it would have been a
+  give-the-product-away bug that only shows up in month thirteen.
+- **The classifier will refuse merges, force-pushes and production reads.**
+  Plan around it from the start: build everything on one branch, publish the
+  artifact (allowed), hand the operator the exact commands. Don't rebase a
+  pushed branch — merge the other branch in.
 
 ---
 
