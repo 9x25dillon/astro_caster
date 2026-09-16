@@ -3,6 +3,33 @@
 Per-phase log for the Production Hardening & Symbolic Intelligence Expansion pass.
 Baseline: `d9afc4b` (36 backend tests, clean frontend build).
 
+## The apex learns to point — buy buttons, the phone hand-off, and the workshop shelf (2026-09-15, landing/pay-rail-showcase-crypto)
+
+Landing page only; no app or backend change, nothing to rebuild or re-sign.
+
+- **The APK's purchase route now reaches a checkout.** The signed reader build's
+  only buy link is the immutable `https://astra-arcana.com/#support`, and that
+  anchor landed on a pricing *table* with no button under it — a phone user
+  tapping "unlock" arrived at prices and a dead end. The section now carries
+  **Unlock on the web →** and **…or contribute with crypto**, both deep-linking
+  to `app.astra-arcana.com/#support`, which App.tsx routes straight into the
+  Support panel. This is the Stripe rail for the APK, done the only way that
+  keeps the invariant: the app itself still sells nothing (see
+  `frontend/src/lib/readerMode.ts`).
+- **"Using the Android app?"** — a three-step card under the buttons: subscribe
+  in the browser, copy the key from Library → ⚿ Bring your key, paste it in
+  the app. Names the panel exactly as the app labels it.
+- **From the same workshop** — a new section showcasing The Saint (Android APK
+  via the release's permanent `latest/download` link, release notes, source)
+  and VibeCoder (source). The Saint's checksum deliberately stays on its own
+  release page rather than being copied here, per the stale-checksum lesson.
+- **Crypto wiring unchanged and still fail-closed**: `/api/pricing` reports
+  `crypto_available: false` until `AAE_TREASURY_ETH` (the operator's address)
+  and `AAE_ETH_RPC` are set in the production `.env` and the backend container
+  is recreated. The landing copy now describes on-chain support honestly
+  either way — the app's Support panel shows "placeholder — set
+  AAE_TREASURY_ETH" until it is.
+
 ## The engraved observatory — the chart's second dimension, and the room it sits in (2026-09-11, release/engraved-observatory · APK v1.0.7)
 
 Three commits that had been waiting on their own review, brought back to
