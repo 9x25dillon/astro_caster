@@ -5,6 +5,62 @@ PR bodies; this is the story. Started session 15 at the operator's request._
 
 ---
 
+## Session 42 · 2026-09-15 — the key learns to travel, and the signpost finally points somewhere
+
+The operator opened with three asks in one breath: put the Stripe rail in the
+APK, showcase two other projects on the landing page, wire a crypto wallet. My
+memory from session 29 had the shape of the first one already — "add the pay
+rail to the APK" had collapsed, last time, into a copy button, because the
+real need was a subscription bought in a browser wanting to live on a phone.
+So I looked for what was actually broken rather than what was asked for, and
+found it in one grep: the APK's immutable purchase link lands on
+`astra-arcana.com/#support`, and that anchor sat above a pricing *table* with
+nothing to press. Eleven weeks of phone users tapping "unlock" and reading
+four prices. The rail for the APK is two buttons on the landing page that go
+where the checkout actually is. The invariant — the app sells nothing — never
+moved.
+
+The showcase was straightforward once I had read the two READMEs; the Saint's
+checksum stays on its own release page for the same reason ours does. The
+wallet is the operator's address and I do not invent addresses, so that ask
+became one sentence at the end.
+
+Then the second message: make the key easier to find and move, retry my
+subscription payment, make sure my key is still valid, improve as you see
+fit, rebuild and publish the APK. The key had a reveal-and-copy already
+(session 29) but it still asked a person to carry a 300-character string
+between devices by hand. What it needed was a shape that travels: a URL. The
+PWA had accepted `?entitlement=` since session 25, so the link was nearly
+free; the QR is that link drawn; and the Android App Link is what makes the
+QR land in the APK instead of a browser. One path, `/unlock`, claimed and
+proven with an assetlinks file whose fingerprint I read back off the keystore
+with keytool rather than trusting the landing page's copy of it.
+
+"Make sure the key is still valid" turned into a status line and a re-check
+button, and then into something I had not planned: quiet renewal. Keys are
+minted for a year; a subscription runs longer; month thirteen of a paid plan
+went free. Renewing on launch inside the last 45 days fixes that — and the
+moment I wrote it I saw that it made the renew endpoint dangerous. It re-mints
+from the old token's own claims and never asks Stripe, so a plan cancelled
+with the webhook missed would renew itself forever. Gating a `sub_…` renewal
+on a live subscription was twenty lines and eight tests, and it is the change
+in this session I would defend hardest.
+
+The retry itself I could not do: the classifier refused every production
+read, every merge, and a force-push I should not have attempted anyway (the
+fix was to merge the landing branch in, not rebase over it). So the retry is
+a script that runs on the box, curl-only, dry-run by default, and the
+operator's four moves are written out in the hand-off in the order they must
+happen — merge with a merge commit so the tag stays on main, deploy the whole
+stack because the backend changed, prove the assetlinks file is live BEFORE
+the phone installs 1.0.8, then retry the payment and re-check the key.
+
+v1.0.8 built on JDK 21, signed with the same certificate, verified, uploaded,
+and the uploaded bytes re-downloaded and hashed before the landing page was
+told the number. That order — sign, hash the exact file, then edit the page —
+is the one thing about releases here that has never once been allowed to
+slip.
+
 ## Session 41 · 2026-09-11 — the room is rebuilt around the chart, and the
 chart is given its second dimension
 
