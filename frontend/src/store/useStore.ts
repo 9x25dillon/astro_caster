@@ -253,18 +253,24 @@ const EMPTY_RESULT: AIResult = {
 (() => {
   try {
     const params = new URLSearchParams(window.location.search);
-    const token = params.get("entitlement");
+    // Session 42: the generated unlock link carries the key in the FRAGMENT
+    // (handoff.ts explains why — a query string is logged by every server on
+    // the path; a fragment never leaves the browser). Read both; scrub both.
+    const frag = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    const token = frag.get("entitlement") ?? params.get("entitlement");
     if (token === null) return;
     if (token === "clear" || token === "") localStorage.removeItem(ENT_KEY);
     else localStorage.setItem(ENT_KEY, token);
     params.delete("entitlement");
+    frag.delete("entitlement");
+    const hashRest = frag.toString();
     const rest = params.toString();
     // The hand-off link lives at /unlock (handoff.ts) so the APK's App Link can
     // claim one route; once the key is taken, the path collapses to `/` like
     // any other visit. nginx serves index.html for it either way.
     const path = isHandoffPath(window.location.pathname) ? "/" : window.location.pathname;
     window.history.replaceState(
-      null, "", path + (rest ? `?${rest}` : "") + window.location.hash);
+      null, "", path + (rest ? `?${rest}` : "") + (hashRest ? `#${hashRest}` : ""));
   } catch { /* sandboxed storage or no window: ignore */ }
 })();
 
@@ -655,7 +661,7 @@ export const useStore = create<AstroState>((set, get) => ({
     // share sheet arrive with whitespace baked in — strip all of it first
     // (the Hand_off gotcha that already bit the devtools path).
     const squeezed = raw.replace(/\s+/g, "");
-    const linkMatch = squeezed.match(/[?&]entitlement=([^&#]+)/);
+    const linkMatch = squeezed.match(/[?&#]entitlement=([^&#]+)/);
     // decodeURIComponent THROWS on a malformed escape (`…?entitlement=abc%`),
     // which a truncated or mail-client-mangled link supplies readily. Left
     // uncaught it rejected the promise instead of returning a note, and the

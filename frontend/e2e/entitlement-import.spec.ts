@@ -230,7 +230,8 @@ test("the /unlock hand-off link imports the key and collapses to /", async ({ pa
   const { oracle } = mintedTokens();
   test.skip(!oracle, "backend venv / mint tool unavailable");
 
-  await page.goto(`/unlock?entitlement=${encodeURIComponent(oracle!)}`);
+  // The generated form: key in the FRAGMENT, so no server on the path sees it.
+  await page.goto(`/unlock#entitlement=${encodeURIComponent(oracle!)}`);
   await expect(page.locator(".wheel-area svg").first()).toBeVisible();
   await expect(page.locator(".support-pill")).toHaveText(/✦ Supporter/);
   // Scrubbed AND moved home: no key in the bar, no /unlock in history.
@@ -270,6 +271,7 @@ test("the vault shows the key's status, a QR, and copies an unlock link", async 
   const link = await page.evaluate(() => navigator.clipboard.readText());
   const u = new URL(link);
   expect(u.pathname).toBe("/unlock");
-  expect(u.searchParams.get("entitlement")).toBe(oracle);
+  expect(u.search).toBe("");
+  expect(new URLSearchParams(u.hash.slice(1)).get("entitlement")).toBe(oracle);
   await page.screenshot({ path: "test-results/vault-key-handoff.png", fullPage: false });
 });
