@@ -3,6 +3,55 @@
 Per-phase log for the Production Hardening & Symbolic Intelligence Expansion pass.
 Baseline: `d9afc4b` (36 backend tests, clean frontend build).
 
+## The key that crosses on its own — unlock links, QR hand-off, App Links, quiet renewal (2026-09-15, release/key-handoff-1.0.8 · APK v1.0.8)
+
+A subscription is one bearer key in localStorage. Getting it to a second
+device meant reveal → copy → carry the text somehow → paste, and nothing ever
+told you whether the key you held was still good. This release gives the key
+a shape that moves by itself and a status line that answers the question.
+
+- **Unlock link** (`frontend/src/lib/handoff.ts`):
+  `https://app.astra-arcana.com/unlock?entitlement=<key>`. The PWA already read
+  `?entitlement=` at module load; `/unlock` now collapses to `/` after the key
+  is taken, so the route never lingers in history.
+- **QR hand-off.** Library → ⚿ Bring your key → *Show QR for my phone*. Scan it
+  with the phone camera: the APK opens on it if installed (below), the PWA if
+  not, and both import the key exactly as the paste field would. Hidden by
+  default — the code IS the key. Plus *Copy unlock link*, beside the existing
+  show/copy of the bare key. New dependency: `qrcode` (pure encoder).
+- **Android App Link** for that one path: `AndroidManifest.xml` claims
+  `https://app.astra-arcana.com/unlock` with `autoVerify`, proven by
+  `/.well-known/assetlinks.json` (in `frontend/public/`, served by a dedicated
+  nginx location) naming the package and the release signing certificate
+  (fingerprint read back from `~/.astra-signing/astra-release.keystore`).
+  `nativeUnlockLinks.ts` reads the intent URL via `@capacitor/app` (new
+  dependency; dynamic import, absent from the web bundle) — cold start via
+  `getLaunchUrl`, warm via `appUrlOpen` — and routes it through
+  `importEntitlement`. One path, not the host: a reader build must never
+  intercept the buy page it signposts to. **The assetlinks file must be live
+  on the app host before a phone installs v1.0.8 for verification to pass;**
+  otherwise the link opens the PWA instead, which still imports the key.
+- **Key status and re-check.** The vault shows *Active on this device · valid
+  until <date>* and *↻ Re-check my key*. `entitlementExp` is recorded on every
+  mint path (import, restore, checkout return, crypto).
+- **Quiet renewal.** Keys are minted for a year; a paid subscription runs
+  longer. On launch, a key inside its last 45 days is swapped for a fresh one
+  via `/api/entitlement/renew` — before this, month thirteen of a paid plan
+  went free and needed a `sub_…` reference to recover.
+- **Renewal is gated on Stripe** (`backend/main.py`): `renew_entitlement`
+  re-mints from the old token's own claims and never looked at Stripe, so
+  with renewal automatic a plan cancelled at Stripe (webhook missed) could
+  have renewed itself for a year. A `sub_…` key is renewed only if the
+  subscription is live (`past_due` counts, as in restore); not live → 402
+  naming the reference, Stripe unreachable → 503 and the old key stands.
+  Eight tests in `test_entitlement_renew_stripe.py`.
+- **`ops/stripe_retry_subscription.sh`** — run on the box: lists every
+  subscription with its latest invoice (dry-run); `--pay` retries open
+  invoices on past_due/unpaid plans. curl-only; touches neither ledger nor
+  containers.
+- Support panel, supporter state: one line pointing at the vault's key tools.
+- APK `versionCode 8`, `versionName 1.0.8`.
+
 ## The apex learns to point — buy buttons, the phone hand-off, and the workshop shelf (2026-09-15, landing/pay-rail-showcase-crypto)
 
 Landing page only; no app or backend change, nothing to rebuild or re-sign.
