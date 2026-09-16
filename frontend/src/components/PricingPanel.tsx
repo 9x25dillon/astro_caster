@@ -15,7 +15,7 @@
 import React, { useEffect, useState } from "react";
 import { useStore } from "../store/useStore";
 import { createCheckout, getPricing, trackEvent, ApiError, type Pricing } from "../api/client";
-import { READER_MODE, PURCHASE_URL } from "../lib/readerMode";
+import { READER_MODE, SUBSCRIBE_URL } from "../lib/readerMode";
 
 // AGPL §13: offering this over a network obliges us to offer the source. The
 // URL is a build-time constant so a fork can point it at its own repository.
@@ -118,12 +118,24 @@ export const PricingPanel: React.FC = () => {
             // just answers with a signpost instead of a checkout. Saying it
             // plainly is also the honest version of the store-policy argument:
             // nothing is sold here, and we are not pretending otherwise.
-            <p className="pricing-fine">
-              This app doesn't sell subscriptions. Unlock on the web and bring
-              the key back — open <a href={PURCHASE_URL}>{PURCHASE_URL.replace(/^https:\/\//, "")}</a>,
-              subscribe there, then import your entitlement here. Everything the
-              engine computes stays free either way.
-            </p>
+            <>
+              <a
+                className="pricing-buy reader-subscribe-btn"
+                href={SUBSCRIBE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ display: "block", textAlign: "center", textDecoration: "none" }}
+              >
+                ☤ Subscribe on the web →
+              </a>
+              <p className="pricing-fine">
+                Opens the pay page in your browser. After you pay, open
+                Library → ⚿ Bring your key there and use <b>Copy unlock link</b>
+                (or scan the QR from another device) — the key comes back to
+                this app on its own. Everything the engine computes stays free
+                either way.
+              </p>
+            </>
           )}
           <p className="pricing-fine">
             {recurring

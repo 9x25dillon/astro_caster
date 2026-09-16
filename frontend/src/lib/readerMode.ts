@@ -56,3 +56,13 @@ export const READER_MODE: boolean = (() => {
 // at build time, so if you rename either target, rename the other in the same
 // commit.
 export const PURCHASE_URL = "https://astra-arcana.com/#support";
+
+// Session 42: the operator's ask, verbatim minus the expletive — "make the
+// subscriber tab into a link to the pay page on the website". This is the
+// pay page itself: App.tsx routes `#support` on the app origin straight into
+// the Support panel with the Stripe tier cards, so a phone user lands on a
+// price and a button, not on a table. Opened OUTSIDE the WebView (target
+// _blank → system browser), so the app never hosts the purchase surface; the
+// APK still sells nothing itself, it just stops pretending not to know where
+// the shop is. Play policy is parked on purpose (a branch for that later).
+export const SUBSCRIBE_URL = "https://app.astra-arcana.com/#support";
