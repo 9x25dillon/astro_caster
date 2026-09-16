@@ -31,6 +31,29 @@ Stripe subscription, buy buttons on the landing page so the APK's signpost
 finally reaches a checkout, a workshop shelf for The Saint and VibeCoder, and
 built + signed + published **v1.0.8**.
 
+## UPDATE 4 — "the download hangs at 99%": the artifact is fine, the Pixel proves the whole hand-off
+
+Operator reported the APK download stalling at 99% on their phone and asked
+for a signer check + rebuild. Probed instead of rebuilt (a rebuild changes
+the hash and nothing else — [[next-build-order]] "never rebuild to
+re-publish"):
+- On the wire, as an Android Chrome UA: 302 → release-assets, 200,
+  `content-length 7589091`, full body received in 3.7 s, sha `86520c4e…`
+  identical to the signed file. The server side is not the problem.
+- **Pixel 10a over adb**: `adb install -r` of 1.0.9 over 1.0.7 → `Success`
+  (the device validated the signer: `C5:68:D4:1D…` on-device, same cert).
+  `pm get-app-links` → `app.astra-arcana.com: verified` after re-verify.
+- **Hand-off proven end to end on hardware**: a real supporter key minted on
+  the box (`ref probe_pixel_handoff`), delivered via
+  `am start -a VIEW -d https://app.astra-arcana.com/unlock#entitlement=…`
+  on a COLD start → the APK (not the browser) opened and the masthead read
+  **✦ Supporter**. Then `ent_revoke(jti)` on the box → relaunch → **Support
+  / Unlock**. Mint, import-by-link, revoke: all three observed on the phone.
+  Probe key is revoked; nothing left behind.
+- No stalled `.apk`/`.crdownload` in the Pixel's Downloads → the 99% hang is
+  on the operator's OWN phone's browser (Chrome's post-download APK scan or
+  a stuck partial), not the release. Not rebuilt.
+
 ## UPDATE 3 — the old subscription is CANCELLED, its final invoice VOIDED
 
 Done from the box at the operator's request (2026-09-16 04:29 UTC): Stripe
