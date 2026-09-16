@@ -31,6 +31,17 @@ Stripe subscription, buy buttons on the landing page so the APK's signpost
 finally reaches a checkout, a workshop shelf for The Saint and VibeCoder, and
 built + signed + published **v1.0.8**.
 
+## UPDATE 3 — the old subscription is CANCELLED, its final invoice VOIDED
+
+Done from the box at the operator's request (2026-09-16 04:29 UTC): Stripe
+`status: canceled`; the webhook arrived (`POST /api/stripe/webhook 200`),
+the ledger row for the `sub_…` ref is `revoked` ("stripe refund/cancel"),
+telemetry `tier_events.stripe_revoke` incremented. Stripe had left the $9.99
+final invoice `open` — dunning bait — so it was voided (`status: void`).
+The operator's phone key is therefore now DEAD on purpose; the next purchase
+mints a fresh one and the QR carries it across. Nothing left to clean up on
+the Stripe side.
+
 ## UPDATE 2 — the security pass (PR #247, merged + deployed), APK v1.0.9
 
 The operator, whose profession is security, asked whether the payment system
