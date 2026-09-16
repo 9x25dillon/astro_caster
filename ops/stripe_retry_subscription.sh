@@ -30,13 +30,19 @@ import json,sys,datetime
 d=json.load(sys.stdin)
 if "error" in d: print("stripe error:", d["error"].get("message")); sys.exit(1)
 rows=d.get("data",[])
-print(f"{len(rows)} subscription(s)")
+print(len(rows), "subscription(s)")
 for s in rows:
     inv=s.get("latest_invoice") or {}
-    end=datetime.datetime.utcfromtimestamp(s.get("current_period_end",0)).date()
-    print(f"  {s[\"id\"]}  status={s[\"status\"]:<10} customer={s.get(\"customer\")}  period_end={end}")
+    sid=s.get("id"); st=s.get("status"); cust=s.get("customer")
+    # 2025+ API versions moved current_period_end onto the subscription ITEM.
+    it=((s.get("items") or {}).get("data") or [{}])[0]
+    ts=s.get("current_period_end") or it.get("current_period_end") or 0
+    end=datetime.datetime.fromtimestamp(ts, datetime.timezone.utc).date()
+    print("  %s  status=%-10s customer=%s  period_end=%s" % (sid, st, cust, end))
     if isinstance(inv,dict) and inv:
-        print(f"      latest invoice {inv[\"id\"]}  status={inv.get(\"status\")}  due={inv.get(\"amount_due\")} paid={inv.get(\"amount_paid\")}  attempts={inv.get(\"attempt_count\")}  next_attempt={inv.get(\"next_payment_attempt\")}")
+        print("      latest invoice %s  status=%s  due=%s paid=%s  attempts=%s  next_attempt=%s" % (
+            inv.get("id"), inv.get("status"), inv.get("amount_due"), inv.get("amount_paid"),
+            inv.get("attempt_count"), inv.get("next_payment_attempt")))
 '
 [ $PAY = 1 ] || { echo "(dry-run: add --pay to retry open invoices on past_due/unpaid subscriptions)"; exit 0; }
 
@@ -46,7 +52,8 @@ for sid in $(echo "$subs" | python3 -c 'import json,sys; [print(s["id"]) for s i
     echo "  paying $inv"
     api -X POST "$S/invoices/$inv/pay" | python3 -c '
 import json,sys; r=json.load(sys.stdin)
-if "error" in r: print("    FAILED:", r["error"].get("message"), "|", r["error"].get("decline_code",""))
+e=r.get("error")
+if e: print("    FAILED:", e.get("message"), "|", e.get("decline_code",""))
 else: print("    ->", r.get("status"), "paid", r.get("amount_paid"))'
   done
 done

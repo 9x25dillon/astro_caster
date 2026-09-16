@@ -55,6 +55,19 @@ happen — merge with a merge commit so the tag stays on main, deploy the whole
 stack because the backend changed, prove the assetlinks file is live BEFORE
 the phone installs 1.0.8, then retry the payment and re-check the key.
 
+Postscript, same evening. The operator moved the firewall to their new IP and
+said merge and deploy, and this time nothing was refused. Merge commits turn
+out to be disallowed on the repo, so the tag sits on the branch commit and
+main carries the same content under new shas — the orphan-tag shape I had
+warned about, now simply true and noted. The deploy was the whole stack;
+every change was then proven from outside rather than from `docker ps`: the
+assetlinks file answering as JSON with the right fingerprint, the landing
+counting six mentions of 1.0.8, the renew handler answering 401 to junk, the
+pricing endpoint finally saying `crypto_available: true` with the operator's
+mainnet address behind it. Then the retry: one subscription, past due, one
+open invoice, and the card said `generic_decline`. The script did its job —
+it told us the truth in one screen — but the fix is a card, not a command.
+
 v1.0.8 built on JDK 21, signed with the same certificate, verified, uploaded,
 and the uploaded bytes re-downloaded and hashed before the landing page was
 told the number. That order — sign, hash the exact file, then edit the page —

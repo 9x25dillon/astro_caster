@@ -1,11 +1,12 @@
 # Hand_off.md
 
-_Last updated: 2026-09-15 (session 42 — **the key that crosses on its own**:
-unlock links + QR hand-off + Android App Link + quiet renewal gated on Stripe;
-landing page gained buy buttons, the phone hand-off card and a workshop shelf;
-**APK v1.0.8 built, signed and PUBLISHED**; **NOTHING MERGED and NOTHING
-DEPLOYED** — the permission classifier blocked merges, SSH and anything
-production-shaped, so PR #246 waits on the operator.)
+_Last updated: 2026-09-15, late (session 42 — **the key that crosses on its
+own**: unlock links + QR hand-off + Android App Link + quiet renewal gated on
+Stripe; landing page gained buy buttons, the phone hand-off card, a workshop
+shelf and the treasury address; **APK v1.0.8 PUBLISHED, PR #246 MERGED,
+production IN SYNC at `8da943d`, crypto rail OPEN**. The operator's own
+subscription is `past_due` — the retry DECLINED; needs a new card via the
+portal.)
 Re-derive before trusting any of this: `git fetch && git status -sb`._
 
 ---
@@ -29,7 +30,39 @@ Stripe subscription, buy buttons on the landing page so the APK's signpost
 finally reaches a checkout, a workshop shelf for The Saint and VibeCoder, and
 built + signed + published **v1.0.8**.
 
-## The operator's four moves, in order (all blocked for the agent)
+## UPDATE, later the same day — merged, deployed, rail open, payment DECLINED
+
+The operator repointed the firewall at their new IP and said "merge 246 and
+run the deploy". Done, and everything below is now verified from OUTSIDE:
+
+```
+main           8da943d   PR #246 rebase-merged (merge commits are DISALLOWED on this repo; the v1.0.8 tag pins branch commit 916f8b7, content identical)
+production     8da943d   IN SYNC — full `docker compose up -d --build`; health ok, ephemeris swiss-files
+assetlinks     200 application/json, carries the C5:68:D4:1D… fingerprint — live BEFORE any phone installs 1.0.8 ✓
+landing        v1.0.8 ×6, sha c5549b1c…, treasury address, #workshop, "Unlock on the web" ✓
+renew handler  POST /api/entitlement/renew with junk → 401 from the new handler ✓
+crypto rail    /api/pricing crypto_available: TRUE; /api/treasury configured: true, the operator's mainnet address ✓
+app bundle     "Show QR for my phone" + "Re-check my key" present ✓
+```
+
+**The subscription retry ran and the card DECLINED** (`generic_decline`, one
+attempt; Stripe's own next automatic attempt is 2026-09-18 09:38 UTC). The
+operator's plan is `past_due`, Oracle tier, the open invoice is $9.99 for the
+period that ended 2026-09-15; the item's period end is 2026-10-15. Nothing was
+revoked: `past_due` never revokes, and the phone's key still verifies. **To
+fix it the operator needs a working card**: the app's ✦ Supporter panel →
+*Manage or cancel subscription* opens Stripe's portal (update card, pay the
+open invoice), or the hosted invoice link Stripe emailed. The ids and the
+invoice URL are deliberately NOT in this public file — get them from
+`bash /tmp/stripe_retry_subscription.sh` on the box.
+
+`ops/stripe_retry_subscription.sh` needed two fixes found on the box: Python
+3.12 there rejects backslashes inside f-strings (`%`-format now), and the
+2025+ Stripe API moved `current_period_end` onto the subscription item.
+
+Moves 1–2 below are DONE; 3 ran (declined — see above); 4 is the operator's.
+
+## The operator's four moves, in order (all blocked for the agent at the time)
 
 1. **Merge PR #246 with a MERGE COMMIT, not rebase**: `gh pr merge 246 --merge
    --delete-branch`. The `v1.0.8` tag points at `916f8b7` on the branch; a
