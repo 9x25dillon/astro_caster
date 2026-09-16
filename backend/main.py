@@ -554,6 +554,49 @@ class RenewRequest(BaseModel):
 async def entitlement_renew(req: RenewRequest):
     """Phase 4.1: renew a still-valid token — issue a fresh one (new expiry,
     same tier), supersede the old. The client stores the returned token."""
+    # Session 42: the client now renews QUIETLY on launch whenever a key is
+    # inside its last 45 days (useStore.validateEntitlement), so this is no
+    # longer a button a customer presses — it is the thing that keeps a paid
+    # subscription unlocked past the key's first year. That makes the check
+    # below load-bearing: `renew_entitlement` re-mints from the OLD token's
+    # own claims and never looks at Stripe. A subscription cancelled at Stripe
+    # is normally revoked here by the webhook, but a missed or late event would
+    # otherwise let a lapsed plan renew itself for another year on the strength
+    # of a token that was honest when minted. So a `sub_…` key is renewed only
+    # after Stripe says the subscription is still live; Stripe unreachable is
+    # 503 (the old key still verifies — nothing is lost by waiting), and a plan
+    # that is not live is 402 with the reference named, so the answer is
+    # actionable rather than a silent fall to free.
+    current = ENT.verify_token(req.entitlement)
+    if current is None:
+        raise HTTPException(
+            status_code=401,
+            detail="token invalid, expired, or revoked — re-link with your "
+                   "payment to recover an entitlement",
+        )
+    ref = str(current.get("ref") or "")
+    if ref.startswith("sub_") and STRIPE.stripe_available():
+        try:
+            sub = await STRIPE.retrieve_subscription(ref)
+        except Exception as exc:
+            if STRIPE.is_not_found(exc):
+                raise HTTPException(
+                    status_code=402,
+                    detail=f"subscription {ref} no longer exists at Stripe — "
+                           "the key was not renewed",
+                )
+            raise HTTPException(
+                status_code=503,
+                detail="could not reach Stripe to confirm the subscription — "
+                       "your current key is unchanged; try again later",
+            )
+        if not STRIPE.subscription_is_live(sub):
+            raise HTTPException(
+                status_code=402,
+                detail=f"subscription {ref} is {sub.get('status', 'not active')} "
+                       "at Stripe — the key was not renewed. Retry the payment "
+                       "from the billing portal, or subscribe again",
+            )
     fresh = ENT.renew_entitlement(req.entitlement)
     if fresh is None:
         raise HTTPException(

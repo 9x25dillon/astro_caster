@@ -22,6 +22,22 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- The unlock link (src/lib/handoff.ts): a key bought on the web,
+                 carried to this phone as a URL. ONE path only. Claiming the
+                 whole host would make every ordinary link to the observatory
+                 open the app instead of the site, including the buy page this
+                 reader build signposts to. autoVerify is proven by
+                 /.well-known/assetlinks.json on app.astra-arcana.com, which
+                 names this package and the release signing certificate. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https"
+                      android:host="app.astra-arcana.com"
+                      android:path="/unlock" />
+            </intent-filter>
+
         </activity>
 
         <!-- The home-screen widget: the chart wheel plus the day's card.

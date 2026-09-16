@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useStore } from "./store/useStore";
 import { syncDailySurfaces } from "./lib/dailySync";
+import { attachNativeUnlockLinks } from "./lib/nativeUnlockLinks";
 import { Controls } from "./components/Controls";
 import { CelestialIndex } from "./components/CelestialIndex";
 import { ChartWheel } from "./components/ChartWheel";
@@ -39,6 +40,7 @@ export const App: React.FC = () => {
   const isSupporter = useStore((s) => s.isSupporter);
   const openSupport = useStore((s) => s.openSupport);
   const validateEntitlement = useStore((s) => s.validateEntitlement);
+  const importEntitlement = useStore((s) => s.importEntitlement);
   const flushAskQueue = useStore((s) => s.flushAskQueue);
   const queuedAsks = useStore((s) => s.queuedAsks);
   const setMargin = useStore((s) => s.setMargin);
@@ -99,6 +101,9 @@ export const App: React.FC = () => {
     // Returning from Stripe? The params were captured + scrubbed at module
     // load; this settles the mint (no-op on an ordinary visit).
     completeCheckoutReturn();
+    // The APK: an unlock link (handoff.ts) opened via the App Link arrives
+    // from the intent, not window.location. Same import as the paste field.
+    void attachNativeUnlockLinks(importEntitlement, setCheckoutNote);
     // Deep-link: /#support opens the support panel directly (shareable).
     if (window.location.hash === "#support") openSupport(true);
     if (window.location.hash === "#admin") setAdminOpen(true);

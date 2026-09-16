@@ -383,6 +383,17 @@ export function restoreEntitlement(
   return post("/entitlement/restore", { reference });
 }
 
+/** Swap a still-valid key for a fresh one with a new expiry (same tier, same
+ *  payment). The server supersedes the old key, so the caller MUST store the
+ *  returned token — after this call the one it sent stops verifying. For a
+ *  subscription the server re-checks Stripe first: a cancelled plan is not
+ *  renewed (402). 401 = the presented key is already invalid; nothing changes. */
+export function renewEntitlement(
+  token: string,
+): Promise<{ granted: boolean; tier: string; entitlement: Entitlement }> {
+  return post("/entitlement/renew", { entitlement: token });
+}
+
 export function checkEntitlement(token: string): Promise<EntitlementStatus> {
   // Token travels in a header — a ?token= query string would land in access
   // logs and proxy caches.

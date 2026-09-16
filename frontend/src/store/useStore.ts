@@ -5,6 +5,7 @@ import {
   aiAskStream,
   aiSuggestions,
   checkEntitlement,
+  renewEntitlement,
   claimReportCheckout,
   fetchTransits,
   generateChart,
@@ -18,6 +19,7 @@ import {
   type Treasury,
 } from "../api/client";
 import { looksLikeStripeReference } from "../lib/paymentRef";
+import { isHandoffPath } from "../lib/handoff";
 import { replayLookup, replayStore } from "../lib/replay";
 import { replaySyncForget } from "../api/client";
 import {
@@ -27,6 +29,12 @@ import {
 } from "../lib/reportTokens";
 
 const ENT_KEY = "aae.entitlement";
+// Renew a key this many seconds before it expires (45 days). Wide enough that
+// a monthly-launch user renews with room to spare; narrow enough that a key
+// is not re-minted on every visit.
+const RENEW_AHEAD_S = 45 * 86400;
+const fmtExp = (exp: number | null | undefined) =>
+  exp ? new Date(exp * 1000).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" }) : "—";
 // Every way a pasted key can be unusable reads the same to the reader, and
 // says the one thing they need: nothing on this device changed.
 const BAD_KEY_NOTE =
@@ -56,6 +64,7 @@ function loadReplaySync(): boolean {
     return false;
   }
 }
+import type { EntitlementStatus } from "../api/client";
 import type {
   BirthInput,
   ChartResponse,
@@ -182,6 +191,10 @@ interface AstroState {
 
   // Monetization / open paywall
   entitlement: string | null; // supporter token (persisted)
+  // When the held key expires (unix seconds), as the server last reported it.
+  // Null when there is no key or it has not been checked yet. Displayed in the
+  // Library so "is my key still good?" has an answer without a devtools trip.
+  entitlementExp: number | null;
   isSupporter: boolean;
   treasury: Treasury | null;
   supportOpen: boolean; // is the Support modal visible
@@ -218,6 +231,9 @@ interface AstroState {
   restorePurchase: (reference: string) => Promise<{ ok: boolean; note: string }>;
   clearEntitlement: () => void;
   validateEntitlement: () => Promise<void>;
+  /** Re-check the held key with the server now, renewing it if it is close to
+   *  expiry. Resolves with a sentence for the UI; never rejects. */
+  refreshEntitlement: () => Promise<{ ok: boolean; note: string }>;
   completeCheckoutReturn: () => Promise<void>;
   setCheckoutNote: (note: string | null) => void;
 }
@@ -243,8 +259,12 @@ const EMPTY_RESULT: AIResult = {
     else localStorage.setItem(ENT_KEY, token);
     params.delete("entitlement");
     const rest = params.toString();
+    // The hand-off link lives at /unlock (handoff.ts) so the APK's App Link can
+    // claim one route; once the key is taken, the path collapses to `/` like
+    // any other visit. nginx serves index.html for it either way.
+    const path = isHandoffPath(window.location.pathname) ? "/" : window.location.pathname;
     window.history.replaceState(
-      null, "", window.location.pathname + (rest ? `?${rest}` : "") + window.location.hash);
+      null, "", path + (rest ? `?${rest}` : "") + window.location.hash);
   } catch { /* sandboxed storage or no window: ignore */ }
 })();
 
@@ -369,6 +389,7 @@ export const useStore = create<AstroState>((set, get) => ({
   queuedAsks: loadAskQueue().length,
 
   entitlement: localStorage.getItem(ENT_KEY),
+  entitlementExp: null,
   isSupporter: !!localStorage.getItem(ENT_KEY),
   treasury: null,
   supportOpen: false,
@@ -616,7 +637,7 @@ export const useStore = create<AstroState>((set, get) => ({
     try {
       const { entitlement } = await verifyDonation(txHash, chain);
       localStorage.setItem(ENT_KEY, entitlement.token);
-      set({ entitlement: entitlement.token, isSupporter: true, supportOpen: false });
+      set({ entitlement: entitlement.token, isSupporter: true, supportOpen: false, entitlementExp: entitlement.exp ?? null });
       return true;
     } catch (e) {
       set({ error: (e as Error).message });
@@ -660,7 +681,7 @@ export const useStore = create<AstroState>((set, get) => ({
         return { ok: false, note: BAD_KEY_NOTE };
       }
       localStorage.setItem(ENT_KEY, token);
-      set({ entitlement: token, isSupporter: true });
+      set({ entitlement: token, isSupporter: true, entitlementExp: status.exp ?? null });
       trackEvent("entitlement_imported", { tier: status.tier });
       return { ok: true, note: `Unlocked — ${status.tier} tier is active on this device.` };
     } catch {
@@ -682,7 +703,7 @@ export const useStore = create<AstroState>((set, get) => ({
     try {
       const { tier, entitlement } = await restoreEntitlement(reference.trim());
       localStorage.setItem(ENT_KEY, entitlement.token);
-      set({ entitlement: entitlement.token, isSupporter: true });
+      set({ entitlement: entitlement.token, isSupporter: true, entitlementExp: entitlement.exp ?? null });
       trackEvent("entitlement_restored", { tier });
       return { ok: true, note: `Restored — ${tier} tier is active on this device again.` };
     } catch (e) {
@@ -730,17 +751,63 @@ export const useStore = create<AstroState>((set, get) => ({
       // so applying it would flip a customer who just paid back to locked.
       if (get().entitlement !== entitlement) return;
       if (status.supporter) {
-        set({ isSupporter: true });
+        set({ isSupporter: true, entitlementExp: status.exp ?? null });
+        // Session 42: keys are minted for a year, but a subscription runs for
+        // as long as it is paid. Without this, month thirteen of a paid plan
+        // silently went free and the customer had to dig out a sub_… reference
+        // to get back in. Renew quietly while the old key is still good; the
+        // server re-checks Stripe for a subscription before it agrees.
+        if (entitlement && status.exp && status.exp - Date.now() / 1000 < RENEW_AHEAD_S) {
+          await get().refreshEntitlement();
+        }
       } else if (entitlement) {
         // Token expired or revoked — clear it so the UI reflects reality.
         localStorage.removeItem(ENT_KEY);
-        set({ entitlement: null, isSupporter: false });
+        set({ entitlement: null, isSupporter: false, entitlementExp: null });
       } else {
-        set({ isSupporter: false });
+        set({ isSupporter: false, entitlementExp: null });
       }
     } catch {
       // Network failure — leave the stored state alone; re-checked next time.
     }
+  },
+
+  refreshEntitlement: async () => {
+    const { entitlement } = get();
+    if (!entitlement) return { ok: false, note: "No key on this device to check." };
+    let status: EntitlementStatus;
+    try {
+      status = await checkEntitlement(entitlement);
+    } catch {
+      return { ok: false, note: "Could not reach the observatory — your key is unchanged. Try again when you are online." };
+    }
+    if (!status.supporter) {
+      localStorage.removeItem(ENT_KEY);
+      set({ entitlement: null, isSupporter: false, entitlementExp: null });
+      return {
+        ok: false,
+        note: "That key is no longer valid — expired, cancelled, or replaced by a newer key on another device. " +
+              "Paste your sub_… or cs_… payment reference below to bring your access back.",
+      };
+    }
+    const exp = status.exp ?? null;
+    set({ isSupporter: true, entitlementExp: exp });
+    if (exp && exp - Date.now() / 1000 < RENEW_AHEAD_S) {
+      try {
+        const res = await renewEntitlement(entitlement);
+        if (res.granted && res.entitlement?.token) {
+          localStorage.setItem(ENT_KEY, res.entitlement.token);
+          set({ entitlement: res.entitlement.token, entitlementExp: res.entitlement.exp ?? null });
+          trackEvent("entitlement_renewed", { tier: res.tier });
+          return { ok: true, note: `Key renewed — ${status.tier} tier, now valid until ${fmtExp(res.entitlement.exp)}.` };
+        }
+      } catch {
+        // A refused or failed renewal leaves the still-valid key in place; the
+        // next launch tries again. Say what is true right now.
+        return { ok: true, note: `Key valid — ${status.tier} tier until ${fmtExp(exp)}. It could not be renewed just now; it will be retried.` };
+      }
+    }
+    return { ok: true, note: `Key valid — ${status.tier} tier until ${fmtExp(exp)}.` };
   },
 
   setCheckoutNote: (note) => set({ checkoutNote: note }),
@@ -771,6 +838,7 @@ export const useStore = create<AstroState>((set, get) => ({
             set({
               entitlement: res.entitlement.token,
               isSupporter: true,
+              entitlementExp: res.entitlement.exp ?? null,
               checkoutNote: `Unlocked — ${res.tier ?? "supporter"} tier is active. Thank you.`,
             });
             return;

@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.astraarcana.observatory",
+      "sha256_cert_fingerprints": [
+        "C5:68:D4:1D:45:AF:61:6F:03:48:19:32:06:40:F1:A7:36:8D:BD:AE:B0:43:46:BD:A7:2A:B2:03:B2:D0:A8:2E"
+      ]
+    }
+  }
+]

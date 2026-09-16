@@ -220,3 +220,56 @@ test("the revealed key round-trips back through the import field", async ({ page
   await expect(page.locator(".key-import-note")).toContainText(/unlocked/i);
   await expect(page.locator(".support-pill")).toHaveText(/✦ Supporter/);
 });
+
+// Session 42 — the key gets a shape that crosses devices by itself: an unlock
+// link at /unlock (the APK's App Link route) and a QR of it. The link is what
+// the QR encodes, so proving the link proves the QR's payload; the image is
+// checked only for existing.
+
+test("the /unlock hand-off link imports the key and collapses to /", async ({ page }) => {
+  const { oracle } = mintedTokens();
+  test.skip(!oracle, "backend venv / mint tool unavailable");
+
+  await page.goto(`/unlock?entitlement=${encodeURIComponent(oracle!)}`);
+  await expect(page.locator(".wheel-area svg").first()).toBeVisible();
+  await expect(page.locator(".support-pill")).toHaveText(/✦ Supporter/);
+  // Scrubbed AND moved home: no key in the bar, no /unlock in history.
+  await expect(page).toHaveURL(/\/$/);
+  expect(page.url()).not.toContain("entitlement=");
+  expect(
+    await page.evaluate(() => localStorage.getItem("aae.entitlement"))
+  ).toBe(oracle);
+});
+
+test("the vault shows the key's status, a QR, and copies an unlock link", async ({ page, context, browserName }) => {
+  const { oracle } = mintedTokens();
+  test.skip(!oracle, "backend venv / mint tool unavailable");
+
+  await openVault(page);
+  await page.locator(".key-import-field").fill(oracle!);
+  await page.locator(".key-import-btn").click();
+  await expect(page.locator(".key-import-note")).toContainText(/unlocked/i);
+
+  // Status: the answer to "is my key still good?" without devtools.
+  await expect(page.locator(".key-status")).toContainText(/valid until/);
+  await page.locator(".key-recheck-btn").click();
+  await expect(page.locator(".key-check-note")).toContainText(/Key valid/);
+
+  // QR: hidden by default (it IS the key), drawn on demand.
+  await expect(page.locator(".key-qr img")).toHaveCount(0);
+  await page.locator(".key-qr-btn").click();
+  await expect(page.locator(".key-qr img")).toBeVisible();
+  const src = await page.locator(".key-qr img").getAttribute("src");
+  expect(src).toMatch(/^data:image\/png;base64,/);
+
+  // Unlock link: what lands on the clipboard is the /unlock route carrying
+  // exactly this key.
+  test.skip(browserName !== "chromium", "clipboard permissions are chromium-only here");
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.locator(".key-link-btn").click();
+  const link = await page.evaluate(() => navigator.clipboard.readText());
+  const u = new URL(link);
+  expect(u.pathname).toBe("/unlock");
+  expect(u.searchParams.get("entitlement")).toBe(oracle);
+  await page.screenshot({ path: "test-results/vault-key-handoff.png", fullPage: false });
+});

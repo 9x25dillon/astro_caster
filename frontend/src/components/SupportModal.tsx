@@ -168,6 +168,11 @@ export const SupportModal: React.FC = () => {
             <p style={{ color: "var(--gold-soft)", margin: 0 }}>
               ✦ You're a supporter — premium features are unlocked. Thank you.
             </p>
+            <p className="muted" style={{ margin: 0, fontSize: 12 }}>
+              Your key, and taking it to your phone or another browser: the
+              Library (chapter VIII), under <b>⚿ Bring your key</b> — show it as a
+              QR, copy the unlock link, or re-check that it is still valid.
+            </p>
             <button
               className="ghost"
               style={{ alignSelf: "flex-start" }}
