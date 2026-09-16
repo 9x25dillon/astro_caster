@@ -19,6 +19,7 @@ import { ForecastPanel } from "./components/ForecastPanel";
 import { ArcanaModal } from "./components/ArcanaModal";
 import { BookshelfModal } from "./components/BookshelfModal";
 import { LibraryVault } from "./components/LibraryVault";
+import { PricingPanel } from "./components/PricingPanel";
 import { GalleryPanel } from "./components/GalleryPanel";
 import { TomeMeter } from "./components/TomeMeter";
 import { RelationshipModal } from "./components/RelationshipModal";
@@ -119,9 +120,14 @@ export const App: React.FC = () => {
         // The cards are the first thing in the Library for a non-subscriber
         // (LibraryVault orders them that way), but scroll anyway so a deep
         // link never lands with the prices below the fold.
-        setTimeout(() => {
-          document.querySelector(".pricing-tiers, .lib-keyimport")?.scrollIntoView({ block: "start" });
-        }, 250);
+        // The tiers render after /api/pricing answers; poll briefly for them.
+        let tries = 0;
+        const tick = () => {
+          const el = document.querySelector(".pricing-tiers, .reader-subscribe-btn");
+          if (el) el.scrollIntoView({ block: "start" });
+          else if (++tries < 20) setTimeout(tick, 150);
+        };
+        setTimeout(tick, 150);
       }
       if (h === "#crypto") openSupport(true);
     };
@@ -380,6 +386,11 @@ export const App: React.FC = () => {
             {chapter === "VII" && <ArcanaModal key="ch-vii" initialTab="studio" />}
             {chapter === "VIII" && (
               <>
+                {/* Session 42: a visitor without a key opened the Library to
+                    BUY — the pay surface is the first thing in the chapter,
+                    above the Tome. A subscriber finds it at the bottom of the
+                    vault, next to their key. */}
+                {!isSupporter && <PricingPanel />}
                 <TomeMeter />
                 <BookshelfModal />
                 <GalleryPanel />
