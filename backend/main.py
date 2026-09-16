@@ -523,11 +523,12 @@ class DonateVerifyRequest(BaseModel):
 
 
 @app.post("/api/donate/verify")
-async def donate_verify(req: DonateVerifyRequest):
+async def donate_verify(req: DonateVerifyRequest, request: Request):
     """
     Verify a support contribution and mint an entitlement token. On EVM we check
     the tx on-chain when an RPC is configured; otherwise trust mode applies.
     """
+    RL.check(request, "free", None)      # every call is an upstream RPC hit
     if req.chain == "evm":
         ok, verified, note, value_wei = await ENT.verify_eth_payment_details(req.tx_hash)
     else:
@@ -551,7 +552,8 @@ class RenewRequest(BaseModel):
 
 
 @app.post("/api/entitlement/renew")
-async def entitlement_renew(req: RenewRequest):
+async def entitlement_renew(req: RenewRequest, request: Request):
+    RL.check(request, "free", req.entitlement)
     """Phase 4.1: renew a still-valid token — issue a fresh one (new expiry,
     same tier), supersede the old. The client stores the returned token."""
     # Session 42: the client now renews QUIETLY on launch whenever a key is
@@ -610,7 +612,8 @@ async def entitlement_renew(req: RenewRequest):
 
 
 @app.post("/api/entitlement/relink")
-async def entitlement_relink(req: DonateVerifyRequest):
+async def entitlement_relink(req: DonateVerifyRequest, request: Request):
+    RL.check(request, "free", None)
     """Phase 4.1 device re-link: re-prove the payment, then MOVE the
     entitlement to this device (supersedes other devices' tokens for the same
     payment). Re-verification is mandatory — a public tx hash is not proof by
@@ -852,18 +855,46 @@ class CheckoutRequest(BaseModel):
     cancel_url: Optional[str] = None
 
 
+def _public_base() -> str:
+    return os.environ.get("AAE_PUBLIC_URL", "http://127.0.0.1:5173").rstrip("/")
+
+
+def _return_url(candidate: Optional[str], default: str) -> str:
+    """Session 42 security pass. Checkout's return URLs used to be taken from
+    the request body verbatim. Stripe's hosted page carries OUR name, so an
+    attacker could mint a session with success_url on a host they control,
+    hand the Stripe link to a victim, and be returned the `cs_…` id the moment
+    the victim paid — which /api/checkout/{id} then exchanges for the key
+    (and relink MOVES it, so the victim's own return would be superseded).
+    A return URL is honoured only if it is on AAE_PUBLIC_URL's origin; anything
+    else is a 400, not a silent fallback, so a misconfigured client fails
+    loudly in development rather than shipping a redirect it cannot see."""
+    if not candidate:
+        return default
+    from urllib.parse import urlsplit
+    want, got = urlsplit(_public_base()), urlsplit(candidate)
+    same = (got.scheme, got.netloc) == (want.scheme, want.netloc) and got.netloc != ""
+    if not same:
+        raise HTTPException(
+            status_code=400,
+            detail="return URLs must be on this observatory's own origin",
+        )
+    return candidate
+
+
 @app.post("/api/checkout")
-async def create_checkout(req: CheckoutRequest):
+async def create_checkout(req: CheckoutRequest, request: Request):
     """Create a Stripe Checkout Session and return its hosted URL. 503 when the
     rail is unconfigured (AAE_STRIPE_SECRET_KEY unset) — the crypto rail and
     the offline compilers remain available."""
+    RL.check(request, "free", None)      # session spam costs Stripe calls
     if not STRIPE.stripe_available():
         raise HTTPException(status_code=503, detail="card payments not configured")
     if req.tier not in ("supporter", "oracle"):
         raise HTTPException(status_code=400, detail="tier must be supporter or oracle")
-    base = os.environ.get("AAE_PUBLIC_URL", "http://127.0.0.1:5173").rstrip("/")
-    success = req.success_url or f"{base}/?checkout={{CHECKOUT_SESSION_ID}}"
-    cancel = req.cancel_url or f"{base}/?checkout=cancel"
+    base = _public_base()
+    success = _return_url(req.success_url, f"{base}/?checkout={{CHECKOUT_SESSION_ID}}")
+    cancel = _return_url(req.cancel_url, f"{base}/?checkout=cancel")
     try:
         s = await STRIPE.create_checkout_session(req.tier, success, cancel)
     except Exception as exc:
@@ -874,10 +905,11 @@ async def create_checkout(req: CheckoutRequest):
 
 
 @app.get("/api/checkout/{session_id}")
-async def retrieve_checkout(session_id: str):
+async def retrieve_checkout(session_id: str, request: Request):
     """Browser retrieval after success_url. If the session is paid, mint (or
     re-issue) the entitlement and return it — resilient to webhook lag. If not
     yet paid, report status so the client can poll briefly."""
+    RL.check(request, "free", None)      # a cs_ id is a bearer: no free guessing
     if not STRIPE.stripe_available():
         raise HTTPException(status_code=503, detail="card payments not configured")
     try:
@@ -904,6 +936,28 @@ async def retrieve_checkout(session_id: str):
     return {"granted": True, "tier": tier, "entitlement": ent}
 
 
+# Stripe's signature scheme tolerates a 5-minute clock skew, which is also a
+# 5-minute replay window for anyone who captured a signed body. Both actions
+# are idempotent in effect (mint relinks the same ref; revoke revokes), so a
+# replay cannot grant anything new — but it can churn a customer's key (a
+# replayed mint supersedes the one they hold). Dedupe on the event id, bounded,
+# in-process: the app runs one worker and the window is minutes, not days.
+_SEEN_EVENTS: "collections.deque[str]" = __import__("collections").deque(maxlen=4096)
+_SEEN_EVENT_SET: set = set()
+
+
+def _event_seen(event_id: str) -> bool:
+    if not event_id:
+        return False
+    if event_id in _SEEN_EVENT_SET:
+        return True
+    if len(_SEEN_EVENTS) == _SEEN_EVENTS.maxlen:
+        _SEEN_EVENT_SET.discard(_SEEN_EVENTS[0])
+    _SEEN_EVENTS.append(event_id)
+    _SEEN_EVENT_SET.add(event_id)
+    return False
+
+
 @app.post("/api/stripe/webhook")
 async def stripe_webhook(request: Request):
     """Stripe → server. Verify the signature over the RAW body, then apply the
@@ -917,6 +971,8 @@ async def stripe_webhook(request: Request):
         event = STRIPE.verify_webhook(payload, sig)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=f"webhook rejected: {exc}")
+    if _event_seen(str(event.get("id") or "")):
+        return {"received": True, "handled": False, "duplicate": True}
     plan = STRIPE.plan_from_event(event)
     if plan is None:
         return {"received": True, "handled": False}     # event we don't act on
@@ -939,7 +995,8 @@ class BillingPortalRequest(BaseModel):
 
 
 @app.post("/api/billing/portal")
-async def billing_portal(req: BillingPortalRequest):
+async def billing_portal(req: BillingPortalRequest, request: Request):
+    RL.check(request, "free", req.entitlement)
     """Customer self-service (Phase 4). Open the Stripe Customer Portal for the
     subscription behind this entitlement so the holder can CANCEL, stop
     auto-renew, update their card, or download invoices — no email to us
@@ -1044,9 +1101,9 @@ async def personal_report_checkout(req: ReportCheckoutRequest, request: Request)
         )
     if not req.seed.strip():
         raise HTTPException(status_code=400, detail="missing oracle session seed")
-    base = os.environ.get("AAE_PUBLIC_URL", "http://127.0.0.1:5173").rstrip("/")
-    success = req.success_url or f"{base}/?report_checkout={{CHECKOUT_SESSION_ID}}"
-    cancel = req.cancel_url or f"{base}/?report_checkout=cancel"
+    base = _public_base()
+    success = _return_url(req.success_url, f"{base}/?report_checkout={{CHECKOUT_SESSION_ID}}")
+    cancel = _return_url(req.cancel_url, f"{base}/?report_checkout=cancel")
     try:
         s = await STRIPE.create_report_checkout_session(req.seed, success, cancel)
     except Exception as exc:
@@ -1164,15 +1221,17 @@ async def personal_report_claim_restore(req: ReportRestoreRequest, request: Requ
 
 
 @app.get("/api/entitlement")
-async def get_entitlement(token: Optional[str] = None,
-                          x_aae_token: Optional[str] = Header(None)):
+async def get_entitlement(x_aae_token: Optional[str] = Header(None)):
     """Validate an entitlement token.
 
-    Prefer the X-AAE-Token header — a ?token= query string lands in access
-    logs and proxy caches (issue #54 §3.4). The query param remains as a
-    deprecated fallback for old links.
+    Header only. The `?token=` fallback (issue #54 §3.4 called it deprecated)
+    is gone as of the session 42 security pass: a bearer in a query string
+    lands in nginx and Cloudflare access logs, browser history and any proxy
+    cache, and nothing in the shipped client has sent it that way since the
+    header was introduced. A request that still does gets the free tier, which
+    is the visible failure a stale integration should meet.
     """
-    return ENT.entitlement_status(x_aae_token or token)
+    return ENT.entitlement_status(x_aae_token)
 
 
 def _require_supporter(token: Optional[str]) -> None:
@@ -1326,11 +1385,10 @@ async def telemetry_event(ev: FeatureEvent):
 
 
 @app.get("/api/admin/stats")
-async def admin_stats(token: Optional[str] = None,
-                      x_aae_token: Optional[str] = Header(None)):
-    """Admin summary. Token via X-AAE-Token header (query param deprecated —
-    it leaks into access logs)."""
-    if not ENT.is_operator(x_aae_token or token):
+async def admin_stats(x_aae_token: Optional[str] = Header(None)):
+    """Admin summary. Token via X-AAE-Token header ONLY — the query-param form
+    was removed in the session 42 security pass (it leaked into access logs)."""
+    if not ENT.is_operator(x_aae_token):
         raise HTTPException(status_code=403, detail="forbidden")
     summary = await asyncio.to_thread(TEL.summary)
     summary["caches"] = CACHE.all_stats()  # Phase 3.4 hit-rate visibility

@@ -6,11 +6,16 @@ import { entitlementFromUrl, handoffUrl, isHandoffPath, HANDOFF_ORIGIN } from ".
 const TOKEN = "eyJ0aWVyIjoic3VwcG9ydGVyIn0.abc123";
 
 describe("handoffUrl", () => {
-  it("lands on the app origin's /unlock route with the key as a query param", () => {
+  it("lands on the app origin's /unlock route with the key in the FRAGMENT, never the query", () => {
     const u = new URL(handoffUrl(TOKEN));
     assert.equal(u.origin, HANDOFF_ORIGIN);
     assert.equal(u.pathname, "/unlock");
-    assert.equal(u.searchParams.get("entitlement"), TOKEN);
+    assert.equal(u.search, "");
+    assert.equal(new URLSearchParams(u.hash.slice(1)).get("entitlement"), TOKEN);
+  });
+
+  it("prefers the fragment when a legacy query key is also present", () => {
+    assert.equal(entitlementFromUrl(`https://app.astra-arcana.com/?entitlement=old#entitlement=${TOKEN}`), TOKEN);
   });
 
   it("round-trips through entitlementFromUrl", () => {

@@ -31,7 +31,9 @@ def test_security_headers_present_on_responses():
 
 def test_admin_stats_rejects_missing_or_wrong_token():
     assert client.get("/api/admin/stats").status_code == 403
-    assert client.get("/api/admin/stats", params={"token": "definitely-wrong"}).status_code == 403
+    assert client.get("/api/admin/stats", headers={"X-AAE-Token": "definitely-wrong"}).status_code == 403
+    # the query form is no longer read at all — a correct token there is still 403
+    assert client.get("/api/admin/stats", params={"token": os.environ.get("AAE_DEV_TOKEN", "x")}).status_code == 403
 
 
 def test_check_dev_token_semantics(monkeypatch):

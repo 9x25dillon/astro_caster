@@ -5,7 +5,15 @@
 // reveal, copy, get the text across somehow, paste. This module gives the key a
 // SHAPE that crosses devices on its own: an unlock link, and a QR of that link.
 //
-//   https://app.astra-arcana.com/unlock?entitlement=<token>
+//   https://app.astra-arcana.com/unlock#entitlement=<token>
+//
+// A FRAGMENT, not a query string (session 42 security pass). The key is a
+// bearer credential. A query string is sent to the server and lands in nginx
+// and Cloudflare access logs, in any proxy cache, and in browser history; a
+// fragment never leaves the browser — it is not part of the HTTP request at
+// all. Android delivers the full URL including the fragment to the App Link
+// intent, so the APK path is unaffected. The old `?entitlement=` form is still
+// READ (links already shared keep working) but is no longer generated.
 //
 // Three things open that URL, and all three end in the same import:
 //   * the PWA, in any browser — useStore.ts captures `?entitlement=` at module
@@ -30,7 +38,7 @@ export const HANDOFF_PATH = "/unlock";
 
 /** The link a phone can open to take this key. */
 export function handoffUrl(token: string): string {
-  return `${HANDOFF_ORIGIN}${HANDOFF_PATH}?entitlement=${encodeURIComponent(token)}`;
+  return `${HANDOFF_ORIGIN}${HANDOFF_PATH}#entitlement=${encodeURIComponent(token)}`;
 }
 
 /**
@@ -47,7 +55,9 @@ export function entitlementFromUrl(url: string): string | null {
   } catch {
     return null;
   }
-  const raw = u.searchParams.get("entitlement");
+  // Fragment first (the generated form), query second (legacy links).
+  const frag = new URLSearchParams(u.hash.replace(/^#/, "")).get("entitlement");
+  const raw = frag ?? u.searchParams.get("entitlement");
   if (raw === null || raw === "" || raw === "clear") return null;
   return raw;
 }

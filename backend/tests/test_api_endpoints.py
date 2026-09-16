@@ -185,15 +185,15 @@ def test_ai_failure_falls_back_to_offline_prose(monkeypatch):
 
 def test_entitlement_status_valid_tampered_expired():
     token = ENT.mint_entitlement("supporter", ref="t", verified=True)["token"]
-    ok = client.get("/api/entitlement", params={"token": token}).json()
+    ok = client.get("/api/entitlement", headers={"X-AAE-Token": token}).json()
     assert ok["supporter"] is True and ok["tier"] == "supporter"
 
-    bad = client.get("/api/entitlement", params={"token": token[:-2] + "zz"}).json()
+    bad = client.get("/api/entitlement", headers={"X-AAE-Token": token[:-2] + "zz"}).json()
     assert bad["supporter"] is False and bad["tier"] == "free"
 
     expired = ENT._sign({"tier": "supporter", "ref": "t", "verified": True,
                          "iat": 0, "exp": 1})           # exp in 1970
-    ex = client.get("/api/entitlement", params={"token": expired}).json()
+    ex = client.get("/api/entitlement", headers={"X-AAE-Token": expired}).json()
     assert ex["supporter"] is False and ex["tier"] == "free"
 
 
