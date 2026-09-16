@@ -31,6 +31,29 @@ Stripe subscription, buy buttons on the landing page so the APK's signpost
 finally reaches a checkout, a workshop shelf for The Saint and VibeCoder, and
 built + signed + published **v1.0.8**.
 
+## UPDATE 5 — "i cant seem to find the subscriber option": the pay page was never where the links pointed
+
+The operator installed 1.0.9 and could not subscribe. Two causes, one
+old: (1) the reader pill opened the Library with a paragraph signpost;
+(2) **`#support` on the app origin opened the CRYPTO overlay** — wallet
+buttons, treasury address, no card — while the Stripe tier cards lived in
+the Library's PricingPanel. The APK's compiled `PURCHASE_URL`, the landing
+page's "Unlock on the web" button, and the new Subscribe pill ALL delivered
+a paying customer to a screen with no card option. PRs #248 + #249 (both
+merged, deployed at `f9c463c`): reader-mode pill = `<a target=_blank>` to
+`SUBSCRIBE_URL` (`app.astra-arcana.com/#support`); `#support` → chapter
+VIII with the PricingPanel rendered FIRST for a non-subscriber and the
+scroll polling for the tiers; `#crypto` → wallet overlay, which gained a
+"Subscribe with a card instead" button; `hashchange` listener so that works
+from a 402 gate. **APK v1.0.10** published (sha `dacad574…5426`, cert
+unchanged), 1.0.9 marked superseded, landing repointed. **Proven on the
+Pixel**: tap ☤ Subscribe → `com.android.chrome` foreground → Supporter
+$3.25 / Oracle $9.99 with *Unlock with card* buttons at the top of the
+page. Gotcha met on the way: **Chrome's service worker held the OLD bundle
+for two loads after the deploy** — a first look after any frontend deploy
+can show yesterday's app; reload twice before believing a screenshot.
+Play policy parked on purpose per the operator ("a branch for that").
+
 ## UPDATE 4 — "the download hangs at 99%": the artifact is fine, the Pixel proves the whole hand-off
 
 Operator reported the APK download stalling at 99% on their phone and asked
