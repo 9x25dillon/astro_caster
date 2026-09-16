@@ -1,14 +1,91 @@
 # Hand_off.md
 
-_Last updated: 2026-09-15, late (session 42 — **the key that crosses on its
-own**: unlock links + QR hand-off + Android App Link + quiet renewal gated on
-Stripe; landing page gained buy buttons, the phone hand-off card, a workshop
-shelf and the treasury address; **APK v1.0.9 PUBLISHED (1.0.8 superseded), PRs #246 + #247 MERGED,
-production IN SYNC at `ad8e81b`, crypto rail OPEN, payment security pass
-done (F4 open)**. The operator's own
-subscription is `past_due` — the retry DECLINED; needs a new card via the
-portal.)
+_Last updated: 2026-09-16, close of session 42 — **the day the observatory
+became a source of income that a phone can reach**: APK **v1.0.10**, the pay
+page where every link points, the key that crosses on its own, a payment
+security pass, the crypto rail open, the operator's dead subscription
+cancelled and voided. **Production IN SYNC at `a5e3ed0`** (+ one docs
+commit). Everything merged; no PR open; #245 closed as contained in #246.
 Re-derive before trusting any of this: `git fetch && git status -sb`._
+
+---
+
+# SESSION 43 — START HERE
+
+## The truths
+
+```
+main / prod    a5e3ed0+   IN SYNC (frontend-only deploys after f9c463c; backend image at d6299e3 content)
+APK            v1.0.10    CURRENT — sha dacad574…5426, cert c568d41d…a82e (unchanged since v1.0.0); 1.0.8/1.0.9 marked superseded
+Pixel 10a      1.0.10     installed over adb; App Link app.astra-arcana.com VERIFIED; pill → Chrome → "Unlock with card" PROVEN
+operator phone ?          they were installing 1.0.10 and about to subscribe with a NEW card at close — ask first
+Stripe         old sub    CANCELLED + final invoice VOIDED (2026-09-16 04:29 UTC); old key revoked by webhook; ledger row `revoked`
+crypto rail    OPEN       crypto_available: true; treasury 0xF3b8151f…723B (ETH mainnet); RPC ethereum-rpc.publicnode.com
+security       F1 F2 F3 F5 fixed + live; F4 OPEN (see below); docs/audits/PAYMENT_SECURITY_2026-09-15.md
+tests          backend 748 · frontend 224 · e2e 96 (support/pricing/Library/checkout/vault) · all green at close
+```
+
+## The map of the money, as it now actually works (walk it before changing it)
+
+```
+APK (reader, sells nothing)          web app (app.astra-arcana.com)                 Stripe
+┌──────────────────────┐   tap      ┌──────────────────────────────────────┐        ┌────────┐
+│ ☤ Subscribe pill     │──────────▶ │ /#support → chapter VIII, PricingPanel│──card─▶│checkout│
+│ (READER_MODE && !key)│  _blank    │ FIRST for a non-subscriber            │        └───┬────┘
+│                      │            │ /#crypto  → SupportModal (wallet)     │  webhook   │
+│ /unlock App Link ◀───┼──QR/link───│ Library → ⚿ Bring your key:           │◀───mint────┘
+│  #entitlement=<key>  │            │   status · Re-check · QR · Copy link  │
+└──────────────────────┘            └──────────────────────────────────────┘
+      key = BEARER credential → fragment only, never a query string, hidden by default
+```
+
+- `SUBSCRIBE_URL` (readerMode.ts) is the pill's target. `PURCHASE_URL`
+  (apex `#support`) is still compiled into OLD APKs and the landing anchor
+  is still load-bearing for them — do not remove it.
+- A key inside its last 45 days renews itself on launch; a `sub_…` key
+  renews ONLY if Stripe says the subscription is live (`main.py` renew).
+- Chrome's service worker serves the OLD bundle for ~2 loads after any
+  frontend deploy. Reload twice before believing a phone screenshot.
+
+## What to do next, in order
+
+1. **Ask whether the operator's subscription went through** and whether the
+   QR/unlock link carried the key to their phone. If it did not: probe
+   `/api/entitlement` with their key in `X-AAE-Token`, then
+   `ops/stripe_retry_subscription.sh` on the box (dry-run lists everything).
+2. **F4 — bind a crypto claim to the payer.** Today the rail is
+   trust-on-first-claim by public tx hash (anyone watching the chain can
+   claim or relink-takeover a key). Fix: `personal_sign` over a server nonce
+   from the tx's `from` address; verify EIP-191 server-side. Needs
+   `eth-account` (heavy) or `coincurve` + `pycryptodome` (keccak +
+   secp256k1 recovery). Write the findings row's test first.
+3. **The Play branch** the operator asked for: reader-mode invariant restored
+   there (pill → Library signpost, no external pay link), everything else
+   shared. Do NOT reopen the invariant on `main`; they decided.
+4. **Cancel → refund drill** (memory: order matters; F6 in the audit).
+5. Ask-path raw-orb aspect ranking (carried since session 31).
+
+## The lessons this session, as rules
+
+- **Walk the happy path to the till, on the device, before "shipped".** The
+  pay page was the wallet for eleven weeks because nobody did.
+- **Findings table BEFORE the PR** for keys/checkout/credential-in-URL.
+- **Ask for merge-and-deploy authorization in one line at the start**; the
+  classifier keys on the operator's own words. Never force-push a pushed
+  branch; merge the other branch in instead. Merge commits are DISALLOWED
+  on the repo (`--rebase`); tags land on branch commits, content identical.
+- **A rebuild changes the hash and nothing else.** Probe the wire and the
+  device first (`curl -L … -w '%{size_download}'`, `adb install -r`).
+- Python 3.12 on the box rejects `\` in f-strings; the 2025+ Stripe API
+  moved `current_period_end` onto the subscription item.
+
+## Tools that exist now (don't rewrite them)
+
+`ops/stripe_retry_subscription.sh` (list / `--pay`), `ops/enable_crypto_rail.sh`,
+`ops/deploy_frontend.sh` (frontend-only), `/tmp/deploy_box.sh` on the box
+(full stack — copy from scratch if gone: pull, `compose up -d --build`,
+enable rail, ps), `ops/ssh_allow_my_ip.sh` (the operator's carrier IP rotates;
+SSH timing out while the site serves = the door moved).
 
 ---
 
