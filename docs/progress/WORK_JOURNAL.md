@@ -68,6 +68,28 @@ mainnet address behind it. Then the retry: one subscription, past due, one
 open invoice, and the card said `generic_decline`. The script did its job —
 it told us the truth in one screen — but the fix is a card, not a command.
 
+Second postscript. "Is there a way to completely secure this payment
+system?" — asked by someone whose job is security, and with the edge of
+having had to ask. The honest answer to "completely" is no, and the useful
+answer is a findings table, so I read every path that mints, moves or
+revokes a key and wrote a failing test for each thing I found before fixing
+it. Two were high. One had been there since checkout shipped: the return
+URLs came from the request body, and Stripe's hosted page wears our name,
+so a session pointed at an attacker's host was a branded phishing page that
+handed them the `cs_` id — and the key — the moment a victim paid. The other
+I had made worse that afternoon: the unlock link put a bearer credential in
+a query string, which every server on the path logs, and I had just drawn it
+as a QR code. The fix is a fragment, which never leaves the browser, and the
+cost of the fix is that 1.0.8 could not read it — so 1.0.9 went out within
+the hour, and 1.0.8 is marked superseded. Rate limits on six money endpoints
+and a webhook replay guard were the medium and the low. The crypto rail's
+trust-on-first-claim is written down as open with its fix, because it needs
+a signature-recovery dependency I did not want to add at nine at night.
+
+The lesson is not the findings. It is that the security pass belonged in the
+first message's work, before the QR shipped, and the operator should not
+have been the one to remember that.
+
 v1.0.8 built on JDK 21, signed with the same certificate, verified, uploaded,
 and the uploaded bytes re-downloaded and hashed before the landing page was
 told the number. That order — sign, hash the exact file, then edit the page —

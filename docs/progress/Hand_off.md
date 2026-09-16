@@ -3,8 +3,9 @@
 _Last updated: 2026-09-15, late (session 42 — **the key that crosses on its
 own**: unlock links + QR hand-off + Android App Link + quiet renewal gated on
 Stripe; landing page gained buy buttons, the phone hand-off card, a workshop
-shelf and the treasury address; **APK v1.0.8 PUBLISHED, PR #246 MERGED,
-production IN SYNC at `8da943d`, crypto rail OPEN**. The operator's own
+shelf and the treasury address; **APK v1.0.9 PUBLISHED (1.0.8 superseded), PRs #246 + #247 MERGED,
+production IN SYNC at `ad8e81b`, crypto rail OPEN, payment security pass
+done (F4 open)**. The operator's own
 subscription is `past_due` — the retry DECLINED; needs a new card via the
 portal.)
 Re-derive before trusting any of this: `git fetch && git status -sb`._
@@ -29,6 +30,32 @@ renewal in the key's last 45 days with the renew endpoint now gated on a live
 Stripe subscription, buy buttons on the landing page so the APK's signpost
 finally reaches a checkout, a workshop shelf for The Saint and VibeCoder, and
 built + signed + published **v1.0.8**.
+
+## UPDATE 2 — the security pass (PR #247, merged + deployed), APK v1.0.9
+
+The operator, whose profession is security, asked whether the payment system
+was secure. It should not have been their question to raise. Findings and
+status: `docs/audits/PAYMENT_SECURITY_2026-09-15.md`. Fixed and LIVE at
+`ad8e81b`: F1 return-URL origin pin (a phishing amplifier that handed an
+attacker the `cs_` id and the key), F2 no bearer in any query string (the
+hand-off link now uses the URL FRAGMENT; `/unlock` and `arg_entitlement`
+requests are not logged; `?token=` fallbacks removed), F3 rate limits on all
+six money endpoints, F5 webhook event-id dedupe. **Open: F4** — the crypto
+rail is trust-on-first-claim by public tx hash; fix is `personal_sign` over
+a nonce from the tx's `from` address (needs a signature-recovery dep).
+
+F2's cost: **APK 1.0.8 could only read the query form**, so **v1.0.9**
+(sha `86520c4e…eea1`, cert unchanged, tag on `d6299e3`, the merged security
+commit) was built, published as latest, and the landing repointed; 1.0.8 is
+marked pre-release/superseded. Probed from outside: off-site `success_url`
+→ 400; `?token=` → `tier: free`; landing shows v1.0.9 ×3 + digest; the live
+bundle carries the fragment parser. The operator will buy a NEW subscription
+once this is all done (they have a new card); the old `past_due` plan should
+be CANCELLED first so Stripe stops dunning it — portal, or on the box:
+`curl -u "$KEY:" -X DELETE https://api.stripe.com/v1/subscriptions/<sub_id>`
+(id from `bash /tmp/stripe_retry_subscription.sh`). That fires
+`customer.subscription.deleted` → the old key is revoked → the phone imports
+the new one via the QR.
 
 ## UPDATE, later the same day — merged, deployed, rail open, payment DECLINED
 
