@@ -4,7 +4,7 @@ pydantic==2.13.5
 pyswisseph==2.10.3.2
 httpx==0.28.1
 python-dotenv==1.2.3
-tzdata==2026.3
+tzdata==2026.4
 anthropic==1.4.0
 cryptography==50.0.1
 pytest==9.1.1
