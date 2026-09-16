@@ -216,6 +216,25 @@ export const SupportModal: React.FC = () => {
           ))}
         </div>
 
+        {/* Session 42: this overlay is the CRYPTO rail, and the 402 gates open
+            it directly — so a reader who hit a paywall saw a wallet button and
+            no card option. The card tiers live in the Library; point there. */}
+        {!isSupporter && (
+          <button
+            className="ghost card-instead-btn"
+            style={{ width: "100%", marginTop: 12 }}
+            onClick={() => {
+              close();
+              if (window.location.hash === "#support") {
+                window.history.replaceState(null, "", window.location.pathname);
+              }
+              window.location.hash = "#support";
+            }}
+          >
+            ✦ Subscribe with a card instead →
+          </button>
+        )}
+
         {/* Support actions */}
         <h3 style={{ color: "var(--gold)", fontSize: 14, margin: "14px 0 6px" }}>
           Choose an amount (pay what you want)

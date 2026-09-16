@@ -117,6 +117,10 @@ export const LibraryVault: React.FC = () => {
 
   return (
     <div className="lib-surface lib-vault">
+      {/* Session 42: a visitor WITHOUT a key came here to buy — the prices go
+          first. A subscriber came here for their key and the vault; for them
+          the pricing surface keeps its place at the bottom. */}
+      {!isSupporter && <PricingPanel />}
       {/* Replay sync — the opt-in half of the guardrail. Its home is here, next
           to the vault and the key, because it is the same kind of decision:
           what of yours lives where. Shown only to readers who hold a key,
@@ -379,7 +383,7 @@ export const LibraryVault: React.FC = () => {
 
       {/* E-3: support & unlock became a real pricing surface — both rails, live
           prices — instead of a lone button into the crypto modal. */}
-      <PricingPanel />
+      {isSupporter && <PricingPanel />}
     </div>
   );
 };

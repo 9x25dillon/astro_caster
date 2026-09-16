@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useStore } from "./store/useStore";
 import { syncDailySurfaces } from "./lib/dailySync";
 import { attachNativeUnlockLinks } from "./lib/nativeUnlockLinks";
+import { READER_MODE, SUBSCRIBE_URL } from "./lib/readerMode";
 import { Controls } from "./components/Controls";
 import { CelestialIndex } from "./components/CelestialIndex";
 import { ChartWheel } from "./components/ChartWheel";
@@ -104,14 +105,37 @@ export const App: React.FC = () => {
     // The APK: an unlock link (handoff.ts) opened via the App Link arrives
     // from the intent, not window.location. Same import as the paste field.
     void attachNativeUnlockLinks(importEntitlement, setCheckoutNote);
-    // Deep-link: /#support opens the support panel directly (shareable).
-    if (window.location.hash === "#support") openSupport(true);
+    // Deep-link: /#support opens the PAY PAGE — the Library's pricing surface
+    // with the Stripe tier cards — not the crypto overlay. Session 42 found
+    // that every "subscribe" link (the APK's compiled PURCHASE_URL, the
+    // landing page's buttons, the reader build's new Subscribe pill) landed
+    // on the wallet modal, which has no card option at all; the operator
+    // "couldn't find the subscriber option" because there wasn't one there.
+    // `#crypto` keeps the old behaviour for anyone who wants the wallet.
+    const routeHash = () => {
+      const h = window.location.hash;
+      if (h === "#support") {
+        openChapter("VIII");
+        // The cards are the first thing in the Library for a non-subscriber
+        // (LibraryVault orders them that way), but scroll anyway so a deep
+        // link never lands with the prices below the fold.
+        setTimeout(() => {
+          document.querySelector(".pricing-tiers, .lib-keyimport")?.scrollIntoView({ block: "start" });
+        }, 250);
+      }
+      if (h === "#crypto") openSupport(true);
+    };
+    routeHash();
+    window.addEventListener("hashchange", routeHash);
     if (window.location.hash === "#admin") setAdminOpen(true);
     // Fire any asks queued while offline, now and whenever the network returns.
     flushAskQueue();
     const onOnline = () => flushAskQueue();
     window.addEventListener("online", onOnline);
-    return () => window.removeEventListener("online", onOnline);
+    return () => {
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("hashchange", routeHash);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -190,13 +214,30 @@ export const App: React.FC = () => {
           {/* Track R (R-3): the masthead pill is identity — support & unlock
               live in the Library (chapter VIII) now; 402 gates still open the
               support overlay directly. */}
-          <button
-            className={`support-pill ${isSupporter ? "is-supporter" : ""}`}
-            title="Support & unlock lives in the Library"
-            onClick={() => openChapter("VIII")}
-          >
-            {isSupporter ? "✦ Supporter" : "☤ Support / Unlock"}
-          </button>
+          {/* Session 42: in the reader build a visitor WITHOUT a key gets a
+              link straight to the pay page in the system browser — the
+              Library signpost was one tap too many and nobody found it. A
+              supporter's pill keeps opening the Library (their key lives
+              there). The web build is unchanged. */}
+          {READER_MODE && !isSupporter ? (
+            <a
+              className="support-pill"
+              href={SUBSCRIBE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Subscribe on the web — the key comes back to this phone"
+            >
+              ☤ Subscribe
+            </a>
+          ) : (
+            <button
+              className={`support-pill ${isSupporter ? "is-supporter" : ""}`}
+              title="Support & unlock lives in the Library"
+              onClick={() => openChapter("VIII")}
+            >
+              {isSupporter ? "✦ Supporter" : "☤ Support / Unlock"}
+            </button>
+          )}
           {isSupporter && (
             <button
               className="ghost"
