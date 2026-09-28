@@ -156,3 +156,23 @@ def test_legal_pages_resolve_on_both_hosts():
     # would mask a missing file with the app shell, so assert the root is the
     # build output rather than asserting a location exists.
     assert "root /usr/share/nginx/html;" in hosts["app.astra-arcana.com"]
+
+
+def test_vibecoder_is_its_own_origin():
+    """The one host allowed to compile WebAssembly as a game, and only it.
+
+    vibecoder.astra-arcana.com runs Python in the browser, which needs
+    'wasm-unsafe-eval' and module workers. It gets its own server block rather
+    than a path on the apex precisely so the landing page's stricter policy
+    never has to loosen for it.
+    """
+    hosts = _server_blocks()
+    game = hosts["vibecoder.astra-arcana.com"]
+    csp = _header_sets(game)["server"]["Content-Security-Policy"]
+    assert "'wasm-unsafe-eval'" in csp and "worker-src 'self'" in csp
+    script = re.search(r"script-src ([^;]*)", csp).group(1).split()
+    assert "'unsafe-eval'" not in script and "'unsafe-inline'" not in script
+    assert "proxy_pass" not in game, "the game host must not reach the API"
+    landing = _header_sets(hosts["astra-arcana.com"])["server"]["Content-Security-Policy"]
+    assert "wasm-unsafe-eval" not in landing, "the landing page loosened for the game"
+

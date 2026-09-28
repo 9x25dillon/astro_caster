@@ -85,3 +85,6 @@ ops/origin.env
 
 # Origin TLS material — private key, never committed (see DEPLOY.md 3.3)
 certs/
+
+# VibeCoder's deployed web build, mounted into the frontend container.
+/vibecoder-web/

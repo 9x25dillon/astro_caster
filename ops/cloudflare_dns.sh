@@ -68,11 +68,11 @@ st=$(echo "$z" | jq -r '.result[0].status')
 [ "$st" = "active" ] || echo "  NOTE: status is '$st' — the registrar's nameservers are not pointing here yet."
 
 echo
-echo "=== records (want: apex, www, app -> $ORIGIN_IP, all proxied) ==="
+echo "=== records (want: apex, www, app, vibecoder -> $ORIGIN_IP, all proxied) ==="
 recs=$(cf GET "/zones/$ZID/dns_records?per_page=100")
 ok "$recs" || { echo "  cannot read records: $(errs "$recs")"; exit 1; }
 
-for sub in "@" "www" "app"; do
+for sub in "@" "www" "app" "vibecoder"; do
   [ "$sub" = "@" ] && fqdn="$ZONE" || fqdn="$sub.$ZONE"
   existing=$(echo "$recs" | jq -r --arg n "$fqdn" '.result[] | select(.name==$n and .type=="A") | .id' | head -1)
   # A stale CNAME on the same name blocks the A record (Cloudflare rejects the

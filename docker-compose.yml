@@ -154,6 +154,10 @@ services:
       # script never touches an existing certificate, so the production key is
       # not at risk of being overwritten by it.
       - ./certs:/etc/nginx/certs
+      # vibecoder.astra-arcana.com — a static release of another project,
+      # deployed into ./vibecoder-web (gitignored) by its own tool. Read-only:
+      # nginx serves it and must never be able to change it.
+      - ./vibecoder-web:/usr/share/nginx/vibecoder:ro
     restart: unless-stopped
 
 volumes:
