@@ -262,6 +262,24 @@ docker compose down -v            # stop AND delete backend-data (telemetry/rece
 Backend data persists in the `backend-data` volume across `up`/`down`. Rebuild
 after dependency changes with `--build`.
 
+### 4.1 Monthly maintenance
+
+Run on the first of the month, from the operator's machine (needs
+`~/.ssh/astra_hetzner` and `ops/origin.env`):
+
+```bash
+ops/monthly_maintenance.sh                          # report only — changes nothing
+AAE_BACKUP_PASSPHRASE=… ops/monthly_maintenance.sh --apply            # backup, OS updates, prune, reboot if needed
+AAE_BACKUP_PASSPHRASE=… ops/monthly_maintenance.sh --apply --deploy   # ...and ship origin/main
+```
+
+The report covers the public pages and rails, the box (kernel, pending
+reboot, packages, disk, failed units, container health, drift from
+`origin/main`, 30 days of logs), and the money (live keys by tier, keys
+superseded within two minutes of minting, deluxe editions paid vs. compiled,
+and any legacy birth data left in telemetry). `--apply` refuses to change the
+box until an encrypted backup has been drilled and copied home.
+
 ---
 
 ## 5. Troubleshooting
@@ -333,6 +351,31 @@ AAE_BACKUP_PASSPHRASE=… backend/.venv/bin/python backend/tools/backup.py resto
 # drill — in-memory round-trip self-check, touches nothing
 AAE_BACKUP_PASSPHRASE=… backend/.venv/bin/python backend/tools/backup.py drill
 ```
+
+### 7.1 On the box — the layout is different, and the defaults miss it
+
+The defaults above are the DEV layout. On the deployed box **neither default
+exists**: the databases live in the `backend-data` Docker volume (mounted at
+`/app/data` inside the backend container, absent from the host's
+`backend/data`), and compose reads secrets from the **repo-root** `.env`, not
+`backend/.env`. Run as written above, `create` found no ledger and no secrets.
+The purchase ledger is also in WAL mode, so a plain file copy of it can be
+missing committed rows — `backup.py` now snapshots every SQLite file through
+the online-backup API, and `drill` runs `pragma integrity_check` on the
+restored copy.
+
+Run it inside a one-off backend container, which mounts the same volume:
+
+```bash
+cd ~/astro-aae && mkdir -p ~/backups
+AAE_BACKUP_PASSPHRASE=… docker compose run --rm --no-deps -T -e AAE_BACKUP_PASSPHRASE \
+  -v "$PWD/.env:/run/aae.env:ro" -v "$HOME/backups:/backups" \
+  backend python tools/backup.py create --out /backups --env /run/aae.env
+```
+
+`ops/monthly_maintenance.sh --backup` does exactly this from the operator's
+machine, drills it, and copies the file home (off-box) — see §4.1. Archive
+members restore as `app/data/*.db` and `run/aae.env`.
 
 `backups/` and `*.enc` are gitignored. Schedule `create` with a **systemd
 timer** (or cron) on the host and push the resulting file to encrypted

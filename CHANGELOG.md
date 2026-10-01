@@ -3,6 +3,29 @@
 Per-phase log for the Production Hardening & Symbolic Intelligence Expansion pass.
 Baseline: `d9afc4b` (36 backend tests, clean frontend build).
 
+## Monthly maintenance, scripted — and a backup that actually holds the ledger (2026-10-01)
+
+- **`ops/monthly_maintenance.sh`** — the box + webpage pass in one command from
+  the operator's machine. Report-only by default; `--backup`, `--apply`
+  (OS upgrade, build-cache prune, journal vacuum, reboot only if the kernel
+  asks, then waits for ssh + health), `--deploy`, `--purge-legacy`. `--apply`
+  refuses to touch the box until an encrypted backup has been drilled on the
+  box and copied home. The report also reads the money: live keys by tier,
+  keys superseded within 2 minutes of minting (the webhook race), deluxe
+  editions paid vs. compiled, and legacy birth data left in telemetry.
+- **`backend/tools/backup.py` missed the purchase ledger on the box.** Its
+  defaults (`backend/data`, `backend/.env`) are the dev layout; deployed, the
+  databases are in the `backend-data` volume and the secrets in the
+  repo-root `.env`. New `--data` / `--env` options; every SQLite file is now
+  snapshotted through the online-backup API (the ledger is WAL-mode, and a
+  plain copy of a WAL database can miss committed rows — measured: a copy
+  taken while the writer was open had no table at all); `drill` checks
+  `pragma integrity_check` on the restored copy; members restore 0600.
+  DEPLOY.md §4.1 and §7.1.
+- `npm audit fix` (lockfile only): two dev-tooling advisories cleared
+  (`brace-expansion`, `fast-uri`, both under the PWA build). Shipped
+  dependencies and `requirements.txt`: 0 known vulnerabilities.
+
 ## Paid work that reaches the customer — the webhook race and the 524s (2026-10-01)
 
 Two defects, each of which took money and delivered nothing.

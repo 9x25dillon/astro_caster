@@ -9,6 +9,8 @@ import os
 import sys
 import tarfile
 
+import sqlite3
+
 import pytest
 
 sys.path.insert(0, os.path.join(
@@ -105,3 +107,74 @@ def test_passphrase_required(monkeypatch):
     monkeypatch.delenv("AAE_BACKUP_PASSPHRASE", raising=False)
     with pytest.raises(SystemExit):
         B._passphrase(None)
+
+
+# ── the deployed layout (ops/monthly_maintenance.sh) ────────────────────────
+#
+# On the box the ledger lives in the `backend-data` volume (/app/data in the
+# container) and compose reads secrets from the REPO-ROOT .env. The defaults
+# (backend/data, backend/.env) find neither there, so a backup taken as
+# DEPLOY.md §7 described held no purchase ledger and no secrets.
+
+def _ledger(path, rows=3, wal=True):
+    conn = sqlite3.connect(path)
+    if wal:
+        conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("CREATE TABLE receipts (ref TEXT, cents INT)")
+    conn.executemany("INSERT INTO receipts VALUES (?, ?)",
+                     [(f"pi_{i}", 550) for i in range(rows)])
+    conn.commit()
+    return conn
+
+
+def test_explicit_paths_capture_the_deployed_layout(tmp_path):
+    volume = tmp_path / "volume"
+    volume.mkdir()
+    _ledger(volume / "receipts.db").close()
+    root_env = tmp_path / "elsewhere" / ".env"
+    root_env.parent.mkdir()
+    root_env.write_text("AAE_SECRET=box\n")
+
+    found = B._sources(str(volume), [str(root_env)])
+    assert {p.name for p in found} == {"receipts.db", ".env"}
+
+
+def test_live_wal_ledger_snapshots_to_a_valid_database(tmp_path):
+    """A writer holds the database open in WAL mode, as the backend does, with
+    committed rows still in the -wal file. A plain byte copy of receipts.db
+    would miss them; the online-backup snapshot must carry every row."""
+    db = tmp_path / "receipts.db"
+    writer = _ledger(db, rows=5)
+    try:
+        writer.execute("INSERT INTO receipts VALUES ('pi_late', 550)")
+        writer.commit()                      # lands in the WAL, not the main file
+        blob = B._encrypt(B._tar_members(B._collect([db])), _PW)
+    finally:
+        writer.close()
+
+    out = tmp_path / "restore"
+    with tarfile.open(fileobj=io.BytesIO(B._decrypt(blob, _PW)), mode="r:gz") as tar:
+        names = tar.getnames()
+        B._safe_extract(tar, out)
+    restored = out / names[0]
+    conn = sqlite3.connect(restored)
+    try:
+        assert conn.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+        assert conn.execute("SELECT count(*) FROM receipts").fetchone()[0] == 6
+    finally:
+        conn.close()
+
+
+def test_drill_accepts_explicit_paths_and_checks_integrity(tmp_path, capsys):
+    volume = tmp_path / "volume"
+    volume.mkdir()
+    _ledger(volume / "receipts.db").close()
+    env = tmp_path / "root.env"
+    env.write_text("AAE_SECRET=drill\n")
+
+    class _Args:
+        passphrase = "drill-pass"
+        data = str(volume)
+        env = [str(tmp_path / "root.env")]
+    assert B.cmd_drill(_Args()) == 0
+    assert "DRILL PASSED: 2 file(s)" in capsys.readouterr().out

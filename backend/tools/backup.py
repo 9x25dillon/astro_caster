@@ -28,8 +28,10 @@ from __future__ import annotations
 import argparse
 import io
 import os
+import sqlite3
 import sys
 import tarfile
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -61,22 +63,75 @@ def _passphrase(explicit: str | None) -> bytes:
     return raw.encode("utf-8")
 
 
-def _sources() -> list[Path]:
-    """The files worth backing up, those that exist."""
-    found = sorted((_BACKEND / "data").glob("*.db"))
-    env = _BACKEND / ".env"
-    if env.exists():
-        found.append(env)
+def _sources(data_dir: str | None = None, env_files: list[str] | None = None) -> list[Path]:
+    """The files worth backing up, those that exist.
+
+    Defaults are the dev layout (backend/data, backend/.env). The DEPLOYED
+    layout is different on both counts, which is why the paths are arguments:
+    the databases live in the `backend-data` Docker volume (mounted at
+    /app/data inside the backend container, absent from the host's
+    backend/data), and compose reads secrets from the REPO-ROOT .env. Run with
+    the defaults on the box and this backed up neither the purchase ledger nor
+    the secrets — see ops/monthly_maintenance.sh for the invocation that does.
+    """
+    data = Path(data_dir) if data_dir else _BACKEND / "data"
+    found = sorted(data.glob("*.db"))
+    envs = [Path(e) for e in env_files] if env_files else [_BACKEND / ".env"]
+    found.extend(e for e in envs if e.exists())
     return found
 
 
-def _make_tar(paths: list[Path]) -> bytes:
-    """tar.gz the given files under stable arcnames rooted at backend/."""
+_SQLITE_MAGIC = b"SQLite format 3\x00"
+
+
+def _snapshot(p: Path) -> bytes:
+    """The bytes to archive for `p`. A live SQLite database is copied through
+    the online-backup API, so a write landing mid-backup cannot tear the copy
+    (a plain file read of a database being written can capture half a
+    transaction). Anything else is read as-is."""
+    with p.open("rb") as fh:
+        is_db = fh.read(len(_SQLITE_MAGIC)) == _SQLITE_MAGIC
+    if not is_db:
+        return p.read_bytes()
+    with tempfile.TemporaryDirectory() as tmp:
+        dst_path = Path(tmp) / p.name
+        src = sqlite3.connect(f"file:{p}?mode=ro", uri=True)
+        dst = sqlite3.connect(dst_path)
+        try:
+            src.backup(dst)
+        finally:
+            dst.close()
+            src.close()
+        return dst_path.read_bytes()
+
+
+def _arcname(p: Path) -> str:
+    try:
+        return str(p.resolve().relative_to(_REPO.resolve()))
+    except ValueError:
+        # Outside the tree (e.g. a secrets file mounted into a container):
+        # keep the archive relative so restore stays inside its destination.
+        return str(Path(*p.resolve().parts[1:]))
+
+
+def _collect(paths: list[Path]) -> list[tuple[str, bytes]]:
+    return [(_arcname(p), _snapshot(p)) for p in paths]
+
+
+def _tar_members(members: list[tuple[str, bytes]]) -> bytes:
     buf = io.BytesIO()
     with tarfile.open(fileobj=buf, mode="w:gz") as tar:
-        for p in paths:
-            tar.add(p, arcname=str(p.relative_to(_REPO)))
+        for name, data in members:
+            info = tarfile.TarInfo(name=name)
+            info.size = len(data)
+            info.mode = 0o600          # ledger + secrets: owner-only on restore
+            tar.addfile(info, io.BytesIO(data))
     return buf.getvalue()
+
+
+def _make_tar(paths: list[Path]) -> bytes:
+    """tar.gz the given files under stable arcnames relative to the repo."""
+    return _tar_members(_collect(paths))
 
 
 def _encrypt(plaintext: bytes, passphrase: bytes) -> bytes:
@@ -100,16 +155,16 @@ def _decrypt(blob: bytes, passphrase: bytes) -> bytes:
 
 def cmd_create(args) -> int:
     passphrase = _passphrase(args.passphrase)
-    sources = _sources()
+    sources = _sources(getattr(args, "data", None), getattr(args, "env", None))
     if not sources:
-        sys.exit("nothing to back up — no backend/data/*.db and no backend/.env")
+        sys.exit("nothing to back up — no *.db in the data dir and no env file")
     blob = _encrypt(_make_tar(sources), passphrase)
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
     ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     out = out_dir / f"aae-backup-{ts}.enc"
     out.write_bytes(blob)
-    rel = ", ".join(str(p.relative_to(_REPO)) for p in sources)
+    rel = ", ".join(_arcname(p) for p in sources)
     print(f"✓ backed up {len(sources)} file(s) [{rel}] → {out} ({len(blob):,} bytes)")
     return 0
 
@@ -142,13 +197,12 @@ def cmd_drill(args) -> int:
     """Exit-criterion self-check: back up the live state to memory, restore
     it to a temp dir, and confirm every file round-trips byte-for-byte.
     Touches no real files."""
-    import tempfile
-
     passphrase = _passphrase(args.passphrase)
-    sources = _sources()
+    sources = _sources(getattr(args, "data", None), getattr(args, "env", None))
     if not sources:
-        sys.exit("nothing to drill — no backend/data/*.db and no backend/.env")
-    blob = _encrypt(_make_tar(sources), passphrase)
+        sys.exit("nothing to drill — no *.db in the data dir and no env file")
+    members = _collect(sources)
+    blob = _encrypt(_tar_members(members), passphrase)
 
     # Wrong passphrase must fail the HMAC, not restore garbage.
     try:
@@ -161,15 +215,30 @@ def cmd_drill(args) -> int:
         tar_bytes = _decrypt(blob, passphrase)
         with tarfile.open(fileobj=io.BytesIO(tar_bytes), mode="r:gz") as tar:
             _safe_extract(tar, Path(tmp))
-        for src in sources:
-            restored = Path(tmp) / src.relative_to(_REPO)
+        for name, data in members:
+            restored = Path(tmp) / name
             if not restored.exists():
-                sys.exit(f"✗ DRILL FAILED: {src.name} missing after restore")
-            if restored.read_bytes() != src.read_bytes():
-                sys.exit(f"✗ DRILL FAILED: {src.name} differs after restore")
+                sys.exit(f"✗ DRILL FAILED: {name} missing after restore")
+            if restored.read_bytes() != data:
+                sys.exit(f"✗ DRILL FAILED: {name} differs after restore")
+            # A restored ledger must OPEN, not merely match bytes.
+            if data.startswith(_SQLITE_MAGIC):
+                conn = sqlite3.connect(restored)
+                try:
+                    ok = conn.execute("PRAGMA integrity_check").fetchone()[0]
+                finally:
+                    conn.close()
+                if ok != "ok":
+                    sys.exit(f"✗ DRILL FAILED: {name} integrity_check: {ok}")
     print(f"✓ DRILL PASSED: {len(sources)} file(s) round-tripped byte-for-byte; "
           f"wrong passphrase correctly rejected ({len(blob):,} byte backup)")
     return 0
+
+
+def _add_source_args(p: argparse.ArgumentParser) -> None:
+    p.add_argument("--data", help="directory holding the *.db files (default: backend/data)")
+    p.add_argument("--env", action="append",
+                   help="secrets file to include; repeatable (default: backend/.env)")
 
 
 def main() -> int:
@@ -180,6 +249,7 @@ def main() -> int:
     c = sub.add_parser("create", help="write an encrypted backup file")
     c.add_argument("--out", default="backups", help="output directory (default: backups/)")
     c.set_defaults(func=cmd_create)
+    _add_source_args(c)
 
     r = sub.add_parser("restore", help="decrypt a backup into a directory")
     r.add_argument("file", help="the .enc backup file")
@@ -188,6 +258,7 @@ def main() -> int:
 
     d = sub.add_parser("drill", help="round-trip self-check, touches nothing")
     d.set_defaults(func=cmd_drill)
+    _add_source_args(d)
 
     args = ap.parse_args()
     return args.func(args)
