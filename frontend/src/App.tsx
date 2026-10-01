@@ -178,6 +178,15 @@ export const App: React.FC = () => {
     }, 150);
   };
 
+  // A deluxe edition was just paid for on the card rail and its claim minted.
+  // Stripe's return reloaded the page into chapter I; take the customer to the
+  // Oracle section, where ArcanaModal restores the session and compiles it.
+  const deluxeReady = useStore((s) => s.deluxeReady);
+  useEffect(() => {
+    if (deluxeReady) openReadingAt(".arc-oracle");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deluxeReady]);
+
   // Ergonomic law: hands on keys. 1–8 jump chapters, Esc is always home,
   // "/" focuses Ask in the margin's foot. Never hijacked while typing.
   useEffect(() => {

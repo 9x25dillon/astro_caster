@@ -1,6 +1,6 @@
 // B2 (NEXT_ARC): the Bookshelf. Done-when, verbatim: "a report generated
 // last month can be reopened and reprinted offline."
-import { expect, test, mintedTokens, openChapter, seedShelf } from "./helpers";
+import { expect, test, fulfillReport, isReportRoute, mintedTokens, openChapter, seedShelf } from "./helpers";
 
 // A month-old shelved session with a deluxe edition attached. Birth data is
 // the Greenwich default so the offline re-cast is cheap and deterministic.
@@ -67,17 +67,13 @@ test("a generated Oracle Report shelves itself", async ({ page }) => {
 
   // Serve a canned Oracle response — the test is about the auto-save hook,
   // not the AI layer.
-  await page.route((url) => url.pathname.endsWith("/oracle-report"), (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
-        spread: "three_card", source: "golden_dawn",
-        question: "What do I need to understand right now?",
-        seed: "e2e-autosave-seed", lineage: "Golden Dawn / Hermetic",
-        report: "# ✦ ORACLE REPORT ✦\n\n## I. Auto-saved\n\nShelved on arrival.",
-        ai_source: "offline", model: null, disclaimer: "mirror, not verdict",
-      }),
+  await page.route(isReportRoute("oracle-report"), (route) =>
+    fulfillReport(route, {
+      spread: "three_card", source: "golden_dawn",
+      question: "What do I need to understand right now?",
+      seed: "e2e-autosave-seed", lineage: "Golden Dawn / Hermetic",
+      report: "# ✦ ORACLE REPORT ✦\n\n## I. Auto-saved\n\nShelved on arrival.",
+      ai_source: "offline", model: null, disclaimer: "mirror, not verdict",
     })
   );
 

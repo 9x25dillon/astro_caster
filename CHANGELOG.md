@@ -3,6 +3,40 @@
 Per-phase log for the Production Hardening & Symbolic Intelligence Expansion pass.
 Baseline: `d9afc4b` (36 backend tests, clean frontend build).
 
+## Paid work that reaches the customer — the webhook race and the 524s (2026-10-01)
+
+Two defects, each of which took money and delivered nothing.
+
+- **The webhook killed the key the browser had just received.** A card
+  purchase reaches the server twice, concurrently: the browser's return
+  (`GET /api/checkout/{id}`) and Stripe's `checkout.session.completed`. Both
+  called `relink_ref`, which SUPERSEDES the active token for the payment and
+  mints a new one. When the browser won the race — the usual order — the
+  webhook revoked the browser's key: the page said "Unlocked", the next launch
+  said "no longer valid", and every unlock link / QR handed to the APK carried
+  a dead key. The webhook now calls `ENT.ensure_ref`, which mints only when no
+  entitlement of that tier is active (it still records the purchase for
+  restore and the billing portal, and still upgrades a lower tier).
+  `tests/test_checkout_handoff_race.py`.
+- **The Oracle Report and the $5.50 deluxe edition were Cloudflare 524s.**
+  Both were single buffered responses (16k and 32k tokens at high effort)
+  behind Cloudflare's 100-second origin limit — the exact defect the Course
+  was fixed for in August. The server finished, billed the model call, and
+  threw the report away. New SSE routes `/api/oracle-report-stream` and
+  `/api/personal-report-stream` (same gates and status codes, decided before
+  the stream opens; accounting only on a clean finish); the client streams
+  both with live text and falls back to the buffered routes only when a
+  stream cannot open. The Library's deluxe compile streams too.
+  `tests/test_report_streams.py`.
+- **A paid deluxe return now compiles itself.** Stripe's return reloads into
+  chapter I; the claim landed in localStorage and the customer was told to go
+  find a button. The store now retries the claim while Stripe settles (402),
+  hands the seed to the Reading chapter, which restores THAT session from the
+  Library and compiles it once. `e2e/deluxe-checkout.spec.ts` asserts the
+  compile happens with the new claim.
+- Lint: two pre-existing ruff findings (F821 in `main.py`, E702 in
+  `test_payment_hardening.py`) fixed.
+
 ## The key that crosses on its own — unlock links, QR hand-off, App Links, quiet renewal (2026-09-15, release/key-handoff-1.0.8 · APK v1.0.8)
 
 A subscription is one bearer key in localStorage. Getting it to a second

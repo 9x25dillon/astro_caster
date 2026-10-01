@@ -128,9 +128,12 @@ def _signed(secret: str, body: dict, ts: int) -> tuple[bytes, str]:
 def test_replayed_webhook_event_is_acknowledged_but_not_reapplied(monkeypatch, tmp_path):
     _rail(monkeypatch, tmp_path)
     monkeypatch.setenv("AAE_STRIPE_WEBHOOK_SECRET", "whsec_test")
-    main._SEEN_EVENTS.clear(); main._SEEN_EVENT_SET.clear()
+    main._SEEN_EVENTS.clear()
+    main._SEEN_EVENT_SET.clear()
     applied = []
-    monkeypatch.setattr(ENT, "relink_ref", lambda ref, tier, verified: applied.append(ref) or
+    # The webhook's mint verb is ensure_ref (never relink — it must not
+    # supersede the key the browser's return already handed over).
+    monkeypatch.setattr(ENT, "ensure_ref", lambda ref, tier, verified: applied.append(ref) or
                         ENT.mint_entitlement(tier, ref, verified))
     evt = {"id": "evt_replay_1", "type": "checkout.session.completed",
            "data": {"object": {"id": "cs_r", "payment_status": "paid", "mode": "payment",

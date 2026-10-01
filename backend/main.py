@@ -17,9 +17,11 @@ Endpoints:
   POST /api/learning-path       – deterministic archetypal learning path (Classroom)
   POST /api/arcana-calendar     – export forecast as an .ics calendar (ritual/journal)
   POST /api/oracle-report       – Fable 5 long-form report (oracle tier; offline fallback)
+  POST /api/oracle-report-stream – the same report as SSE (beats CF's 100s cap)
   POST /api/course              – Fable-designed personal curriculum (oracle tier)
   POST /api/course-stream       – the same curriculum as SSE (beats CF's 100s cap)
   POST /api/personal-report     – deluxe compiled edition (optional post-Oracle product)
+  POST /api/personal-report-stream – the same edition as SSE (beats CF's 100s cap)
   POST /api/personal-report/purchase – separate purchase rail: mint a report claim (PDF-2)
   POST /api/personal-report/claim/restore – re-mint a PAID claim whose browser copy is gone
   POST /api/deck-art            – deterministic deck-art prompts (Studio)
@@ -66,6 +68,7 @@ except ImportError:  # dotenv is optional
     pass
 
 import json as _json
+from collections import deque
 
 from fastapi import FastAPI, Header, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -942,7 +945,7 @@ async def retrieve_checkout(session_id: str, request: Request):
 # replay cannot grant anything new — but it can churn a customer's key (a
 # replayed mint supersedes the one they hold). Dedupe on the event id, bounded,
 # in-process: the app runs one worker and the window is minutes, not days.
-_SEEN_EVENTS: "collections.deque[str]" = __import__("collections").deque(maxlen=4096)
+_SEEN_EVENTS: "deque[str]" = deque(maxlen=4096)
 _SEEN_EVENT_SET: set = set()
 
 
@@ -977,11 +980,15 @@ async def stripe_webhook(request: Request):
     if plan is None:
         return {"received": True, "handled": False}     # event we don't act on
     if plan["action"] == "mint":
-        ENT.relink_ref(plan["ref"], plan["tier"], verified=True)
+        # ensure, not relink: the browser's return usually lands first and has
+        # already handed the customer their key — a relink here superseded it
+        # (see ENT.ensure_ref and tests/test_checkout_handoff_race.py).
+        minted = ENT.ensure_ref(plan["ref"], plan["tier"], verified=True)
         if plan.get("customer"):    # so the holder can self-manage / cancel
             RCPT.stripe_customer_set(plan["ref"], plan["customer"])
-        _spawn(TEL.log_tier(action="stripe_mint", tier=plan["tier"],
-                            verified=True, ref=plan["ref"][:18]))
+        if minted is not None:
+            _spawn(TEL.log_tier(action="stripe_mint", tier=plan["tier"],
+                                verified=True, ref=plan["ref"][:18]))
     else:  # revoke
         RCPT.ent_revoke_ref(plan["ref"], note="stripe refund/cancel")
         _spawn(TEL.log_tier(action="stripe_revoke", tier="", verified=True,
@@ -1656,6 +1663,80 @@ async def oracle_report(req: OracleReportRequest, request: Request):
     return result
 
 
+def _sse_report(events, label: str, on_done) -> StreamingResponse:
+    """Frame a ("chunk", str) / ("done", model) generator as Server-Sent Events.
+
+    `on_done(result)` runs the endpoint's accounting ONLY on a clean finish, so
+    a severed stream is never billed as a delivered report — the contract
+    /api/course-stream established. The headers are the ones that matter:
+    X-Accel-Buffering: no stops nginx from holding the chunks back, which would
+    reintroduce exactly the silence Cloudflare 524s on.
+    """
+    async def gen():
+        result = None
+        try:
+            async for event, payload in events:
+                if event == "done":
+                    result = payload
+                    yield (f"event: done\ndata: "
+                           f"{_json.dumps(payload.model_dump())}\n\n")
+                else:
+                    yield f"event: chunk\ndata: {_json.dumps(payload)}\n\n"
+        except Exception:
+            _log.exception("%s stream failed mid-stream", label)
+            yield ("event: error\ndata: "
+                   f"{_json.dumps(f'the {label} faltered — try again')}\n\n")
+            return
+        if result is not None:
+            on_done(result)
+
+    return StreamingResponse(
+        gen(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+@app.post("/api/oracle-report-stream")
+async def oracle_report_stream(req: OracleReportRequest, request: Request):
+    """The Oracle Report, streamed as Server-Sent Events.
+
+    Same gating and accounting as /api/oracle-report. A 16k-token Fable report
+    at high effort can outlast Cloudflare's 100-second origin limit, and a
+    buffered response then reaches the reader as a 524 after the reading was
+    generated and billed. The buffered route stays for API clients and as the
+    frontend's fallback.
+    """
+    RL.check(request, "oracle", req.entitlement)   # cost cap before any work
+    tier = ENT.entitlement_status(req.entitlement).get("tier", "free")
+    if tier != "oracle":
+        raise HTTPException(
+            status_code=402,
+            detail="oracle entitlement required — the Oracle Report is a paid reading",
+        )
+    ip = CLIENTIP.client_ip(request)   # resolved here: never touch Request in the generator
+    allow_ai, _cap = BUDGET.allow_call(req.entitlement, "oracle", ip)
+
+    def _account(result) -> None:
+        _spawn(TEL.log_ai(
+            tier=tier, lens="oracle_report", depth="report", query=req.question,
+            provider="anthropic" if result.ai_source == "llm" else "offline",
+            model=str(result.model or ""), response_len=len(result.report),
+            source=result.ai_source, sel_type="spread", sel_id=req.spread,
+        ))
+        if result.ai_source == "llm":
+            MET.observe_ai_call("oracle", len(result.report))
+            BUDGET.record(req.entitlement, "oracle", len(result.report), ip)
+        elif not allow_ai:
+            MET.observe_ai_fallback("oracle", "capped")
+        else:
+            MET.observe_ai_fallback(
+                "oracle", "degraded" if ORACLE.ai_configured() else "unconfigured")
+
+    return _sse_report(ORACLE.generate_oracle_report_stream(req, allow_ai=allow_ai),
+                       "oracle report", _account)
+
+
 @app.post("/api/course", response_model=CourseResponse)
 async def course(req: CourseRequest, request: Request):
     """The Course — a Fable-designed personal curriculum over the chart's
@@ -1815,6 +1896,63 @@ async def personal_report(req: PersonalReportRequest, request: Request):
         MET.observe_ai_fallback(
             "deluxe", "degraded" if ORACLE.ai_configured() else "unconfigured")
     return result
+
+
+@app.post("/api/personal-report-stream")
+async def personal_report_stream(req: PersonalReportRequest, request: Request):
+    """The deluxe Personal Report, streamed as Server-Sent Events.
+
+    Same three gates, same order, same status codes as /api/personal-report —
+    oracle tier (402), a purchase claim bound to this seed (402), a genuine
+    Oracle session (409) — all decided BEFORE the stream opens, so a refusal is
+    an HTTP status the client can branch on rather than a mid-stream frame.
+
+    Why it exists: this is the $5.50 product and the longest generation the
+    observatory makes (32k tokens, high effort). Buffered, it outlasted
+    Cloudflare's 100-second origin limit — the customer paid, pressed Compile,
+    and got a 524 while the server finished and billed a report nobody saw.
+    """
+    RL.check(request, "oracle", req.entitlement)   # cost cap before any work
+    tier = ENT.entitlement_status(req.entitlement).get("tier", "free")
+    if tier != "oracle":
+        raise HTTPException(
+            status_code=402,
+            detail="oracle entitlement required — the Personal Report is an "
+                   "optional deluxe edition compiled from your Oracle session",
+        )
+    if not ENT.is_operator(req.entitlement) and \
+            ENT.verify_report_token(req.report_token, req.oracle.seed) is None:
+        raise HTTPException(
+            status_code=402,
+            detail="deluxe purchase required — the Personal Report is a separate "
+                   "one-time purchase per Oracle session; verify your "
+                   "contribution at /api/personal-report/purchase to unlock it",
+        )
+    try:
+        PERSONAL.verify_oracle_session(req)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    ip = CLIENTIP.client_ip(request)
+    allow_ai, _cap = BUDGET.allow_call(req.entitlement, "deluxe", ip)
+
+    def _account(result) -> None:
+        _spawn(TEL.log_ai(
+            tier=tier, lens="personal_report", depth="report", query=req.oracle.question,
+            provider="anthropic" if result.ai_source == "llm" else "offline",
+            model=str(result.model or ""), response_len=len(result.report_markdown),
+            source=result.ai_source, sel_type="spread", sel_id=req.oracle.spread,
+        ))
+        if result.ai_source == "llm":
+            MET.observe_ai_call("deluxe", len(result.report_markdown))
+            BUDGET.record(req.entitlement, "deluxe", len(result.report_markdown), ip)
+        elif not allow_ai:
+            MET.observe_ai_fallback("deluxe", "capped")
+        else:
+            MET.observe_ai_fallback(
+                "deluxe", "degraded" if ORACLE.ai_configured() else "unconfigured")
+
+    return _sse_report(PERSONAL.generate_personal_report_stream(req, allow_ai=allow_ai),
+                       "deluxe edition", _account)
 
 
 @app.post("/api/deck-art", response_model=DeckArtResponse)
