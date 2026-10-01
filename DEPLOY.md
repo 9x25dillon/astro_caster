@@ -262,6 +262,27 @@ docker compose down -v            # stop AND delete backend-data (telemetry/rece
 Backend data persists in the `backend-data` volume across `up`/`down`. Rebuild
 after dependency changes with `--build`.
 
+### 4.0 Deploying from GitHub — no laptop needed
+
+The box deploys itself (`ops/autodeploy.sh`, a systemd timer every 5 min):
+**merge to `main` on github.com → CI passes → live within ~5 minutes.** It
+rebuilds only what changed (backend/packages/compose → full stack;
+frontend/landing → frontend container; docs/tests → nothing), checks health
+through nginx, and if the new version is unhealthy it resets to the previous
+commit, rebuilds that, and never retries the bad commit. A commit whose CI
+failed is not deployed; a passing re-run of CI deploys it. The box only makes
+outbound requests (git fetch + the public Actions API): no SSH key, no
+firewall change, no secret in GitHub. **Whoever can merge to `main` deploys.**
+
+One-time install, as root on the box (the Hetzner web console works — §4.3):
+
+```bash
+G="sudo -u astra git -C /home/astra/astro-aae"; $G fetch -q origin main && bash <($G show origin/main:ops/install_autodeploy.sh)
+```
+
+Watch it: `journalctl -u astra-autodeploy -n 30` · last deploy:
+`cat ~astra/.astra-autodeploy/deployed` · pause: `systemctl stop astra-autodeploy.timer`.
+
 ### 4.1 Monthly maintenance
 
 Run on the first of the month, from the operator's machine (needs
@@ -279,6 +300,28 @@ reboot, packages, disk, failed units, container health, drift from
 superseded within two minutes of minting, deluxe editions paid vs. compiled,
 and any legacy birth data left in telemetry). `--apply` refuses to change the
 box until an encrypted backup has been drilled and copied home.
+
+### 4.3 If the operator's machine is lost
+
+The site, the code and the customers are unaffected: the code is on GitHub,
+and the box holds its own `.env` (Stripe, AI keys, `AAE_SECRET`). What lived
+only on the machine, and what to do about each:
+
+| lost | consequence | do |
+|---|---|---|
+| `~/.astra-signing/` (APK keystore) | **unrecoverable**: no new APK can update an installed one | restore from wherever `BACKUP-README.txt` said it was backed up. If it is truly gone: new keystore, new `assetlinks.json` fingerprint, and readers uninstall + reinstall once. The web app is unaffected. |
+| `~/.ssh/astra_hetzner` | no SSH | web console (below), then add a new public key to `/home/astra/.ssh/authorized_keys` and delete the old line |
+| `~/.hetzner-token` | API token is Read & Write — it can delete the server | Hetzner Console → Security → API tokens: **revoke it**, make a new one later |
+| `~/.cloudflare-token` | can edit DNS | Cloudflare → My Profile → API Tokens: **revoke** |
+| `ops/origin.env` | the origin IP | it is on the server's page in the Hetzner console |
+| `AAE_BACKUP_PASSPHRASE` | old `.enc` backups unreadable without it | pick a new one; Hetzner's own nightly backups are separate and unaffected |
+
+Revoke first if the dead disk could ever be read by someone else (a repair
+shop, a resale). **Getting onto the box without a key:** Hetzner Cloud
+Console → the `astra` server → **Rescue → Reset root password** (copy it) →
+the **`>_` Console** button → log in as `root`. The console bypasses the
+firewall and SSH entirely. From there, §4.0's one-line install makes every
+future deploy a GitHub merge.
 
 ---
 

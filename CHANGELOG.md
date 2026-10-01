@@ -3,6 +3,21 @@
 Per-phase log for the Production Hardening & Symbolic Intelligence Expansion pass.
 Baseline: `d9afc4b` (36 backend tests, clean frontend build).
 
+## Deploy by merging on GitHub — the box pulls (2026-10-01)
+
+The operator's machine died, and with it the only route to a deploy (SSH from
+that machine). `ops/autodeploy.sh` + `ops/install_autodeploy.sh`: a systemd
+timer on the box fetches `main` every 5 minutes and deploys a new commit only
+after CI passed on that exact SHA (public Actions API), rebuilding only what
+changed; unhealthy through nginx → reset to the previous commit, rebuild,
+never retry the bad one. Outbound-only: no SSH key, no firewall change, no
+secret in GitHub. The service runs the script from `origin/main` via `git
+show`, so the merge that introduces it can deploy itself and later fixes to it
+apply without reinstalling. Ten scenarios simulated against a local remote
+(pending/failed/re-run CI, frontend/backend/docs scopes, unhealthy rollback
+and no-retry, local edits refused). DEPLOY.md §4.0 (install) and §4.3 (a lost
+operator machine: what is gone, what to revoke, the web-console way in).
+
 ## Monthly maintenance, scripted — and a backup that actually holds the ledger (2026-10-01)
 
 - **`ops/monthly_maintenance.sh`** — the box + webpage pass in one command from
