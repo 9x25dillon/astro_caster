@@ -361,6 +361,40 @@ def relink_ref(ref: str, tier: str, verified: bool) -> dict:
     return mint_entitlement(tier, ref=ref, verified=verified)
 
 
+_TIER_RANK = {"supporter": 1, "oracle": 2}
+
+
+def ensure_ref(ref: str, tier: str, verified: bool) -> Optional[dict]:
+    """Make sure a payment reference has a live entitlement of at least `tier`,
+    WITHOUT superseding one that already does. Returns the freshly minted token
+    dict, or None when an adequate entitlement was already active.
+
+    This is the Stripe webhook's verb, and it is deliberately not `relink_ref`.
+    A card purchase reaches the server twice, concurrently and in no fixed
+    order: the browser's return (GET /api/checkout/{id}, which relinks and
+    hands the key to the customer) and `checkout.session.completed`. When the
+    webhook relinked too and arrived second — the usual order — it superseded
+    the key the browser had just stored, so the web page lost its unlock on the
+    next launch and every unlock link handed to the APK carried a dead key. The
+    webhook is a backstop that records the purchase for restore and the billing
+    portal; it must never take a key away from the customer who paid.
+
+    An unreadable ledger reads as "nothing active" and mints — the same
+    fail-open posture as `mint_entitlement`: a paying customer's purchase is
+    recorded rather than dropped, and nobody's key is superseded by a mint."""
+    try:
+        import receipts as _rcpt
+        prior = _rcpt.ent_find_active_ref(ref)
+    except Exception:
+        prior = None
+    if prior and _TIER_RANK.get(str(prior.get("tier")), 0) >= _TIER_RANK.get(tier, 0):
+        return None
+    if prior:
+        # Below what Stripe says was bought — move up, never leave them short.
+        return relink_ref(ref, tier, verified)
+    return mint_entitlement(tier, ref=ref, verified=verified)
+
+
 def verify_token(token: Optional[str]) -> Optional[dict]:
     """Return the decoded payload if the token is valid & unexpired, else None.
 

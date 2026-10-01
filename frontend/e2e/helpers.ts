@@ -100,3 +100,29 @@ export async function openChapter(
 ) {
   await page.locator(`.dial-node[data-ch="${ch}"]`).click();
 }
+
+/**
+ * Answer a long-form report route the way the server does. The Oracle Report
+ * and the deluxe edition are fetched from their `-stream` SSE routes (a
+ * buffered response is cut off by Cloudflare at 100s), with the buffered route
+ * as the fallback — so a stub must match BOTH paths and speak SSE on the
+ * stream one: one `done` frame carrying the whole result.
+ */
+export function isReportRoute(name: "oracle-report" | "personal-report") {
+  return (url: URL) =>
+    url.pathname.endsWith(`/${name}`) || url.pathname.endsWith(`/${name}-stream`);
+}
+
+export function fulfillReport(
+  route: import("@playwright/test").Route,
+  result: unknown,
+) {
+  const streamed = new URL(route.request().url()).pathname.endsWith("-stream");
+  return route.fulfill(streamed
+    ? {
+        status: 200,
+        contentType: "text/event-stream",
+        body: `event: done\ndata: ${JSON.stringify(result)}\n\n`,
+      }
+    : { status: 200, contentType: "application/json", body: JSON.stringify(result) });
+}

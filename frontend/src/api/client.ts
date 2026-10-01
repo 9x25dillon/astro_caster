@@ -757,14 +757,123 @@ export function fetchOracleReport(
     entitlement?: string | null;
   } = {},
 ): Promise<OracleReportResponse> {
-  return post<OracleReportResponse>("/oracle-report", {
+  return post<OracleReportResponse>("/oracle-report", oracleReportBody(chart, question, opts));
+}
+
+function oracleReportBody(
+  chart: ChartResponse,
+  question: string,
+  opts: { spread?: SpreadType; source?: SourceSystem; date?: string; entitlement?: string | null },
+) {
+  return {
     chart,
     spread: opts.spread ?? "three_card",
     source: opts.source ?? "golden_dawn",
     question,
     date: opts.date ?? ((opts.spread ?? "three_card") === "daily" ? localToday() : null),
     entitlement: opts.entitlement ?? null,
-  });
+  };
+}
+
+/** Handlers for a streamed long-form report. `onDone` carries the
+ *  AUTHORITATIVE result and must be rendered over anything accumulated from
+ *  `onChunk` — when the AI layer declines part-way, `done` carries the
+ *  deterministic edition as a replacement, not an append. */
+export interface ReportStreamHandlers<T> {
+  onChunk?: (text: string) => void;
+  onDone?: (result: T) => void;
+  onError?: (message: string) => void;
+}
+
+/**
+ * POST a long generation to an SSE route and read it to its `done` frame.
+ *
+ * Why streaming at all: Cloudflare answers the browser with a 524 if an origin
+ * has not finished a buffered response within 100 seconds, and the Oracle
+ * Report and the deluxe edition both run longer than that. The server then
+ * finishes, bills the model call, and throws the result away — the customer
+ * paid and received nothing. Bytes in flight reset Cloudflare's timer.
+ *
+ * Every 4xx surfaces as an ApiError (402 tier / 402 claim / 409 session /
+ * 429), because a deliberate refusal retried on the buffered route only fails
+ * again more slowly. A stream that cannot be opened at all — a network error,
+ * a 5xx, an old cached service worker, a proxy that strips event streams —
+ * falls back to the buffered route, so a reader is never worse off than before.
+ */
+async function streamReport<T>(
+  path: string,
+  body: unknown,
+  handlers: ReportStreamHandlers<T>,
+  fallback: () => Promise<T>,
+  label: string,
+  signal?: AbortSignal,
+): Promise<void> {
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal,
+    });
+  } catch (e) {
+    if (signal?.aborted) throw e;
+    handlers.onDone?.(await fallback());
+    return;
+  }
+  if (res.status >= 400 && res.status < 500) {
+    const raw = await res.text().catch(() => res.statusText);
+    throw new ApiError(res.status, unwrapDetail(raw));
+  }
+  const type = res.headers.get("content-type") ?? "";
+  if (!res.ok || !res.body || !type.includes("text/event-stream")) {
+    handlers.onDone?.(await fallback());
+    return;
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = "";
+  let finished = false;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    let idx: number;
+    while ((idx = buf.indexOf("\n\n")) !== -1) {
+      const block = buf.slice(0, idx);
+      buf = buf.slice(idx + 2);
+      const ev = parseSSE(block);
+      if (!ev) continue;
+      if (ev.event === "chunk") handlers.onChunk?.(ev.data as string);
+      else if (ev.event === "done") {
+        finished = true;
+        handlers.onDone?.(ev.data as T);
+      } else if (ev.event === "error") handlers.onError?.(String(ev.data));
+    }
+  }
+  // No `done` frame means no report, however much text arrived — say so
+  // rather than leave a half-written page looking finished.
+  if (!finished) handlers.onError?.(`the ${label} was cut off before it finished — try again`);
+}
+
+/** The Oracle Report, streamed (see `streamReport`). Same gating as
+ *  `fetchOracleReport`: 402 below oracle tier arrives as an ApiError. */
+export function fetchOracleReportStream(
+  chart: ChartResponse,
+  question: string,
+  opts: {
+    spread?: SpreadType;
+    source?: SourceSystem;
+    date?: string;
+    entitlement?: string | null;
+    signal?: AbortSignal;
+  },
+  handlers: ReportStreamHandlers<OracleReportResponse>,
+): Promise<void> {
+  return streamReport(
+    "/oracle-report-stream", oracleReportBody(chart, question, opts), handlers,
+    () => fetchOracleReport(chart, question, opts), "Oracle Report", opts.signal);
 }
 
 // ── The Course — Fable-designed personal curriculum (oracle tier only) ────────
@@ -1066,7 +1175,33 @@ export function fetchPersonalReport(
     reportToken?: string | null;
   } = {},
 ): Promise<PersonalReportResponse> {
-  return post<PersonalReportResponse>("/personal-report", {
+  return post<PersonalReportResponse>("/personal-report", personalReportBody(chart, oracle, opts));
+}
+
+type PersonalReportOpts = Parameters<typeof fetchPersonalReport>[2];
+
+/** The deluxe edition, streamed (see `streamReport`). This is the $5.50
+ *  product and the longest generation the observatory makes — buffered, it
+ *  reached the customer as a Cloudflare 524. Same gates as
+ *  `fetchPersonalReport`: 402 tier, 402 naming "purchase" without a claim,
+ *  409 for a session that no longer matches the chart — all ApiErrors. */
+export function fetchPersonalReportStream(
+  chart: ChartResponse,
+  oracle: OracleReportResponse,
+  opts: PersonalReportOpts & { signal?: AbortSignal },
+  handlers: ReportStreamHandlers<PersonalReportResponse>,
+): Promise<void> {
+  return streamReport(
+    "/personal-report-stream", personalReportBody(chart, oracle, opts), handlers,
+    () => fetchPersonalReport(chart, oracle, opts), "deluxe edition", opts?.signal);
+}
+
+function personalReportBody(
+  chart: ChartResponse,
+  oracle: OracleReportResponse,
+  opts: PersonalReportOpts = {},
+) {
+  return {
     chart,
     oracle: {
       seed: oracle.seed,
@@ -1087,7 +1222,7 @@ export function fetchPersonalReport(
     life_path: opts.lifePath ?? null,
     entitlement: opts.entitlement ?? null,
     report_token: opts.reportToken ?? null,
-  });
+  };
 }
 
 // ── Deck-Art Prompt Studio (Phase 4) — image PROMPTS only, generated offline ──

@@ -38,7 +38,7 @@ from typing import Dict, List
 import astrology as A
 import promptsafe as PS
 import tarot as TAROT
-from oracle_report import _call_fable, build_report_substrate
+from oracle_report import _call_fable, _call_fable_stream, build_report_substrate
 from tarot_models import (
     DISCLAIMER,
     OracleReportRequest,
@@ -408,6 +408,57 @@ def _offline_compiled(req: PersonalReportRequest, sub: Dict) -> str:
 # --------------------------------------------------------------------------- #
 # Orchestration
 # --------------------------------------------------------------------------- #
+
+
+async def generate_personal_report_stream(req: PersonalReportRequest,
+                                          allow_ai: bool = True):
+    """`generate_personal_report`, streamed: yields ("chunk", str) as the
+    edition is written, then exactly one ("done", PersonalReportResponse).
+
+    WHY. This is the $5.50 product, and at a 32k-token budget on high effort it
+    is the longest generation the observatory makes — minutes, against
+    Cloudflare's 100-second origin limit. Buffered, the reader paid, pressed
+    Compile, and received a 524 while the server finished, billed the model
+    call, and threw the edition away. Bytes in flight reset Cloudflare's timer.
+
+    The session check runs FIRST and raises ValueError exactly as the buffered
+    path does; the endpoint calls `verify_oracle_session` before it opens the
+    stream so a forged session is still an HTTP 409, not a mid-stream error.
+    """
+    verify_oracle_session(req)
+    sub = build_personal_substrate(req)
+
+    def _response(markdown: str, ai_source: str, model) -> PersonalReportResponse:
+        return PersonalReportResponse(
+            seed=req.oracle.seed, short_seed=sub["short_seed"],
+            oracle_date=sub["oracle_date"],
+            spread=req.oracle.spread, source=req.oracle.source,
+            lineage=sub["meta"]["name"], report_markdown=markdown,
+            ai_source=ai_source, model=model,
+        )
+
+    if not allow_ai:
+        text = _offline_compiled(req, sub)
+        yield ("chunk", text)
+        yield ("done", _response(text, "offline", None))
+        return
+
+    system = (PERSONAL_REPORT_SYSTEM
+              .replace("{ORACLE_DATE}", sub["oracle_date"])
+              .replace("{SHORT_SEED}", sub["short_seed"])) + PS.SYSTEM_NOTE
+    final = None
+    async for event, payload in _call_fable_stream(
+        system, _substrate_prompt(req, sub),
+        model=_MODEL, max_tokens=_MAX_TOKENS, effort=_EFFORT,
+    ):
+        if event == "chunk":
+            yield ("chunk", payload)
+        else:
+            final = payload
+    if final:
+        yield ("done", _response(final["text"], "llm", final["model"]))
+    else:
+        yield ("done", _response(_offline_compiled(req, sub), "offline", None))
 
 
 async def generate_personal_report(req: PersonalReportRequest,

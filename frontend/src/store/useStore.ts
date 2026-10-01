@@ -202,6 +202,12 @@ interface AstroState {
   // to explain). Transient — never persisted, cleared when acknowledged.
   checkoutNote: string | null;
   checkoutBusy: boolean; // settling a return (the poll window)
+  // The Oracle-session seed of a deluxe edition that was JUST paid for on the
+  // card rail. Set by completeCheckoutReturn once the claim is minted; the
+  // reading chapter restores that session and compiles it, then clears this.
+  // Without it the paid claim sat in localStorage behind a page that had
+  // reloaded into chapter I — the customer saw nothing for their $5.50.
+  deluxeReady: string | null;
 
   // Actions
   setBirth: (b: Partial<BirthInput>) => void;
@@ -236,6 +242,7 @@ interface AstroState {
   refreshEntitlement: () => Promise<{ ok: boolean; note: string }>;
   completeCheckoutReturn: () => Promise<void>;
   setCheckoutNote: (note: string | null) => void;
+  clearDeluxeReady: () => void;
 }
 
 const EMPTY_RESULT: AIResult = {
@@ -401,6 +408,7 @@ export const useStore = create<AstroState>((set, get) => ({
   supportOpen: false,
   checkoutNote: null,
   checkoutBusy: false,
+  deluxeReady: null,
 
   // Any birth data someone actually chose ends the threshold state — the wheel
   // stops being "the sky right now" the moment it becomes somebody's chart.
@@ -817,6 +825,7 @@ export const useStore = create<AstroState>((set, get) => ({
   },
 
   setCheckoutNote: (note) => set({ checkoutNote: note }),
+  clearDeluxeReady: () => set({ deluxeReady: null }),
 
   // The other half of the Stripe redirect: the params were captured and scrubbed
   // at module load (CHECKOUT_RETURN); this exchanges them for the actual unlock.
@@ -876,14 +885,32 @@ export const useStore = create<AstroState>((set, get) => ({
         return;
       }
       const { entitlement } = get();
-      const res = await claimReportCheckout(sessionId, seed, { entitlement });
-      if (res.granted && res.report_token?.token) {
+      // Same race the tier rail polls through: the browser can be back before
+      // Stripe reports the session paid, and the claim answers 402 until it
+      // does. Retry that one answer briefly; anything else is final.
+      let res: Awaited<ReturnType<typeof claimReportCheckout>> | null = null;
+      for (let attempt = 0; attempt < CHECKOUT_POLLS; attempt++) {
+        try {
+          res = await claimReportCheckout(sessionId, seed, { entitlement });
+          break;
+        } catch (e) {
+          const status = (e as { status?: number }).status;
+          if (status !== 402 || attempt === CHECKOUT_POLLS - 1) throw e;
+          await sleep(CHECKOUT_POLL_MS);
+        }
+      }
+      if (res?.granted && res.report_token?.token) {
         saveReportToken(seed, res.report_token.token);
         clearPendingReportSeed();
         trackEvent("checkout_returned", { granted: true, kind: "deluxe" });
+        // Hand the seed to the reading chapter, which restores that session
+        // and compiles it — the customer paid for the edition, not for a note
+        // telling them where to find a button.
         set({
+          deluxeReady: seed,
           checkoutNote:
-            "Deluxe edition unlocked for that Oracle session — open it and compile.",
+            "Deluxe edition unlocked — compiling it now in Chapter II · Reading. " +
+            "It is written as you watch and takes a few minutes.",
         });
       }
     } catch (e) {

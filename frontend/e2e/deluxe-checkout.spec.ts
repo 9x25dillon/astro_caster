@@ -1,4 +1,4 @@
-import { test, expect } from "./helpers";
+import { test, expect, fulfillReport, isReportRoute } from "./helpers";
 
 // Track E-3 — the deluxe edition on the card rail.
 //
@@ -90,18 +90,29 @@ test("the deluxe Buy button stashes the seed, redirects, and returns unlocked", 
     }),
   );
   await context.route(
-    (url) => url.pathname.endsWith("/oracle-report"),
-    (route) => route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
-        spread: "three_card", source: "rider_waite",
-        question: "What do I need to understand right now?",
-        seed: SEED, lineage: "Golden Dawn / Hermetic",
-        report: "# ✦ ORACLE REPORT ✦\n\n## I. The Reading\n\nStubbed for the purchase path.",
-        ai_source: "offline", model: null, disclaimer: "mirror, not verdict",
-      }),
+    isReportRoute("oracle-report"),
+    (route) => fulfillReport(route, {
+      spread: "three_card", source: "rider_waite",
+      question: "What do I need to understand right now?",
+      seed: SEED, lineage: "Golden Dawn / Hermetic",
+      report: "# ✦ ORACLE REPORT ✦\n\n## I. The Reading\n\nStubbed for the purchase path.",
+      ai_source: "offline", model: null, disclaimer: "mirror, not verdict",
     }),
+  );
+  // The compile the customer paid for. Recorded so the test can prove the
+  // return SPENT the claim — the bug was a claim that landed and sat unused.
+  const compiles: string[] = [];
+  await context.route(
+    isReportRoute("personal-report"),
+    (route) => {
+      compiles.push(JSON.parse(route.request().postData() ?? "{}").report_token ?? "");
+      return fulfillReport(route, {
+        seed: SEED, short_seed: "e2edeluxe000", oracle_date: "2026-10-01",
+        spread: "three_card", source: "rider_waite", lineage: "Golden Dawn / Hermetic",
+        report_markdown: "# Cover\n\nThe deluxe edition, delivered after checkout.",
+        ai_source: "offline", model: null, disclaimer: "mirror, not verdict",
+      });
+    },
   );
   await context.route(
     (url) => url.pathname.endsWith("/personal-report/checkout"),
@@ -138,4 +149,11 @@ test("the deluxe Buy button stashes the seed, redirects, and returns unlocked", 
   // Redirected out and back; the claim landed against the stashed seed.
   await expect(page.locator(".checkout-note")).toContainText(/Deluxe edition unlocked/i, { timeout: 15_000 });
   expect(await readTokens(page)).toEqual({ [SEED]: CLAIM.report_token.token });
+
+  // ...and was SPENT: the reload put the reader in chapter I with no Oracle
+  // session in memory. The return must bring that session back from the
+  // Library and compile it with the new claim, without another click.
+  await expect(page.locator(".arc-personal-report"))
+    .toContainText("delivered after checkout", { timeout: 15_000 });
+  expect(compiles).toEqual([CLAIM.report_token.token]);
 });

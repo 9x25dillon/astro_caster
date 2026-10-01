@@ -350,6 +350,48 @@ async def _call_fable(
         return None
 
 
+async def generate_oracle_report_stream(req: OracleReportRequest,
+                                        allow_ai: bool = True):
+    """`generate_oracle_report`, streamed: yields ("chunk", str) as the report
+    is written, then exactly one ("done", OracleReportResponse).
+
+    A 16k-token Fable report at high effort runs past Cloudflare's 100-second
+    origin limit, and the buffered route then reaches the reader as a 524 —
+    generated and billed, never delivered. Same defect and same fix as the
+    Course (`_call_fable_stream`). `done` is authoritative: when the AI layer
+    declines part-way, it carries the deterministic edition as a REPLACEMENT
+    for whatever partial text the client accumulated.
+    """
+    sub = build_report_substrate(req)
+    reading = sub["reading"]
+
+    def _response(report: str, ai_source: str, model) -> OracleReportResponse:
+        return OracleReportResponse(
+            spread=req.spread, source=req.source, question=req.question,
+            seed=reading.seed, lineage=sub["meta"]["name"],
+            report=report, ai_source=ai_source, model=model,
+        )
+
+    if not allow_ai:
+        text = _offline_report(sub, req.question)
+        yield ("chunk", text)
+        yield ("done", _response(text, "offline", None))
+        return
+
+    final = None
+    async for event, payload in _call_fable_stream(
+        REPORT_SYSTEM, _substrate_prompt(sub, req.question),
+    ):
+        if event == "chunk":
+            yield ("chunk", payload)
+        else:
+            final = payload
+    if final:
+        yield ("done", _response(final["text"], "llm", final["model"]))
+    else:
+        yield ("done", _response(_offline_report(sub, req.question), "offline", None))
+
+
 async def generate_oracle_report(req: OracleReportRequest,
                                  allow_ai: bool = True) -> OracleReportResponse:
     """Substrate first (deterministic), then the Fable synthesis with an honest

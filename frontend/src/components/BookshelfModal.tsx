@@ -14,7 +14,7 @@ import { loadReportToken } from "../lib/reportTokens";
 import { JournalPad } from "./JournalPad";
 import { printSessionTome } from "../lib/tomePrint";
 import { Interpretation } from "./DetailPanel";
-import { ApiError, fetchPersonalReport, trackEvent } from "../api/client";
+import { ApiError, fetchPersonalReportStream, trackEvent, type PersonalReportResponse } from "../api/client";
 import { useStore } from "../store/useStore";
 
 const SPREAD_LABEL: Record<string, string> = {
@@ -114,12 +114,20 @@ export const BookshelfModal: React.FC = () => {
         return;
       }
       const session = sessionFromShelf(e);
-      const p = await fetchPersonalReport(chart, session.oracle, {
+      // Streamed, so a multi-minute compile is not cut off by Cloudflare's
+      // 100-second limit (see fetchPersonalReportStream).
+      const box: { value: PersonalReportResponse | null; err: string } = { value: null, err: "" };
+      await fetchPersonalReportStream(chart, session.oracle, {
         date: session.ctx.date,
         generatedAt: session.ctx.generatedAt,
         entitlement,
         reportToken: token,
+      }, {
+        onDone: (r) => { box.value = r; },
+        onError: (m) => { box.err = m; },
       });
+      const p = box.value;
+      if (!p) { setMsg(box.err || "The deluxe edition did not finish — try again."); return; }
       await shelfAttachPersonal(e.seed, {
         report_markdown: p.report_markdown,
         short_seed: p.short_seed,

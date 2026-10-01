@@ -17,9 +17,9 @@ import {
   type DeckEntry,
   renderPlate,
   type PlateResponse,
-  fetchOracleReport,
+  fetchOracleReportStream,
   fetchCourseStream,
-  fetchPersonalReport,
+  fetchPersonalReportStream,
   purchasePersonalReport,
   reportCheckout,
   getPricing,
@@ -45,10 +45,11 @@ import { CLASSROOM, EXPRESSION_KINDS, generateArtifact, type Artifact } from "..
 import { Interpretation } from "./DetailPanel";
 import { useSpeech, speakableText } from "../lib/speech";
 import { readKeep, scopeArcanaSession, useSessionState } from "../lib/arcanaSession";
-import { latestSessionForBirth } from "../lib/oracleSession";
+import { latestSessionForBirth, sessionFromShelf } from "../lib/oracleSession";
+import { sameBirth } from "../lib/birthIdentity";
 import { looksLikeStripeReference } from "../lib/paymentRef";
 import { printSessionTome } from "../lib/tomePrint";
-import { galleryByKind, gallerySave, journalForSeed, shelfAttachPersonal, shelfSaveOracle } from "../lib/bookshelf";
+import { galleryByKind, gallerySave, journalForSeed, shelfAttachPersonal, shelfGet, shelfSaveOracle } from "../lib/bookshelf";
 import { JournalPad } from "./JournalPad";
 import { TarotCard } from "./TarotCard";
 import { CardPlate } from "./CardPlate";
@@ -119,6 +120,8 @@ export const ArcanaModal: React.FC<{
   const isSupporter = useStore((s) => s.isSupporter);
   const openSupport = useStore((s) => s.openSupport);
   const setMargin = useStore((s) => s.setMargin);   // R-2: publish selections to the margin glass
+  const deluxeReady = useStore((s) => s.deluxeReady);   // a deluxe edition just paid for by card
+  const clearDeluxeReady = useStore((s) => s.clearDeluxeReady);
   const speech = useSpeech();   // Speak buttons on the Oracle Report sections
 
   // The readings must survive the chapter dial (see lib/arcanaSession.ts):
@@ -144,6 +147,8 @@ export const ArcanaModal: React.FC<{
   const [deck, setDeck] = useState<DeckEntry[]>([]);       // all 78, for the picker
   const [oracle, setOracle] = useSessionState<OracleReportResponse | null>("oracle", null);
   const [oracleLoading, setOracleLoading] = useState(false);
+  // The report as it streams in, shown until the done frame replaces it.
+  const [oraclePartial, setOraclePartial] = useState("");
   // The Course — premium curriculum over the learning path (Classroom tab).
   const [course, setCourse] = useSessionState<CourseResponse | null>("course", null);
   const [courseLoading, setCourseLoading] = useState(false);
@@ -158,6 +163,7 @@ export const ArcanaModal: React.FC<{
   const [oracleCtx, setOracleCtx] = useSessionState<{ date: string | null; generatedAt: string } | null>("oracleCtx", null);
   const [personal, setPersonal] = useSessionState<PersonalReportResponse | null>("personal", null);
   const [personalLoading, setPersonalLoading] = useState(false);
+  const [personalPartial, setPersonalPartial] = useState("");
   // PDF-2 — the deluxe edition's separate purchase rail (per-session claim).
   const [reportToken, setReportToken] = useState<string | null>(null);
   const [purchaseTx, setPurchaseTx] = useState("");
@@ -235,6 +241,49 @@ export const ArcanaModal: React.FC<{
     return () => { live = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scopeKey]);
+
+  // A deluxe edition was just paid for by card (store.deluxeReady). Bring back
+  // THAT session — not merely the newest one — from the Library, where every
+  // Oracle session shelves itself, then compile it once. Before this, the
+  // claim landed in localStorage and the customer was told to go find a
+  // button; most never did, and the ones who did met a Cloudflare 524.
+  useEffect(() => {
+    if (!deluxeReady || !birth) return;
+    if (oracle?.seed === deluxeReady) return;
+    let live = true;
+    shelfGet(deluxeReady).then((entry) => {
+      if (!live) return;
+      if (!entry || !sameBirth(entry.birth, birth)) {
+        // The claim is saved against its seed, so nothing is lost — but say
+        // where it went instead of promising a compile that cannot start.
+        clearDeluxeReady();
+        setErr("Your deluxe purchase is saved, but the Oracle session it was " +
+               "bought for isn't loaded here. Load that chart, open the session " +
+               "from the Library, and compile it there — no second payment.");
+        return;
+      }
+      const s = sessionFromShelf(entry);
+      setOracle(s.oracle);
+      setOracleCtx(s.ctx);
+      setPersonal(null);
+      setRestoredAt(s.savedAt);
+    }).catch(() => undefined);
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deluxeReady, scopeKey]);
+
+  const autoCompiled = useRef<string | null>(null);
+  useEffect(() => {
+    if (!deluxeReady || !chart || !oracle || oracle.seed !== deluxeReady) return;
+    if (autoCompiled.current === deluxeReady) return;
+    const claim = loadReportToken(deluxeReady);
+    setReportToken(claim);
+    if (tab !== "draw") setTab("draw");
+    autoCompiled.current = deluxeReady;
+    clearDeluxeReady();
+    if (claim && !personal) void loadPersonalReport(claim);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deluxeReady, chart, oracle]);
 
   // The deluxe price + whether cards are accepted here. Fetched once; a failure
   // is silent — the crypto rail and the free tier stand on their own.
@@ -541,9 +590,23 @@ export const ArcanaModal: React.FC<{
       // Pass the local date explicitly so we can capture the EXACT session
       // context — the Personal Report must echo it for the server's seed check.
       const date = spread === "daily" ? localToday() : null;
-      const r = await fetchOracleReport(chart, question, {
-        spread, source, entitlement, date: date ?? undefined,
-      });
+      // STREAMED for the reason the Course is: a Fable report can outlast
+      // Cloudflare's 100-second origin limit, and the buffered route then
+      // reaches the reader as a 524 after the reading was generated and
+      // billed. `done` is authoritative and replaces the partial text.
+      setOraclePartial("");
+      const box: { value: OracleReportResponse | null } = { value: null };
+      await fetchOracleReportStream(
+        chart, question, { spread, source, entitlement, date: date ?? undefined },
+        {
+          onChunk: (t) => setOraclePartial((prev) => prev + t),
+          onDone: (o) => { box.value = o; },
+          onError: (m) => setErr(m),
+        },
+      );
+      setOraclePartial("");
+      const r = box.value;
+      if (!r) return;   // the stream already said why
       setOracle(r);
       setOracleCtx({ date, generatedAt: localToday() });
       setRestoredAt(null);   // freshly generated, not restored
@@ -571,12 +634,16 @@ export const ArcanaModal: React.FC<{
         setErr(String(e));
       }
     } finally {
+      setOraclePartial("");
       setOracleLoading(false);
     }
   }
 
-  async function loadPersonalReport() {
+  // `claim` lets the post-checkout auto-compile pass the token it just read
+  // from storage, before the `reportToken` state from that render exists.
+  async function loadPersonalReport(claim?: string | null) {
     if (!chart || !oracle || personalLoading) return;
+    const token = claim ?? reportToken;
     setPersonalLoading(true); setErr(null);
     try {
       // PDF-4: sigil formation notes, derived deterministically from the SAME
@@ -615,7 +682,12 @@ export const ArcanaModal: React.FC<{
       const reflectionSummary = aiResult?.interpretation?.trim()
         ? aiResult.interpretation.trim().slice(0, 1600)
         : undefined;
-      const p = await fetchPersonalReport(chart, oracle, {
+      // STREAMED: this is the $5.50 product and the longest generation the
+      // observatory makes. Buffered, it outlasted Cloudflare's 100 seconds
+      // and the customer got a 524 while the server finished and billed it.
+      setPersonalPartial("");
+      const box: { value: PersonalReportResponse | null } = { value: null };
+      await fetchPersonalReportStream(chart, oracle, {
         date: oracleCtx?.date ?? null,
         generatedAt: oracleCtx?.generatedAt,
         sigilNotes,
@@ -623,8 +695,15 @@ export const ArcanaModal: React.FC<{
         lifePath,
         reflectionSummary,
         entitlement,
-        reportToken,
+        reportToken: token,
+      }, {
+        onChunk: (t) => setPersonalPartial((prev) => prev + t),
+        onDone: (r) => { box.value = r; },
+        onError: (m) => setErr(m),
       });
+      setPersonalPartial("");
+      const p = box.value;
+      if (!p) return;   // the stream already said why
       setPersonal(p);
       // Bookshelf: the deluxe edition attaches to its session's shelf entry.
       shelfAttachPersonal(p.seed, {
@@ -640,7 +719,7 @@ export const ArcanaModal: React.FC<{
         // PDF-2 gate: the deluxe edition is a separate one-time purchase. A
         // stored claim that bounced is stale (expired/foreign) — drop it so
         // the purchase rail reappears.
-        if (reportToken && oracle) { saveReportToken(oracle.seed, null); setReportToken(null); }
+        if (token && oracle) { saveReportToken(oracle.seed, null); setReportToken(null); }
         setErr("The deluxe edition is a separate one-time purchase per Oracle "
                + "session — verify your contribution below to unlock it.");
         trackEvent("personal_report_purchase_gated", { spread, source });
@@ -657,6 +736,7 @@ export const ArcanaModal: React.FC<{
         setErr(String(e));
       }
     } finally {
+      setPersonalPartial("");
       setPersonalLoading(false);
     }
   }
@@ -1056,6 +1136,13 @@ export const ArcanaModal: React.FC<{
                     </span>
                   </div>
                 )}
+                {!oracle && oracleLoading && oraclePartial && (
+                  // Plain text while it is written; the done frame swaps in
+                  // the rendered report (same reasoning as the Course).
+                  <div className="arc-oracle-report" style={{ marginTop: 10, opacity: 0.75 }}>
+                    <p style={{ whiteSpace: "pre-wrap", margin: 0 }}>{oraclePartial}</p>
+                  </div>
+                )}
 
                 {oracle && (
                   <div className="arc-oracle-report">
@@ -1169,7 +1256,7 @@ export const ArcanaModal: React.FC<{
                                         title="Already bought this session's deluxe edition — on another browser, another device, or before clearing site data? Recover it from your purchase on record.">
                                   {purchasing ? "Checking…" : "↺ restore my purchase"}
                                 </button>
-                                <button className="ghost" onClick={loadPersonalReport} disabled={personalLoading}
+                                <button className="ghost" onClick={() => void loadPersonalReport()} disabled={personalLoading}
                                         title="If your entitlement already carries deluxe access, compile directly.">
                                   {personalLoading ? "Compiling…" : "already unlocked? compile"}
                                 </button>
@@ -1185,12 +1272,17 @@ export const ArcanaModal: React.FC<{
                           )}
                           {reportToken && (
                             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                              <button className={`arc-draw-btn ${personalLoading ? "is-live" : ""}`} onClick={loadPersonalReport} disabled={personalLoading}>
+                              <button className={`arc-draw-btn ${personalLoading ? "is-live" : ""}`} onClick={() => void loadPersonalReport()} disabled={personalLoading}>
                                 {personalLoading ? "Compiling the deluxe edition… (this can take minutes)" : "✦ Compile Personal Report"}
                               </button>
                               <span style={{ opacity: 0.7, fontSize: "0.76rem", color: "var(--gold-soft)" }}>
                                 ✓ deluxe purchase verified for this session
                               </span>
+                            </div>
+                          )}
+                          {personalLoading && personalPartial && (
+                            <div className="arc-oracle-report arc-personal-partial" style={{ marginTop: 10, opacity: 0.75 }}>
+                              <p style={{ whiteSpace: "pre-wrap", margin: 0 }}>{personalPartial}</p>
                             </div>
                           )}
                         </div>
@@ -1252,7 +1344,7 @@ export const ArcanaModal: React.FC<{
                                     🔊 audio companion
                                   </button>
                             )}
-                            <button className="ghost" onClick={loadPersonalReport} disabled={personalLoading}>
+                            <button className="ghost" onClick={() => void loadPersonalReport()} disabled={personalLoading}>
                               {personalLoading ? "Compiling…" : "recompile"}
                             </button>
                           </div>
