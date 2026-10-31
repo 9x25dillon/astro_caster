@@ -811,7 +811,7 @@ localStorage.
 **All three fixes are now shipped and live at `71c3279`.** What remains is for
 xar to spend the claim:
 
-1. Cast the chart (1987-11-11, 1:09 PM, UTC-8).
+1. Cast the chart ([date removed], [time removed], [offset removed]).
 2. Chapter II → **Draw** → spread **Elemental Balance**, lineage
    **Rider–Waite–Smith**, question exactly
    `what movement in the sky guides my destiny after tonight`.
@@ -1879,8 +1879,8 @@ The apex staying byte-identical is not cosmetic — the signed APK's
 
 ### The proof that mattered: a real paid reading
 
-Oracle tier, live API, the operator's own chart (1987-11-11 13:09, UTC-8,
-34.0591/-117.9124 — Aquarius rising, Scorpio Sun 9th, Leo Moon 6th):
+Oracle tier, live API, the operator's own chart ([date removed] [time removed], [offset removed],
+[coordinates removed] — Aquarius rising, Scorpio Sun 9th, Leo Moon 6th):
 
 ```
 1,203 words   all five oracle sections   ends on a finished sentence
@@ -2564,8 +2564,8 @@ says Pisces." **The engine was right the whole time.**
 
 - Measured against JPL Horizons anchors: **median 0.137″**, worst 1.297″,
   39/40 under 1″. All 70 anchor tests pass.
-- The operator's real birth time is **13:11 local, 1987-11-11, Barstow CA,
-  PST (UTC−8)** → **Ascendant 1°09′ Pisces**. Verified two ways: the backend
+- The operator's real birth time is **[time removed], [date removed], [place removed],
+  PST ([offset removed])** → **Ascendant 1°09′ Pisces**. Verified two ways: the backend
   returns 280.73→331.16°, and an independent spherical-trig computation (no
   ephemeris library) agrees to 9 arcsec.
 - The "Scorpio" belief has no provenance. The chart is Scorpio-HEAVY — Sun
