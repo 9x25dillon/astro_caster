@@ -169,7 +169,7 @@ symptom = crooked spread, no error) still fails on both sides.
    back to offline prose. Check balance via `/api/v1/credits` — **never**
    `/api/v1/key`, which reports a different number and looks fine.
 6. **`~/Downloads` holds charts at three offsets** (+7/−7/−8) and two times. The
-   operator's confirmed data is **1987-11-11, 1:09 PM, UTC−8**, 34.0591/−117.9124.
+   operator's confirmed data is **[date removed], [time removed], [offset removed]**, [coordinates removed].
    Older readings describe a different sky. Do not grade against them.
 7. **The apex is load-bearing.** The signed APK's `PURCHASE_URL` is the immutable
    string `https://astra-arcana.com/#support`. `landing/index.html` must stay
