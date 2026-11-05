@@ -143,38 +143,3 @@ def test_substrate_prompt_carries_symbols_not_birth_data():
 
 # ── Oracle minting: paid_tier fails closed ─────────────────────────────────────
 
-def test_paid_tier_disabled_without_threshold(monkeypatch):
-    monkeypatch.setattr(ENT, "_ORACLE_MIN_WEI", 0)
-    assert ENT.paid_tier(True, 10**20) == "supporter"   # verified, huge value
-
-
-def test_paid_tier_requires_verification_and_value(monkeypatch):
-    monkeypatch.setattr(ENT, "_ORACLE_MIN_WEI", 10**17)
-    assert ENT.paid_tier(False, 10**18) == "supporter"  # unverified (trust mode)
-    assert ENT.paid_tier(True, 10**16) == "supporter"   # verified but below
-    assert ENT.paid_tier(True, 10**17) == "oracle"      # verified at threshold
-
-
-def test_donate_verify_mints_oracle_for_verified_big_value(monkeypatch):
-    monkeypatch.setattr(ENT, "_ORACLE_MIN_WEI", 10**17)
-
-    async def fake_details(tx_hash):
-        return True, True, "verified on-chain", 10**18
-
-    monkeypatch.setattr(main.ENT, "verify_eth_payment_details", fake_details)
-    r = client.post("/api/donate/verify", json={"tx_hash": "0xabc", "chain": "evm"})
-    assert r.status_code == 200
-    body = r.json()
-    assert body["tier"] == "oracle"
-    status = ENT.entitlement_status(body["entitlement"]["token"])
-    assert status["tier"] == "oracle" and status["supporter"] is True
-
-
-def test_donate_verify_trust_mode_never_mints_oracle(monkeypatch):
-    monkeypatch.setattr(ENT, "_ORACLE_MIN_WEI", 1)      # threshold as low as possible
-    monkeypatch.setenv("AAE_ENV", "development")
-    monkeypatch.setenv("AAE_TRUST_MODE", "1")
-    monkeypatch.setattr(ENT, "_ETH_RPC", "")            # no on-chain verification
-    r = client.post("/api/donate/verify", json={"tx_hash": "0xabc", "chain": "evm"})
-    assert r.status_code == 200
-    assert r.json()["tier"] == "supporter"              # unverified => never oracle

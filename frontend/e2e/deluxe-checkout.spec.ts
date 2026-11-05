@@ -84,7 +84,7 @@ test("the deluxe Buy button stashes the seed, redirects, and returns unlocked", 
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
-        card_available: true, crypto_available: true, mode: "payment",
+        card_available: true, crypto_available: false, mode: "payment",
         currency: "usd", tiers: [{ tier: "oracle", usd: 15 }], report_usd: 9,
       }),
     }),
@@ -140,7 +140,7 @@ test("the deluxe Buy button stashes the seed, redirects, and returns unlocked", 
   await genBtn.scrollIntoViewIfNeeded();
   await genBtn.click();
 
-  // The card option renders at the live price beside the crypto row.
+  // The card option renders at the live price.
   const buy = page.locator(".deluxe-buy-card");
   await expect(buy).toContainText("$9", { timeout: 15_000 });
   await buy.scrollIntoViewIfNeeded();

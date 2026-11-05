@@ -223,7 +223,6 @@ Create `backend/.env` (gitignored). **Every variable is optional — the app run
 | `AAE_STRIPE_SECRET_KEY` | *(unset → rail 503s)* | **Edition Q.** Enables card payments. Any `AAE_STRIPE_*` key trips the personal-mode interlock. |
 | `AAE_STRIPE_WEBHOOK_SECRET` | *(unset)* | `whsec_…` — verifies webhook signatures (hand-rolled to Stripe's scheme). |
 | `AAE_STRIPE_MODE` / `_*_USD` | `payment` / 5·15·9 | One-time vs `subscription`; supporter / oracle / deluxe-report prices. |
-| `AAE_TREASURY_ETH` / `AAE_ETH_RPC` | *(unset)* | Crypto rail: your ETH address (display only; funds never custodied) + RPC for tx verification. |
 | `ELEVENLABS_API_KEY` / `_VOICE_ID` | *(unset)* | Unset → browser TTS. Set → ElevenLabs neural voice. |
 
 `AAE_AI_PROVIDER=auto` picks the best available engine per request: **kgirl** → **ollama** (local) → **openai-compatible cloud** → **offline** (chart-grounded reflective prose). `/api/health` reports the full routing state.
@@ -236,8 +235,8 @@ Create `backend/.env` (gitignored). **Every variable is optional — the app run
 | Tier | Price | Model | Written length | Unlocked by |
 |---|---|---|---|---|
 | **free** | — | Sonnet 5 for the first **2 readings a day**, then Haiku 4.5, then the on-device engine | 700 tokens | default |
-| **supporter** | $3.25 / mo | Sonnet 5 | 3,000 tokens | a contribution (crypto **or** Stripe) |
-| **oracle** | $9.99 / mo | Opus 5 · **Fable 5** for reports | 6,000 tokens | `AAE_DEV_TOKEN`, a verified contribution, or a Stripe purchase |
+| **supporter** | $3.25 / mo | Sonnet 5 | 3,000 tokens | a Stripe purchase |
+| **oracle** | $9.99 / mo | Opus 5 · **Fable 5** for reports | 6,000 tokens | `AAE_DEV_TOKEN` or a Stripe purchase |
 | **deluxe report** | $5.50 once | Fable 5 | 32,000 tokens | one-time, bound to a single Oracle session |
 
 **The free tier's daily two are written by the same model supporters get.** What
@@ -254,7 +253,7 @@ margins behind these prices: [`docs/progress/PRICING_MODEL.md`](docs/progress/PR
 
 **Entitlements** are stateless signed tokens (HMAC or Ed25519) backed by a `jti`-keyed ledger that adds the lifecycle a real product needs: **revocation** (a refund kills the token), **renewal** (fresh expiry), and **device re-link** (recover access on a new device from the payment reference).
 
-**Two payment rails, one lifecycle:** the crypto rail (`/api/donate/verify`) and the **Stripe rail** (`/api/checkout` → hosted checkout, one-time or subscription; `/api/stripe/webhook` mints on paid and revokes on refund/cancel). The deluxe Personal Report has its own one-time purchase on either rail (bound to a single Oracle session by the seed's *hash* — the raw seed, which ends with your question, never reaches Stripe).
+**One payment rail:** the **Stripe rail** (`/api/checkout` → hosted checkout, one-time or subscription; `/api/stripe/webhook` mints on paid and revokes on refund/cancel). The deluxe Personal Report has its own one-time card purchase (bound to a single Oracle session by the seed's *hash* — the raw seed, which ends with your question, never reaches Stripe). The crypto rail was removed on 2026-11-05: its claim path trusted whoever presented a public tx hash (audit finding F4). Keys it minted earlier still verify until they expire.
 
 **A purchase outlives the browser that made it.** Both paid things can be recovered from their payment alone, because the token that proves them is stateless and lives in `localStorage` while the purchase lives on the ledger — so clearing site data used to strand a paid product with nothing on the device to show for it. `/api/entitlement/restore` re-issues a **tier** from its Stripe reference (`cs_…` / `pi_…` / `sub_…`), and `/api/personal-report/claim/restore` re-issues a **deluxe claim** from its Oracle session. Both re-prove the payment before minting, and both refuse a refunded one.
 

@@ -40,7 +40,6 @@ export const App: React.FC = () => {
   const chartFromCache = useStore((s) => s.chartFromCache);
   const chartFromLocal = useStore((s) => s.chartFromLocal);
   const isSupporter = useStore((s) => s.isSupporter);
-  const openSupport = useStore((s) => s.openSupport);
   const validateEntitlement = useStore((s) => s.validateEntitlement);
   const importEntitlement = useStore((s) => s.importEntitlement);
   const flushAskQueue = useStore((s) => s.flushAskQueue);
@@ -107,15 +106,16 @@ export const App: React.FC = () => {
     // from the intent, not window.location. Same import as the paste field.
     void attachNativeUnlockLinks(importEntitlement, setCheckoutNote);
     // Deep-link: /#support opens the PAY PAGE — the Library's pricing surface
-    // with the Stripe tier cards — not the crypto overlay. Session 42 found
+    // with the Stripe tier cards — not the support overlay. Session 42 found
     // that every "subscribe" link (the APK's compiled PURCHASE_URL, the
     // landing page's buttons, the reader build's new Subscribe pill) landed
     // on the wallet modal, which has no card option at all; the operator
     // "couldn't find the subscriber option" because there wasn't one there.
-    // `#crypto` keeps the old behaviour for anyone who wants the wallet.
+    // `#crypto` was the wallet overlay's link; the crypto rail is gone
+    // (2026-11-05), so old copies of that link land on the pay page too.
     const routeHash = () => {
       const h = window.location.hash;
-      if (h === "#support") {
+      if (h === "#support" || h === "#crypto") {
         openChapter("VIII");
         // The cards are the first thing in the Library for a non-subscriber
         // (LibraryVault orders them that way), but scroll anyway so a deep
@@ -129,7 +129,6 @@ export const App: React.FC = () => {
         };
         setTimeout(tick, 150);
       }
-      if (h === "#crypto") openSupport(true);
     };
     routeHash();
     window.addEventListener("hashchange", routeHash);

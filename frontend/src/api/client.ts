@@ -306,31 +306,7 @@ export async function ttsSynthesize(
   return res.blob();
 }
 
-// --- Treasury + open-paywall entitlements ----------------------------------
-
-export interface TreasuryChain {
-  id: string;
-  label: string;
-  address: string;
-  asset: string;
-}
-export interface FundingPillar {
-  name: string;
-  pct: number;
-  note: string;
-}
-export interface Treasury {
-  label: string;
-  configured: boolean;
-  chains: TreasuryChain[];
-  allocation: FundingPillar[];
-  suggested_usd: number[];
-  philosophy: string;
-}
-
-export function getTreasury(): Promise<Treasury> {
-  return fetch(`${BASE}/treasury`).then((r) => r.json());
-}
+// --- Open-paywall entitlements ----------------------------------------------
 
 export interface Entitlement {
   token: string;
@@ -345,22 +321,6 @@ export interface EntitlementStatus {
   verified: boolean;
   exp: number | null;
   premium_features: string[];
-}
-
-export async function verifyDonation(
-  txHash: string,
-  chain = "evm"
-): Promise<{ granted: boolean; note: string; entitlement: Entitlement }> {
-  const res = await fetch(`${BASE}/donate/verify`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ tx_hash: txHash, chain }),
-  });
-  if (!res.ok) {
-    const detail = await res.text().catch(() => res.statusText);
-    throw new Error(`${res.status}: ${detail}`);
-  }
-  return res.json();
 }
 
 // The card-vs-crypto classifier lives in lib/paymentRef.ts (it is routing
@@ -1022,9 +982,8 @@ export interface PersonalReportResponse {
   disclaimer: string;
 }
 
-/** PDF-2 — the deluxe edition's separate purchase rail. Verifies a treasury
- *  contribution tx and mints a report token bound to ONE Oracle session seed.
- *  402 below oracle tier or when the payment doesn't verify / meet the price. */
+/** A deluxe-edition report claim: a token bound to ONE Oracle session seed,
+ *  minted after a card purchase (or re-issued from the receipt ledger). */
 export interface ReportPurchaseResponse {
   granted: boolean;
   product: string;
@@ -1035,19 +994,6 @@ export interface ReportPurchaseResponse {
     verified: boolean;
     exp: number;
   };
-}
-
-export function purchasePersonalReport(
-  txHash: string,
-  seed: string,
-  opts: { chain?: string; entitlement?: string | null } = {},
-): Promise<ReportPurchaseResponse> {
-  return post<ReportPurchaseResponse>("/personal-report/purchase", {
-    tx_hash: txHash,
-    chain: opts.chain ?? "evm",
-    seed,
-    entitlement: opts.entitlement ?? null,
-  });
 }
 
 /** Recover a deluxe claim that was already PAID FOR but whose browser copy is
@@ -1076,8 +1022,9 @@ export interface Pricing {
 
 /** Live prices + which rails are open. The pricing surface renders from this
  *  and NEVER hardcodes an amount — env is the source of truth, and an instance
- *  with no Stripe key reports `card_available:false` so the UI can offer the
- *  crypto rail alone instead of a Buy button that would 503. */
+ *  with no Stripe key reports `card_available:false` so the UI shows no Buy
+ *  button that would 503. `crypto_available` is always false now (rail removed
+ *  2026-11-05); the field stays for bundles cached before that. */
 export function getPricing(): Promise<Pricing> {
   return fetch(`${BASE}/pricing`).then((r) => r.json());
 }
@@ -1142,7 +1089,7 @@ export function claimReportCheckout(
 /** Customer self-service — open the Stripe Customer Portal for the subscription
  *  behind this entitlement (cancel, stop auto-renew, update card, invoices).
  *  Returns the hosted URL to redirect to. 409 when no card subscription is
- *  linked (e.g. a crypto/one-time purchase); 401 without a valid entitlement. */
+ *  linked (e.g. a one-time purchase); 401 without a valid entitlement. */
 export function openBillingPortal(
   entitlement: string,
   returnUrl?: string,

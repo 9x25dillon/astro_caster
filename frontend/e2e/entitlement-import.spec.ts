@@ -107,35 +107,6 @@ test("a payment reference is routed to the card rail, not refused as a bad key",
   ).toBeNull();
 });
 
-test("the crypto field names the card rail instead of denying a card payment", async ({ page }) => {
-  // The other half of the same fix, at the field where the mistake actually
-  // happened. This input is the ON-CHAIN rail: it answers anything it does not
-  // recognise with "on-chain verification unavailable and trust mode is
-  // disabled", which reads as "your payment failed". A customer holding a real,
-  // verified $5.50 receipt read exactly that on 2026-08-28 and stopped looking.
-  //
-  // Session 38 renamed the field, which stops the invitation. This asserts the
-  // stronger thing: a card reference pasted here anyway is recognised and told
-  // where to go, and never reaches the verifier that cannot judge it.
-  await page.goto("/");
-  await expect(page.locator(".wheel-area svg").first()).toBeVisible();
-  await page.locator(".support-pill").click();
-  await page.locator(".lib-support-btn").click();
-
-  const field = page.locator(".crypto-tx-field");
-  await expect(field).toBeVisible();
-  await field.fill("pi_3u9g90LyOHuDktpU0abcdef");
-  await page.locator(".crypto-verify-btn").click();
-
-  const status = page.locator(".modal p", { hasText: /card payment reference/i });
-  await expect(status).toBeVisible();
-  await expect(status).toContainText(/Bring your key/i);
-  // And nothing was sent down the wrong rail: no unlock, no stored key.
-  expect(
-    await page.evaluate(() => localStorage.getItem("aae.entitlement"))
-  ).toBeNull();
-});
-
 test("whitespace from a wrapped paste is stripped before verification", async ({ page }) => {
   const { supporter } = mintedTokens();
   test.skip(!supporter, "backend venv / mint tool unavailable");

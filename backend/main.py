@@ -22,7 +22,6 @@ Endpoints:
   POST /api/course-stream       – the same curriculum as SSE (beats CF's 100s cap)
   POST /api/personal-report     – deluxe compiled edition (optional post-Oracle product)
   POST /api/personal-report-stream – the same edition as SSE (beats CF's 100s cap)
-  POST /api/personal-report/purchase – separate purchase rail: mint a report claim (PDF-2)
   POST /api/personal-report/claim/restore – re-mint a PAID claim whose browser copy is gone
   POST /api/deck-art            – deterministic deck-art prompts (Studio)
   POST /api/deck-art-image      – render one plate via OpenAI images (oracle tier)
@@ -38,13 +37,11 @@ Endpoints:
   POST /api/fixed-stars         – natal conjunctions to fixed stars
   GET  /api/tts/voices          – available ElevenLabs voices
   POST /api/tts                 – synthesize speech (MP3); supporter feature
-  GET  /api/treasury            – funding allocation + EVM treasury address
   GET  /api/pricing             – live prices + which payment rails are open
   POST /api/checkout            – Stripe Checkout session for a tier
   GET  /api/checkout/{id}       – mint on redirect-return (webhook-lag proof)
   POST /api/stripe/webhook      – Stripe lifecycle: completed→mint, refund→revoke
   POST /api/billing/portal      – Stripe Customer Portal (cancel / update card)
-  POST /api/donate/verify       – verify a tx hash and mint an entitlement token
   GET  /api/entitlement         – validate an entitlement token (?token=...)
   POST /api/entitlement/restore – re-issue a paid tier from its Stripe reference
   POST /api/telemetry/event     – ingest a UI feature event (fire-and-forget)
@@ -93,7 +90,6 @@ import metrics as MET
 import ratelimit as RL
 import receipts as RCPT
 import telemetry as TEL
-import treasury as TR
 import tts as T
 from ai import ai_status, interpret, interpret_arcana, interpret_stream
 from ai import model_for_tier as AI_MODEL_FOR_TIER
@@ -513,43 +509,6 @@ def replay_forget(x_aae_token: Optional[str] = Header(None)):
     return {"forgotten": REPLAY.forget(owner)}
 
 
-@app.get("/api/treasury")
-async def get_treasury():
-    """Public treasury + funding-allocation info for the support dashboard."""
-    return TR.treasury_info()
-
-
-class DonateVerifyRequest(BaseModel):
-    tx_hash: str
-    chain: str = "evm"
-    amount_usd: Optional[float] = None
-
-
-@app.post("/api/donate/verify")
-async def donate_verify(req: DonateVerifyRequest, request: Request):
-    """
-    Verify a support contribution and mint an entitlement token. On EVM we check
-    the tx on-chain when an RPC is configured; otherwise trust mode applies.
-    """
-    RL.check(request, "free", None)      # every call is an upstream RPC hit
-    if req.chain == "evm":
-        ok, verified, note, value_wei = await ENT.verify_eth_payment_details(req.tx_hash)
-    else:
-        # Non-EVM chains: no on-chain check here — gated behind dev trust mode.
-        ok, verified, note = ENT.accept_offchain_payment(req.tx_hash)
-        value_wei = 0
-    if not ok:
-        raise HTTPException(status_code=402, detail=note)
-    # Oracle tier only for an on-chain-verified value at/above AAE_ORACLE_MIN_WEI
-    # (explicitly configured); everything else — incl. trust mode — is supporter.
-    tier = ENT.paid_tier(verified, value_wei)
-    ent = ENT.mint_entitlement(tier, ref=req.tx_hash[:18], verified=verified)
-    _spawn(TEL.log_tier(
-        action="donate_verify", tier=tier, verified=verified, ref=req.tx_hash[:18]
-    ))
-    return {"granted": True, "tier": tier, "note": note, "entitlement": ent}
-
-
 class RenewRequest(BaseModel):
     entitlement: str
 
@@ -612,27 +571,6 @@ async def entitlement_renew(req: RenewRequest, request: Request):
     _spawn(TEL.log_tier(action="renew", tier=fresh["tier"],
                         verified=bool(fresh["verified"]), ref=fresh.get("ref", "")))
     return {"granted": True, "tier": fresh["tier"], "entitlement": fresh}
-
-
-@app.post("/api/entitlement/relink")
-async def entitlement_relink(req: DonateVerifyRequest, request: Request):
-    RL.check(request, "free", None)
-    """Phase 4.1 device re-link: re-prove the payment, then MOVE the
-    entitlement to this device (supersedes other devices' tokens for the same
-    payment). Re-verification is mandatory — a public tx hash is not proof by
-    itself. Crypto rail; the Stripe re-link lands with 4.2."""
-    if req.chain == "evm":
-        ok, verified, note, value_wei = await ENT.verify_eth_payment_details(req.tx_hash)
-    else:
-        ok, verified, note = ENT.accept_offchain_payment(req.tx_hash)
-        value_wei = 0
-    if not ok:
-        raise HTTPException(status_code=402, detail=note)
-    tier = ENT.paid_tier(verified, value_wei)
-    ent = ENT.relink_ref(req.tx_hash[:18], tier, verified)
-    _spawn(TEL.log_tier(action="relink", tier=tier, verified=verified,
-                        ref=req.tx_hash[:18]))
-    return {"granted": True, "tier": tier, "note": note, "entitlement": ent}
 
 
 class EntitlementRestoreRequest(BaseModel):
@@ -702,8 +640,8 @@ async def entitlement_restore(req: EntitlementRestoreRequest, request: Request):
     if not STRIPE.stripe_available():
         raise HTTPException(
             status_code=503,
-            detail="card payments are not configured on this observatory — a "
-                   "crypto purchase is restored with its transaction hash",
+            detail="card payments are not configured on this observatory, so "
+                   "there is no purchase to restore here",
         )
     if not ref_in.startswith(_RESTORABLE_PREFIXES):
         raise HTTPException(
@@ -824,7 +762,7 @@ async def entitlement_restore(req: EntitlementRestoreRequest, request: Request):
 
 
 # --------------------------------------------------------------------------- #
-# Stripe rail (Phase 4.2) — cards/subscriptions alongside the crypto rail
+# Stripe rail (Phase 4.2) — cards and subscriptions, the only payment rail
 # --------------------------------------------------------------------------- #
 
 @app.get("/api/pricing")
@@ -833,14 +771,14 @@ async def get_pricing():
     (AAE_STRIPE_*_USD) — the UI must never hardcode them or they drift the
     moment a price changes. Also reports which rails are actually open, so an
     instance with no Stripe key (Edition P, or an unconfigured deployment)
-    degrades honestly to the crypto rail instead of showing a dead Buy button."""
+    degrades honestly to the free tier instead of showing a dead Buy button."""
     card = STRIPE.stripe_available()
     return {
         "card_available": card,
-        # Both halves, not just a configured address: a treasury with no RPC
-        # cannot verify a payment and so cannot mint in production. See
-        # ENT.crypto_rail_open().
-        "crypto_available": ENT.crypto_rail_open(),
+        # The crypto rail was removed (2026-11-05). The field stays, always
+        # False, because a service worker can serve an older bundle for a
+        # couple of loads after a deploy and that bundle still reads it.
+        "crypto_available": False,
         # payment = one-time unlock, subscription = recurring; the copy differs.
         "mode": STRIPE.checkout_mode(),
         "currency": "usd",
@@ -888,7 +826,7 @@ def _return_url(candidate: Optional[str], default: str) -> str:
 @app.post("/api/checkout")
 async def create_checkout(req: CheckoutRequest, request: Request):
     """Create a Stripe Checkout Session and return its hosted URL. 503 when the
-    rail is unconfigured (AAE_STRIPE_SECRET_KEY unset) — the crypto rail and
+    rail is unconfigured (AAE_STRIPE_SECRET_KEY unset) — the free tier and
     the offline compilers remain available."""
     RL.check(request, "free", None)      # session spam costs Stripe calls
     if not STRIPE.stripe_available():
@@ -1036,53 +974,6 @@ async def billing_portal(req: BillingPortalRequest, request: Request):
     return {"url": s["url"]}
 
 
-class ReportPurchaseRequest(BaseModel):
-    tx_hash: str
-    chain: str = "evm"
-    seed: str                            # the Oracle session the claim binds to
-    entitlement: Optional[str] = None    # oracle tier required
-
-
-@app.post("/api/personal-report/purchase")
-async def personal_report_purchase(req: ReportPurchaseRequest, request: Request):
-    """PDF-2 — the deluxe edition's SEPARATE purchase rail. Verifies a
-    contribution (on-chain when an RPC is configured; dev trust mode otherwise
-    — fails closed in production) against the AAE_REPORT_MIN_WEI product price
-    and mints a report token bound to ONE Oracle session seed. Oracle tier is
-    still required: the product only exists post-Oracle.
-    """
-    RL.check(request, "oracle", req.entitlement)   # shares the paid-path budget
-    tier = ENT.entitlement_status(req.entitlement).get("tier", "free")
-    if tier != "oracle":
-        raise HTTPException(
-            status_code=402,
-            detail="oracle entitlement required — the deluxe edition is an "
-                   "optional post-Oracle product",
-        )
-    if not req.seed.strip():
-        raise HTTPException(status_code=400, detail="missing oracle session seed")
-    if req.chain == "evm":
-        ok, verified, note, value_wei = await ENT.verify_eth_payment_details(req.tx_hash)
-    else:
-        ok, verified, note = ENT.accept_offchain_payment(req.tx_hash)
-        value_wei = 0
-    if ok:
-        ok, note = ENT.report_purchase_allowed(verified, value_wei)
-    if ok:
-        # Receipt ledger (closes AUDIT_REGRESSION §6): first redemption wins;
-        # re-minting for the SAME session stays allowed, a different session
-        # needs its own payment. Fails closed if the ledger is unavailable.
-        ok, note = RCPT.claim_tx(req.tx_hash, req.seed, verified=verified, wei=value_wei)
-    if not ok:
-        raise HTTPException(status_code=402, detail=note)
-    tok = ENT.mint_report_token(seed=req.seed, ref=req.tx_hash[:18], verified=verified)
-    _spawn(TEL.log_tier(
-        action="report_purchase", tier=tier, verified=verified, ref=req.tx_hash[:18]
-    ))
-    return {"granted": True, "product": "personal_report", "note": note,
-            "report_token": tok}
-
-
 class ReportCheckoutRequest(BaseModel):
     seed: str                            # the Oracle session the claim will bind to
     entitlement: Optional[str] = None    # oracle tier required
@@ -1092,8 +983,8 @@ class ReportCheckoutRequest(BaseModel):
 
 @app.post("/api/personal-report/checkout")
 async def personal_report_checkout(req: ReportCheckoutRequest, request: Request):
-    """Phase 4.3 — the deluxe edition on the Stripe rail (the card equivalent of
-    /api/personal-report/purchase). Oracle tier is required (the product only
+    """Phase 4.3 — the deluxe edition on the Stripe rail, its only purchase
+    path. Oracle tier is required (the product only
     exists post-Oracle); returns a hosted Stripe URL. Only the seed's HASH rides
     in Stripe metadata — the raw seed (which ends with the question) does not."""
     if not STRIPE.stripe_available():
@@ -1849,7 +1740,7 @@ async def personal_report(req: PersonalReportRequest, request: Request):
     """The Astra Arcana Personal Report — deluxe compiled edition, an OPTIONAL
     post-Oracle product. Gated three times, fail closed: (1) oracle tier only
     (402); (2) PDF-2 — the edition is a SEPARATE purchase, so a report token
-    minted by /api/personal-report/purchase and bound to this exact session
+    minted after a card purchase and bound to this exact session
     seed is required (402; dev/admin token exempt); (3) the referenced Oracle
     session must be genuine — its seed is re-derived from (chart, spread,
     question, date, source) and a mismatch is rejected (409). Falls back to a
@@ -1869,8 +1760,8 @@ async def personal_report(req: PersonalReportRequest, request: Request):
         raise HTTPException(
             status_code=402,
             detail="deluxe purchase required — the Personal Report is a separate "
-                   "one-time purchase per Oracle session; verify your "
-                   "contribution at /api/personal-report/purchase to unlock it",
+                   "one-time purchase per Oracle session; buy it with a card "
+                   "(/api/personal-report/checkout) to unlock it",
         )
     ip = CLIENTIP.client_ip(request)
     allow_ai, _cap = BUDGET.allow_call(req.entitlement, "deluxe", ip)  # 4.4 cost control
@@ -1925,8 +1816,8 @@ async def personal_report_stream(req: PersonalReportRequest, request: Request):
         raise HTTPException(
             status_code=402,
             detail="deluxe purchase required — the Personal Report is a separate "
-                   "one-time purchase per Oracle session; verify your "
-                   "contribution at /api/personal-report/purchase to unlock it",
+                   "one-time purchase per Oracle session; buy it with a card "
+                   "(/api/personal-report/checkout) to unlock it",
         )
     try:
         PERSONAL.verify_oracle_session(req)

@@ -322,7 +322,7 @@ def test_no_card_rail_says_so_instead_of_failing_obscurely(tmp_path, monkeypatch
     monkeypatch.delenv("AAE_STRIPE_SECRET_KEY", raising=False)
     r = _restore("sub_live")
     assert r.status_code == 503, r.text
-    assert "crypto" in r.json()["detail"]
+    assert "not configured" in r.json()["detail"]
 
 
 # ------------------------------------------------------------- ledger helpers

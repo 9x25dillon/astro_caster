@@ -132,57 +132,6 @@ def test_dev_token_bypasses_purchase(monkeypatch):
     assert r.status_code == 200
 
 
-# ── PDF-2 purchase rail: /api/personal-report/purchase ──────────────────────────
-
-def test_purchase_requires_oracle_tier():
-    r = client.post("/api/personal-report/purchase",
-                    json={"tx_hash": "0xabc", "seed": "s"})
-    assert r.status_code == 402
-
-
-def test_purchase_fails_closed_without_verification(monkeypatch):
-    # No RPC, trust mode off → the payment cannot be verified → 402, no mint.
-    monkeypatch.setattr(ENT, "_ETH_RPC", "")
-    monkeypatch.delenv("AAE_TRUST_MODE", raising=False)
-    r = client.post("/api/personal-report/purchase", json={
-        "tx_hash": "0xabc", "seed": "s", "entitlement": _token("oracle")})
-    assert r.status_code == 402
-
-
-def test_purchase_missing_seed_400(monkeypatch):
-    monkeypatch.setattr(ENT, "_ETH_RPC", "")
-    monkeypatch.setenv("AAE_TRUST_MODE", "1")
-    r = client.post("/api/personal-report/purchase", json={
-        "tx_hash": "0xabc", "seed": "  ", "entitlement": _token("oracle")})
-    assert r.status_code == 400
-
-
-def test_purchase_threshold_fail_closed(monkeypatch):
-    # On-chain purchases qualify ONLY above an explicitly configured price.
-    monkeypatch.setattr(ENT, "_REPORT_MIN_WEI", 0)
-    assert ENT.report_purchase_allowed(True, 10**18)[0] is False   # unset ⇒ off
-    monkeypatch.setattr(ENT, "_REPORT_MIN_WEI", 10**18)
-    assert ENT.report_purchase_allowed(True, 10**17)[0] is False   # below price
-    assert ENT.report_purchase_allowed(True, 10**18)[0] is True
-
-
-def test_purchase_trust_mode_mints_and_unlocks(monkeypatch):
-    # Full happy path: dev trust-mode purchase → seed-bound claim → compile.
-    _force_offline(monkeypatch)
-    monkeypatch.setattr(ENT, "_ETH_RPC", "")
-    monkeypatch.setenv("AAE_TRUST_MODE", "1")
-    seed = _genuine_session()["seed"]
-    r = client.post("/api/personal-report/purchase", json={
-        "tx_hash": "0xdeadbeef", "seed": seed, "entitlement": _token("oracle")})
-    assert r.status_code == 200, r.text[:200]
-    tok = r.json()["report_token"]
-    assert tok["product"] == "personal_report"
-    assert tok["verified"] is False                    # honest: trust mode
-    r2 = client.post("/api/personal-report", json=_payload(
-        entitlement=_token("oracle"), report_token=tok["token"]))
-    assert r2.status_code == 200, r2.text[:200]
-
-
 # ── Post-Oracle gate fails closed ───────────────────────────────────────────────
 
 def test_fabricated_seed_rejected(monkeypatch):

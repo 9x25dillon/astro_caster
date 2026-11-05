@@ -368,8 +368,8 @@ deploy against real production volumes.
 
 ## 8. Stripe payment rail (Phase 4.2)
 
-Cards/subscriptions alongside the crypto rail. Unset = the rail 503s and the
-crypto rail + offline compilers still serve; **any `AAE_STRIPE_*` key marks
+Cards/subscriptions — the only payment rail (crypto was removed 2026-11-05).
+Unset = the rail 503s and the free tier + offline compilers still serve; **any `AAE_STRIPE_*` key marks
 the deployment public-facing, so the personal-mode interlock refuses to boot
 Edition P with these set** (by design — Stripe means Edition Q).
 
@@ -404,8 +404,7 @@ stripe trigger charge.refunded
 
 ### 8.1 Deluxe personal report on the Stripe rail (Phase 4.3)
 
-The deluxe edition is a one-time purchase bound to ONE Oracle session — the
-card equivalent of the crypto `POST /api/personal-report/purchase`.
+The deluxe edition is a one-time card purchase bound to ONE Oracle session.
 
 | Variable | Meaning | Default |
 |---|---|---|
@@ -426,8 +425,7 @@ payment reference) binds a payment to its seed on first claim; re-claims for
 the same seed re-mint (browser reload safe), a different seed is refused (409).
 
 **Known limit:** report claims are stateless 30-day client-held tokens, so a
-**refund cannot revoke an already-minted deluxe report** (same as the crypto
-rail). The webhook ignores report `completed` events by design — the claim is
+**refund cannot revoke an already-minted deluxe report**. The webhook ignores report `completed` events by design — the claim is
 bound to the raw seed the webhook never sees. Tier entitlements (§8) remain
 fully refund-revocable.
 
@@ -441,7 +439,7 @@ can't leave are not shippable.
 - `POST /api/billing/portal {entitlement}` → verifies the token, finds the
   Stripe customer linked to it (recorded at mint time, keyed by the payment
   ref), and returns a hosted portal URL to redirect to. 409 when no card
-  subscription is linked (crypto/one-time purchases — nothing recurring to
+  subscription is linked (one-time purchases — nothing recurring to
   cancel); 401 without a valid entitlement; 503 when the rail is unconfigured.
 - The frontend surfaces it as **"Manage or cancel subscription"** in the
   **☤ Support** panel (visible to supporters).

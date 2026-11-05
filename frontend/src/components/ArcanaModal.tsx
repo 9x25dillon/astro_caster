@@ -20,7 +20,6 @@ import {
   fetchOracleReportStream,
   fetchCourseStream,
   fetchPersonalReportStream,
-  purchasePersonalReport,
   reportCheckout,
   getPricing,
   type Pricing,
@@ -47,7 +46,6 @@ import { useSpeech, speakableText } from "../lib/speech";
 import { readKeep, scopeArcanaSession, useSessionState } from "../lib/arcanaSession";
 import { latestSessionForBirth, sessionFromShelf } from "../lib/oracleSession";
 import { sameBirth } from "../lib/birthIdentity";
-import { looksLikeStripeReference } from "../lib/paymentRef";
 import { printSessionTome } from "../lib/tomePrint";
 import { galleryByKind, gallerySave, journalForSeed, shelfAttachPersonal, shelfGet, shelfSaveOracle } from "../lib/bookshelf";
 import { JournalPad } from "./JournalPad";
@@ -166,7 +164,6 @@ export const ArcanaModal: React.FC<{
   const [personalPartial, setPersonalPartial] = useState("");
   // PDF-2 — the deluxe edition's separate purchase rail (per-session claim).
   const [reportToken, setReportToken] = useState<string | null>(null);
-  const [purchaseTx, setPurchaseTx] = useState("");
   const [purchasing, setPurchasing] = useState(false);
   // Deluxe price + whether the card rail exists at all. Null until known, so
   // the card option simply doesn't render on an instance without Stripe.
@@ -286,7 +283,7 @@ export const ArcanaModal: React.FC<{
   }, [deluxeReady, chart, oracle]);
 
   // The deluxe price + whether cards are accepted here. Fetched once; a failure
-  // is silent — the crypto rail and the free tier stand on their own.
+  // is silent — the free tier stands on its own.
   useEffect(() => {
     let live = true;
     getPricing().then((p) => { if (live) setPricing(p); }).catch(() => {});
@@ -741,44 +738,6 @@ export const ArcanaModal: React.FC<{
     }
   }
 
-  // PDF-2 — verify the separate deluxe purchase: the tx hash is checked by the
-  // server (on-chain when an RPC is configured) and, if it meets the product
-  // price, a report claim bound to THIS Oracle session's seed comes back.
-  async function purchaseDeluxe() {
-    if (!oracle || purchasing || !purchaseTx.trim()) return;
-    // THE WRONG DOOR, closed at the spot where it was walked through. Session
-    // 38 renamed this field for the rail it actually is, which stops the
-    // invitation; it does not stop the paste. A Stripe reference sent down
-    // here still reaches the on-chain verifier and still comes back "on-chain
-    // verification unavailable and trust mode is disabled" — a real, verified
-    // $5.50 payment answered as a failure. The restore button is eight
-    // characters to the right; say so instead of denying the payment.
-    if (looksLikeStripeReference(purchaseTx)) {
-      setErr(
-        "That's a card payment reference, not an on-chain transaction — this " +
-        "field only verifies crypto. Use \u21ba restore my purchase, just here, " +
-        "and this session's deluxe edition comes back with nothing charged again.",
-      );
-      return;
-    }
-    setPurchasing(true); setErr(null);
-    try {
-      const r = await purchasePersonalReport(purchaseTx.trim(), oracle.seed, { entitlement });
-      saveReportToken(oracle.seed, r.report_token.token);
-      setReportToken(r.report_token.token);
-      setPurchaseTx("");
-      trackEvent("personal_report_purchase", { verified: r.report_token.verified });
-    } catch (e) {
-      if (e instanceof ApiError && e.status === 402) {
-        setErr("Purchase not verified — " + e.detail);
-      } else {
-        setErr(String(e));
-      }
-    } finally {
-      setPurchasing(false);
-    }
-  }
-
   /** Recover a deluxe claim that was PAID FOR on another browser or before
    *  site data was cleared.
    *
@@ -786,8 +745,7 @@ export const ArcanaModal: React.FC<{
    *  lives on the server's receipt ledger. Clearing site data therefore
    *  strands a paid product with nothing on the device to prove it — measured
    *  on 2026-08-28, when a $5.50 edition's verified receipt sat on the ledger
-   *  and the only route the app offered was the ON-CHAIN field, which answers
-   *  a Stripe payment reference with "on-chain verification unavailable". */
+   *  and the app offered no way to bring it back. */
   async function restoreClaim() {
     if (!oracle || purchasing) return;
     setPurchasing(true); setErr(null);
@@ -827,7 +785,7 @@ export const ArcanaModal: React.FC<{
       window.location.href = url;
     } catch (e) {
       if (e instanceof ApiError && e.status === 503) {
-        setErr("Card payments aren't enabled on this instance — the crypto rail below still works.");
+        setErr("Card payments aren't enabled on this instance, so the deluxe edition can't be bought here.");
       } else if (e instanceof ApiError && e.status === 402) {
         setErr("Oracle tier required before the deluxe edition can be purchased.");
       } else {
@@ -1214,9 +1172,9 @@ export const ArcanaModal: React.FC<{
                               directly via the ghost button below. */}
                           {!reportToken && (
                             <>
-                              {/* Phase 4.3 — the card rail, beside the original
-                                  crypto one. Hidden entirely when Stripe isn't
-                                  configured, rather than 503ing on click. */}
+                              {/* Phase 4.3 — the card rail, the only way to buy.
+                                  Hidden entirely when Stripe isn't configured,
+                                  rather than 503ing on click. */}
                               {pricing?.card_available && (
                                 <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                                   <button
@@ -1234,23 +1192,6 @@ export const ArcanaModal: React.FC<{
                                 </div>
                               )}
                               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                                <input
-                                  value={purchaseTx}
-                                  onChange={(e) => setPurchaseTx(e.target.value)}
-                                  /* Named for the rail it actually is. Left
-                                     vague ("contribution tx hash"), it invites
-                                     a Stripe payment reference — which comes
-                                     back as "on-chain verification
-                                     unavailable" and reads like the purchase
-                                     failed rather than like the wrong door. */
-                                  placeholder="on-chain contribution hash (0x…)"
-                                  title="Ethereum transaction hash. If you paid by CARD, use “restore my purchase” instead."
-                                  style={{ flex: "1 1 220px", minWidth: 180 }}
-                                />
-                                <button className="arc-draw-btn" onClick={purchaseDeluxe}
-                                        disabled={purchasing || !purchaseTx.trim()}>
-                                  {purchasing ? "Verifying…" : "✧ Verify on-chain purchase"}
-                                </button>
                                 <button className="ghost" onClick={() => void restoreClaim()}
                                         disabled={purchasing}
                                         title="Already bought this session's deluxe edition — on another browser, another device, or before clearing site data? Recover it from your purchase on record.">
@@ -1261,13 +1202,6 @@ export const ArcanaModal: React.FC<{
                                   {personalLoading ? "Compiling…" : "already unlocked? compile"}
                                 </button>
                               </div>
-                              <span style={{ opacity: 0.6, fontSize: "0.72rem" }}>
-                                {pricing?.card_available && <>Or pay in crypto: s</>}
-                                {!pricing?.card_available && <>S</>}end the deluxe-edition
-                                contribution to the observatory treasury (the <b>♥ Support</b>{" "}
-                                panel has the address), then paste the tx hash here. The claim
-                                unlocks <i>this</i> Oracle session's edition.
-                              </span>
                             </>
                           )}
                           {reportToken && (
