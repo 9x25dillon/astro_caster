@@ -1,7 +1,7 @@
 """
 stripe_rail.py — Phase 4.2 Stripe payment rail.
 
-The crypto rail (donate/verify) is kept; this adds cards/subscriptions. Built
+Cards and subscriptions, the only payment rail (crypto was removed 2026-11-05). Built
 with raw httpx (the repo's precedent — see plate_art.py / ai.py) rather than
 the stripe SDK, so there is no new dependency and the webhook verifier is
 unit-testable end to end (a valid signature is computed in the test).

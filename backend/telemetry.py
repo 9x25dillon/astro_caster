@@ -225,8 +225,8 @@ def _summary() -> Dict[str, Any]:
         tier_actions = {r[0]: r[1] for r in q(
             "SELECT action, COUNT(*) FROM tier_events GROUP BY action")}
 
-        # Deluxe-report purchases, split by rail: verified = a real treasury
-        # tx passed the chain check; trust = dev/trust-mode mint.
+        # Deluxe-report purchases logged as 'report_purchase' (the removed
+        # crypto rail): verified = on-chain checked; trust = dev trust-mode mint.
         rp = {bool(r[0]): r[1] for r in q(
             "SELECT verified, COUNT(*) FROM tier_events "
             "WHERE action='report_purchase' GROUP BY verified")}

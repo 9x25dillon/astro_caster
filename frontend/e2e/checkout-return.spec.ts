@@ -46,7 +46,7 @@ async function stubPricing(
       contentType: "application/json",
       body: JSON.stringify({
         card_available: true,
-        crypto_available: true,
+        crypto_available: false,
         mode: "subscription",
         currency: "usd",
         tiers: [{ tier: "supporter", usd: 4 }, { tier: "oracle", usd: 18 }],
@@ -138,11 +138,11 @@ test("cancelling charges nothing and changes nothing", async ({ page }) => {
   await expect(page.locator(".checkout-note")).toHaveCount(0);
 });
 
-test("with the card rail off, the surface offers crypto alone — no dead Buy button", async ({ page, context }) => {
+test("with the card rail off, there is no Buy button and no crypto fallback", async ({ page, context }) => {
   await stubPricing(context, { card_available: false });
   await page.goto("/");
   await openChapter(page, "VIII");
-  await expect(page.locator(".lib-support-btn")).toHaveText(/Support \/ Unlock/);
+  await expect(page.locator(".lib-support-btn")).toHaveText(/Where your support goes/);
   await expect(page.locator(".pricing-tier")).toHaveCount(0);
   await expect(page.locator(".pricing-buy")).toHaveCount(0);
 });

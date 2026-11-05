@@ -10,13 +10,10 @@ import {
   fetchTransits,
   generateChart,
   localChart,
-  getTreasury,
   restoreEntitlement,
   retrieveCheckout,
-  verifyDonation,
   ApiError,
   type AIResult,
-  type Treasury,
 } from "../api/client";
 import { looksLikeStripeReference } from "../lib/paymentRef";
 import { isHandoffPath } from "../lib/handoff";
@@ -196,7 +193,6 @@ interface AstroState {
   // Library so "is my key still good?" has an answer without a devtools trip.
   entitlementExp: number | null;
   isSupporter: boolean;
-  treasury: Treasury | null;
   supportOpen: boolean; // is the Support modal visible
   // Feedback for a Stripe redirect-return ("unlocked", "cancelled", a failure
   // to explain). Transient — never persisted, cleared when acknowledged.
@@ -229,8 +225,6 @@ interface AstroState {
   suggest: () => Promise<void>;
 
   openSupport: (open: boolean) => void;
-  loadTreasury: () => Promise<void>;
-  redeemDonation: (txHash: string, chain?: string) => Promise<boolean>;
   importEntitlement: (raw: string) => Promise<{ ok: boolean; note: string }>;
   /** Recover a paid tier from a Stripe purchase reference (cs_/pi_/sub_).
    *  Resolves with a showable sentence; never rejects. */
@@ -404,7 +398,6 @@ export const useStore = create<AstroState>((set, get) => ({
   entitlement: localStorage.getItem(ENT_KEY),
   entitlementExp: null,
   isSupporter: !!localStorage.getItem(ENT_KEY),
-  treasury: null,
   supportOpen: false,
   checkoutNote: null,
   checkoutBusy: false,
@@ -638,26 +631,6 @@ export const useStore = create<AstroState>((set, get) => ({
   },
 
   openSupport: (open) => { set({ supportOpen: open }); if (open) trackEvent("support_opened"); },
-
-  loadTreasury: async () => {
-    try {
-      set({ treasury: await getTreasury() });
-    } catch (e) {
-      set({ error: (e as Error).message });
-    }
-  },
-
-  redeemDonation: async (txHash, chain = "evm") => {
-    try {
-      const { entitlement } = await verifyDonation(txHash, chain);
-      localStorage.setItem(ENT_KEY, entitlement.token);
-      set({ entitlement: entitlement.token, isSupporter: true, supportOpen: false, entitlementExp: entitlement.exp ?? null });
-      return true;
-    } catch (e) {
-      set({ error: (e as Error).message });
-      return false;
-    }
-  },
 
   // The paste path (session 25): the APK has no address bar, so `?entitlement=`
   // is unreachable there — this is the only way a key bought on the web gets

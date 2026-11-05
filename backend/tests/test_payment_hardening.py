@@ -100,11 +100,6 @@ def test_money_endpoints_are_rate_limited(monkeypatch, tmp_path):
         assert codes[:3] == [200, 200, 200] and codes[3] == 429, codes
 
         RL.reset()
-        codes = [client.post("/api/donate/verify", json={"tx_hash": "0x" + "a" * 64, "chain": "evm"}).status_code
-                 for _ in range(4)]
-        assert codes[3] == 429 and 429 not in codes[:3], codes
-
-        RL.reset()
         codes = [client.post("/api/entitlement/renew", json={"entitlement": "nope"}).status_code for _ in range(4)]
         assert codes[:3] == [401, 401, 401] and codes[3] == 429, codes
 

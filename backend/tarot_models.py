@@ -326,7 +326,7 @@ class PersonalReportRequest(BaseModel):
     steps: int = 5                         # learning-path depth
     entitlement: Optional[str] = None      # oracle tier only
     # PDF-2: the deluxe edition is a SEPARATE purchase — a report token minted
-    # by /api/personal-report/purchase, bound to this exact oracle session seed.
+    # by a deluxe card purchase, bound to this exact oracle session seed.
     # Required unless the caller holds the dev/admin token.
     report_token: Optional[str] = None
 

@@ -10,8 +10,8 @@
 // Prices come from GET /api/pricing (env is the source of truth) — never
 // hardcoded here, or they drift the moment a price changes. When the card rail
 // isn't configured the card column simply doesn't exist, so an unconfigured
-// instance degrades honestly to the crypto rail instead of offering a button
-// that would 503.
+// instance degrades honestly to the free tier instead of offering a button
+// that would 503. (The crypto rail was removed 2026-11-05.)
 import React, { useEffect, useState } from "react";
 import { useStore } from "../store/useStore";
 import { createCheckout, getPricing, trackEvent, ApiError, type Pricing } from "../api/client";
@@ -44,7 +44,7 @@ export const PricingPanel: React.FC = () => {
     let live = true;
     getPricing()
       .then((p) => { if (live) { setPricing(p); trackEvent("pricing_viewed"); } })
-      .catch(() => { /* offline: the crypto rail and the free tier still stand */ });
+      .catch(() => { /* offline: the free tier still stands */ });
     return () => { live = false; };
   }, []);
 
@@ -61,7 +61,7 @@ export const PricingPanel: React.FC = () => {
     } catch (e) {
       setErr(
         e instanceof ApiError && e.status === 503
-          ? "Card payments aren't enabled on this instance — the crypto rail below still works."
+          ? "Card payments aren't enabled on this instance."
           : `Could not open checkout: ${(e as Error).message}`,
       );
       setBusyTier(null);
@@ -150,18 +150,14 @@ export const PricingPanel: React.FC = () => {
 
       {err && <p className="pricing-err">{err}</p>}
 
-      {/* The crypto rail — always available, and the only rail when Stripe is
-          unconfigured. Not .support-pill: that selector is the masthead's
+      {/* The support overlay: where the money goes, and for a supporter the
+          billing controls. Not .support-pill: that selector is the masthead's
           identity pill and e2e matches it strictly. */}
       <button
         className={`lib-support-btn ${isSupporter ? "is-supporter" : ""}`}
-        onClick={() => { trackEvent("checkout_started", { rail: "crypto" }); openSupport(true); }}
+        onClick={() => openSupport(true)}
       >
-        {isSupporter
-          ? "✦ Supporter — view options"
-          : cards.length > 0
-            ? "☤ …or contribute with crypto"
-            : "☤ Support / Unlock"}
+        {isSupporter ? "✦ Supporter — view options" : "☤ Where your support goes"}
       </button>
 
       {/* M3: the policies live as real pages with real URLs, because Stripe

@@ -8,24 +8,16 @@ import os
 import sys
 
 import pytest
-from fastapi.testclient import TestClient
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import entitlements as ENT  # noqa: E402
 import receipts as RCPT  # noqa: E402
-from main import app  # noqa: E402
-
-client = TestClient(app)
 
 
 @pytest.fixture(autouse=True)
 def fresh_ledger(tmp_path, monkeypatch):
     monkeypatch.setattr(RCPT, "_DB_PATH", tmp_path / "receipts.db")
 
-
-def _token(tier: str) -> str:
-    return ENT.mint_entitlement(tier, "test", True)["token"]
 
 
 # ── Unit: the ledger itself ─────────────────────────────────────────────────────
@@ -68,33 +60,3 @@ def test_broken_ledger_fails_closed(monkeypatch, tmp_path):
     assert not ok and "unavailable" in note
 
 
-# ── Endpoint: the purchase rail enforces the ledger ─────────────────────────────
-
-@pytest.fixture
-def trust_purchase_env(monkeypatch):
-    monkeypatch.setattr(ENT, "_ETH_RPC", "")
-    monkeypatch.setenv("AAE_TRUST_MODE", "1")
-
-
-def _purchase(tx: str, seed: str):
-    return client.post("/api/personal-report/purchase", json={
-        "tx_hash": tx, "seed": seed, "entitlement": _token("oracle")})
-
-
-def test_endpoint_cross_seed_replay_402(trust_purchase_env):
-    assert _purchase("0xledger1", "seed-A").status_code == 200
-    r = _purchase("0xledger1", "seed-B")
-    assert r.status_code == 402
-    assert "already redeemed" in r.json()["detail"]
-
-
-def test_endpoint_same_seed_remint_allowed(trust_purchase_env):
-    assert _purchase("0xledger2", "seed-A").status_code == 200
-    r = _purchase("0xledger2", "seed-A")   # lost claim / recompile path
-    assert r.status_code == 200
-    assert r.json()["granted"] is True
-
-
-def test_endpoint_fresh_tx_fresh_seed_ok(trust_purchase_env):
-    assert _purchase("0xledger3", "seed-A").status_code == 200
-    assert _purchase("0xledger4", "seed-B").status_code == 200

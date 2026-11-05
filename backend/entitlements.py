@@ -17,13 +17,8 @@ migration):
 verify_token() accepts BOTH kinds whenever the respective key material is
 configured, so flipping AAE_SIGN_ALGO never strands outstanding tokens.
 
-On-chain verification is pluggable:
-  • If AAE_ETH_RPC is set, a tx hash is checked against the treasury address and
-    a minimum value — real verification.
-  • Otherwise "trust" mode may accept a non-empty tx hash unverified — but ONLY
-    when explicitly enabled (AAE_TRUST_MODE) in a non-production environment
-    (AAE_ENV). It fails closed everywhere else, and the process refuses to boot
-    in production with trust mode enabled or a default secret (assert_safe_boot).
+Payments arrive only through Stripe (stripe_rail.py). The crypto rail was
+removed on 2026-11-05; tokens it minted earlier still verify until they expire.
 
 Env:
     AAE_SECRET        HMAC secret (REQUIRED in production; boot refused otherwise)
@@ -33,8 +28,6 @@ Env:
     AAE_TRUST_MODE    "1"/"true"/"yes"/"on" to allow unverified acceptance — takes
                       effect only in a non-production environment.
     AAE_ENT_DAYS      entitlement lifetime in days (default 365)
-    AAE_ETH_RPC       optional EVM JSON-RPC URL for real verification
-    AAE_MIN_WEI       minimum accepted value in wei (default 0 = any)
     AAE_SIGN_ALGO     "hmac" (default) or "ed25519" — which scheme SIGNS new
                       tokens; verification always accepts both when possible
     AAE_ED25519_SEED  64 hex chars (32-byte private seed) — required whenever
@@ -52,11 +45,9 @@ import logging
 import os
 import secrets
 import time
-from typing import Optional, Tuple
+from typing import Optional
 
-import httpx
 
-import treasury as TR
 
 _DEFAULT_SECRET = "aae-dev-secret-change-me"
 _SECRET_RAW = os.environ.get("AAE_SECRET", _DEFAULT_SECRET)
@@ -86,16 +77,15 @@ def _i(env: str, default: int) -> int:
 
 
 _ENT_DAYS = _i("AAE_ENT_DAYS", 365)
-_ETH_RPC = os.environ.get("AAE_ETH_RPC", "").strip()
-_MIN_WEI = _i("AAE_MIN_WEI", 0)
 _DEV_TOKEN = os.environ.get("AAE_DEV_TOKEN", "").strip()
 
 
 # --------------------------------------------------------------------------- #
 # Environment & trust-mode gating (fail closed)
 # --------------------------------------------------------------------------- #
-# Trust mode accepts a contribution's tx hash WITHOUT on-chain verification. It
-# is a local/dev convenience and must never grant entitlements in production.
+# Trust mode once accepted a crypto tx hash WITHOUT on-chain verification. The
+# crypto rail is gone (2026-11-05), so it grants nothing now; the boot refusal
+# below stays so a stale AAE_TRUST_MODE in a production env still fails loudly.
 # Rule: trust mode is allowed only when (a) explicitly enabled AND (b) the
 # environment is a recognized non-production value. Anything unset or malformed
 # fails closed — treated as production, trust mode denied.
@@ -128,8 +118,10 @@ def personal_mode() -> bool:
 # Env vars whose mere presence marks this deployment as public-facing. The
 # personal-mode interlock refuses to boot when any is set: Edition P must be
 # unreachable by paying strangers by construction, not by discipline.
-# Treasury and Stripe vars are matched by prefix so a newly added chain or
-# key can never drift out of the interlock's coverage.
+# Stripe vars are matched by prefix so a newly added key can never drift out
+# of the interlock's coverage. The ETH/treasury names belong to the removed
+# crypto rail; they stay here because an old .env may still set them, and any
+# leftover payment config is a reason to refuse a personal boot.
 _PUBLIC_SIGNALS = ("AAE_ETH_RPC",)
 _PUBLIC_SIGNAL_PREFIXES = ("AAE_TREASURY_", "AAE_STRIPE_")
 _PUBLIC_THRESHOLDS = ("AAE_ORACLE_MIN_WEI", "AAE_REPORT_MIN_WEI")
@@ -349,8 +341,8 @@ def relink_ref(ref: str, tier: str, verified: bool) -> dict:
     token for this payment reference, then mint a fresh one — so the
     entitlement MOVES to the requesting device and other devices' tokens for
     the same payment stop verifying. The CALLER must have re-proved the
-    payment (on-chain re-verify, or later a Stripe session) before calling
-    this; the ledger lookup alone is not proof, since tx hashes are public."""
+    payment (a Stripe session or reference) before calling this; the ledger
+    lookup alone is not proof."""
     try:
         import receipts as _rcpt
         prior = _rcpt.ent_find_active_ref(ref)
@@ -495,150 +487,20 @@ def entitlement_status(token: Optional[str]) -> dict:
 
 
 # --------------------------------------------------------------------------- #
-# On-chain verification (optional)
-# --------------------------------------------------------------------------- #
-
-
-async def verify_eth_payment_details(tx_hash: str) -> Tuple[bool, bool, str, int]:
-    """
-    Verify an EVM tx pays the treasury at least the minimum.
-    Returns (ok, verified_on_chain, note, value_wei). In trust mode (no RPC) any
-    non-empty hash is accepted (ok=True) but flagged verified_on_chain=False and
-    carries value_wei=0 — trust mode can therefore never satisfy an on-chain
-    value threshold (see paid_tier).
-    """
-    tx_hash = tx_hash.strip()
-    if not tx_hash:
-        return False, False, "missing tx hash", 0
-    if not _ETH_RPC:
-        # No on-chain verification configured. Accept ONLY in explicit dev trust
-        # mode; otherwise fail closed and deny the entitlement.
-        if trust_mode_allowed():
-            return True, False, "accepted in trust mode (dev only; unverified)", 0
-        return False, False, (
-            "on-chain verification unavailable and trust mode is disabled — set "
-            "AAE_ETH_RPC to verify, or enable AAE_TRUST_MODE in a non-production "
-            "environment"
-        ), 0
-
-    info = TR.treasury_info()
-    treasury_addr = next(
-        (c["address"].lower() for c in info["chains"] if c["id"] == "evm"), None
-    )
-    if not treasury_addr:
-        return False, False, "no EVM treasury configured", 0
-    try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            r = await client.post(_ETH_RPC, json={
-                "jsonrpc": "2.0", "id": 1, "method": "eth_getTransactionByHash",
-                "params": [tx_hash],
-            })
-            r.raise_for_status()
-            tx = r.json().get("result")
-    except Exception as exc:
-        return False, False, f"rpc error: {type(exc).__name__}", 0
-    if not tx:
-        return False, False, "transaction not found (still pending?)", 0
-    to_addr = (tx.get("to") or "").lower()
-    value_wei = int(tx.get("value", "0x0"), 16)
-    if to_addr != treasury_addr:
-        return False, False, "transaction recipient is not the treasury", 0
-    if value_wei < _MIN_WEI:
-        return False, False, "amount below minimum", 0
-    return True, True, "verified on-chain", value_wei
-
-
-def crypto_rail_open() -> bool:
-    """Can a crypto payment ACTUALLY mint an entitlement right now?
-
-    The parallel of stripe_available(), and it exists for the same reason. A
-    configured treasury address alone was previously enough to advertise the
-    rail, but the address is only half of it: verify_eth_payment_details needs
-    an RPC to check the transaction, and with no RPC it fails closed everywhere
-    trust mode is not allowed — i.e. in production. That combination publishes
-    an address that can receive an irreversible payment and then mints nothing
-    for it, while /api/pricing reports the rail as open.
-
-    Requiring both means the rail is advertised only when it can be honoured.
-    """
-    info = TR.treasury_info()
-    if not info.get("configured"):
-        return False
-    return bool(_ETH_RPC) or trust_mode_allowed()
-
-
-async def verify_eth_payment(tx_hash: str) -> Tuple[bool, bool, str]:
-    """Back-compat 3-tuple wrapper over verify_eth_payment_details."""
-    ok, verified, note, _ = await verify_eth_payment_details(tx_hash)
-    return ok, verified, note
-
-
-# Oracle tier is minted only for on-chain-VERIFIED contributions at/above an
-# explicitly configured threshold. Unset/zero threshold disables oracle minting
-# entirely (fail closed) — trust-mode grants carry value 0 and can never reach it.
-_ORACLE_MIN_WEI = _i("AAE_ORACLE_MIN_WEI", 0)
-
-
-def paid_tier(verified: bool, value_wei: int) -> str:
-    """Tier for an accepted contribution: 'oracle' only when the payment was
-    verified on-chain AND AAE_ORACLE_MIN_WEI is configured (>0) AND the value
-    meets it; 'supporter' in every other case."""
-    if verified and _ORACLE_MIN_WEI > 0 and value_wei >= _ORACLE_MIN_WEI:
-        return "oracle"
-    return "supporter"
-
-
-def accept_offchain_payment(tx_hash: str) -> Tuple[bool, bool, str]:
-    """Honour-system acceptance for chains with no on-chain check wired up here
-    (e.g. non-EVM). Gated behind dev trust mode — fails closed in production."""
-    tx_hash = (tx_hash or "").strip()
-    if not tx_hash:
-        return False, False, "missing tx hash"
-    if trust_mode_allowed():
-        return True, False, "accepted in trust mode (dev only; unverified)"
-    return False, False, "off-chain verification unavailable and trust mode is disabled"
-
-
-# --------------------------------------------------------------------------- #
 # PDF-2 — Personal Report purchase (separate product beyond oracle tier)
 # --------------------------------------------------------------------------- #
 # The deluxe compiled edition is a SEPARATE purchase: an oracle-tier
 # entitlement alone must not unlock it. A purchase mints a report token BOUND
 # to exactly one Oracle session seed — a stateless one-shot claim. Recompiles
 # of that same session stay allowed (same seed, same product); any other
-# session requires a new purchase. Same fail-closed posture as oracle-tier
-# minting: on-chain purchases qualify only above an explicitly configured
-# threshold, and unverified acceptance exists only in dev trust mode (which
-# assert_safe_boot makes impossible in production).
+# session requires a new purchase. Purchases arrive only through Stripe
+# (/api/personal-report/checkout).
 #
 # Env:
-#     AAE_REPORT_MIN_WEI      product price in wei; unset/0 DISABLES on-chain
-#                             purchases entirely (fail closed)
 #     AAE_REPORT_TOKEN_DAYS   claim lifetime in days (default 30)
 
 _REPORT_PRODUCT = "personal_report"
-_REPORT_MIN_WEI = _i("AAE_REPORT_MIN_WEI", 0)
 _REPORT_TOKEN_DAYS = _i("AAE_REPORT_TOKEN_DAYS", 30)
-
-
-def report_purchase_allowed(verified: bool, value_wei: int) -> Tuple[bool, str]:
-    """Fail-closed purchase policy for the deluxe edition.
-
-    A payment that arrives here already passed verify_eth_payment_details /
-    accept_offchain_payment, so `verified=False` can only mean dev trust mode
-    — allowed (unverified, dev only). A verified on-chain payment qualifies
-    only when AAE_REPORT_MIN_WEI is explicitly configured (>0) and met.
-    """
-    if verified:
-        if _REPORT_MIN_WEI <= 0:
-            return False, (
-                "personal-report purchases are not enabled — the operator must "
-                "set AAE_REPORT_MIN_WEI to the product price"
-            )
-        if value_wei < _REPORT_MIN_WEI:
-            return False, "amount below the personal-report price"
-        return True, "verified on-chain"
-    return True, "accepted in trust mode (dev only; unverified)"
 
 
 def mint_report_token(seed: str, ref: str, verified: bool) -> dict:

@@ -377,8 +377,8 @@ export const LibraryVault: React.FC = () => {
         )}
       </div>
 
-      {/* E-3: support & unlock became a real pricing surface — both rails, live
-          prices — instead of a lone button into the crypto modal. */}
+      {/* E-3: support & unlock is a real pricing surface with live prices,
+          not a lone button into a modal. */}
       {isSupporter && <PricingPanel />}
     </div>
   );

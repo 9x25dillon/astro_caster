@@ -7,10 +7,11 @@ price could be presented repeatedly to mint claims for *different* Oracle
 session seeds. First redemption wins; recompiles of the SAME session stay
 allowed (the claim was always seed-bound and re-usable for its own seed).
 
-Deliberately scoped to the personal-report purchase rail. /api/donate/verify
-stays replayable BY DESIGN: supporters re-verify their tx to recover a lost
-token (the documented AAE_SECRET-rotation path), and a tier token grants the
-same thing on every mint — there is no cross-seed amplification to prevent.
+Deliberately scoped to the personal-report purchase. Tier tokens need no
+such guard: a tier token grants the same thing on every mint, so there is no
+cross-seed amplification to prevent. (The crypto rail that first fed this
+ledger was removed 2026-11-05; Stripe purchases use the same table, keyed by
+their Stripe reference, and older crypto rows stay readable.)
 
 Storage is stdlib SQLite next to the telemetry db (same posture: local
 instance data, gitignored). AAE_RECEIPTS_DB overrides the path.
@@ -122,7 +123,7 @@ def claim_tx(tx_hash: str, seed: str, *, verified: bool, wei: int = 0) -> tuple[
 #
 # Failure posture, deliberate and documented:
 #   - RECORDING a mint/renewal is best-effort: the signature is what grants
-#     access, and /api/donate/verify is replayable by design — blocking a
+#     access — blocking a
 #     mint on a ledger hiccup would strand a paying supporter for no security
 #     gain. An unrecorded token simply cannot be individually revoked (the
 #     AAE_SECRET rotation runbook remains the blunt instrument).
