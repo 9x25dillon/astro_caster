@@ -25,11 +25,11 @@ import {
 import type { ShelfEntry } from "../src/lib/bookshelf";
 
 const BIRTH = {
-  year: 1987, month: 11, day: 11, hour: 13, minute: 9, second: 0,
-  lat: 34.0591, lng: -117.9124, tz_offset: -8,
+  year: 1879, month: 3, day: 14, hour: 11, minute: 30, second: 0,
+  lat: 48.4011, lng: 9.9876, tz_offset: 1,
   house_system: "P", zodiac: "tropical", ayanamsha: 1, label: "mine",
 };
-const OTHER_BIRTH = { ...BIRTH, year: 1990, label: "someone else" };
+const OTHER_BIRTH = { ...BIRTH, year: 1880, label: "someone else" };
 
 const NOW = Date.parse("2026-08-28T04:00:00Z");
 const iso = (msAgo: number) => new Date(NOW - msAgo).toISOString();
