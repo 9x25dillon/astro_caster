@@ -167,6 +167,22 @@ def ai_status() -> dict:
     }
 
 
+def ai_public_status() -> dict:
+    """The slice of ai_status() that is safe on the PUBLIC health check.
+
+    /api/health is unauthenticated, so it carries only whether an AI provider
+    is working: no key fingerprint, no model names (which model each paid tier
+    buys is a business detail), and no internal URLs. The full report stays
+    available to the operator via /api/admin/ai-status and `tools/dev.py ai
+    status`.
+    """
+    full = ai_status()
+    return {
+        "mode": full["mode"],
+        "configured": full["configured"],
+    }
+
+
 def model_for_tier(tier: str) -> str:
     """The cloud model a tier's reading will be written by.
 

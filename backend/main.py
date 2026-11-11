@@ -4,7 +4,7 @@ main.py
 FastAPI surface for the Astrological Analysis Environment.
 
 Endpoints:
-  GET  /api/health              – liveness + ephemeris + AI + TTS status
+  GET  /api/health              – liveness + ephemeris + coarse AI + TTS status
   POST /api/generate-chart      – full natal chart (planets, houses, aspects, patterns)
   POST /api/transits            – transiting positions + aspects to a natal chart
   POST /api/ai-ask              – reflective interpretation (non-streaming)
@@ -46,6 +46,7 @@ Endpoints:
   POST /api/entitlement/restore – re-issue a paid tier from its Stripe reference
   POST /api/telemetry/event     – ingest a UI feature event (fire-and-forget)
   GET  /api/admin/stats         – admin summary (dev token required)
+  GET  /api/admin/ai-status     – full AI provider config (dev token required)
 
 Run:  uvicorn main:app --reload --port 8787
 """
@@ -91,7 +92,7 @@ import ratelimit as RL
 import receipts as RCPT
 import telemetry as TEL
 import tts as T
-from ai import ai_status, interpret, interpret_arcana, interpret_stream
+from ai import ai_public_status, ai_status, interpret, interpret_arcana, interpret_stream
 from ai import model_for_tier as AI_MODEL_FOR_TIER
 from forecast import generate_forecast
 from models import (
@@ -330,9 +331,11 @@ async def health():
         # capable of saying "swiss-partial", which is what this deployment is.
         "ephemeris": E.ephemeris_status()["mode"],
         "ephemeris_detail": E.ephemeris_status(),
-        # ai_status probes local providers (up to ~1.5s each on a cache miss)
-        # — keep it off the event loop.
-        "ai": await asyncio.to_thread(ai_status),
+        # Public, unauthenticated: coarse AI availability only. The key
+        # fingerprint, model names and provider URLs are operator-only, at
+        # /api/admin/ai-status. ai_status probes local providers (up to ~1.5s
+        # each on a cache miss) — keep it off the event loop.
+        "ai": await asyncio.to_thread(ai_public_status),
         "tts": T.tts_status(),
     }
 
@@ -1297,6 +1300,15 @@ async def admin_stats(x_aae_token: Optional[str] = Header(None)):
     # nobody having shown up.
     summary["ai_fallbacks"] = MET.ai_fallback_snapshot()
     return summary
+
+
+@app.get("/api/admin/ai-status")
+async def admin_ai_status(x_aae_token: Optional[str] = Header(None)):
+    """Full AI provider report (key fingerprint, per-tier models, local
+    provider URLs) — what /api/health used to expose publicly. Operator only."""
+    if not ENT.is_operator(x_aae_token):
+        raise HTTPException(status_code=403, detail="forbidden")
+    return await asyncio.to_thread(ai_status)
 
 
 @app.get("/api/admin/entitlements")
