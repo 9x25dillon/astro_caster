@@ -270,7 +270,9 @@ export async function aiAskStream(
 export interface Health {
   status: string;
   ephemeris: string;
-  ai: { mode: string; configured: boolean; model: string };
+  // Public health carries coarse AI availability only; model names and the
+  // key fingerprint are operator-only (/api/admin/ai-status).
+  ai: { mode: string; configured: boolean };
   tts: { available: boolean; default_voice_id: string | null; model: string | null };
 }
 
