@@ -1,10 +1,10 @@
-fastapi==0.141.1
+fastapi==0.162.2
 uvicorn[standard]==0.54.0
-pydantic==2.13.5
+pydantic==2.14.3
 pyswisseph==2.10.3.2
 httpx==0.28.1
 python-dotenv==1.2.4
-tzdata==2026.5
-anthropic==1.11.0
+tzdata==2026.6
+anthropic==2.6.0
 cryptography==50.0.2
-pytest==9.1.1
+pytest==9.2.0
